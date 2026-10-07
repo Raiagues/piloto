@@ -1,0 +1,46 @@
+{
+  "model": "jev-latest",
+  "state": {
+    "current_event": {
+      "event_id": "E071",
+      "type": "test_proposal",
+      "text": "Let's test a 4 mm version."
+    },
+    "recent_context": [
+      {
+        "chunk_id": "C102",
+        "text": "The sensor enclosure wall is too flexible."
+      },
+      {
+        "chunk_id": "C103",
+        "text": "Maybe increasing its thickness would help."
+      }
+    ],
+    "active_thread": {
+      "thread_id": "T002",
+      "events": [
+        {
+          "event_id": "E065",
+          "type": "observation",
+          "text": "The sensor enclosure wall is too flexible."
+        },
+        {
+          "event_id": "E068",
+          "type": "hypothesis",
+          "text": "Increasing the enclosure wall thickness may solve the issue."
+        }
+      ]
+    }
+  },
+  "questions": {
+    "belongs_to_active_thread": {
+      "type": "choice",
+      "instructions": "Determine conversational continuity. Identify the established problem or goal from active_thread.events, then read recent_context chronologically to resolve current_event. Track that problem across facts, alternative causes, tests, results, and decisions. Facts and requirements explicitly identifying the same subject can add background or constraints without proving a causal relationship. A new suspected cause, involved part, or next test may continue the same investigation without repeating its subject. Logistics, acknowledgments, and isolated statements without an identified subject do not establish a topic change. Pending recent events remain useful conversational context even when absent from active_thread.events. Routing fields (thread_id, thread_assignment_state, status) are application bookkeeping, not evidence of topic membership; current_event is pending because it awaits classification. Its nested chunk repeats the source utterance, not a second utterance. Mere adjacency or possible technical relevance to the same project is insufficient. An isolated requirement or constraint with no identified subject is uncertain; do not silently attach it to the last discussed design. Reserve does_not_belong for a conversationally supported change of problem or goal.",
+      "criteria": {
+        "belongs": "The conversation establishes a continuation or return to the same problem, goal, or line of work. This includes a fact identifying the subject already under discussion, an alternative cause of the established problem, a change to how that problem will be tested, or a follow-up to a recent hypothesis or result. Resolve implicit references using both the established thread and the recent sequence; the speaker need not repeat the subject in every utterance. A different suspected cause or involved part does not by itself mean a different thread. A requirement or constraint explicitly identifying the active subject and stating a property or acceptance criterion for it also continues the discussion; this is different from an isolated requirement with no identified subject.",
+        "does_not_belong": "The conversation clearly establishes a different problem, goal, or independent line of work, such as an explicit topic switch to another investigation. A different component name is evidence only when it identifies a different discussion, not when it is offered as another explanation or test of the established problem.",
+        "uncertain": "The current event could plausibly belong to the active thread, but the conversation does not provide enough evidence to establish that continuation. Use this for isolated requirements, facts, constraints, or statements that might apply to the active subject but do not explicitly or contextually identify it. Mere adjacency in the transcript or possible technical applicability does not identify the subject. Also use uncertain rather than guessing when deciding would require an unstated assumption."
+      }
+    }
+  }
+}

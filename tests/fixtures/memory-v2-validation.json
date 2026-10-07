@@ -1,0 +1,290 @@
+{
+  "batch_id": "MEMORY-V2-VALIDATION",
+  "cases": [
+    {
+      "id": "V01",
+      "current_utterance": "The sourdough loaf is 11 cm tall and has a dense center.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "V02",
+      "current_utterance": "Maybe the dough is too cold during the final proof.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "V03",
+      "current_utterance": "Let's compare a longer final proof at the current oven setting.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "V04",
+      "current_utterance": "In that baking trial, the longer proof produced an open crumb.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "V05",
+      "current_utterance": "One moment, I need to answer the door.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "V06",
+      "current_utterance": "Please repeat that trial tomorrow morning.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "V07",
+      "current_utterance": "The customer requires a minimum finished weight of 700 grams.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "V08",
+      "current_utterance": "That weight requirement applies to the sourdough loaf.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "V09",
+      "current_utterance": "Now let's discuss the fruit tart.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "V10",
+      "current_utterance": "The fruit tart filling leaks through the pastry overnight.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "V11",
+      "current_utterance": "Maybe the filling has too much free liquid.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "V12",
+      "current_utterance": "Let's compare drained and undrained fruit in an overnight storage trial.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "V13",
+      "current_utterance": "The overnight trial with drained fruit left the pastry dry.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "V14",
+      "current_utterance": "Separately, the sourdough loaf's crust tastes burnt.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "V15",
+      "current_utterance": "Maybe the top heating element is too intense.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "V16",
+      "current_utterance": "Let's bake a loaf on a lower oven shelf to investigate the burnt crust.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "V17",
+      "current_utterance": "Returning to the sourdough crumb, we have decided to adopt the longer final proof.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "V18",
+      "current_utterance": "The fruit tart filling must stay inside the pastry through overnight storage.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "V19",
+      "current_utterance": "Back to the burnt sourdough crust, the lower-shelf baking trial removed the bitter taste.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "V20",
+      "current_utterance": "Sounds good.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    }
+  ],
+  "expected_threads": {
+    "V01": {
+      "expected_active_thread_id": null,
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "V02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "V03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "V04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "V06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "V07": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {},
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "V08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "V10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002"
+    },
+    "V11": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "V12": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "V13": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "V14": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong"
+      },
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T003"
+    },
+    "V15": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "V16": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "V17": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T002": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "V18": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "V19": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong",
+        "T003": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T003"
+    }
+  },
+  "review_notes": {
+    "domain": "Bakery product development: sourdough crumb, fruit tart leakage, and sourdough crust flavor.",
+    "provenance": "Independent validation fixture, authored without inspecting model responses or changing the in-progress prompts. Keep separate from prompt-development fixtures.",
+    "audit": [
+      {
+        "case_id": "V01",
+        "reason": "A numerical current-state fact is still an observation: the utterance does not claim a measurement or a testing outcome."
+      },
+      {
+        "case_id": "V06",
+        "reason": "A concrete instruction to repeat an indirectly named trial is useful memory and a test proposal; intervening logistics do not change the subject."
+      },
+      {
+        "case_id": "V07",
+        "reason": "The required minimum weight has no identified product. Conservative scope policy requires a pending assignment despite adjacency to sourdough discussion."
+      },
+      {
+        "case_id": "V08",
+        "reason": "Explicitly identifies the product constrained by the prior requirement. Only one sourdough investigation exists at this point; the newly clarified constraint enriches it. V07 retains its original pending assessment."
+      },
+      {
+        "case_id": "V09",
+        "reason": "A topic announcement alone is not durable project memory, but the statement remains available as conversational context."
+      },
+      {
+        "case_id": "V14",
+        "reason": "The speaker explicitly opens a separate crust-flavor problem. Sharing the sourdough loaf with the established crumb investigation does not merge those independent lines of work."
+      },
+      {
+        "case_id": "V18",
+        "reason": "Both the named product and the required containment behavior identify the tart-leakage investigation, avoiding a component-only match."
+      }
+    ]
+  }
+}

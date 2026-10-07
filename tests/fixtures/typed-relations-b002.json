@@ -1,0 +1,1107 @@
+{
+  "batch_id": "TYPED-B002-REVIEWED",
+  "cases": [
+    {
+      "id": "C01",
+      "current_utterance": "The bracket is deforming too much.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C02",
+      "current_utterance": "Yeah.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C03",
+      "current_utterance": "The current bracket is 3 mm aluminum.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C04",
+      "current_utterance": "Maybe the thickness is causing the problem.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C05",
+      "current_utterance": "Okay, that makes sense.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C06",
+      "current_utterance": "Let's test a 4 mm version.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C07",
+      "current_utterance": "Can you repeat that?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C08",
+      "current_utterance": "In the deformation test, the 4 mm version still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C09",
+      "current_utterance": "Please run that test again this afternoon.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C10",
+      "current_utterance": "We have decided to use the 4 mm version in the next prototype.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C11",
+      "current_utterance": "I will reconnect in one minute.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C12",
+      "current_utterance": "The client requires a safety factor of two.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C13",
+      "current_utterance": "Maybe the support stiffness is the real issue.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C14",
+      "current_utterance": "Let's test the support condition next.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C15",
+      "current_utterance": "We tested the 4 mm version and it still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C16",
+      "current_utterance": "Now let's discuss the sensor enclosure.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C17",
+      "current_utterance": "The sensor enclosure wall is cracking near the mounting holes.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C18",
+      "current_utterance": "Can everyone see my screen?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C19",
+      "current_utterance": "Maybe the mounting-hole spacing is concentrating the stress.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C20",
+      "current_utterance": "Yeah, I can see it now.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C21",
+      "current_utterance": "Let's test a version with wider hole spacing.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C22",
+      "current_utterance": "In the test with wider hole spacing, the sensor enclosure no longer cracked.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C23",
+      "current_utterance": "Give me a second, I need to grab my charger.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C24",
+      "current_utterance": "Going back to the bracket, the 4 mm rerun still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C25",
+      "current_utterance": "Sorry, my audio cut out for a second.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C26",
+      "current_utterance": "For the sensor enclosure, let's test a 4 mm wall.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C27",
+      "current_utterance": "The client also requires a maximum mass of 2 kg.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C28",
+      "current_utterance": "By the way, lunch is in the conference room.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C29",
+      "current_utterance": "That 2 kg limit applies to the sensor enclosure.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C30",
+      "current_utterance": "Separately, the bracket coating is failing the salt-spray test.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C31",
+      "current_utterance": "Give me a second, I'm opening the coating report.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C32",
+      "current_utterance": "Maybe the coating thickness is too low.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C33",
+      "current_utterance": "Let's measure the coating thickness.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C34",
+      "current_utterance": "I can't see the slides because the meeting-room projector is disconnected.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C35",
+      "current_utterance": "We measured the coating at 18 microns, below the required 25.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C36",
+      "current_utterance": "Back to the bracket deformation, let's test the support stiffness under the same load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C37",
+      "current_utterance": "Can we take a five-minute break after this?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C38",
+      "current_utterance": "For the sensor enclosure, the 4 mm wall cracked again.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C39",
+      "current_utterance": "The sensor enclosure must remain under 2 kg.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C40",
+      "current_utterance": "The bracket must maintain a safety factor of two under the test load.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C41",
+      "current_utterance": "Okay.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C42",
+      "current_utterance": "Did anyone see the game last night?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C43",
+      "current_utterance": "Let's run the support-stiffness test under the same load tomorrow morning.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    }
+  ],
+  "expected_threads": {
+    "C01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "C03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C12": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {},
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "C13": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C14": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C15": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C17": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002"
+    },
+    "C19": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C21": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C22": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C24": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C26": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C27": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {
+        "T001": "uncertain"
+      },
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "C29": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C30": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong"
+      },
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T003"
+    },
+    "C32": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C33": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C35": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C36": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T002": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C38": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C39": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C40": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C43": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    }
+  },
+  "review_notes": {
+    "baseline": "memory-b002-original.json preserves the supplied B002 cases and expectations.",
+    "classification_scope": "Memory retention and event type use only current_utterance. Thread membership uses prior conversational context. A prior test proposal alone must not change an isolated observation into a test result.",
+    "changes": [
+      {
+        "case_id": "C08",
+        "field": "current_utterance",
+        "reason": "Makes the experiment explicit so test_result is justified by the utterance alone."
+      },
+      {
+        "case_id": "C22",
+        "field": "current_utterance",
+        "reason": "Makes the experiment explicit so test_result is justified by the utterance alone."
+      },
+      {
+        "case_id": "C13",
+        "field": "expected_action",
+        "old": "assign_active_thread",
+        "new": "keep_active_thread",
+        "reason": "A pending event does not remove or replace the active thread; T001 remains active after C12."
+      }
+    ],
+    "retained_expectations": [
+      {
+        "case_id": "C38",
+        "reason": "The utterance reports a crack without saying it occurred in an experiment; observation follows isolated classification even though C26 proposed a test."
+      },
+      {
+        "case_id": "C27",
+        "reason": "The requirement names no subject. Under the explicit conservative routing policy, adjacency alone does not identify the enclosure."
+      },
+      {
+        "case_id": "C29",
+        "reason": "This new event explicitly identifies the enclosure and belongs to T002. Any later resolution of C27 must preserve its initially pending result."
+      }
+    ],
+    "typed_relations": {
+      "source_fixture": "memory-b002-reviewed.json",
+      "authorship": "Initial annotations were prepared from the utterances and declared threads before model inference. Subsequent changes after inspecting outputs are explicitly recorded in label_revisions; historical execution artifacts retain the original annotation.",
+      "preservation": "All cases, utterances, event types, and expected_threads are unchanged. Only batch_id, expected_typed_relations and review notes are added in this separate fixture.",
+      "annotation_policy": "Annotated none means a defensible absence of a useful direct link under the current taxonomy. An omitted pair has no expected label and must remain unscored, never implicitly none. All eligible pairs are accounted for by an annotation or an explicit unannotated-pair explanation.",
+      "candidate_scope": "Only prior retained events assigned to the same thread. Pending C12 and C27 get empty maps. No cross-thread or retrospective-resolution edges are adjudicated.",
+      "configuration_resolution": "Conversation can identify what that test refers to, but does not fill omitted setup parameters. C09 omits the 4 mm parameter, making C09 -> C06 and C24 -> C09 partial. Do not use this partial match to auto-complete the rerun.",
+      "coverage": {
+        "eligible_previous_same_thread_pairs": 125,
+        "annotated_pairs": 112,
+        "positive_pairs": 18,
+        "explicit_none_pairs": 94,
+        "unannotated_pairs": 13
+      },
+      "unannotated_pairs": [
+        {
+          "source_chunk_id": "C04",
+          "target_chunk_id": "C03",
+          "reason": "The thickness reference uses the baseline fact to resolve its parameter, but the contract does not unambiguously distinguish a direct related_to edge to that property fact from background-only reference resolution. The explanatory edge to C01 is annotated separately."
+        },
+        {
+          "source_chunk_id": "C13",
+          "target_chunk_id": "C08",
+          "reason": "The alternative support-stiffness explanation could concern the original deformation problem generally or the particular failed 4 mm experiment. The text does not identify that specific result as its explanatory target."
+        },
+        {
+          "source_chunk_id": "C15",
+          "target_chunk_id": "C06",
+          "reason": "No trial ID, new-execution marker, or time is supplied. This may restate the C08 result of the C06 proposal, report the requested C09 rerun, or describe another 4 mm execution. The original proposal cannot be selected uniquely."
+        },
+        {
+          "source_chunk_id": "C15",
+          "target_chunk_id": "C09",
+          "reason": "The preceding rerun request does not prove that this statement reports its execution. Unlike C24, C15 does not say rerun or identify the afternoon execution."
+        },
+        {
+          "source_chunk_id": "C15",
+          "target_chunk_id": "C14",
+          "reason": "A 4 mm version could have been used in a support-condition test, but the report does not identify support condition or stiffness. The missing test identity cannot be recovered from adjacency."
+        },
+        {
+          "source_chunk_id": "C24",
+          "target_chunk_id": "C15",
+          "reason": "C24 explicitly identifies a rerun, but C15 never identified its execution. They might report the same rerun or different executions. Do not invent repeats, supports, contradiction, or deduplication between these reports."
+        },
+        {
+          "source_chunk_id": "C36",
+          "target_chunk_id": "C14",
+          "reason": "This names support stiffness and a load condition more precisely than the earlier support-condition proposal, but it does not say that it replaces, clarifies, repeats, or is a second execution of that proposal. A later return to a still-open plan and a new trial are both plausible."
+        },
+        {
+          "source_chunk_id": "C38",
+          "target_chunk_id": "C17",
+          "reason": "Again explicitly signals recurrence, but the new wall version and crack location are not identified relative to the earlier mounting-hole crack. The taxonomy does not clearly specify whether recurrence of a physical fault is repeats, related_to, or merely another observation; no exact recurrence/configuration is asserted."
+        },
+        {
+          "source_chunk_id": "C38",
+          "target_chunk_id": "C26",
+          "reason": "The 4 mm wall observation is compatible with the earlier proposed test, but the utterance does not state that a test was executed. Retain observation as supplied and do not infer a result_of edge merely from a proposal plus a later fault."
+        },
+        {
+          "source_chunk_id": "C39",
+          "target_chunk_id": "C29",
+          "reason": "The same scoped mass constraint is restated; however under 2 kg may specify a strict inequality where 2 kg limit did not state the boundary explicitly. A plain restatement and a boundary clarification are both plausible. This is not automatic supersession or evidence of compliance."
+        },
+        {
+          "source_chunk_id": "C43",
+          "target_chunk_id": "C13",
+          "reason": "Naming the support-stiffness test may directly express the causal investigation purpose, or may simply reference the already-proposed test C36. The direct-versus-inherited purpose link is insufficiently explicit for a unique label."
+        },
+        {
+          "source_chunk_id": "C43",
+          "target_chunk_id": "C14",
+          "reason": "Neither proposal identifies a completed earlier execution or a unique shared test ID. The new scheduling instruction does not establish a repeated execution of the old generic support-condition proposal."
+        },
+        {
+          "source_chunk_id": "C43",
+          "target_chunk_id": "C36",
+          "reason": "Tomorrow morning may schedule the same still-open test, reschedule it, or request an additional execution. Unlike C09, C43 does not say again. Do not force repeats, supersedes, or clarifies without that distinction."
+        }
+      ],
+      "pair_review_by_source": {
+        "C01": "First bracket-deformation event has no previous same-thread candidates.",
+        "C03": "Existing 3 mm aluminum design is background. It does not assert why the bracket deforms, a planned change, or a comparison with C01; C03 -> C01 is none.",
+        "C04": "An unverified explanation is explicitly offered for the deformation problem C01. This related_to edge is not established physical causation. The property-fact target C03 is left unannotated.",
+        "C06": "The immediately preceding thickness hypothesis supplies the explicit referent and purpose for the proposed 4 mm experiment. tests targets C04, not the historical observation or a transitive premise. A different thickness is not an explicit replacement of the current design fact.",
+        "C08": "The reviewed text explicitly reports the deformation experiment on the 4 mm version just proposed in C06. The single stated setup identifier matches. No extra test conditions are invented. Failure alone neither refutes the broad thickness hypothesis nor invalidates the historical deformation observation.",
+        "C09": "A new execution is requested. Resolving that test identifies the trial reported in C08 and its proposal C06, so both are direct repeats targets. C09 does not restate the identifying 4 mm setup parameter; both matches are partial, not exact. The prior result cannot be reused to complete this new request.",
+        "C10": "The 4 mm version is chosen for a future prototype, but no evidence is explicitly cited as the rationale. Do not manufacture based_on from preceding test results, supersede the historical 3 mm fact, or treat adoption as proof that deformation was solved.",
+        "C12": "Thread assignment remains pending. No intrathread candidates, semantic edges, or retrospective assignment are inferred.",
+        "C13": "A different possible cause is offered for C01. It does not explicitly reject or replace C04, and merely being a plausible explanation of C08 is insufficient for an annotated direct edge to that particular trial.",
+        "C14": "The proposed support-condition investigation directly addresses C13. It neither cancels the earlier requested rerun nor inherits links through the hypothesis.",
+        "C15": "This is definitely a test_result under isolated event classification, but its trial identity is unresolved. Candidate plans C06, C09, and C14 are explicitly unannotated. Similar wording to C08 is not an explicit report-to-report comparison, replacement, or claim of a new repeated execution.",
+        "C17": "First sensor-enclosure event has no previous same-thread candidates.",
+        "C19": "The mounting-hole-spacing hypothesis explicitly offers an explanation of the cracking problem C17; it is not a proven causal effect.",
+        "C21": "The wider-spacing experiment directly investigates C19. No separate purpose edge to C17 is inherited through the hypothesis.",
+        "C22": "The reviewed text explicitly states a performed wider-spacing test, so result_of C21 is clear and their stated setup corresponds. Success alone is not an explicit causal-support claim about C19 and does not contradict the historical crack observation C17.",
+        "C24": "The 4 mm rerun reports execution of C09 (result_of/partial because C09 omits the numeric setup). It repeats the initial 4 mm trial represented by C06 and C08 (repeats/exact). This is an explicit repeated execution, not result_of the original plan. C15 remains unannotated because it never identifies which execution it reports. The later audit corrected overly strong none labels on C06/C08; prior metrics remain preserved.",
+        "C26": "A wall-thickness experiment is proposed. This continues the enclosure thread but does not explicitly repeat, replace, explain, or rely on a particular earlier event. Shared enclosure and cracking context do not themselves create edges.",
+        "C27": "Thread assignment remains pending. No candidate set or edges, including to another pending generic requirement, are inferred.",
+        "C29": "This clearly scopes a prior mass constraint to the enclosure. Its natural clarification target C27 is pending and outside the same-thread candidate set. Do not redirect clarifies to an unrelated assigned event or use this as proof of compliance.",
+        "C30": "First independent coating investigation event. A salt-spray outcome does not create an unseen proposal event or cross-thread edge to the bracket-deformation history.",
+        "C32": "The low-coating-thickness hypothesis is an explicit possible explanation of the salt-spray failure C30, without asserting proven causation.",
+        "C33": "The proposed measurement directly tests the low-thickness claim C32. A link to C30 is not inherited through that hypothesis.",
+        "C35": "This explicitly performs the coating-thickness measurement proposed by C33; no identifying setup parameter specified by that proposal is omitted. The 18-versus-required-25 comparison directly supports the low-thickness claim C32. It does not prove that thin coating caused the salt-spray failure C30.",
+        "C36": "The named support-stiffness investigation directly tests the candidate explanation C13. Its identity relative to C14 is unresolved; returning to a topic does not establish an executed test to repeat.",
+        "C38": "Preserve the supplied observation classification. The relation to proposed trial C26 and the earlier crack occurrence C17 is not uniquely established. A 4 mm wall cracking does not contradict the earlier wider-hole-spacing result C22 without evidence that this wall used that spacing and test setup.",
+        "C39": "A scoped requirement is restated; no result verifies or violates it. Its relation to the earlier 2 kg phrasing is left unannotated because the strictness/clarification distinction is not explicit. No physical-fault relation is invented from possible engineering relevance.",
+        "C40": "This scopes the safety-factor criterion to the bracket under a load. C12 is the natural pending scope-clarification antecedent, but is not an assigned same-thread candidate. The requirement does not prove an earlier test passed, close an investigation, or explicitly modify a particular plan.",
+        "C43": "Scheduling the support-stiffness test tomorrow is useful memory, but does not establish a second execution. Preserve ambiguity relative to C36 and C14, and do not turn repetition of phrasing into a lifecycle completion or supersession."
+      },
+      "pending_scope_links_not_evaluated": [
+        {
+          "source_chunk_id": "C29",
+          "target_chunk_id": "C27",
+          "reason": "Direct scope clarification is linguistically apparent, but C27 has no thread assignment. A separate pending-resolution policy would be needed; same-thread classification must not silently assign it."
+        },
+        {
+          "source_chunk_id": "C40",
+          "target_chunk_id": "C12",
+          "reason": "The safety-factor requirement now names the bracket, but C12 remains historically pending. Do not invent a same-thread candidate or rewrite the original routing decision."
+        }
+      ],
+      "question_interpretation_limits": [
+        "C15 is a test result but does not identify an execution. Never assume repeated wording means a rerun, a restatement of C08, or fulfillment of the latest proposal. Type and execution identity are different questions.",
+        "C24 explicitly reports a rerun. It can target the earlier explicit rerun request C09 without asserting whether C15 was that same rerun. Report-to-report identity requires additional evidence.",
+        "C43 schedules a test but does not say again. Scheduling an existing open plan is not automatically a repeats or supersedes relationship.",
+        "C38 remains an observation. A prior proposal and a later physical fault do not themselves establish performance of that proposal.",
+        "A favorable intervention outcome is not automatically explicit causal support, and a later fault under an unidentified configuration does not contradict an earlier successful experiment.",
+        "An adopted design version does not retrospectively make its failed test pass, identify the decision rationale, or close the technical problem."
+      ],
+      "lifecycle_limits": [
+        {
+          "target_chunk_id": "C06",
+          "defensible_completion_source": "C08",
+          "condition": "Only if result_of and exact receive adequate probabilities."
+        },
+        {
+          "target_chunk_id": "C09",
+          "related_source": "C24",
+          "expected_automatic_status": "open",
+          "reason": "Relation is defensible but configuration is partial; C15 cannot provide a uniquely identified substitute completion."
+        },
+        {
+          "target_chunk_id": "C14",
+          "expected_automatic_status": "open",
+          "reason": "No uniquely identified result of this support-condition proposal is supplied."
+        },
+        {
+          "target_chunk_id": "C21",
+          "defensible_completion_source": "C22",
+          "condition": "Only if result_of and exact receive adequate probabilities."
+        },
+        {
+          "target_chunk_id": "C26",
+          "expected_automatic_status": "open",
+          "reason": "The 4 mm-wall fault C38 is not established as an executed-test report."
+        },
+        {
+          "target_chunk_id": "C33",
+          "defensible_completion_source": "C35",
+          "condition": "Only if result_of and exact receive adequate probabilities; this does not prove the salt-spray root cause."
+        },
+        {
+          "target_chunk_id": "C36",
+          "expected_automatic_status": "open",
+          "reason": "No result is reported; C43 may schedule the same plan or a new execution."
+        },
+        {
+          "target_chunk_id": "C43",
+          "expected_automatic_status": "open",
+          "reason": "A future test instruction cannot be completed by an earlier result."
+        }
+      ],
+      "repeat_target_policy": "A repetition can directly reference either a test proposal or a report identifying the earlier execution, regardless of the target event primary speech-act type. C09 identifies the test reported in C08 through that test and also refers to its proposal C06. Both repeats edges are meaningful; neither closes the newly requested execution. No canonical-proposal-only restriction is imposed.",
+      "ontology_review": "The initial proposal-only repetition convention was removed after independent semantic review: a test_result can identify the earlier execution being repeated. This update changes C09 -> C08 from deliberately unannotated to repeats/partial without changing any utterance, event type, thread, or lifecycle completion rule.",
+      "label_revisions": [
+        {
+          "source": "C24",
+          "target": "C06",
+          "old": {
+            "relation_type": "none"
+          },
+          "new": {
+            "relation_type": "repeats",
+            "configuration_match": "exact"
+          },
+          "stage": "post-inference independent semantic audit; no new API call",
+          "reason": "The explicit 4 mm rerun resumes the initial deformation test identified by C09 and represented by C06/C08. Preventing result_of to the original plan does not prohibit repeats to that earlier execution. Both endpoints explicitly identify the 4 mm setup; no additional setup parameter is stated on either side. C15 remains unannotated because its execution identity is missing."
+        },
+        {
+          "source": "C24",
+          "target": "C08",
+          "old": {
+            "relation_type": "none"
+          },
+          "new": {
+            "relation_type": "repeats",
+            "configuration_match": "exact"
+          },
+          "stage": "post-inference independent semantic audit; no new API call",
+          "reason": "The explicit 4 mm rerun resumes the initial deformation test identified by C09 and represented by C06/C08. Preventing result_of to the original plan does not prohibit repeats to that earlier execution. Both endpoints explicitly identify the 4 mm setup; no additional setup parameter is stated on either side. C15 remains unannotated because its execution identity is missing."
+        }
+      ]
+    }
+  },
+  "expected_typed_relations": {
+    "C01": {},
+    "C03": {
+      "C01": {
+        "relation_type": "none"
+      }
+    },
+    "C04": {
+      "C01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C06": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C08": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "C09": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "repeats",
+        "configuration_match": "partial"
+      },
+      "C08": {
+        "relation_type": "repeats",
+        "configuration_match": "partial"
+      }
+    },
+    "C10": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      }
+    },
+    "C12": {},
+    "C13": {
+      "C01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      }
+    },
+    "C14": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C13": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C15": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C13": {
+        "relation_type": "none"
+      }
+    },
+    "C17": {},
+    "C19": {
+      "C17": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C21": {
+      "C17": {
+        "relation_type": "none"
+      },
+      "C19": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C22": {
+      "C17": {
+        "relation_type": "none"
+      },
+      "C19": {
+        "relation_type": "none"
+      },
+      "C21": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "C24": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "C08": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "C09": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C13": {
+        "relation_type": "none"
+      },
+      "C14": {
+        "relation_type": "none"
+      }
+    },
+    "C26": {
+      "C17": {
+        "relation_type": "none"
+      },
+      "C19": {
+        "relation_type": "none"
+      },
+      "C21": {
+        "relation_type": "none"
+      },
+      "C22": {
+        "relation_type": "none"
+      }
+    },
+    "C27": {},
+    "C29": {
+      "C17": {
+        "relation_type": "none"
+      },
+      "C19": {
+        "relation_type": "none"
+      },
+      "C21": {
+        "relation_type": "none"
+      },
+      "C22": {
+        "relation_type": "none"
+      },
+      "C26": {
+        "relation_type": "none"
+      }
+    },
+    "C30": {},
+    "C32": {
+      "C30": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C33": {
+      "C30": {
+        "relation_type": "none"
+      },
+      "C32": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "C35": {
+      "C30": {
+        "relation_type": "none"
+      },
+      "C32": {
+        "relation_type": "supports",
+        "configuration_match": "not_applicable"
+      },
+      "C33": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "C36": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C13": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      },
+      "C15": {
+        "relation_type": "none"
+      },
+      "C24": {
+        "relation_type": "none"
+      }
+    },
+    "C38": {
+      "C19": {
+        "relation_type": "none"
+      },
+      "C21": {
+        "relation_type": "none"
+      },
+      "C22": {
+        "relation_type": "none"
+      },
+      "C29": {
+        "relation_type": "none"
+      }
+    },
+    "C39": {
+      "C17": {
+        "relation_type": "none"
+      },
+      "C19": {
+        "relation_type": "none"
+      },
+      "C21": {
+        "relation_type": "none"
+      },
+      "C22": {
+        "relation_type": "none"
+      },
+      "C26": {
+        "relation_type": "none"
+      },
+      "C38": {
+        "relation_type": "none"
+      }
+    },
+    "C40": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C13": {
+        "relation_type": "none"
+      },
+      "C14": {
+        "relation_type": "none"
+      },
+      "C15": {
+        "relation_type": "none"
+      },
+      "C24": {
+        "relation_type": "none"
+      },
+      "C36": {
+        "relation_type": "none"
+      }
+    },
+    "C43": {
+      "C01": {
+        "relation_type": "none"
+      },
+      "C03": {
+        "relation_type": "none"
+      },
+      "C04": {
+        "relation_type": "none"
+      },
+      "C06": {
+        "relation_type": "none"
+      },
+      "C08": {
+        "relation_type": "none"
+      },
+      "C09": {
+        "relation_type": "none"
+      },
+      "C10": {
+        "relation_type": "none"
+      },
+      "C15": {
+        "relation_type": "none"
+      },
+      "C24": {
+        "relation_type": "none"
+      },
+      "C40": {
+        "relation_type": "none"
+      }
+    }
+  }
+}

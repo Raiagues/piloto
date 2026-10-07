@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Norte — reuniões com simulação de vigas.">
+  <title>Norte · Entrar</title>
+  <link rel="stylesheet" href="auth.css?v=20261007-11">
+</head>
+<body>
+  <main class="auth-shell">
+    <section class="auth-card" aria-labelledby="authTitle">
+      <header class="auth-brand"><span class="brand-mark" aria-hidden="true"></span><span>NORTE</span></header>
+      <h1 id="authTitle">Reuniões com simulação de vigas</h1>
+      <div class="auth-tabs" role="tablist" aria-label="Acesso">
+        <button id="tabLogin" role="tab" type="button" aria-selected="true" aria-controls="authForm">Entrar</button>
+        <button id="tabSignup" role="tab" type="button" aria-selected="false" aria-controls="authForm">Criar conta</button>
+      </div>
+      <form id="authForm" role="tabpanel" aria-labelledby="tabLogin" novalidate>
+        <label for="username">Usuário</label>
+        <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="32" required>
+        <p id="usernameHint" class="auth-hint" hidden>3 a 32 caracteres: letras minúsculas, números, ponto, hífen ou sublinhado.</p>
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" maxlength="128" required>
+        <div id="signupFields" hidden>
+          <label for="confirm">Confirmar senha</label>
+          <input id="confirm" name="confirm" type="password" autocomplete="new-password" maxlength="128">
+          <div id="codeField" hidden>
+            <label for="code">Código de convite</label>
+            <input id="code" name="code" autocomplete="off" spellcheck="false" maxlength="200">
+          </div>
+        </div>
+        <p id="authError" class="auth-error" role="alert"></p>
+        <button id="authSubmit" class="auth-submit" type="submit">Entrar</button>
+      </form>
+    </section>
+  </main>
+  <script src="auth.js?v=20261007-11"></script>
+</body>
+</html>

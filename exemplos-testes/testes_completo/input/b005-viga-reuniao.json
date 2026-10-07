@@ -1,0 +1,528 @@
+{
+  "batch_id": "B005",
+  "cases": [
+    {
+      "id": "C01",
+      "current_utterance": "The reference beam is 6 metres long, with A fixed on the left.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C02",
+      "current_utterance": "In the length study, P1 is 10 kN downward at the free end, with zero self-weight.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C03",
+      "current_utterance": "The length comparison must keep the same tip force and the left fixed support.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C04",
+      "current_utterance": "Maybe shortening the beam to 4 metres would reduce the reaction moment at A.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C05",
+      "current_utterance": "Can everyone hear me?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C06",
+      "current_utterance": "Let's test that idea in L1, with 4 metres and a 10 kN tip load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C07",
+      "current_utterance": "Yes, I can hear you.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C08",
+      "current_utterance": "The L1 simulation, at 4 metres and 10 kN, reduced A's reaction moment from 60 to 40 kN metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C09",
+      "current_utterance": "L1 used 4 metres and 10 kN and gave 40 kN metres. I'm rereading the same simulation result.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C10",
+      "current_utterance": "Let's repeat L1 as L1R, keeping 4 metres and the 10 kN tip load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C11",
+      "current_utterance": "Now let's discuss the separate distributed-load case.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C12",
+      "current_utterance": "The distributed-load case uses a 6-metre beam fixed on the left, zero self-weight, and no point loads.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C13",
+      "current_utterance": "Its downward distributed load is 2 kN per metre along the full beam.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C14",
+      "current_utterance": "Maybe replacing that distributed load with 12 kN at its centre would preserve the support reactions.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C15",
+      "current_utterance": "Let's test that reaction-equivalence idea, starting with D1 at 2 kN per metre over 6 metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C16",
+      "current_utterance": "The D1 simulation, with 2 kN per metre over 6 metres, gave 12 kN and 36 kN metres at A.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C17",
+      "current_utterance": "I'll grab some water.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C18",
+      "current_utterance": "Back to the length study, the L1R repeat simulation used 4 metres and 10 kN and again gave 40 kN metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C19",
+      "current_utterance": "Based on that repeat result, we adopt the 4-metre model for the length study only.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C20",
+      "current_utterance": "The report must include a support-reaction check, but the applicable load case is unspecified.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C21",
+      "current_utterance": "Can you zoom in on the shared screen?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C22",
+      "current_utterance": "Back to distributed loading, simulate D2 with 12 kN at x = 3 metres instead of the distributed load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C23",
+      "current_utterance": "The D2 simulation gave the same reactions as D1, 12 kN and 36 kN metres at A.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C24",
+      "current_utterance": "Maybe D1 and D2 have equal bending moments at x = 4 metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C25",
+      "current_utterance": "Let's compare D1 and D2 at x = 4 metres in a new simulation check, D3.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C26",
+      "current_utterance": "In the D3 check at x = 4 metres, D1 gave -4 kN metres and D2 gave zero.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C27",
+      "current_utterance": "Let's move to the separate two-support case.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C28",
+      "current_utterance": "The two-support case has a 6-metre beam, with A pinned at the left end and B on a roller at the right end.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C29",
+      "current_utterance": "Only a 10 kN downward force acts at the centre, and self-weight is zero.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C30",
+      "current_utterance": "Maybe the two supports share that central load equally.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C31",
+      "current_utterance": "Let's check that in S1, with A at zero, B at 6 metres, and 10 kN at the centre.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C32",
+      "current_utterance": "The S1 simulation gave 5 kN upward at each support.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C33",
+      "current_utterance": "My coffee is getting cold.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C34",
+      "current_utterance": "Let's run S2 with the same supports, moving the 10 kN force to x = 4 metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C35",
+      "current_utterance": "The S2 simulation gave about 3.33 kN at A and 6.67 kN at B, both upward.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C36",
+      "current_utterance": "Let's return to the length study.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C37",
+      "current_utterance": "Run L2 on the 4-metre cantilever with a 12 kN tip load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C38",
+      "current_utterance": "In the L2 simulation, I accidentally used 10 kN at the 4-metre tip. The reaction moment was 40 kN metres.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C39",
+      "current_utterance": "Let's rerun L2 as L2R with the specified 12 kN at the 4-metre tip.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C40",
+      "current_utterance": "Sorry, my microphone was muted.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C41",
+      "current_utterance": "The L2R simulation used 12 kN at the 4-metre tip and gave 48 kN metres at A.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C42",
+      "current_utterance": "We will keep the 12 kN length case separate, without replacing the adopted 10 kN model.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C43",
+      "current_utterance": "For distributed loading, that reporting requirement applies to the vertical reaction at A.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C44",
+      "current_utterance": "Can everyone still see the shared screen?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C45",
+      "current_utterance": "Back to the two-support case, the original S1 simulation gave 5 kN upward at each support.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C46",
+      "current_utterance": "We will retain the two-support case as a separate model.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C47",
+      "current_utterance": "Thanks, everyone.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    }
+  ],
+  "expected_threads": {
+    "C01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "C02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C12": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002"
+    },
+    "C13": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C14": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C15": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C16": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C18": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C19": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C20": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {
+        "T002": "uncertain"
+      },
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "C22": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C23": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C24": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C25": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C26": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C28": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong"
+      },
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T003"
+    },
+    "C29": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C30": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C31": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C32": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C34": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C35": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C37": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T002": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C38": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C39": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C41": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C42": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C43": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C45": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong",
+        "T003": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T003"
+    },
+    "C46": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    }
+  }
+}

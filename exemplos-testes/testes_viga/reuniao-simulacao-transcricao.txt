@@ -1,0 +1,14 @@
+[00:00:00] Marina: Vamos analisar a viga em balanço de 6 metros, engastada à esquerda, com a força P1 de 10 kN para baixo na ponta livre e sem massa própria aplicada.
+[00:00:15] Rafael: A seção inicial é retangular, com largura de 120 mm e altura de 240 mm, em aço estrutural.
+[00:00:30] Marina: Norte, vamos simular uma viga.
+[00:00:50] Rafael: Talvez aumentar a altura da seção reduza a tensão de flexão mantendo a largura, os apoios e a carga.
+[00:01:05] Marina: Vamos testar uma altura de 300 mm mantendo a força P1 de 10 kN e o comprimento de 6 metros.
+[00:01:20] Marina: Norte, mude a altura da seção para 300 mm.
+[00:01:40] Rafael: Norte, compare o esforço cortante antes e depois.
+[00:01:55] Marina: Norte, mostre os resultados.
+[00:02:15] Rafael: Precisamos verificar também uma força P1 de 12 kN, mantendo a seção de 120 por 300 mm.
+[00:02:30] Marina: Norte, mude a força P1 para 12 kN.
+[00:02:50] Rafael: Norte, mostre os gráficos de cortante, momento fletor e flecha.
+[00:03:10] Marina: Norte, mostre os cálculos.
+[00:03:30] Rafael: Os resultados calculados ainda precisam ser comparados ao limite de deslocamento do projeto antes de aprovar a configuração.
+[00:03:45] Marina: Vamos definir o limite de deslocamento e revisar os resultados na próxima reunião.

@@ -1,0 +1,128 @@
+{
+  "batch_id": "TYPED-HOLDOUT-01",
+  "expected_typed_relations": {
+    "H01": {},
+    "H02": {
+      "H01": {
+        "relation_type": "none"
+      }
+    },
+    "H03": {
+      "H01": {
+        "relation_type": "tests",
+        "configuration_match": "exact"
+      },
+      "H02": {
+        "relation_type": "depends_on",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H04": {
+      "H01": {
+        "relation_type": "contradicts",
+        "configuration_match": "exact"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "H05": {
+      "H01": {
+        "relation_type": "none"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "H04": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      }
+    },
+    "H06": {
+      "H01": {
+        "relation_type": "none"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "none"
+      },
+      "H04": {
+        "relation_type": "none"
+      },
+      "H05": {
+        "relation_type": "none"
+      }
+    },
+    "H07": {},
+    "H08": {
+      "H07": {
+        "relation_type": "affects",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H09": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H10": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "H11": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "clarifies",
+        "configuration_match": "not_applicable"
+      },
+      "H10": {
+        "relation_type": "none"
+      }
+    },
+    "H12": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "none"
+      },
+      "H10": {
+        "relation_type": "based_on",
+        "configuration_match": "not_applicable"
+      },
+      "H11": {
+        "relation_type": "none"
+      }
+    }
+  }
+}

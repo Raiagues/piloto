@@ -1,0 +1,181 @@
+{
+  "name": "JEV-001-U001-C001",
+  "language": "en",
+  "model": "jev-latest",
+  "state": {
+    "recent_context": [
+      "Speaker A: We have been seeing too much deformation around this bracket.",
+      "Speaker B: The current part is 3 mm aluminum.",
+      "Speaker A: We haven't tested another thickness yet."
+    ],
+    "current_utterance": "Speaker C: Let's make one 4 mm version for the next prototype and compare both before we decide whether to change the design."
+  },
+  "questions": {
+    "should_track": {
+      "type": "noul",
+      "instructions": "Should the current utterance create a new tracked project item or update an existing tracked item?",
+      "criteria": {
+        "true": "It introduces or materially updates a concrete test, test result, proposed change, decision, assigned action, unresolved risk, requirement, or open question whose outcome matters later.",
+        "false": "It is background information, casual conversation, repetition, isolated logistics, clarification with no project consequence, or an unrelated side conversation."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary project event expressed in the current utterance.",
+      "criteria": {
+        "observation": "Reports factual project information without a more specific event type.",
+        "hypothesis": "Suggests a possible explanation, cause, effect, or possibility without proposing a concrete test or change.",
+        "test_proposal": "Proposes performing an experiment, prototype, trial, measurement, validation, or comparison.",
+        "test_result": "Reports an outcome, measurement, or conclusion produced by a test or experiment.",
+        "change_proposal": "Proposes changing the design, material, dimension, process, requirement, schedule, or another project property without final approval.",
+        "decision": "Explicitly commits the project to a choice or change.",
+        "action_item": "Establishes a concrete task that should be performed.",
+        "risk": "Identifies a possible negative outcome or project risk.",
+        "requirement": "Establishes or changes a constraint or condition that the project must satisfy.",
+        "none": "No meaningful project event is expressed."
+      }
+    },
+    "test_is_proposed": {
+      "type": "noul",
+      "instructions": "Does the current utterance explicitly propose performing a test, experiment, prototype, trial, measurement, validation, or comparison?",
+      "criteria": {
+        "true": "The speaker proposes actually performing a concrete activity to learn, compare alternatives, validate something, or reduce uncertainty.",
+        "false": "The speaker only wonders, speculates, asks a question, reports a result, or mentions a possibility without proposing that an activity be performed."
+      }
+    },
+    "decision_is_final": {
+      "type": "noul",
+      "instructions": "Does the current utterance commit the project to a choice or change now, without waiting for a future test, condition, approval, or unresolved decision?",
+      "criteria": {
+        "true": "The choice or change should be treated as decided and active now.",
+        "false": "It is exploratory, conditional, proposed, waiting on evidence or approval, or no decision is present."
+      }
+    },
+    "pending_decision": {
+      "type": "noul",
+      "instructions": "Does the current utterance establish that a specific project decision is still unresolved and must be made later?",
+      "criteria": {
+        "true": "A specific future decision remains open and may depend on a test, evidence, approval, or another condition.",
+        "false": "No future decision is established, or the relevant decision is already final."
+      }
+    },
+    "creates_action_item": {
+      "type": "noul",
+      "instructions": "Does the current utterance establish a concrete task or next action that someone should perform?",
+      "criteria": {
+        "true": "A specific activity should be performed, even if no person or deadline is explicitly assigned.",
+        "false": "The utterance only discusses, observes, hypothesizes, or evaluates something without establishing a concrete action."
+      }
+    },
+    "next_step_commitment": {
+      "type": "score",
+      "instructions": "How strongly does the current utterance commit the team to performing the stated next step?",
+      "criteria": [
+        "No next step is established, or the statement is only speculation.",
+        "A possible next step is mentioned or considered.",
+        "A concrete next step is proposed or intended, but agreement or assignment is not explicit.",
+        "The next step is explicitly agreed, assigned, scheduled, or stated as something that will be done."
+      ]
+    },
+    "change_commitment": {
+      "type": "score",
+      "instructions": "How committed is the project to the underlying project change itself, excluding commitment to testing or discussing it?",
+      "criteria": [
+        "No project change is being considered.",
+        "A possible change is being explored or considered.",
+        "A concrete change is proposed or conditionally intended but is not final.",
+        "The change is explicitly decided, approved, or already active."
+      ]
+    },
+    "project_impact": {
+      "type": "score",
+      "instructions": "Assuming the event described in the current utterance proceeds or is valid, how broad would its impact on the project be?",
+      "criteria": [
+        "No meaningful project impact.",
+        "Minor local effect with little consequence beyond the immediate discussion or documentation.",
+        "Moderate effect on a component, test, task, or near-term engineering decision.",
+        "High effect on major design, requirements, safety, architecture, cost, schedule, or multiple project areas."
+      ]
+    },
+    "primary_affected_area": {
+      "type": "choice",
+      "instructions": "Which project area is most directly affected by the current utterance?",
+      "criteria": {
+        "design": "Geometry, dimensions, architecture, configuration, or physical design.",
+        "material": "Material selection, grade, composition, treatment, or material properties.",
+        "manufacturing": "Fabrication, assembly, tooling, or production process.",
+        "performance": "Measured behavior, strength, efficiency, functionality, or performance.",
+        "cost": "Budget, price, purchasing, or financial impact.",
+        "schedule": "Timing, deadlines, sequence, delivery, or schedule.",
+        "safety": "Safety, compliance, hazards, or failure risk.",
+        "process": "Team workflow, review procedure, documentation, or organizational process.",
+        "other": "None of these areas is clearly the primary area."
+      }
+    },
+    "requires_followup": {
+      "type": "noul",
+      "instructions": "Does the current utterance create or update something whose outcome should be checked again later?",
+      "criteria": {
+        "true": "It creates or updates a test, pending decision, unresolved question, proposed change, risk, assigned action, requirement, or result that affects a later step.",
+        "false": "Nothing introduced or updated here needs future tracking."
+      }
+    }
+  },
+  "expected": {
+    "should_track": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.85
+    },
+    "event_type": {
+      "type": "choice",
+      "value": "test_proposal",
+      "minProbability": 0.75
+    },
+    "test_is_proposed": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.9
+    },
+    "decision_is_final": {
+      "type": "noul",
+      "value": false,
+      "minProbability": 0.85
+    },
+    "pending_decision": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.85
+    },
+    "creates_action_item": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.8
+    },
+    "next_step_commitment": {
+      "type": "score",
+      "value": 2,
+      "minProbability": 0.7
+    },
+    "change_commitment": {
+      "type": "score",
+      "value": 1,
+      "minProbability": 0.75
+    },
+    "project_impact": {
+      "type": "score",
+      "value": 2,
+      "minProbability": 0.6
+    },
+    "primary_affected_area": {
+      "type": "choice",
+      "value": "design",
+      "minProbability": 0.6
+    },
+    "requires_followup": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.85
+    }
+  }
+}

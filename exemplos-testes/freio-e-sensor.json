@@ -1,0 +1,150 @@
+{
+  "batch_id": "TYPED-HOLDOUT-01",
+  "cases": [
+    {
+      "id": "H01",
+      "current_utterance": "The A9 actuator brake must hold a stationary 120 N load while the actuator is deenergized.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H02",
+      "current_utterance": "Please remove the locking pin from actuator A9 before beginning any brake test.",
+      "expected_store_memory": true,
+      "expected_event_type": "other"
+    },
+    {
+      "id": "H03",
+      "current_utterance": "Let us run holding test B1 on the A9 actuator brake with a stationary 120 N load while deenergized, to verify that holding requirement. Starting B1 depends on completing the locking-pin removal just requested.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H04",
+      "current_utterance": "B1 is complete: the deenergized A9 actuator brake was subjected to a stationary 120 N load and slipped. It therefore failed the specified 120 N holding requirement.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H05",
+      "current_utterance": "Repeat B1 tomorrow as new run B2, again with actuator A9 deenergized and subjected to a stationary 120 N load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H06",
+      "current_utterance": "The drawing number for the A9 actuator brake is BA-4.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H07",
+      "current_utterance": "Separately, the tip of temperature probe P7 has an upward position offset of 0.2 mm.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H08",
+      "current_utterance": "Expansion of the support bracket changes that P7 probe-tip position by 0.2 mm upward.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H09",
+      "current_utterance": "Let us run thermal trial P1 on probe P7 in a 60 C chamber for 30 minutes, measuring bracket expansion and probe-tip position to test the claimed effect of expansion on tip position.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H10",
+      "current_utterance": "The P1 thermal-test report identifies probe P7 and a 30-minute duration, and records 0.2 mm of bracket expansion. The chamber-temperature page is missing and no tip-position measurement was recorded.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H11",
+      "current_utterance": "The 60 C specified in the P1 thermal-test plan is the chamber setpoint, not the probe temperature.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H12",
+      "current_utterance": "Based on the bracket-expansion measurement reported in P1, we decided to add a compliant bracket mount to the next probe prototype.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    }
+  ],
+  "expected_threads": {
+    "H01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "H02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H07": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "H08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H09": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H10": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H11": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H12": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  }
+}

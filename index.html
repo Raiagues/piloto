@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Norte — canvas e transcrição de reuniões.">
+  <title>Norte · Reunião de requisitos</title>
+  <link rel="stylesheet" href="styles.css?v=20261007-11">
+  <link rel="stylesheet" href="memory-flow.css?v=20261007-11">
+  <link rel="stylesheet" href="meeting-room.css?v=20261007-11">
+  <link rel="stylesheet" href="meeting-canvas.css?v=20261007-11">
+</head>
+<body data-page="live">
+  <aside id="sidebar" class="sidebar" aria-label="Navegação principal">
+    <div class="sidebar-header"><div class="brand"><span class="brand-mark" aria-hidden="true"></span><span class="sidebar-label">NORTE</span></div><button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Expandir navegação" aria-expanded="false" aria-controls="sidebarNav"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 5 5 5-5 5"/></svg></button></div>
+    <nav id="sidebarNav" class="sidebar-nav" aria-label="Classificador">
+      <button id="liveMode" class="nav-item selected" type="button" aria-current="page" title="Classificador ao vivo"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/></svg></span><span class="sidebar-label">Ao vivo</span></button>
+      <button id="manualMode" class="nav-item" type="button" title="Classificador manual"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m7 9 3 3-3 3m6 0h4"/></svg></span><span class="sidebar-label">Manual</span></button>
+      <button id="automatedMode" class="nav-item" type="button" title="Testes automatizados"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M4 12h6M4 18h10m3-12 4 3-4 3m0 0 4 3-4 3"/></svg></span><span class="sidebar-label">Automatizados</span></button>
+      <button id="memoryMode" class="nav-item" type="button" title="Fluxo de memória"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m8 3 5 5-5 5-5-5Zm5 5h5v7M8 13v4"/><rect x="4" y="17" width="8" height="4" rx="1"/><rect x="15" y="15" width="6" height="6" rx="1"/></svg></span><span class="sidebar-label">Memória</span></button>
+      <a id="memoryV2Mode" class="nav-item" href="?profile=memory-v2#memoria" target="_blank" rel="noopener" title="Fluxo de memória V2 · abrir em nova aba"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m8 3 5 5-5 5-5-5Zm5 5h5v4M8 13v4"/><rect x="4" y="17" width="8" height="4" rx="1"/><path d="M16 16a2 2 0 0 1 4 0c0 2-4 2-4 5h4"/></svg></span><span class="sidebar-label">Memória V2</span></a>
+      <button id="meetingMode" class="nav-item" type="button" title="Reuniões"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8M8 12h5M8 16h7"/></svg></span><span class="sidebar-label">Reuniões</span></button>
+      <button id="beamMode" class="nav-item" type="button" title="Reuniões com simulação de vigas"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M3 11h18v3H3zM5 14l-3 6h6zM19 14l-3 6h6zM12 2v6m-3-3 3 3 3-3"/></svg></span><span class="sidebar-label">Simulação de vigas</span></button>
+    </nav>
+    <div class="sidebar-footer"><span id="modelStatus" class="model-status sidebar-label" role="status">Conectando…</span></div>
+  </aside>
+  <button id="sidebarOverlay" class="sidebar-overlay" type="button" aria-label="Recolher navegação" hidden></button>
+  <main class="app-shell">
+    <header class="app-header">
+      <div class="header-context">
+        <div class="meeting-title"><input id="meetingName" aria-label="Nome da reunião" maxlength="80" value="Reunião de requisitos" autocomplete="off"><time id="meetingStarted" title="Data e hora do início da reunião">Ainda não iniciada</time></div>
+      </div>
+      <div class="manual-page-title" hidden><h1>Classificador manual</h1><span id="providerStatus" class="provider-status" role="status"></span></div>
+        <div class="audio-widget">
+          <button id="micBtn" class="record-button" type="button" aria-pressed="false">
+            <svg class="microphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/></svg>
+            <span id="buttonLabel">Iniciar reunião</span><span id="timer">00:00</span>
+          </button>
+          <button id="restartAudio" class="icon-button restart-audio" type="button" aria-label="Reiniciar áudio da reunião" title="Reiniciar áudio e zerar contador · mantém o histórico" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg></button>
+        </div>
+      <div class="header-actions">
+        <div class="online" title="Você está nesta sessão local"><span class="avatar">EU<i></i></span><span>Você</span></div>
+        <button class="share-button" id="shareBtn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M5 13v7h14v-7"/></svg><span>Compartilhar</span></button>
+      </div>
+      <div id="roomLibraryHeader" class="room-library-header" hidden>
+        <h1>Reuniões</h1>
+        <div class="room-create">
+          <button id="roomNew" class="record-button room-new-button" type="button" aria-expanded="false" aria-haspopup="menu" aria-controls="roomCreateMenu" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Nova reunião<svg class="room-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button>
+          <div id="roomCreateMenu" class="room-create-menu" role="menu" aria-label="Nova reunião" hidden>
+            <button id="roomCreateInstant" type="button" role="menuitem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3"/></svg><span>Criar instantânea<small>Abrir uma sala agora</small></span></button>
+            <button id="roomSchedule" type="button" role="menuitem" disabled aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 11h18"/></svg><span>Agendar<small>Em breve</small></span></button>
+          </div>
+        </div>
+      </div>
+      <div id="meetingHeader" class="room-header" hidden>
+        <div class="room-header-context"><button id="roomBack" class="icon-button" type="button" aria-label="Voltar para reuniões" title="Voltar para reuniões"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m14 6-6 6 6 6M8 12h13"/></svg></button><div class="meeting-title"><input id="roomTitle" value="Nova reunião" maxlength="100" aria-label="Título da reunião"><time id="roomStarted">Ainda não iniciada</time></div></div>
+        <div class="room-recording-controls"><button id="roomLive" class="record-button" type="button" aria-pressed="false" disabled><svg class="microphone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v3m-3 0h6"/></svg><span id="roomLiveLabel">Iniciar gravação</span><time id="roomTimer">00:00</time></button></div>
+        <div class="room-header-actions"><button id="roomImport" class="compact-button room-import-button" type="button" title="Opção provisória para testar com uma transcrição completa" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 16V3m-4 4 4-4 4 4M5 15v6h14v-6"/></svg><span>Importar transcrição</span><small>Teste</small></button><button id="roomMinutes" class="compact-button" type="button" disabled>Ata / PDF</button></div>
+      </div>
+    </header>
+    <div class="session-content" id="sessionContent">
+    <section class="workbench" aria-label="Área de trabalho">
+      <div class="workbench-toolbar">
+        <div class="workspace-tabs" role="tablist" aria-label="Área principal">
+          <button id="tab-canvas" class="workspace-tab" role="tab" aria-selected="false" aria-controls="workspace-canvas" draggable="true" data-workspace="canvas">Canvas</button>
+          <button id="tab-classifier" class="workspace-tab active" role="tab" aria-selected="true" aria-controls="workspace-classifier" draggable="true" data-workspace="classifier">Classificador <span class="tab-dot"></span></button>
+        </div>
+        <button id="workspaceSplit" class="icon-button" title="Ver canvas e classificador lado a lado" aria-label="Dividir área de trabalho" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M12 4v16"/></svg></button>
+      </div>
+      <div id="workspacePanels" class="workspace-panels">
+        <section id="workspace-canvas" class="workspace-pane canvas-area" role="tabpanel" aria-labelledby="tab-canvas" data-workspace="canvas"><span class="canvas-caption">REUNIÃO DE REQUISITOS</span></section>
+        <div id="workspaceDivider" class="workspace-divider resize-handle" role="separator" tabindex="0" aria-label="Largura dos painéis" aria-orientation="vertical" aria-valuemin="20" aria-valuemax="80" aria-valuenow="45"></div>
+        <section id="workspace-classifier" class="workspace-pane classifier-area active" role="tabpanel" aria-labelledby="tab-classifier" data-workspace="classifier">
+          <div class="classifier-inputs">
+            <div id="requestHeader" class="request-header" hidden>
+              <div class="request-identity"><button id="renameCurrentTest" class="text-button pencil-button" type="button" aria-label="Editar nome do teste" title="Editar nome"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="m12 4 4 4M4 12l9-9a1.4 1.4 0 0 1 2 0l2 2a1.4 1.4 0 0 1 0 2l-9 9-5 1z"/></svg></button><input id="testName" aria-label="Nome do teste" maxlength="100" placeholder="Nome do teste" readonly></div>
+              <div class="manual-actions"><button id="runTest" class="run-test" disabled>Executar</button><select id="testRepeats" aria-label="Número de execuções"><option value="1">1×</option><option value="4" selected>4×</option><option value="10">10×</option></select><span id="savedTestRepeats" class="saved-repeat-count" hidden></span><button id="cancelTest" class="text-button" hidden>Interromper</button><button id="clearTestDraft" class="text-button" type="button" title="Limpar State, Questions e variações. Não exclui testes salvos." hidden>Limpar</button><button id="useExample" class="text-button" type="button">Usar exemplo</button><span id="automationCount" hidden></span></div>
+              <div class="request-preferences"><button id="backToDraft" class="text-button" type="button" hidden>Rascunho</button><select id="testLanguage" aria-label="Idioma do teste" title="Identifica o idioma; não traduz o texto ou as perguntas"><option value="pt">PT</option><option value="en">EN</option><option value="fr">FR</option><option value="es">ES</option></select><span id="savedTestLanguage" class="request-scope" hidden></span><div class="input-layout-options" role="group" aria-label="Disposição do editor"><button id="inputLayoutTabs" type="button" aria-label="State e Questions em abas" title="Abas" aria-pressed="false"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M3 7h14M8 3v4M12.5 3v4"/></svg></button><button id="inputLayoutToggle" type="button" aria-label="State e Questions empilhados" title="Empilhados" aria-pressed="true"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="3" y="2.5" width="14" height="6" rx="1"/><rect x="3" y="11.5" width="14" height="6" rx="1"/></svg></button></div></div>
+            </div>
+            <section id="automationNavigator" class="automation-navigator" aria-label="Navegação dos testes" hidden>
+              <div class="automation-nav-toolbar"><span>Testes</span><div class="test-view-options" role="group" aria-label="Visualização dos testes"><button id="testViewTabs" type="button" aria-pressed="true" title="Testes em abas"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="2"/><path d="M3 7h14M8 3v4M12.5 3v4"/></svg>Abas</button><button id="testViewStacked" type="button" aria-pressed="false" title="Testes empilhados"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3" aria-hidden="true"><rect x="3" y="2.5" width="14" height="6" rx="1"/><rect x="3" y="11.5" width="14" height="6" rx="1"/></svg>Empilhados</button></div><button id="addTestVariation" class="compact-button" type="button" aria-expanded="false" aria-controls="testVariantMenu">+ Variação</button></div>
+              <div id="autoOptions" class="auto-test-tabs" role="tablist" aria-label="States dos testes"></div>
+              <section id="testVariantMenu" class="test-variant-menu" aria-label="Adicionar variação" hidden><div id="addVariantChoices" hidden><button type="button" data-add-field="current_utterance">Destacar current_utterance</button><button type="button" data-add-field="recent_context">Destacar recent_context</button><button type="button" data-add-field="state">State inteiro</button></div></section>
+            </section>
+            <div id="testInputTabs" class="test-input-tabs" role="tablist" aria-label="State e Questions do mesmo teste" hidden><button id="stateInputTab" role="tab" aria-controls="stateInputPanel" aria-selected="true" type="button" draggable="true" data-input-drag="state">State</button><button id="questionsInputTab" role="tab" aria-controls="questionsInputPanel" aria-selected="false" tabindex="-1" type="button" draggable="true" data-input-drag="questions">Questions <span id="questionsPending" hidden>•</span></button></div>
+            <div id="inputPaneBody" class="input-pane-body">
+            <section id="stateInputPanel" class="state-pane" aria-labelledby="stateHeading">
+              <div class="editor-heading" draggable="true" data-input-drag="state"><h2 id="stateHeading">State</h2><span id="stateStatus" class="editor-meta">Ao vivo</span></div>
+              <div id="liveStateView" class="code-view"><pre id="stateCode" aria-label="Último trecho transcrito"></pre></div>
+              <div id="manualStateView" class="manual-state" hidden>
+                <input id="stateFormat" type="hidden" value="json"><input id="autoStateView" type="hidden" value="variants">
+                <div id="manualStateCodeView" class="code-view editable-code state-editor"><div class="code-stack"><pre id="manualStateHighlight" aria-hidden="true"></pre><textarea id="manualState" aria-label="State para classificação" spellcheck="false" aria-describedby="stateError" placeholder="Escreva o State em JSON ou uma frase para testar…" wrap="soft"></textarea></div></div>
+                <div id="automationSetup" class="automation-setup" hidden><input id="autoField" type="hidden" value="current_utterance"><div id="autoStateCodeView" class="code-view editable-code state-editor"><div class="code-stack"><pre id="autoStateHighlight" aria-hidden="true"></pre><textarea id="autoStateEditor" placeholder="Escreva o State em JSON ou texto…" aria-label="State JSON do teste selecionado" spellcheck="false" aria-describedby="automationError" wrap="soft"></textarea></div></div><div id="autoStateStack" class="auto-state-stack" aria-label="States dos testes empilhados" hidden></div><p id="automationError" class="inline-error" role="alert"></p></div>
+                <p id="stateError" class="inline-error" role="alert"></p>
+              </div>
+            </section>
+            <div id="stateDivider" class="editor-divider resize-handle" role="separator" tabindex="0" aria-label="Altura do State" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="70" aria-valuenow="42"></div>
+            <section id="questionsInputPanel" class="questions-pane" aria-labelledby="questionsHeading">
+              <div class="editor-heading" draggable="true" data-input-drag="questions"><h2 id="questionsHeading">Questions</h2><span id="questionsStatus" class="editor-meta"></span><button id="applyQuestions" class="text-button" disabled>Aplicar</button></div>
+              <pre id="savedQuestions" class="saved-questions" aria-label="Questions desta execução" hidden></pre>
+              <div class="code-view editable-code"><pre id="questionLines" class="line-numbers" aria-hidden="true"></pre><div class="code-stack"><pre id="questionHighlight" aria-hidden="true"></pre><textarea id="questionEditor" placeholder="Escreva as perguntas em JSON…" spellcheck="false" autocapitalize="off" autocomplete="off" wrap="soft" aria-label="Questions em JSON" aria-describedby="configError"></textarea></div></div>
+              <p id="configError" class="inline-error" role="alert"></p>
+            </section>
+            </div>
+          </div>
+          <div id="classifierDivider" class="editor-divider resize-handle" role="separator" tabindex="0" aria-label="Largura da entrada" aria-orientation="vertical" aria-valuemin="28" aria-valuemax="65" aria-valuenow="43"></div>
+          <section class="classifier-output" aria-label="Saída TypeSafe">
+            <div class="output-body"><section id="testComparison" class="test-comparison" aria-label="Comparação dos testes selecionados" hidden></section><section id="campaignOutput" aria-label="Resultados da rodada" hidden></section><div id="singleTestOutput"><div id="testSummary" class="test-summary" hidden></div><div id="classificationResults" aria-live="polite"></div><p id="classificationStatus" class="output-status" role="status"></p><span id="liveLatency" class="live-latency" hidden></span><button id="retryClassification" class="text-button" hidden>Tentar novamente</button><button id="saveLiveResult" class="text-button save-live-result" hidden>Salvar resultado nos testes</button></div></div>
+          </section>
+        </section>
+      </div>
+    </section>
+    <div id="logDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Altura da área de trabalho e da transcrição" aria-orientation="horizontal" aria-valuemin="15" aria-valuemax="85" aria-valuenow="67" title="Arraste para redimensionar · duplo clique para restaurar"></div>
+    <section class="log-shell" aria-label="Log da reunião">
+      <div class="log-toolbar">
+        <h2 id="logHeading">Transcrição</h2>
+        <div id="testToolbar" class="test-toolbar" hidden><button id="newTestCase" class="compact-button" type="button" title="Novo teste, sem apagar o histórico">+ Novo teste</button><div id="testSelectionActions" class="test-selection-actions" hidden><span id="testSelectionCount" role="status"></span><button id="compareTests" class="text-button" type="button">Comparar</button><button id="deleteSelectedTests" class="text-button delete-test" type="button">Excluir</button><button id="clearTestSelection" class="text-button" type="button" title="Desmarcar todos os testes">Desmarcar</button></div><span id="testStorageStatus" role="status"></span><div class="library-actions"><button id="exportTestsCsv" class="compact-button" type="button" title="Baixar resultados e esperados em planilha">↓ CSV</button></div></div>
+        <div class="log-options">
+          <button id="exportBtn" class="icon-button" type="button" disabled aria-label="Baixar transcrição e classificações em JSON" title="Baixar transcrição e classificações"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v5h16v-5"/></svg></button>
+          <select id="language" aria-label="Idioma da transcrição"><option value="pt-BR">PT-BR</option><option value="pt-PT">PT-PT</option><option value="en-US">EN</option><option value="fr-FR">FR</option><option value="es-ES">ES</option></select>
+        </div>
+      </div>
+      <div id="logPanels" class="log-panels">
+        <article id="panel-transcription" class="log-panel active" aria-label="Transcrição" data-panel="transcription"><div id="transcript" class="transcript" aria-live="polite"></div></article>
+        <article id="panel-tests" class="log-panel tests-panel" aria-label="Testes" data-panel="tests" hidden>
+          <div id="testLibrary" class="test-library"></div><p id="testMessage" class="test-message" role="status"></p>
+        </article>
+      </div>
+    </section>
+    </div>
+    <section id="roomLibrary" class="room-library" aria-label="Lista de reuniões" hidden>
+      <div id="roomLibraryNotice" class="room-notice" role="status" hidden></div>
+      <div class="room-library-toolbar"><h2>Todas as reuniões</h2><span id="roomLibraryCount">0 reuniões</span></div>
+      <div class="room-library-table-wrap"><table class="room-library-table"><thead><tr><th scope="col">Reunião</th><th scope="col">Criada em</th><th scope="col">Status</th><th scope="col"><span class="room-visually-hidden">Ações</span></th></tr></thead><tbody id="roomLibraryList"></tbody></table>
+        <div id="roomLibraryEmpty" class="room-library-empty"><svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1" aria-hidden="true"><rect x="6" y="8" width="28" height="25" rx="3"/><path d="M6 16h28M13 5v6M27 5v6M14 22h12M14 27h7"/></svg><h2>Nenhuma reunião ainda</h2><p>Crie uma reunião instantânea para começar.</p></div>
+      </div>
+    </section>
+    <section id="meetingPage" class="meeting-page has-transcript" aria-label="Sala de reunião" hidden>
+      <div id="roomNotice" class="room-notice" role="status" hidden></div>
+      <div id="roomWorkspace" class="room-workspace">
+        <section class="room-canvas-panel" aria-label="Área de trabalho da reunião">
+          <div class="workbench-toolbar room-toolbar"><div class="room-view"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Canvas</h2><div class="room-topic-browser"><button id="roomCounts" class="text-button" type="button" aria-expanded="false" aria-controls="roomTopicsMenu">Assuntos</button><div id="roomTopicsMenu" class="room-topics-menu" hidden></div></div></div><div class="room-view-options"><button id="roomConnectionsToggle" class="text-button" type="button" aria-pressed="true" title="Mostrar ou ocultar dependências"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M5 5h7v14h7M12 12h7"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="19" cy="19" r="2"/></svg>Dependências</button><button id="roomTranscriptToggle" class="text-button" type="button" aria-expanded="true" aria-controls="roomTranscriptPanel" title="Mostrar ou ocultar transcrição"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 15h18"/></svg>Transcrição</button></div></div>
+          <div class="room-canvas-stage">
+            <section id="roomCanvas" class="canvas-area room-canvas" aria-label="Canvas de assuntos da reunião" tabindex="0">
+              <div id="roomWelcome" class="room-welcome"><p>Os assuntos da reunião aparecerão aqui.</p><span>Inicie a gravação ou importe uma transcrição.</span></div>
+              <div id="roomBoard" class="room-board" hidden></div>
+            </section>
+            <aside id="roomAlerts" class="room-alerts" aria-label="Conflitos e revisões" hidden></aside>
+            <div class="room-footer"><details id="roomPending" class="room-pending" hidden><summary id="roomPendingCount">Informações pendentes</summary><div id="roomPendingList" class="room-pending-list"></div></details><div class="room-legend" aria-label="Status dos registros"><span><i data-status="open"></i>Aberto</span><span><i data-status="completed"></i>Concluído</span><span><i data-status="review"></i>Revisar</span><span><i data-status="error"></i>Conflito / erro</span><span><i data-status="superseded"></i>Substituído</span><span><i data-status="active"></i>Registrado</span></div></div>
+            <div class="room-zoom" role="group" aria-label="Zoom do canvas"><button id="roomZoomOut" class="icon-button" type="button" aria-label="Diminuir canvas">−</button><span id="roomZoom">100%</span><button id="roomZoomIn" class="icon-button" type="button" aria-label="Ampliar canvas">+</button><button id="roomFit" class="icon-button" type="button" aria-label="Ajustar blocos ao canvas" title="Ajustar ao canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M8 8l-5-5m13 5 5-5M8 16l-5 5m13-5 5 5"/></svg></button></div>
+          </div>
+        </section>
+        <div id="roomTranscriptDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Altura do canvas e da transcrição" aria-orientation="horizontal" aria-valuemin="25" aria-valuemax="85" aria-valuenow="70"></div>
+        <section id="roomTranscriptPanel" class="log-shell room-transcript-panel" aria-label="Transcrição da reunião">
+          <header class="log-toolbar"><h2>Transcrição</h2><span id="roomTranscriptCount">0 falas</span><select id="roomLanguage" aria-label="Idioma da fala"><option value="pt-BR">PT-BR</option><option value="en-US">EN-US</option><option value="es-ES">ES-ES</option></select></header>
+          <div class="room-transcript-content"><div class="room-transcript-scroll"><p id="roomTranscriptEmpty" class="room-transcript-empty">A transcrição aparecerá aqui</p><div id="roomTranscript" class="room-transcript"></div><p id="roomInterim" class="room-interim" aria-live="polite"></p></div><details id="roomTextComposer" class="room-text-composer"><summary>Acrescentar fala</summary><form id="roomTextForm"><label for="roomText">Fala ou comando</label><textarea id="roomText" rows="2" placeholder="Escreva algo para a reunião…" maxlength="12000"></textarea><button class="compact-button" id="roomSend" type="submit">Adicionar</button></form></details></div>
+        </section>
+      </div>
+      <div id="roomSessionBar" class="room-session-bar" hidden><div class="room-session-state"><i id="roomPulse"></i><span id="roomStatus"></span><span id="roomSave" class="room-save">Neste navegador</span></div><div class="room-session-actions"><button id="roomMic" class="compact-button" type="button" hidden>Pausar microfone</button><button id="roomFinish" class="compact-button" type="button" hidden>Encerrar reunião</button><button id="roomStop" class="compact-button" type="button" hidden>Interromper processamento</button></div></div>
+    </section>
+    <section id="memoryPage" class="memory-page" aria-label="Experimento de memória" hidden>
+      <div class="mf-toolbar">
+        <strong id="mfBatchName">Nenhum lote</strong><span id="mfProgress" role="status">Cole um JSON para começar</span>
+        <button id="mfPaste" type="button">Input JSON</button>
+        <button id="mfQuestions" type="button">Questões</button>
+        <button id="mfMinutes" type="button" hidden disabled>Ata / PDF</button>
+        <button id="mfSaveTest" type="button" disabled>Salvar</button><button id="mfHistoryToggle" type="button" aria-expanded="false" aria-controls="mfHistory">Testes</button>
+        <button id="mfClear" type="button" title="Limpar o trabalho atual; mantém os testes e versões salvos">Limpar</button>
+        <button id="mfRun" class="mf-primary" type="button" disabled>Executar fluxo</button><button id="mfStop" type="button" hidden>Interromper</button>
+      </div>
+      <p id="mfNotice" class="mf-notice" role="status" hidden></p>
+      <div class="mf-workspace">
+        <aside id="mfSidebar" class="mf-sidebar" aria-label="Chunks do lote"><div class="mf-section-heading"><h2>Chunks</h2><div class="mf-chunk-tools"><button id="mfBurstToggle" class="mf-mode-toggle" type="button" role="switch" aria-checked="false" aria-label="Modo rajada"><span class="mf-mode-track" aria-hidden="true"></span><span id="mfModeLabel">Passo a passo</span></button><button type="button" class="mf-panel-toggle" data-panel-toggle="chunksHidden"></button></div></div><ol id="mfChunks" class="mf-chunks"></ol></aside>
+        <div id="mfSidebarDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Largura da lista de chunks" aria-orientation="vertical" title="Arraste para redimensionar"></div>
+        <div class="mf-main">
+          <div class="mf-canvas-heading"><div class="mf-view-heading"><div id="mfViewTabs" class="mf-view-tabs" role="tablist" aria-label="Visualização da memória" hidden><button id="mfViewCanvas" type="button" role="tab" aria-selected="true" aria-controls="mfCanvas">Canvas</button><button id="mfViewRelations" type="button" role="tab" aria-selected="false" aria-controls="mfRelationMap" tabindex="-1">Mapa de relações</button></div><span id="mfViewing">Caminho do chunk</span></div><div class="mf-canvas-tools"><div class="mf-panel-tools" aria-label="Visibilidade dos painéis"><button type="button" class="mf-panel-toggle" data-panel-toggle="chunksHidden"></button><button type="button" class="mf-panel-toggle" data-panel-toggle="inspectorHidden"></button><button type="button" class="mf-panel-toggle" data-panel-toggle="memoriesHidden"></button></div><div class="mf-zoom" aria-label="Navegação do diagrama"><button id="mfCollapseAll" type="button">Recolher listas</button><button id="mfZoomOut" type="button" aria-label="Diminuir diagrama">−</button><span id="mfZoomValue">100%</span><button id="mfZoomIn" type="button" aria-label="Ampliar diagrama">+</button><button id="mfFit" type="button" aria-pressed="true">Ajustar</button></div></div></div>
+          <div id="mfCanvas" class="mf-canvas" aria-label="Mapa: arraste para mover, use a roda para dar zoom" tabindex="0">
+            <div id="mfStage" class="mf-stage">
+            <div id="mfScene" class="mf-scene">
+              <svg id="mfEdges" class="mf-edges" aria-hidden="true"><defs><marker id="mfArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs></svg>
+              <article id="mfNodeChunk" class="mf-node mf-chunk-node mf-stream-node"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:raw_window" aria-expanded="true" aria-controls="mfGraphRawQueue">▾ raw_window</button><span id="mfGraphRawCount">0/15</span></header><ol id="mfGraphRawQueue" class="mf-queue" aria-label="raw_window no mapa, em ordem de chegada"></ol><span id="mfRawSelection" class="mf-stream-note"></span></article>
+              <article id="mfNodeStore" class="mf-node mf-store-node"><span class="mf-node-kicker">02 · Filtro</span><h3>should_store_memory?</h3><p id="mfStoreValue">Guardar na memória?</p></article>
+              <article id="mfNodeType" class="mf-node mf-type-node"><span class="mf-node-kicker">03 · Classificação</span><h3>event_type?</h3><p id="mfTypeValue">Somente se guardar</p></article>
+              <article id="mfNodeIgnore" class="mf-node mf-ignore-node"><header><button class="mf-disclosure" type="button" data-collapse="ignore" aria-expanded="true" aria-controls="mfIgnoreQueue">▾ Ignore</button><span id="mfIgnoreCount">0</span></header><ol id="mfIgnoreQueue" class="mf-queue"></ol></article>
+              <div id="mfDestinations" class="mf-destinations"></div>
+              <article id="mfNodeMeetingEvents" class="mf-node mf-events-node mf-stream-node"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:meeting_events" aria-expanded="true" aria-controls="mfGraphEventsQueue">▾ meeting_events</button><span id="mfGraphEventsCount">0</span></header><ol id="mfGraphEventsQueue" class="mf-queue" aria-label="meeting_events no mapa, em ordem de chegada"></ol></article>
+              <header id="mfRelationHeading" class="mf-relation-heading"><h3>Thread worker</h3><span id="mfRelationProgress">Fila independente</span></header>
+              <article id="mfNodeRelationEvents" class="mf-node mf-relation-node mf-stream-node" style="grid-column:1"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:relation_events" aria-controls="mfRelationEvents">▸ meeting_events</button><span id="mfRelationEventsCount">0</span></header><ol id="mfRelationEvents" class="mf-queue" aria-label="meeting_events na entrada do relation worker"></ol></article>
+              <article id="mfNodeRelationFilter" class="mf-node mf-relation-node" style="grid-column:2" hidden><span class="mf-node-kicker">Histórico · filtro antigo</span><h3>Selecionar candidatos</h3><p id="mfRelationRule">Snapshot da execução original</p></article>
+              <article id="mfNodeRelationCandidates" class="mf-node mf-relation-node mf-stream-node" style="grid-column:3" hidden><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:relation_candidates" aria-controls="mfRelationCandidates">▸ Aprovados · candidatos</button><span id="mfRelationCandidateCount">0</span></header><ol id="mfRelationCandidates" class="mf-queue"></ol></article>
+              <article id="mfNodeRelationRejected" class="mf-node mf-relation-node mf-stream-node" style="grid-column:3" hidden><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:relation_rejected" aria-controls="mfRelationRejected">▸ Recusados pelo filtro</button><span id="mfRelationRejectedCount">0</span></header><ol id="mfRelationRejected" class="mf-queue"></ol></article>
+              <article id="mfNodeHasRelation" class="mf-node mf-relation-node" style="grid-column:4"><span class="mf-node-kicker">Jev · questões dinâmicas</span><h3>has_relation__{event_id}</h3><p id="mfRelationValue">P(relação) &gt; 80%</p></article>
+              <article id="mfNodeRelations" class="mf-node mf-relation-node mf-stream-node" style="grid-column:5"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:relations" aria-controls="mfRelations">▸ Tem relação · true</button><span id="mfRelationsCount">0</span></header><ol id="mfRelations" class="mf-queue"></ol></article>
+              <article id="mfNodeRelationFalse" class="mf-node mf-relation-node mf-stream-node" style="grid-column:5"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:relation_false" aria-controls="mfRelationFalse">▸ Não tem relação · false</button><span id="mfRelationFalseCount">0</span></header><ol id="mfRelationFalse" class="mf-queue"></ol></article>
+              <article id="mfNodeThreadContext" class="mf-node mf-thread-node mf-stream-node" style="grid-column:2"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:thread_context" aria-controls="mfThreadContext">▸ State do Jev</button><span id="mfThreadContextCount">0</span></header><ol id="mfThreadContext" class="mf-queue"></ol></article>
+              <article id="mfNodeThreadActive" class="mf-node mf-thread-node" style="grid-column:3"><span class="mf-node-kicker">Jev · thread ativa</span><h3>belongs_to_<wbr>active_thread</h3><p id="mfThreadActiveValue">Aguardando evento</p></article>
+              <article id="mfNodeThreadAssignment" class="mf-node mf-thread-node" style="grid-column:4"><span class="mf-node-kicker">Atribuição</span><h3>event.thread_id</h3><p id="mfThreadAssignmentValue">Aguardando evento</p></article>
+              <article id="mfNodeThreads" class="mf-node mf-thread-node mf-stream-node" style="grid-column:5"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:meeting_threads" aria-controls="mfThreads">▸ meeting_threads</button><span id="mfThreadsCount">0</span></header><ol id="mfThreads" class="mf-queue" aria-label="Threads e todos os seus eventos"><li><details id="mfNodeThreadArchive" class="mf-archive-query"><summary>Consultas ao Jev <span id="mfThreadArchiveCount">0</span></summary><ol id="mfThreadArchiveCandidates" class="mf-relation-children"></ol></details></li></ol></article>
+              <header id="mfTypedHeading" class="mf-relation-heading mf-typed-node" hidden><h3>Relações entre eventos</h3><span id="mfTypedProgress">Após a atribuição das threads</span></header>
+              <article id="mfNodeTypedPairs" class="mf-node mf-typed-node mf-stream-node" style="grid-column:1" hidden><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:typed_pairs" aria-controls="mfTypedPairs">▸ Pares da mesma thread</button><span id="mfTypedPairsCount">0</span></header><ol id="mfTypedPairs" class="mf-queue"></ol></article>
+              <article id="mfNodeTypedType" class="mf-node mf-typed-node" style="grid-column:2" hidden><span class="mf-node-kicker">Jev · relação direta</span><h3>relation_type</h3><p id="mfTypedTypeValue">Mesma thread não implica uma aresta.</p></article>
+              <article id="mfNodeTypedMatch" class="mf-node mf-typed-node" style="grid-column:3" hidden><span class="mf-node-kicker">Jev · quando aplicável</span><h3>configuration_<wbr>match</h3><p id="mfTypedMatchValue">Comparar identidade e configuração.</p></article>
+              <article id="mfNodeMeetingRelations" class="mf-node mf-thread-node mf-stream-node" style="grid-column:1"><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:meeting_relations" aria-controls="mfMeetingRelations">▸ meeting_relations</button><span id="mfMeetingRelationsCount">0</span></header><ol id="mfMeetingRelations" class="mf-queue"><li class="mf-empty-queue">Não processada nesta etapa</li></ol></article>
+              <article id="mfNodeTypedAudit" class="mf-node mf-typed-node mf-stream-node" style="grid-column:5" hidden><header><button class="mf-disclosure" type="button" data-stream-collapse="stream:typed_audit" aria-controls="mfTypedAudit">▸ Auditoria · sem aresta</button><span id="mfTypedAuditCount">0</span></header><ol id="mfTypedAudit" class="mf-queue"></ol></article>
+            </div>
+            </div>
+          </div>
+          <section id="mfRelationMap" class="mf-relation-map" role="tabpanel" aria-labelledby="mfViewRelations" hidden></section>
+          <div id="mfInspectorDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Altura das respostas" aria-orientation="horizontal" title="Arraste para redimensionar · duplo clique para restaurar"></div>
+          <section id="mfInspector" class="mf-inspector" aria-label="Detalhes do chunk"><p>Selecione um chunk para inspecionar o caminho e comparar as respostas.</p></section>
+        </div>
+        <div id="mfMemoryDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Largura das memórias" aria-orientation="vertical" title="Arraste para redimensionar · duplo clique para restaurar"></div>
+        <aside id="mfMemories" class="mf-memories" aria-label="Memórias da execução">
+          <section id="mfEventsPanel" class="mf-memory-panel" aria-label="meeting_events">
+            <header class="mf-section-heading"><h2><button id="mfEventsToggle" type="button" aria-expanded="true" aria-controls="mfMeetingEvents" title="Memória persistente desta execução, guardada neste navegador">▾ meeting_events</button></h2><span id="mfEventsCount">0</span><button type="button" class="mf-panel-toggle" data-panel-toggle="memoriesHidden"></button></header>
+            <ol id="mfMeetingEvents" class="mf-memory-list" aria-label="Eventos armazenados"></ol>
+          </section>
+          <section id="mfThreadsPanel" class="mf-memory-panel" aria-label="meeting_threads">
+            <header class="mf-section-heading"><h2><button id="mfThreadsToggle" type="button" aria-expanded="true" aria-controls="mfMemoryThreads">▾ meeting_threads</button></h2><span id="mfMemoryThreadsCount">0</span></header>
+            <ol id="mfMemoryThreads" class="mf-memory-list" aria-label="Threads ativas, arquivadas e eventos sem atribuição"></ol>
+          </section>
+          <section id="mfRelationsPanel" class="mf-memory-panel" aria-label="meeting_relations" hidden>
+            <header class="mf-section-heading"><h2><button id="mfRelationsToggle" type="button" aria-expanded="true" aria-controls="mfMemoryRelations">▾ meeting_relations</button></h2><span id="mfMemoryRelationsCount">0</span></header>
+            <ol id="mfMemoryRelations" class="mf-memory-list" aria-label="Relações por thread e evento de origem"></ol>
+          </section>
+          <section id="mfRawPanel" class="mf-memory-panel" aria-label="raw_window">
+            <header class="mf-section-heading"><h2><button id="mfRawToggle" type="button" aria-expanded="true" aria-controls="mfRawWindow" title="FIFO dos últimos 15 chunks recebidos, inclusive os ignorados e os que ainda estão sendo classificados">▾ raw_window</button></h2><span id="mfRawCount">0/15</span></header>
+            <ol id="mfRawWindow" class="mf-memory-list" aria-label="Últimos chunks recebidos"></ol>
+          </section>
+        </aside>
+      </div>
+      <div id="mfHistoryDivider" class="resize-handle" role="separator" tabindex="0" aria-label="Altura dos testes salvos" aria-orientation="horizontal" title="Arraste para redimensionar · duplo clique para restaurar" hidden></div>
+      <section id="mfHistory" class="mf-history" aria-label="Testes salvos" hidden><header><h2>Testes</h2><span id="mfStorage" role="status"></span><div class="mf-history-tools"><span id="mfSelectedTestsCount" role="status">0 selecionados</span><button id="mfDeleteSelectedTests" class="mf-danger" type="button" disabled>Excluir selecionados</button></div></header><div class="mf-history-scroll"><table><thead><tr><th class="mf-test-select"><input id="mfSelectAllTests" type="checkbox" aria-label="Selecionar todos os testes"></th><th>ID</th><th>Questões</th><th>Chunks</th><th>Resultado</th><th>Data</th><th aria-label="Ações"></th></tr></thead><tbody id="mfTestRows"></tbody></table></div></section>
+    </section>
+    <dialog id="mfInputDialog" class="mf-dialog" aria-labelledby="mfInputTitle">
+      <header><h2 id="mfInputTitle">Carregar input</h2><button type="button" data-mf-close aria-label="Fechar">×</button></header>
+      <label for="mfBatchJSON">JSON do lote</label><div class="mf-json-editor"><pre id="mfBatchHighlight" aria-hidden="true"></pre><textarea id="mfBatchJSON" spellcheck="false" wrap="soft"></textarea></div>
+      <p id="mfInputError" class="mf-input-error" role="alert"></p>
+      <footer><button type="button" data-mf-format="mfBatchJSON">Formatar JSON</button><button type="button" data-mf-close>Cancelar</button><button id="mfLoad" class="mf-primary" type="button">Aplicar input</button></footer>
+    </dialog>
+    <dialog id="mfQuestionsDialog" class="mf-dialog" aria-labelledby="mfQuestionsTitle">
+      <header><h2 id="mfQuestionsTitle">Questões</h2><strong id="mfQuestionId">Q001</strong><button type="button" data-mf-close aria-label="Fechar">×</button></header>
+      <nav class="mf-question-workers" aria-label="Worker das questões"><button id="mfChunkQuestions" type="button" aria-pressed="true">Chunks</button><button id="mfRelationQuestions" type="button" aria-pressed="false">Threads</button><button id="mfTypedQuestions" type="button" aria-pressed="false" hidden>Relações</button></nav>
+      <div class="mf-question-tools"><span id="mfQuestionStatus" role="status"></span><button id="mfRestoreQuestions" type="button" hidden>Usar padrão revisado</button></div>
+      <p id="mfTypedArchitecture" class="mf-typed-note" hidden>Fila contínua: assim que um evento recebe sua thread, relation_type avalia os candidatos anteriores com o histórico disponível dessa thread, enquanto os próximos chunks continuam sendo processados. As relações aparecem a cada resposta. configuration_match recebe um único par por chamada, com o tipo previsto e sem histórico ou outros candidatos: parâmetros ausentes não são importados de outros relatos. none não cria aresta; not_applicable mantém a relação sem comparação. Mismatch e baixa confiança permanecem visíveis. Somente evidências compatíveis e confiáveis confirmam pendências. As questões são versionadas; cada execução preserva a arquitetura e os requests originais.</p>
+      <div class="mf-json-editor"><pre id="mfQuestionHighlight" aria-hidden="true"></pre><textarea id="mfQuestionJSON" aria-label="JSON das questões" spellcheck="false" wrap="soft"></textarea></div>
+      <p id="mfQuestionError" class="mf-input-error" role="alert"></p>
+      <footer><button type="button" data-mf-format="mfQuestionJSON">Formatar JSON</button><button id="mfSaveQuestions" class="mf-primary" type="button">Salvar versão</button><button type="button" data-mf-close>Fechar</button></footer>
+    </dialog>
+    <dialog id="mfInputEditDialog" class="mf-dialog" aria-labelledby="mfInputEditTitle"><header><h2 id="mfInputEditTitle">Editar input · current_utterance</h2><button type="button" data-mf-close aria-label="Fechar">×</button></header><textarea id="mfUtteranceEdit" aria-label="current_utterance" spellcheck="false"></textarea><p id="mfUtteranceError" class="mf-input-error" role="alert"></p><footer><button type="button" data-mf-close>Cancelar</button><button id="mfSaveUtterance" class="mf-primary" type="button">Salvar input</button></footer></dialog>
+    <dialog id="mfConfirmDialog" class="mf-dialog mf-confirm" aria-labelledby="mfConfirmTitle"><header><h2 id="mfConfirmTitle">Alterações não salvas</h2></header><p id="mfConfirmMessage"></p><footer><button type="button" data-mf-confirm="cancel">Continuar editando</button><button type="button" data-mf-confirm="discard">Descartar</button><button type="button" data-mf-confirm="save" class="mf-primary">Salvar</button></footer></dialog>
+    <div id="mfVerdictTooltip" class="mf-verdict-tooltip" role="tooltip" hidden><div><i data-tone="pass"></i><span id="mfTooltipPass">Correto: resposta igual ao esperado.</span></div><div><i data-tone="fail"></i><span>Divergência: resposta diferente do esperado. Erros de execução são identificados separadamente.</span></div><div><i data-tone="warning"></i><span id="mfTooltipConfidence">Confiança abaixo do mínimo, avaliada separadamente do acerto da resposta.</span></div></div>
+<dialog id="roomImportDialog" class="room-dialog" aria-labelledby="roomImportHeading"><form id="roomImportForm"><header><div><h2 id="roomImportHeading">Importar transcrição</h2></div><button id="roomImportClose" type="button" class="compact-button" aria-label="Fechar importação">×</button></header><label class="room-drop" id="roomDrop" for="roomFile"><span aria-hidden="true">↥</span><strong id="roomFileLabel">Escolher arquivo ou arrastar aqui</strong><small>TXT, MD, SRT, VTT ou JSON · até 500 mil caracteres</small><input id="roomFile" type="file" accept=".txt,.md,.srt,.vtt,.json,text/plain,application/json"></label><label for="roomImportText">Ou cole o texto da reunião</label><textarea id="roomImportText" rows="9" placeholder="Cole as falas em ordem. Cada linha pode ser uma fala…"></textarea><p id="roomImportError" role="alert"></p><footer><span>O mapa será construído conforme a leitura avançar.</span><button id="roomImportSubmit" class="compact-button">Construir mapa <span aria-hidden="true">→</span></button></footer></form></dialog>
+<dialog id="roomRenameDialog" class="room-dialog room-small-dialog" aria-labelledby="roomRenameHeading"><form id="roomRenameForm"><h2 id="roomRenameHeading">Nome do assunto</h2><input id="roomRenameValue" aria-label="Nome do assunto" maxlength="120" required><p id="roomRenameHint"></p><footer><button id="roomRenameCancel" type="button" class="compact-button">Cancelar</button><button class="compact-button">Salvar nome</button></footer></form></dialog>
+
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="speech-windows.js?v=20261007-11"></script>
+  <script src="transcription.js?v=20261007-11"></script>
+  <script src="workspace.js?v=20261007-11"></script>
+  <script src="experiments.js?v=20261007-11"></script>
+  <script src="automation.js?v=20261007-11"></script>
+  <script src="classifier.js?v=20261007-11"></script>
+  <script src="relation-worker.js?v=20261007-11"></script>
+  <script src="memory-flow.js?v=20261007-11"></script>
+  <script src="memory-page.js?v=20261007-11"></script>
+  <script src="lab.js?v=20261007-11"></script>
+  <script src="app.js?v=20261007-11"></script>
+  <script src="meeting-room.js?v=20261007-11"></script>
+</body>
+</html>

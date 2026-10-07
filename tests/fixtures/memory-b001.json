@@ -1,0 +1,108 @@
+{
+  "batch_id": "B001",
+  "cases": [
+    {
+      "id": "C01",
+      "current_utterance": "The bracket is deforming too much.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C02",
+      "current_utterance": "Yeah.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C03",
+      "current_utterance": "The current bracket is 3 mm aluminum.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C04",
+      "current_utterance": "Maybe the thickness is causing the problem.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C05",
+      "current_utterance": "Okay, that makes sense.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C06",
+      "current_utterance": "Let's test a 4 mm version.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C07",
+      "current_utterance": "Can you repeat that?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C08",
+      "current_utterance": "The 4 mm version still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C09",
+      "current_utterance": "Please run that test again this afternoon.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C10",
+      "current_utterance": "We have decided to use the 4 mm version in the next prototype.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C11",
+      "current_utterance": "I will reconnect in one minute.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C12",
+      "current_utterance": "The client requires a safety factor of two.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C13",
+      "current_utterance": "Maybe the support stiffness is the real issue.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C14",
+      "current_utterance": "Let's test the support condition next.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C15",
+      "current_utterance": "We tested the 4 mm version and it still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_relations": {
+    "C08": {
+      "expected_candidates": ["C04", "C06"],
+      "candidate_expectations": {
+        "C04": {
+          "has_relation": true
+        },
+        "C06": {
+          "has_relation": true
+        }
+      }
+    }
+  }
+}

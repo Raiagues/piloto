@@ -1,0 +1,743 @@
+{
+  "batch_id": "TYPED-CURATED-01",
+  "cases": [
+    {
+      "id": "F01",
+      "current_utterance": "Fan F7 has excessive housing vibration at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "F02",
+      "current_utterance": "For fan F7 with its rotor balanced and running at 3000 rpm, housing vibration must not exceed 2 mm/s.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "F03",
+      "current_utterance": "Rotor imbalance may explain the excessive housing vibration of fan F7.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "F04",
+      "current_utterance": "Let us run vibration trial V1 on fan F7: balance its rotor, operate at 3000 rpm, and measure housing vibration to test the rotor-imbalance hypothesis.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F05",
+      "current_utterance": "V1 is complete: fan F7 with its rotor balanced at 3000 rpm measured 1 mm/s housing vibration. This meets the 2 mm/s limit and supports the imbalance hypothesis as an explanation, without proving it.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F06",
+      "current_utterance": "Tomorrow, repeat V1 as a new trial named V2 on the same fan F7, again with its rotor balanced at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F07",
+      "current_utterance": "V2 is complete: fan F7 with its rotor balanced at 3000 rpm measured 4 mm/s housing vibration, violating the 2 mm/s limit. We are not drawing a causal conclusion from this run.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F08",
+      "current_utterance": "Let us schedule vibration trial V3 on fan F7 with its rotor unbalanced at 3000 rpm to test the rotor-imbalance hypothesis.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F09",
+      "current_utterance": "We have decided to replace scheduled trial V3 with a test of fan F7 with its rotor balanced at 2500 rpm. V3 is cancelled.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "F10",
+      "current_utterance": "Implementing that replacement decision, let us schedule trial V3R: measure housing vibration on fan F7 with its rotor balanced at 2500 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F11",
+      "current_utterance": "The report for trial V3R records 1.5 mm/s vibration on fan F7 with its rotor balanced. The operator used 2800 rpm instead of the planned 2500 rpm. This run does not evaluate the requirement specified at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F12",
+      "current_utterance": "Based specifically on the 1 mm/s measurement reported in V1, we approve rotor balancing for the next fan prototype. This choice does not establish the root cause or erase later measurements.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "L01",
+      "current_utterance": "Separately, sensor enclosure E7 is leaking water through its door seal.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "L02",
+      "current_utterance": "The sensor enclosure E7 door seal may leak only when its gasket is cold.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "L03",
+      "current_utterance": "Let us investigate the cold-gasket hypothesis in seal trial L1: use enclosure E7 with gasket G1 at 10 C, apply 2 bar water pressure for 60 minutes, and measure ingress.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "L04",
+      "current_utterance": "The L1 test log confirms enclosure E7, gasket G1, and 10 C, and records 4 ml of water ingress. The applied pressure and test duration were not recorded. The leakage is evidence consistent with the cold-gasket hypothesis, not proof of it.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "L05",
+      "current_utterance": "In the L1 test plan, the specified 2 bar means gauge pressure, not absolute pressure.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "L06",
+      "current_utterance": "For comparison with the L1 test plan at 10 C, let us test the cold-gasket hypothesis with seal trial L2: enclosure E7, gasket G1, 20 C, 2 bar gauge water pressure, and 60 minutes. The warmer run will check whether cold is necessary for leakage.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "L07",
+      "current_utterance": "L2 is complete: enclosure E7 with gasket G1 at 20 C under 2 bar gauge water pressure for 60 minutes admitted 4 ml. Leakage at the warmer temperature is evidence against cold being necessary for the leak; it does not identify the cause.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "L08",
+      "current_utterance": "A separate report filed under trial L1 records 3 ml of water ingress, but its setup identity is unresolved: the label could refer to enclosure E7 with gasket G1 or to enclosure E8 with gasket G2. The report does not establish which configuration was used.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_threads": {
+    "F01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "F02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F07": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F11": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F12": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "L01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "L02": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L03": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L04": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L05": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L06": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L07": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  },
+  "expected_typed_relations": {
+    "F01": {},
+    "F02": {
+      "F01": {
+        "relation_type": "none"
+      }
+    },
+    "F03": {
+      "F01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      },
+      "F02": {
+        "relation_type": "none"
+      }
+    },
+    "F04": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "F05": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "supports",
+        "configuration_match": "exact"
+      },
+      "F03": {
+        "relation_type": "supports",
+        "configuration_match": "not_applicable"
+      },
+      "F04": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "F06": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "F05": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      }
+    },
+    "F07": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "contradicts",
+        "configuration_match": "exact"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "F08": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      }
+    },
+    "F09": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "supersedes",
+        "configuration_match": "mismatch"
+      }
+    },
+    "F10": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "supersedes",
+        "configuration_match": "mismatch"
+      },
+      "F09": {
+        "relation_type": "related_to",
+        "configuration_match": "exact"
+      }
+    },
+    "F11": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "none"
+      },
+      "F09": {
+        "relation_type": "none"
+      },
+      "F10": {
+        "relation_type": "result_of",
+        "configuration_match": "mismatch"
+      }
+    },
+    "F12": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "based_on",
+        "configuration_match": "not_applicable"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "none"
+      },
+      "F09": {
+        "relation_type": "none"
+      },
+      "F10": {
+        "relation_type": "none"
+      },
+      "F11": {
+        "relation_type": "none"
+      }
+    },
+    "L01": {},
+    "L02": {
+      "L01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "L03": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "L04": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "supports",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "L05": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "none"
+      },
+      "L03": {
+        "relation_type": "clarifies",
+        "configuration_match": "not_applicable"
+      },
+      "L04": {
+        "relation_type": "none"
+      }
+    },
+    "L06": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "related_to",
+        "configuration_match": "mismatch"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      }
+    },
+    "L07": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "contradicts",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "none"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      },
+      "L06": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "L08": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "none"
+      },
+      "L03": {
+        "relation_type": "result_of",
+        "configuration_match": "ambiguous"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      },
+      "L06": {
+        "relation_type": "none"
+      },
+      "L07": {
+        "relation_type": "none"
+      }
+    }
+  },
+  "review_notes": {
+    "purpose": "Direct typed semantic relations and conservative test lifecycle in an engineering meeting. This is a curated expectation set, not model-generated output.",
+    "contract": {
+      "direction": "Each source is the later event; each target is an earlier event in the same thread. First events have an explicit empty target map.",
+      "completeness": "Every earlier same-thread pair is explicitly adjudicated, including none. Cross-thread pairs are outside candidate scope, not implicit negatives.",
+      "directness": "An edge requires a direct semantic bridge. Shared component, word, thread, or membership in a multi-edge chain alone does not create an edge.",
+      "configuration": "Every non-none pair has an expected configuration_match. Compare relevant setup and scope, not observed outcome versus an acceptance limit. not_applicable is a semantic judgment when this link does not compare two setups; it is not a fixed relation-type shortcut.",
+      "evidence": "supports/contradicts records evidence concerning a claim or requirement; it does not prove or disprove causation, permanently close a requirement, or rewrite the earlier event.",
+      "lifecycle": "Only a sufficiently confident result_of plus sufficiently confident exact configuration match closes a test proposal. partial/ambiguous/mismatch retain the edge and require review. A repeats edge never closes the newer proposal. Explicit supersession is separate from completion.",
+      "labels_authorship": "Authored and reviewed before observing JEV outputs. The test runner must not send expectations, review notes, or lifecycle checkpoints to inference."
+    },
+    "pair_review_by_source": {
+      "F01": "First event: no prior candidates and no edge.",
+      "F02": "A newly stated numerical criterion is not evidence supporting or contradicting the preceding unquantified observation. None to F01.",
+      "F03": "Explicit possible explanation links directly to the problem F01. It does not address compliance with the criterion F02. The hypothesis offers no paired execution setup to compare.",
+      "F04": "The proposal explicitly tests F03. A route through the hypothesis does not also create an edge to F01; it does not explicitly frame this experiment as a requirement verification for F02.",
+      "F05": "Explicit V1 outcome, explicitly scoped compliance with F02, and expressly stated nondefinitive support for F03. The causal observation F01 is historical, so later improvement does not retroactively contradict it.",
+      "F06": "V2 explicitly repeats the V1 execution under the same setup. The named prior trial is represented by proposal F04 and result F05, so both receive repeats/exact. These two edges are one request, not two new trials. They do not close V2 or inherit causal/evidential conclusions.",
+      "F07": "Direct result of V2 and direct failure of the F02 criterion. A different measurement at a later time does not by itself contradict the historical V1 report F05, nor does it establish a causal relation to F03.",
+      "F08": "Direct proposal to test F03. It is neither an explicit repeat nor an explicit replacement of V1 or V2; shared fan, speed, and experiment topic alone are insufficient.",
+      "F09": "An explicit committed cancellation and replacement is primarily a decision. It supersedes the proposal F08; rotor state and speed intentionally differ, so mismatch is compatible with supersession. It does not itself create a separately tracked test proposal or inherit a tests edge to the hypothesis.",
+      "F10": "The proposal explicitly implements replacement decision F09 (related_to/exact) and thereby replaces the identified V3 plan F08 (supersedes/mismatch). Resolving the explicit reference establishes the replacement link; another path in the graph does not prohibit it.",
+      "F11": "Report explicitly identifies V3R, so result_of F10 survives the explicit 2800-versus-2500 mismatch. It neither completes the superseded V3 proposal nor evaluates F02 at 3000 rpm. Numeric outcome alone must not manufacture requirement evidence or a transitive relation to decision F09.",
+      "F12": "The decision identifies the V1 result F05 as its rationale. It does not deny V2, prove F03, supersede a prior test, or create an inferred edge to F04 through result_of.",
+      "L01": "First event of the independent seal investigation: no same-thread prior candidates.",
+      "L02": "Hypothesis explicitly says cold is necessary (leak only when cold), offering an explanation of L01 without proving a cause. Pre-inference review replaced the weaker may-explain wording because a warm leaking result would contradict necessity, but would not refute cold as one contributing cause.",
+      "L03": "Direct test of L02. A test proposal is not evidence that the historical leak L01 did or did not occur.",
+      "L04": "Explicit L1 outcome has matching known enclosure/gasket/temperature but missing pressure and duration, hence partial against L03. Its expressly stated causal support for L02 is evidence, not confirmation; that causal link does not require equal hypothesis/test configurations.",
+      "L05": "Clarifies the meaning of a parameter in L03. It does not recover the missing actual pressure in L04, establish that L1 was completed correctly, or supply evidence about the leak cause.",
+      "L06": "The warmer experiment tests L02 and explicitly contrasts its planned setup with the L1 plan L03. The comparative link is related_to/mismatch because 20 C differs from 10 C. It does not claim to repeat or replace L1, and shared words alone would not establish this comparison.",
+      "L07": "Exact result of L2 and explicit counterevidence to cold being necessary. Intentional temperature intervention is not a mismatch for the causal evidence relation; no equal-configuration causal assertion is made. It does not contradict the historical observation that leakage occurred in another run.",
+      "L08": "Directly identified L1 report with unresolved actual apparatus identity: result_of survives, configuration ambiguous blocks completion. It makes no claim about cause, does not correct or replace L04, and is not a result of L2."
+    },
+    "lifecycle_checkpoints": [
+      {
+        "after_chunk": "F04",
+        "target_chunk": "F04",
+        "expected_test_state": "open"
+      },
+      {
+        "after_chunk": "F05",
+        "target_chunk": "F04",
+        "expected_test_state": "completed",
+        "requires_confident_edges": true
+      },
+      {
+        "after_chunk": "F05",
+        "target_chunk": "F03",
+        "expected_evidence_state": "supported",
+        "must_not_infer": "confirmed_cause"
+      },
+      {
+        "after_chunk": "F06",
+        "target_chunk": "F06",
+        "expected_test_state": "open",
+        "must_not_use_result_chunk": "F05"
+      },
+      {
+        "after_chunk": "F07",
+        "target_chunk": "F06",
+        "expected_test_state": "completed",
+        "requires_confident_edges": true
+      },
+      {
+        "after_chunk": "F07",
+        "target_chunk": "F02",
+        "expected_evidence_state": "mixed",
+        "must_not_infer": "permanently_closed_requirement"
+      },
+      {
+        "after_chunk": "F09",
+        "target_chunk": "F08",
+        "expected_test_state": "superseded",
+        "requires_confident_edges": true
+      },
+      {
+        "after_chunk": "F10",
+        "target_chunk": "F10",
+        "expected_test_state": "open"
+      },
+      {
+        "after_chunk": "F11",
+        "target_chunk": "F10",
+        "expected_test_state": "open",
+        "expected_review_reason": "configuration_mismatch"
+      },
+      {
+        "after_chunk": "L04",
+        "target_chunk": "L03",
+        "expected_test_state": "open",
+        "expected_review_reason": "configuration_partial"
+      },
+      {
+        "after_chunk": "L07",
+        "target_chunk": "L06",
+        "expected_test_state": "completed",
+        "requires_confident_edges": true
+      },
+      {
+        "after_chunk": "L08",
+        "target_chunk": "L03",
+        "expected_test_state": "open",
+        "expected_review_reason": "configuration_ambiguous"
+      }
+    ],
+    "label_revisions": [
+      {
+        "case_id": "L05",
+        "before": "observation",
+        "after": "requirement",
+        "reason": "Clarifies a specified test condition. The established event_type contract explicitly classifies clarification of a requirement/specification as requirement. This does not establish the conditions actually used in a past run.",
+        "evidence": "Independent semantic review after curated upstream run; holdout has not been submitted to JEV."
+      },
+      {
+        "pair": "F06 → F05",
+        "before": {
+          "relation_type": "none"
+        },
+        "after": {
+          "relation_type": "repeats",
+          "configuration_match": "exact"
+        },
+        "reason": "The request explicitly identifies the prior execution represented by this result. User taxonomy does not restrict repeats to proposals. Retaining this link does not complete the new test; source IDs deduplicate counts of requested repeats. Independent semantic review corrected an overly restrictive annotation convention."
+      },
+      {
+        "pair": "F10 → F08",
+        "before": {
+          "relation_type": "none"
+        },
+        "after": {
+          "relation_type": "supersedes",
+          "configuration_match": "mismatch"
+        },
+        "reason": "Implementing the explicit replacement decision establishes the revised plan as replacement of the old plan. The existence of an intermediate decision does not prohibit this independently established semantic link."
+      },
+      {
+        "pair": "L06 → L03",
+        "before": {
+          "relation_type": "none"
+        },
+        "after": {
+          "relation_type": "related_to",
+          "configuration_match": "mismatch"
+        },
+        "input_before": "Let us test the cold-gasket hypothesis with seal trial L2: enclosure E7, gasket G1, 20 C, 2 bar gauge water pressure, and 60 minutes. The warmer run will check whether cold is necessary for leakage.",
+        "input_after": "For comparison with the L1 test plan at 10 C, let us test the cold-gasket hypothesis with seal trial L2: enclosure E7, gasket G1, 20 C, 2 bar gauge water pressure, and 60 minutes. The warmer run will check whether cold is necessary for leakage.",
+        "reason": "Warmer run already implied a comparison but could refer to the old plan or report. Explicitly naming the prior plan makes the intended experimental contrast testable. Different temperatures are preserved as mismatch; neither repeat nor supersession is invented."
+      }
+    ]
+  }
+}

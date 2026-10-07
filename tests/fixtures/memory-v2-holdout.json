@@ -1,0 +1,309 @@
+{
+  "batch_id": "MEMORY-V2-HOLDOUT",
+  "cases": [
+    {
+      "id": "H01",
+      "current_utterance": "The checkout service currently has a p95 response time of 900 milliseconds.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H02",
+      "current_utterance": "Right, I understand.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "H03",
+      "current_utterance": "Maybe database lock contention is causing the slowdown.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "H04",
+      "current_utterance": "Let's replay that workload with the database connection pool set to forty.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H05",
+      "current_utterance": "The workload replay reduced the p95 response time to 250 milliseconds.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H06",
+      "current_utterance": "The stakeholder requires an error rate below 0.1 percent.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H07",
+      "current_utterance": "Let's rerun the same workload with two hundred concurrent sessions.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H08",
+      "current_utterance": "Now let's discuss billing exports.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "H09",
+      "current_utterance": "The billing exports contain duplicate invoice rows.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H10",
+      "current_utterance": "Maybe the retry handler writes the same row twice.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "H11",
+      "current_utterance": "Let's replay the export job with a forced timeout.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H12",
+      "current_utterance": "The forced-timeout test reproduced the duplicate invoice rows.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H13",
+      "current_utterance": "The stakeholder also requires a minimum retention period of thirty days.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H14",
+      "current_utterance": "That thirty-day retention minimum applies to the billing exports.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H15",
+      "current_utterance": "Separately, the checkout page has unreadable text in dark mode.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H16",
+      "current_utterance": "Maybe the theme overrides the text color.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "H17",
+      "current_utterance": "Let's compare the default palette with the high-contrast palette.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H18",
+      "current_utterance": "In that comparison test, the high-contrast palette met the text-contrast target.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H19",
+      "current_utterance": "Back to checkout response times, let's measure database lock waits during the next workload replay.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H20",
+      "current_utterance": "For the duplicate billing export rows, we have decided to deduplicate before writing each invoice.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "H21",
+      "current_utterance": "Returning to checkout text readability, we have selected the high-contrast palette.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "H22",
+      "current_utterance": "Can everyone hear me?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "H23",
+      "current_utterance": "Let's verify that choice with an accessibility audit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H24",
+      "current_utterance": "The accessibility audit passed all text-contrast checks.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_threads": {
+    "H01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "H03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {},
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "H07": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002"
+    },
+    "H10": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H11": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H12": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H13": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {
+        "T001": "uncertain"
+      },
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "H14": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H15": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong"
+      },
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T003"
+    },
+    "H16": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "H17": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "H18": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "H19": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T002": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "H20": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "H21": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong",
+        "T003": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T003"
+    },
+    "H23": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "H24": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    }
+  },
+  "review_notes": {
+    "domain": "Software delivery: checkout latency, duplicate billing exports, and checkout text readability.",
+    "purpose": "Independent semantic generalization fixture authored before observing any JEV response. No case or expected value is selected from model output.",
+    "coverage": [
+      "Implicit continuation through alternative causes and proposed tests",
+      "Unspecific requirements remain pending while the active thread is preserved",
+      "A topic-transition utterance is not stored as durable memory but remains available as conversation context",
+      "The same checkout component has independent latency and readability investigations",
+      "Explicit returns to each archived investigation",
+      "Logistics do not replace the conversational subject",
+      "A proposal with an indirect object is retained as useful memory"
+    ],
+    "classification_scope": "Memory retention and event type use current_utterance only. Membership uses preceding conversation and existing thread contents."
+  }
+}

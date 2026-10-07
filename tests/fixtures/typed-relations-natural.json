@@ -1,0 +1,217 @@
+{
+  "batch_id": "TYPED-NATURAL-PT-01",
+  "cases": [
+    {
+      "id": "N01",
+      "current_utterance": "A tela de login está demorando a abrir.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "N02",
+      "current_utterance": "Talvez a consulta de permissões esteja atrasando o login.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "N03",
+      "current_utterance": "Vamos medir o tempo da consulta de permissões com cem usuários simultâneos.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "N04",
+      "current_utterance": "Tá, entendi.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "N05",
+      "current_utterance": "Na medição, a consulta de permissões levou dois segundos, mas não anotamos quantos usuários estavam conectados.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "N06",
+      "current_utterance": "Os anexos ficaram de fora do backup de ontem.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "N07",
+      "current_utterance": "Talvez o filtro de extensões esteja excluindo os anexos.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "N08",
+      "current_utterance": "Vamos testar o backup com o filtro de extensões desligado.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "N09",
+      "current_utterance": "Só um segundo.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "N10",
+      "current_utterance": "No teste com o filtro desligado, todos os anexos foram copiados.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_threads": {
+    "N01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "N02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N06": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "N07": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "N08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "N10": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  },
+  "expected_typed_relations": {
+    "N01": {},
+    "N02": {
+      "N01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N03": {
+      "N02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N05": {
+      "N01": {
+        "relation_type": "none"
+      },
+      "N02": {
+        "relation_type": "none"
+      },
+      "N03": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "N06": {},
+    "N07": {
+      "N06": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N08": {
+      "N07": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N10": {
+      "N06": {
+        "relation_type": "none"
+      },
+      "N08": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    }
+  },
+  "review_notes": {
+    "purpose": "Conjunto independente curto, preparado antes da inferência, com falas naturais de reunião em português sobre desempenho de login e integridade de backup. Não usa IDs de ensaios, conclusões causais didáticas ou respostas de API para definir os rótulos.",
+    "coverage": {
+      "utterances": 10,
+      "retained_events": 8,
+      "ignored_utterances": 2,
+      "threads": 2,
+      "eligible_intrathread_pairs": 12,
+      "annotated_pairs": 9,
+      "positive_pairs": 6,
+      "none_pairs": 3,
+      "unannotated_pairs": 3
+    },
+    "unannotated_pairs": [
+      {
+        "source": "N03",
+        "target": "N01",
+        "reason": "Medir a consulta investiga diretamente a hipótese N02. Uma ligação adicional com o sintoma do login é defensável como investigação do problema, mas não é explicitada na proposta. O gabarito não impõe redução transitiva nem converte relevância geral em ligação obrigatória."
+      },
+      {
+        "source": "N08",
+        "target": "N06",
+        "reason": "O teste com o filtro desligado investiga a hipótese N07. Uma ligação adicional com a falha do backup anterior pode representar investigação direta do problema; a fala não especifica essa relação separadamente. Mantido sem pontuação em vez de impor none por transitividade."
+      },
+      {
+        "source": "N10",
+        "target": "N07",
+        "reason": "Copiar todos os anexos com o filtro desligado é compatível com a hipótese. O relato não afirma a conclusão causal e não registra controle das outras condições. É discutível se essa evidência deve contar como supports implícito; não se fixa supports nem none nesta avaliação independente."
+      }
+    ],
+    "pair_rationales": {
+      "N02->N01": "A hipótese propõe uma explicação para a lentidão do login; related_to registra essa explicação proposta sem afirmar causalidade comprovada. O problema geral não define configuração.",
+      "N03->N02": "Medir o tempo da consulta de permissões investiga a causa suspeita imediatamente anterior. O alvo é uma hipótese geral, não um ensaio com configuração para comparar.",
+      "N05->N01": "O tempo da consulta não afirma quanto demorou a tela nem estabelece o efeito dessa consulta sobre o login. Não se cria ligação apenas por pertencerem à mesma investigação.",
+      "N05->N02": "Dois segundos de consulta, sem critério de desempenho, tempo total do login ou conclusão do participante, não estabelece que a consulta causou a lentidão. O resultado não declara apoio ou refutação causal.",
+      "N05->N03": "Na medição retoma a única medição proposta. O objeto medido é identificado, mas a concorrência efetiva não foi registrada: partial, não ambiguous e não exact. A proposta não fornece o valor que falta no resultado.",
+      "N07->N06": "A hipótese atribui os anexos ausentes a um possível filtro. Trata-se de explicação proposta do problema geral, sem configuração a comparar.",
+      "N08->N07": "Desligar o filtro e testar o backup investiga a hipótese imediatamente anterior; o alvo não especifica uma configuração concreta.",
+      "N10->N06": "Sucesso no teste novo não contradiz o fato histórico de que os anexos faltaram no backup de ontem. A fala não declara repetição daquela execução nem comparação entre os dois backups.",
+      "N10->N08": "O resultado identifica o teste de backup com o filtro desligado. Essa é a única condição de execução especificada na proposta e ela aparece no resultado: exact. Não se exigem parâmetros nunca definidos por nenhuma das falas."
+    },
+    "thread_rationale": "N01 a N05 discutem a investigação da lentidão do login. N06 apresenta outro problema, anexos ausentes no backup, continuado por N07 a N10. N04 e N09 são confirmações ou logística temporária e não criam eventos nem candidatos; permanecem no contexto cronológico do roteamento.",
+    "lifecycle_expectations": [
+      {
+        "event": "N03",
+        "expected": "Permanece aberto para revisão: N05 é resultado atribuído ao teste, mas a concorrência real falta e o pareamento é partial."
+      },
+      {
+        "event": "N08",
+        "expected": "Pode ser marcado concluído somente se a IA confirmar result_of e exact com as confianças exigidas; a conclusão registra execução, não prova a hipótese N07."
+      }
+    ],
+    "annotation_policy": "Todos os 12 pares anteriores da mesma thread foram revisados: 9 têm rótulo explícito e 3 permanecem sem pontuação pelas razões acima. Ausência de gabarito não equivale a none. Não há anotação cruzada entre threads nem para fillers."
+  }
+}

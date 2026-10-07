@@ -1,0 +1,458 @@
+{
+  "batch_id": "B002-REVIEWED",
+  "cases": [
+    {
+      "id": "C01",
+      "current_utterance": "The bracket is deforming too much.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C02",
+      "current_utterance": "Yeah.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C03",
+      "current_utterance": "The current bracket is 3 mm aluminum.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C04",
+      "current_utterance": "Maybe the thickness is causing the problem.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C05",
+      "current_utterance": "Okay, that makes sense.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C06",
+      "current_utterance": "Let's test a 4 mm version.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C07",
+      "current_utterance": "Can you repeat that?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C08",
+      "current_utterance": "In the deformation test, the 4 mm version still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C09",
+      "current_utterance": "Please run that test again this afternoon.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C10",
+      "current_utterance": "We have decided to use the 4 mm version in the next prototype.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "C11",
+      "current_utterance": "I will reconnect in one minute.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C12",
+      "current_utterance": "The client requires a safety factor of two.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C13",
+      "current_utterance": "Maybe the support stiffness is the real issue.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C14",
+      "current_utterance": "Let's test the support condition next.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C15",
+      "current_utterance": "We tested the 4 mm version and it still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C16",
+      "current_utterance": "Now let's discuss the sensor enclosure.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C17",
+      "current_utterance": "The sensor enclosure wall is cracking near the mounting holes.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C18",
+      "current_utterance": "Can everyone see my screen?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C19",
+      "current_utterance": "Maybe the mounting-hole spacing is concentrating the stress.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C20",
+      "current_utterance": "Yeah, I can see it now.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C21",
+      "current_utterance": "Let's test a version with wider hole spacing.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C22",
+      "current_utterance": "In the test with wider hole spacing, the sensor enclosure no longer cracked.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C23",
+      "current_utterance": "Give me a second, I need to grab my charger.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C24",
+      "current_utterance": "Going back to the bracket, the 4 mm rerun still exceeded the deformation limit.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C25",
+      "current_utterance": "Sorry, my audio cut out for a second.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C26",
+      "current_utterance": "For the sensor enclosure, let's test a 4 mm wall.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C27",
+      "current_utterance": "The client also requires a maximum mass of 2 kg.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C28",
+      "current_utterance": "By the way, lunch is in the conference room.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C29",
+      "current_utterance": "That 2 kg limit applies to the sensor enclosure.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C30",
+      "current_utterance": "Separately, the bracket coating is failing the salt-spray test.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C31",
+      "current_utterance": "Give me a second, I'm opening the coating report.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C32",
+      "current_utterance": "Maybe the coating thickness is too low.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "C33",
+      "current_utterance": "Let's measure the coating thickness.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C34",
+      "current_utterance": "I can't see the slides because the meeting-room projector is disconnected.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C35",
+      "current_utterance": "We measured the coating at 18 microns, below the required 25.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "C36",
+      "current_utterance": "Back to the bracket deformation, let's test the support stiffness under the same load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "C37",
+      "current_utterance": "Can we take a five-minute break after this?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C38",
+      "current_utterance": "For the sensor enclosure, the 4 mm wall cracked again.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "C39",
+      "current_utterance": "The sensor enclosure must remain under 2 kg.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C40",
+      "current_utterance": "The bracket must maintain a safety factor of two under the test load.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "C41",
+      "current_utterance": "Okay.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C42",
+      "current_utterance": "Did anyone see the game last night?",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "C43",
+      "current_utterance": "Let's run the support-stiffness test under the same load tomorrow morning.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    }
+  ],
+  "expected_threads": {
+    "C01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "C03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C12": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {},
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "C13": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_archive_results": {},
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C14": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C15": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "C17": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {},
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002"
+    },
+    "C19": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C21": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C22": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C24": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C26": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C27": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "uncertain",
+      "expected_archive_results": {
+        "T001": "uncertain"
+      },
+      "expected_action": "assignment_pending",
+      "expected_thread_id": null
+    },
+    "C29": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C30": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "does_not_belong"
+      },
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T003"
+    },
+    "C32": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C33": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C35": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T003"
+    },
+    "C36": {
+      "expected_active_thread_id": "T003",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T002": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C38": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T002": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T002"
+    },
+    "C39": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "C40": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {
+        "T001": "belongs",
+        "T003": "does_not_belong"
+      },
+      "expected_action": "reactivate_thread",
+      "expected_thread_id": "T001"
+    },
+    "C43": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "expected_threads": {
+    "C01": { "expected_action": "create_new_thread", "expected_thread_id": "T001" },
+    "C03": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C04": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C06": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C08": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C09": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C10": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C12": { "expected_active_result": "does_not_belong", "expected_archive_match": null, "expected_action": "create_new_thread", "expected_thread_id": "T002" },
+    "C13": { "expected_active_result": "does_not_belong", "expected_archive_match": "T001", "expected_archive_result": "belongs", "expected_action": "reactivate_thread", "expected_thread_id": "T001" },
+    "C14": { "expected_active_result": "belongs", "expected_thread_id": "T001" },
+    "C15": { "expected_active_result": "belongs", "expected_thread_id": "T001" }
+  }
+}

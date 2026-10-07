@@ -1,0 +1,52 @@
+{
+  "batch_id": "TYPED-NATURAL-PT-01",
+  "expected_typed_relations": {
+    "N01": {},
+    "N02": {
+      "N01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N03": {
+      "N02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N05": {
+      "N01": {
+        "relation_type": "none"
+      },
+      "N02": {
+        "relation_type": "none"
+      },
+      "N03": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "N06": {},
+    "N07": {
+      "N06": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N08": {
+      "N07": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "N10": {
+      "N06": {
+        "relation_type": "none"
+      },
+      "N08": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    }
+  }
+}

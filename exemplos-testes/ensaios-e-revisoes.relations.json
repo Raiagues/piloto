@@ -1,0 +1,350 @@
+{
+  "batch_id": "TYPED-CURATED-01",
+  "expected_typed_relations": {
+    "F01": {},
+    "F02": {
+      "F01": {
+        "relation_type": "none"
+      }
+    },
+    "F03": {
+      "F01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      },
+      "F02": {
+        "relation_type": "none"
+      }
+    },
+    "F04": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "F05": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "supports",
+        "configuration_match": "exact"
+      },
+      "F03": {
+        "relation_type": "supports",
+        "configuration_match": "not_applicable"
+      },
+      "F04": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "F06": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "F05": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      }
+    },
+    "F07": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "contradicts",
+        "configuration_match": "exact"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "F08": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      }
+    },
+    "F09": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "supersedes",
+        "configuration_match": "mismatch"
+      }
+    },
+    "F10": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "supersedes",
+        "configuration_match": "mismatch"
+      },
+      "F09": {
+        "relation_type": "related_to",
+        "configuration_match": "exact"
+      }
+    },
+    "F11": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "none"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "none"
+      },
+      "F09": {
+        "relation_type": "none"
+      },
+      "F10": {
+        "relation_type": "result_of",
+        "configuration_match": "mismatch"
+      }
+    },
+    "F12": {
+      "F01": {
+        "relation_type": "none"
+      },
+      "F02": {
+        "relation_type": "none"
+      },
+      "F03": {
+        "relation_type": "none"
+      },
+      "F04": {
+        "relation_type": "none"
+      },
+      "F05": {
+        "relation_type": "based_on",
+        "configuration_match": "not_applicable"
+      },
+      "F06": {
+        "relation_type": "none"
+      },
+      "F07": {
+        "relation_type": "none"
+      },
+      "F08": {
+        "relation_type": "none"
+      },
+      "F09": {
+        "relation_type": "none"
+      },
+      "F10": {
+        "relation_type": "none"
+      },
+      "F11": {
+        "relation_type": "none"
+      }
+    },
+    "L01": {},
+    "L02": {
+      "L01": {
+        "relation_type": "related_to",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "L03": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "L04": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "supports",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "L05": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "none"
+      },
+      "L03": {
+        "relation_type": "clarifies",
+        "configuration_match": "not_applicable"
+      },
+      "L04": {
+        "relation_type": "none"
+      }
+    },
+    "L06": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "related_to",
+        "configuration_match": "mismatch"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      }
+    },
+    "L07": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "contradicts",
+        "configuration_match": "not_applicable"
+      },
+      "L03": {
+        "relation_type": "none"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      },
+      "L06": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "L08": {
+      "L01": {
+        "relation_type": "none"
+      },
+      "L02": {
+        "relation_type": "none"
+      },
+      "L03": {
+        "relation_type": "result_of",
+        "configuration_match": "ambiguous"
+      },
+      "L04": {
+        "relation_type": "none"
+      },
+      "L05": {
+        "relation_type": "none"
+      },
+      "L06": {
+        "relation_type": "none"
+      },
+      "L07": {
+        "relation_type": "none"
+      }
+    }
+  }
+}

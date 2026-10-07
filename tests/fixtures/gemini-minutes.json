@@ -1,0 +1,96 @@
+{
+  "source": {
+    "events": [
+      {
+        "event_id": "E1",
+        "thread_id": "T1",
+        "type": "hypothesis",
+        "text": "A rigidez pode causar deformação."
+      },
+      {
+        "event_id": "E2",
+        "thread_id": "T1",
+        "type": "test_proposal",
+        "text": "Testar sob 20 N."
+      },
+      {
+        "event_id": "E3",
+        "thread_id": "T1",
+        "type": "test_result",
+        "text": "Excedeu o limite."
+      }
+    ],
+    "relations": [
+      {
+        "source_event_id": "E3",
+        "target_event_id": "E2",
+        "relation_type": "result_of",
+        "configuration_match": "exact",
+        "review_state": "confirmed",
+        "relation_probability": 0.99,
+        "match_probability": 0.99
+      }
+    ],
+    "run_status": "done",
+    "relation_status": "done"
+  },
+  "document": {
+    "title": "Tópicos discutidos",
+    "topics": [
+      {
+        "thread_id": "T1",
+        "title": "Deformação do suporte",
+        "summary": {
+          "text": "Foi discutida a deformação.",
+          "event_ids": [
+            "E1"
+          ]
+        },
+        "points": [
+          {
+            "id": "P1",
+            "text": "A rigidez pode causar deformação.",
+            "event_ids": [
+              "E1"
+            ]
+          }
+        ],
+        "tests": [
+          {
+            "id": "X1",
+            "parent_id": "P1",
+            "text": "Testar sob 20 N.",
+            "result": "Excedeu o limite.",
+            "owner": "",
+            "due": "",
+            "event_ids": [
+              "E2",
+              "E3"
+            ],
+            "status": "done"
+          }
+        ],
+        "actions": []
+      }
+    ],
+    "warnings": [
+      {
+        "target_id": "X1",
+        "message": "Confira a ligação deste teste/ação com o ponto acima; não há vínculo direto confirmado na extração.",
+        "event_ids": [
+          "E2",
+          "E3"
+        ],
+        "id": "W1"
+      },
+      {
+        "target_id": "",
+        "message": "Confira a síntese da ata com os registros de origem. A redação foi gerada por IA.",
+        "event_ids": [],
+        "id": "W2"
+      }
+    ],
+    "prompt_version": "minutes-2026-10-06-v1",
+    "model": "test-fixture"
+  }
+}

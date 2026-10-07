@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "Erro: Python 3 não foi encontrado. Instale o Python 3 e rode ./setup novamente."
+  exit 1
+fi
+
+chmod +x "$PROJECT_DIR/start" "$PROJECT_DIR/stop" "$PROJECT_DIR/setup"
+mkdir -p "$PROJECT_DIR/.runtime"
+python3 "$PROJECT_DIR/config.py"
+
+echo "Configuração concluída."
+echo "Use ./start para abrir o site ou ./stop para encerrá-lo."

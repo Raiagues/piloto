@@ -1,0 +1,347 @@
+{
+  "batch_id": "TYPED-HOLDOUT-01",
+  "cases": [
+    {
+      "id": "H01",
+      "current_utterance": "The A9 actuator brake must hold a stationary 120 N load while the actuator is deenergized.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H02",
+      "current_utterance": "Please remove the locking pin from actuator A9 before beginning any brake test.",
+      "expected_store_memory": true,
+      "expected_event_type": "other"
+    },
+    {
+      "id": "H03",
+      "current_utterance": "Let us run holding test B1 on the A9 actuator brake with a stationary 120 N load while deenergized, to verify that holding requirement. Starting B1 depends on completing the locking-pin removal just requested.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H04",
+      "current_utterance": "B1 is complete: the deenergized A9 actuator brake was subjected to a stationary 120 N load and slipped. It therefore failed the specified 120 N holding requirement.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H05",
+      "current_utterance": "Repeat B1 tomorrow as new run B2, again with actuator A9 deenergized and subjected to a stationary 120 N load.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H06",
+      "current_utterance": "The drawing number for the A9 actuator brake is BA-4.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H07",
+      "current_utterance": "Separately, the tip of temperature probe P7 has an upward position offset of 0.2 mm.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H08",
+      "current_utterance": "Expansion of the support bracket changes that P7 probe-tip position by 0.2 mm upward.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "H09",
+      "current_utterance": "Let us run thermal trial P1 on probe P7 in a 60 C chamber for 30 minutes, measuring bracket expansion and probe-tip position to test the claimed effect of expansion on tip position.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "H10",
+      "current_utterance": "The P1 thermal-test report identifies probe P7 and a 30-minute duration, and records 0.2 mm of bracket expansion. The chamber-temperature page is missing and no tip-position measurement was recorded.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "H11",
+      "current_utterance": "The 60 C specified in the P1 thermal-test plan is the chamber setpoint, not the probe temperature.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "H12",
+      "current_utterance": "Based on the bracket-expansion measurement reported in P1, we decided to add a compliant bracket mount to the next probe prototype.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    }
+  ],
+  "expected_threads": {
+    "H01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "H02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "H07": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "H08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H09": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H10": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H11": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "H12": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  },
+  "expected_typed_relations": {
+    "H01": {},
+    "H02": {
+      "H01": {
+        "relation_type": "none"
+      }
+    },
+    "H03": {
+      "H01": {
+        "relation_type": "tests",
+        "configuration_match": "exact"
+      },
+      "H02": {
+        "relation_type": "depends_on",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H04": {
+      "H01": {
+        "relation_type": "contradicts",
+        "configuration_match": "exact"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "result_of",
+        "configuration_match": "exact"
+      }
+    },
+    "H05": {
+      "H01": {
+        "relation_type": "none"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      },
+      "H04": {
+        "relation_type": "repeats",
+        "configuration_match": "exact"
+      }
+    },
+    "H06": {
+      "H01": {
+        "relation_type": "none"
+      },
+      "H02": {
+        "relation_type": "none"
+      },
+      "H03": {
+        "relation_type": "none"
+      },
+      "H04": {
+        "relation_type": "none"
+      },
+      "H05": {
+        "relation_type": "none"
+      }
+    },
+    "H07": {},
+    "H08": {
+      "H07": {
+        "relation_type": "affects",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H09": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "tests",
+        "configuration_match": "not_applicable"
+      }
+    },
+    "H10": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "result_of",
+        "configuration_match": "partial"
+      }
+    },
+    "H11": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "clarifies",
+        "configuration_match": "not_applicable"
+      },
+      "H10": {
+        "relation_type": "none"
+      }
+    },
+    "H12": {
+      "H07": {
+        "relation_type": "none"
+      },
+      "H08": {
+        "relation_type": "none"
+      },
+      "H09": {
+        "relation_type": "none"
+      },
+      "H10": {
+        "relation_type": "based_on",
+        "configuration_match": "not_applicable"
+      },
+      "H11": {
+        "relation_type": "none"
+      }
+    }
+  },
+  "review_notes": {
+    "purpose": "Direct typed semantic relations and conservative test lifecycle in an engineering meeting. This is a curated expectation set, not model-generated output.",
+    "contract": {
+      "direction": "Each source is the later event; each target is an earlier event in the same thread. First events have an explicit empty target map.",
+      "completeness": "Every earlier same-thread pair is explicitly adjudicated, including none. Cross-thread pairs are outside candidate scope, not implicit negatives.",
+      "directness": "An edge requires a direct semantic bridge. Shared component, word, thread, or membership in a multi-edge chain alone does not create an edge.",
+      "configuration": "Every non-none pair has an expected configuration_match. Compare relevant setup and scope, not observed outcome versus an acceptance limit. not_applicable is a semantic judgment when this link does not compare two setups; it is not a fixed relation-type shortcut.",
+      "evidence": "supports/contradicts records evidence concerning a claim or requirement; it does not prove or disprove causation, permanently close a requirement, or rewrite the earlier event.",
+      "lifecycle": "Only a sufficiently confident result_of plus sufficiently confident exact configuration match closes a test proposal. partial/ambiguous/mismatch retain the edge and require review. A repeats edge never closes the newer proposal. Explicit supersession is separate from completion.",
+      "labels_authorship": "Authored and reviewed before observing JEV outputs. The test runner must not send expectations, review notes, or lifecycle checkpoints to inference."
+    },
+    "pair_review_by_source": {
+      "H01": "First event opens the brake thread without inventing edges.",
+      "H02": "A non-test preparation task. It does not assert whether the brake meets the earlier holding criterion; none to H01.",
+      "H03": "Explicitly verifies H01 under its same load/actuation setup, and expressly depends on the removal task H02. Dependency is procedural, not equality of two configurations.",
+      "H04": "Exact B1 outcome and direct failure of H01. Completing B1 does not provide a separate semantic result_of edge to the pin-removal task H02, nor prove that task was carried out.",
+      "H05": "B2 explicitly repeats the named B1 execution represented by proposal H03 and result H04. Both receive repeats/exact. The old result cannot close B2; no inherited verification/dependency/evidential conclusions are asserted.",
+      "H06": "Drawing identifier is shared brake background only; every earlier pair is explicitly none.",
+      "H07": "Independent probe-position thread opens without same-thread prior candidates.",
+      "H08": "The source describes bracket expansion changing the property recorded in H07. affects is directional: the source mechanism affects the target position; it is more specific than general evidence support.",
+      "H09": "Directly tests the claimed effect H08. It does not claim to verify the earlier offset observation separately, so no transitive tests edge through affects.",
+      "H10": "Direct P1 report matches probe/duration but has unrecorded chamber temperature, hence partial. Missing tip-position data cannot support the claimed effect H08 or the prior offset H07 merely because the expansion value also equals 0.2 mm.",
+      "H11": "Clarifies the planned parameter in H09. It does not recover the missing actual chamber-temperature record in H10, nor prove the temperature applied during execution.",
+      "H12": "Decision explicitly grounded in measurement H10. No based_on edge to proposal H09 via result_of, no inferred supports edge to H08, and no assertion that the design change has already affected H07."
+    },
+    "lifecycle_checkpoints": [
+      {
+        "after_chunk": "H04",
+        "target_chunk": "H03",
+        "expected_test_state": "completed",
+        "requires_confident_edges": true
+      },
+      {
+        "after_chunk": "H05",
+        "target_chunk": "H05",
+        "expected_test_state": "open",
+        "must_not_use_result_chunk": "H04"
+      },
+      {
+        "after_chunk": "H10",
+        "target_chunk": "H09",
+        "expected_test_state": "open",
+        "expected_review_reason": "configuration_partial"
+      },
+      {
+        "after_chunk": "H11",
+        "target_chunk": "H09",
+        "expected_test_state": "open",
+        "must_not_infer": "recovered_missing_measurement"
+      }
+    ],
+    "label_revisions": [
+      {
+        "case_id": "H11",
+        "before": "observation",
+        "after": "requirement",
+        "reason": "Clarifies a specified test condition. The established event_type contract explicitly classifies clarification of a requirement/specification as requirement. This does not establish the conditions actually used in a past run.",
+        "evidence": "Independent semantic review after curated upstream run; holdout has not been submitted to JEV."
+      },
+      {
+        "pair": "H05 → H04",
+        "before": {
+          "relation_type": "none"
+        },
+        "after": {
+          "relation_type": "repeats",
+          "configuration_match": "exact"
+        },
+        "reason": "The request explicitly identifies the prior execution represented by this result. User taxonomy does not restrict repeats to proposals. Retaining this link does not complete the new test; source IDs deduplicate counts of requested repeats. Independent semantic review corrected an overly restrictive annotation convention."
+      }
+    ]
+  }
+}

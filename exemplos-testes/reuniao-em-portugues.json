@@ -1,0 +1,114 @@
+{
+  "batch_id": "TYPED-NATURAL-PT-01",
+  "cases": [
+    {
+      "id": "N01",
+      "current_utterance": "A tela de login está demorando a abrir.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "N02",
+      "current_utterance": "Talvez a consulta de permissões esteja atrasando o login.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "N03",
+      "current_utterance": "Vamos medir o tempo da consulta de permissões com cem usuários simultâneos.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "N04",
+      "current_utterance": "Tá, entendi.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "N05",
+      "current_utterance": "Na medição, a consulta de permissões levou dois segundos, mas não anotamos quantos usuários estavam conectados.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "N06",
+      "current_utterance": "Os anexos ficaram de fora do backup de ontem.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "N07",
+      "current_utterance": "Talvez o filtro de extensões esteja excluindo os anexos.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "N08",
+      "current_utterance": "Vamos testar o backup com o filtro de extensões desligado.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "N09",
+      "current_utterance": "Só um segundo.",
+      "expected_store_memory": false,
+      "expected_event_type": null
+    },
+    {
+      "id": "N10",
+      "current_utterance": "No teste com o filtro desligado, todos os anexos foram copiados.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_threads": {
+    "N01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "N02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "N06": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "N07": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "N08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "N10": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  }
+}

@@ -1,0 +1,913 @@
+{
+  "schemaVersion": 1,
+  "memorySchemaVersion": 2,
+  "batch": {
+    "batch_id": "LEGACY-CONFIDENCE",
+    "cases": [
+      {
+        "id": "first",
+        "current_utterance": "Input first",
+        "expected_store_memory": true,
+        "expected_event_type": "observation"
+      },
+      {
+        "id": "switch",
+        "current_utterance": "Input switch",
+        "expected_store_memory": true,
+        "expected_event_type": "observation"
+      },
+      {
+        "id": "return",
+        "current_utterance": "Input return",
+        "expected_store_memory": true,
+        "expected_event_type": "observation"
+      }
+    ]
+  },
+  "provider": "official",
+  "threshold": 0.8,
+  "questions": {
+    "should_store_memory": {
+      "type": "noul",
+      "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+      "criteria": {
+        "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+        "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+      "criteria": {
+        "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+        "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+        "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+        "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+        "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+        "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+        "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+        "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+      }
+    }
+  },
+  "questionVersion": null,
+  "createdAt": "2026-10-06T00:08:15.380Z",
+  "status": "done",
+  "executionMode": "step",
+  "records": [
+    {
+      "id": "first",
+      "status": "done",
+      "stage": "observation",
+      "startedAt": "2026-10-06T00:08:15.381Z",
+      "receivedOffsetMs": 1,
+      "processingStartedAt": "2026-10-06T00:08:15.381Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input first"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-06T00:08:15.381Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input first"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "observation",
+              "confidence": 0.2,
+              "probabilities": {
+                "observation": 1,
+                "hypothesis": 0,
+                "test_proposal": 0,
+                "test_result": 0,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "observation",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "observation"
+      },
+      "timestamp": "2026-10-06T00:08:15.382Z"
+    },
+    {
+      "id": "switch",
+      "status": "done",
+      "stage": "observation",
+      "startedAt": "2026-10-06T00:08:15.382Z",
+      "receivedOffsetMs": 2,
+      "processingStartedAt": "2026-10-06T00:08:15.382Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input switch"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-06T00:08:15.382Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input switch"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "observation",
+              "confidence": 0.2,
+              "probabilities": {
+                "observation": 1,
+                "hypothesis": 0,
+                "test_proposal": 0,
+                "test_result": 0,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "observation",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "observation"
+      },
+      "timestamp": "2026-10-06T00:08:15.382Z"
+    },
+    {
+      "id": "return",
+      "status": "done",
+      "stage": "observation",
+      "startedAt": "2026-10-06T00:08:15.382Z",
+      "receivedOffsetMs": 2,
+      "processingStartedAt": "2026-10-06T00:08:15.382Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input return"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-06T00:08:15.383Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Input return"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "observation",
+              "confidence": 0.2,
+              "probabilities": {
+                "observation": 1,
+                "hypothesis": 0,
+                "test_proposal": 0,
+                "test_result": 0,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "observation",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "observation"
+      },
+      "timestamp": "2026-10-06T00:08:15.383Z"
+    }
+  ],
+  "calls": 6,
+  "meeting_events": [
+    {
+      "event_id": "E001",
+      "chunk_id": "first",
+      "timestamp": "00:00:00",
+      "type": "observation",
+      "text": "Input first",
+      "status": "active",
+      "thread_id": "T001",
+      "thread_assignment_state": "assigned"
+    },
+    {
+      "event_id": "E002",
+      "chunk_id": "switch",
+      "timestamp": "00:00:00",
+      "type": "observation",
+      "text": "Input switch",
+      "status": "active",
+      "thread_id": "T002",
+      "thread_assignment_state": "assigned"
+    },
+    {
+      "event_id": "E003",
+      "chunk_id": "return",
+      "timestamp": "00:00:00",
+      "type": "observation",
+      "text": "Input return",
+      "status": "active",
+      "thread_id": "T001",
+      "thread_assignment_state": "assigned"
+    }
+  ],
+  "raw_window": [
+    {
+      "chunk_id": "first",
+      "timestamp": "00:00:00",
+      "text": "Input first"
+    },
+    {
+      "chunk_id": "switch",
+      "timestamp": "00:00:00",
+      "text": "Input switch"
+    },
+    {
+      "chunk_id": "return",
+      "timestamp": "00:00:00",
+      "text": "Input return"
+    }
+  ],
+  "meeting_threads": [
+    {
+      "thread_id": "T001",
+      "status": "active",
+      "title": "Input first",
+      "created_by_event_id": "E001",
+      "anchor_event_ids": [
+        "E001",
+        "E003"
+      ]
+    },
+    {
+      "thread_id": "T002",
+      "status": "archived",
+      "title": "Input switch",
+      "created_by_event_id": "E002",
+      "anchor_event_ids": [
+        "E002"
+      ]
+    }
+  ],
+  "meeting_relations": [],
+  "thread_worker": {
+    "schemaVersion": 1,
+    "config": {
+      "questions": {
+        "belongs_to_active_thread": {
+          "type": "choice",
+          "instructions": "Determine whether current_event belongs to the same specific discussion thread represented by active_thread. Use current_event, recent_context, and the active_thread anchors. A thread is a continuing discussion about the same specific problem, objective, decision, investigation, component in context, or chain of work. Do not decide based only on shared words, numbers, dimensions, or generic technical vocabulary.",
+          "criteria": {
+            "belongs": "The current event continues, answers, updates, tests, challenges, decides, or otherwise advances the same specific discussion represented by the active thread. It may introduce a new hypothesis, test, result, requirement, or decision while still addressing the same underlying issue or objective. Indirect references such as 'it', 'that test', 'the problem', 'again', or 'the real issue' may count when recent_context and the thread anchors make the reference clear.",
+            "does_not_belong": "The current event starts or continues a meaningfully different discussion, problem, objective, component context, investigation, or decision chain. Shared words, values, units, component types, or phrases such as '4 mm' are not sufficient by themselves to make two events part of the same thread.",
+            "uncertain": "There is not enough information to determine whether the current event continues the active thread. Use this when the wording could plausibly belong to more than one discussion and recent_context does not resolve it."
+          }
+        },
+        "belongs_to_archive_thread": {
+          "type": "choice",
+          "instructions": "Determine whether current_event resumes or continues the specific archived discussion represented by candidate_thread. Use current_event, recent_context, and the candidate_thread anchors. Evaluate this candidate thread independently. An old thread may be resumed after a long gap, but shared terminology, numbers, dimensions, or components alone are not enough.",
+          "criteria": {
+            "belongs": "The current event clearly resumes, refers back to, continues, updates, repeats, or acts on the same specific problem, objective, investigation, decision, or work chain represented by the archived thread. Explicit return cues such as 'back to', 'about the bracket', 'that earlier test', or compatible indirect references can support this.",
+            "does_not_belong": "The current event belongs to a different discussion or only shares generic terminology, values, measurements, or technical concepts with the archived thread. The current recent_context points to another subject or objective.",
+            "uncertain": "There is plausible overlap with the archived thread, but there is not enough information to determine whether the speaker is actually returning to it."
+          }
+        }
+      }
+    },
+    "version": null,
+    "status": "done",
+    "calls": 3,
+    "jobs": [
+      {
+        "event_id": "E001",
+        "chunk_id": "first",
+        "recent_context": [],
+        "status": "done",
+        "parts": [],
+        "queuedAt": "2026-10-06T00:08:15.382Z",
+        "startedAt": "2026-10-06T00:08:15.383Z",
+        "active_thread_id": null,
+        "result": {
+          "thread_id": "T001",
+          "route": "new",
+          "reason": "first_event"
+        },
+        "finishedAt": "2026-10-06T00:08:15.383Z"
+      },
+      {
+        "event_id": "E002",
+        "chunk_id": "switch",
+        "recent_context": [
+          {
+            "chunk_id": "first",
+            "text": "Input first"
+          }
+        ],
+        "status": "done",
+        "parts": [
+          {
+            "stage": "active",
+            "candidate_ids": [
+              "T001"
+            ],
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "current_event": {
+                  "event_id": "E002",
+                  "chunk_id": "switch",
+                  "timestamp": "00:00:00",
+                  "type": "observation",
+                  "text": "Input switch",
+                  "status": "active"
+                },
+                "recent_context": [
+                  {
+                    "chunk_id": "first",
+                    "text": "Input first"
+                  }
+                ],
+                "active_thread": {
+                  "thread_id": "T001",
+                  "status": "active",
+                  "title": "Input first",
+                  "created_by_event_id": "E001",
+                  "anchor_event_ids": [
+                    "E001"
+                  ],
+                  "anchors": [
+                    {
+                      "event_id": "E001",
+                      "chunk_id": "first",
+                      "timestamp": "00:00:00",
+                      "type": "observation",
+                      "text": "Input first",
+                      "status": "active"
+                    }
+                  ]
+                }
+              },
+              "questions": {
+                "belongs_to_active_thread": {
+                  "type": "choice",
+                  "instructions": "Determine whether current_event belongs to the same specific discussion thread represented by active_thread. Use current_event, recent_context, and the active_thread anchors. A thread is a continuing discussion about the same specific problem, objective, decision, investigation, component in context, or chain of work. Do not decide based only on shared words, numbers, dimensions, or generic technical vocabulary.",
+                  "criteria": {
+                    "belongs": "The current event continues, answers, updates, tests, challenges, decides, or otherwise advances the same specific discussion represented by the active thread. It may introduce a new hypothesis, test, result, requirement, or decision while still addressing the same underlying issue or objective. Indirect references such as 'it', 'that test', 'the problem', 'again', or 'the real issue' may count when recent_context and the thread anchors make the reference clear.",
+                    "does_not_belong": "The current event starts or continues a meaningfully different discussion, problem, objective, component context, investigation, or decision chain. Shared words, values, units, component types, or phrases such as '4 mm' are not sufficient by themselves to make two events part of the same thread.",
+                    "uncertain": "There is not enough information to determine whether the current event continues the active thread. Use this when the wording could plausibly belong to more than one discussion and recent_context does not resolve it."
+                  }
+                }
+              }
+            },
+            "status": "done",
+            "attempted": true,
+            "output": {
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "current_event": {
+                    "event_id": "E002",
+                    "chunk_id": "switch",
+                    "timestamp": "00:00:00",
+                    "type": "observation",
+                    "text": "Input switch",
+                    "status": "active"
+                  },
+                  "recent_context": [
+                    {
+                      "chunk_id": "first",
+                      "text": "Input first"
+                    }
+                  ],
+                  "active_thread": {
+                    "thread_id": "T001",
+                    "status": "active",
+                    "title": "Input first",
+                    "created_by_event_id": "E001",
+                    "anchor_event_ids": [
+                      "E001"
+                    ],
+                    "anchors": [
+                      {
+                        "event_id": "E001",
+                        "chunk_id": "first",
+                        "timestamp": "00:00:00",
+                        "type": "observation",
+                        "text": "Input first",
+                        "status": "active"
+                      }
+                    ]
+                  }
+                },
+                "questions": {
+                  "belongs_to_active_thread": {
+                    "type": "choice",
+                    "instructions": "Determine whether current_event belongs to the same specific discussion thread represented by active_thread. Use current_event, recent_context, and the active_thread anchors. A thread is a continuing discussion about the same specific problem, objective, decision, investigation, component in context, or chain of work. Do not decide based only on shared words, numbers, dimensions, or generic technical vocabulary.",
+                    "criteria": {
+                      "belongs": "The current event continues, answers, updates, tests, challenges, decides, or otherwise advances the same specific discussion represented by the active thread. It may introduce a new hypothesis, test, result, requirement, or decision while still addressing the same underlying issue or objective. Indirect references such as 'it', 'that test', 'the problem', 'again', or 'the real issue' may count when recent_context and the thread anchors make the reference clear.",
+                      "does_not_belong": "The current event starts or continues a meaningfully different discussion, problem, objective, component context, investigation, or decision chain. Shared words, values, units, component types, or phrases such as '4 mm' are not sufficient by themselves to make two events part of the same thread.",
+                      "uncertain": "There is not enough information to determine whether the current event continues the active thread. Use this when the wording could plausibly belong to more than one discussion and recent_context does not resolve it."
+                    }
+                  }
+                }
+              },
+              "response": {
+                "model": "fixture",
+                "answers": {
+                  "belongs_to_active_thread": {
+                    "type": "choice",
+                    "choice": "does_not_belong",
+                    "confidence": 0.2,
+                    "probabilities": {
+                      "belongs": 0.15,
+                      "does_not_belong": 0.7,
+                      "uncertain": 0.15
+                    }
+                  }
+                }
+              },
+              "latencyMs": 1,
+              "provider": "official"
+            }
+          }
+        ],
+        "queuedAt": "2026-10-06T00:08:15.382Z",
+        "startedAt": "2026-10-06T00:08:15.384Z",
+        "active_thread_id": "T001",
+        "result": {
+          "thread_id": "T002",
+          "route": "new",
+          "reason": "no_archive_match"
+        },
+        "finishedAt": "2026-10-06T00:08:15.384Z"
+      },
+      {
+        "event_id": "E003",
+        "chunk_id": "return",
+        "recent_context": [
+          {
+            "chunk_id": "first",
+            "text": "Input first"
+          },
+          {
+            "chunk_id": "switch",
+            "text": "Input switch"
+          }
+        ],
+        "status": "done",
+        "parts": [
+          {
+            "stage": "active",
+            "candidate_ids": [
+              "T002"
+            ],
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "current_event": {
+                  "event_id": "E003",
+                  "chunk_id": "return",
+                  "timestamp": "00:00:00",
+                  "type": "observation",
+                  "text": "Input return",
+                  "status": "active"
+                },
+                "recent_context": [
+                  {
+                    "chunk_id": "first",
+                    "text": "Input first"
+                  },
+                  {
+                    "chunk_id": "switch",
+                    "text": "Input switch"
+                  }
+                ],
+                "active_thread": {
+                  "thread_id": "T002",
+                  "status": "active",
+                  "title": "Input switch",
+                  "created_by_event_id": "E002",
+                  "anchor_event_ids": [
+                    "E002"
+                  ],
+                  "anchors": [
+                    {
+                      "event_id": "E002",
+                      "chunk_id": "switch",
+                      "timestamp": "00:00:00",
+                      "type": "observation",
+                      "text": "Input switch",
+                      "status": "active"
+                    }
+                  ]
+                }
+              },
+              "questions": {
+                "belongs_to_active_thread": {
+                  "type": "choice",
+                  "instructions": "Determine whether current_event belongs to the same specific discussion thread represented by active_thread. Use current_event, recent_context, and the active_thread anchors. A thread is a continuing discussion about the same specific problem, objective, decision, investigation, component in context, or chain of work. Do not decide based only on shared words, numbers, dimensions, or generic technical vocabulary.",
+                  "criteria": {
+                    "belongs": "The current event continues, answers, updates, tests, challenges, decides, or otherwise advances the same specific discussion represented by the active thread. It may introduce a new hypothesis, test, result, requirement, or decision while still addressing the same underlying issue or objective. Indirect references such as 'it', 'that test', 'the problem', 'again', or 'the real issue' may count when recent_context and the thread anchors make the reference clear.",
+                    "does_not_belong": "The current event starts or continues a meaningfully different discussion, problem, objective, component context, investigation, or decision chain. Shared words, values, units, component types, or phrases such as '4 mm' are not sufficient by themselves to make two events part of the same thread.",
+                    "uncertain": "There is not enough information to determine whether the current event continues the active thread. Use this when the wording could plausibly belong to more than one discussion and recent_context does not resolve it."
+                  }
+                }
+              }
+            },
+            "status": "done",
+            "attempted": true,
+            "output": {
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "current_event": {
+                    "event_id": "E003",
+                    "chunk_id": "return",
+                    "timestamp": "00:00:00",
+                    "type": "observation",
+                    "text": "Input return",
+                    "status": "active"
+                  },
+                  "recent_context": [
+                    {
+                      "chunk_id": "first",
+                      "text": "Input first"
+                    },
+                    {
+                      "chunk_id": "switch",
+                      "text": "Input switch"
+                    }
+                  ],
+                  "active_thread": {
+                    "thread_id": "T002",
+                    "status": "active",
+                    "title": "Input switch",
+                    "created_by_event_id": "E002",
+                    "anchor_event_ids": [
+                      "E002"
+                    ],
+                    "anchors": [
+                      {
+                        "event_id": "E002",
+                        "chunk_id": "switch",
+                        "timestamp": "00:00:00",
+                        "type": "observation",
+                        "text": "Input switch",
+                        "status": "active"
+                      }
+                    ]
+                  }
+                },
+                "questions": {
+                  "belongs_to_active_thread": {
+                    "type": "choice",
+                    "instructions": "Determine whether current_event belongs to the same specific discussion thread represented by active_thread. Use current_event, recent_context, and the active_thread anchors. A thread is a continuing discussion about the same specific problem, objective, decision, investigation, component in context, or chain of work. Do not decide based only on shared words, numbers, dimensions, or generic technical vocabulary.",
+                    "criteria": {
+                      "belongs": "The current event continues, answers, updates, tests, challenges, decides, or otherwise advances the same specific discussion represented by the active thread. It may introduce a new hypothesis, test, result, requirement, or decision while still addressing the same underlying issue or objective. Indirect references such as 'it', 'that test', 'the problem', 'again', or 'the real issue' may count when recent_context and the thread anchors make the reference clear.",
+                      "does_not_belong": "The current event starts or continues a meaningfully different discussion, problem, objective, component context, investigation, or decision chain. Shared words, values, units, component types, or phrases such as '4 mm' are not sufficient by themselves to make two events part of the same thread.",
+                      "uncertain": "There is not enough information to determine whether the current event continues the active thread. Use this when the wording could plausibly belong to more than one discussion and recent_context does not resolve it."
+                    }
+                  }
+                }
+              },
+              "response": {
+                "model": "fixture",
+                "answers": {
+                  "belongs_to_active_thread": {
+                    "type": "choice",
+                    "choice": "does_not_belong",
+                    "confidence": 0.2,
+                    "probabilities": {
+                      "belongs": 0.15,
+                      "does_not_belong": 0.7,
+                      "uncertain": 0.15
+                    }
+                  }
+                }
+              },
+              "latencyMs": 1,
+              "provider": "official"
+            }
+          },
+          {
+            "stage": "archive",
+            "candidate_ids": [
+              "T001"
+            ],
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "current_event": {
+                  "event_id": "E003",
+                  "chunk_id": "return",
+                  "timestamp": "00:00:00",
+                  "type": "observation",
+                  "text": "Input return",
+                  "status": "active"
+                },
+                "recent_context": [
+                  {
+                    "chunk_id": "first",
+                    "text": "Input first"
+                  },
+                  {
+                    "chunk_id": "switch",
+                    "text": "Input switch"
+                  }
+                ],
+                "candidate_threads": [
+                  {
+                    "thread_id": "T001",
+                    "status": "archived",
+                    "title": "Input first",
+                    "created_by_event_id": "E001",
+                    "anchor_event_ids": [
+                      "E001"
+                    ],
+                    "anchors": [
+                      {
+                        "event_id": "E001",
+                        "chunk_id": "first",
+                        "timestamp": "00:00:00",
+                        "type": "observation",
+                        "text": "Input first",
+                        "status": "active"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "questions": {
+                "belongs_to_archive_thread__T001": {
+                  "type": "choice",
+                  "instructions": "For this question, candidate_thread is the entry with thread_id \"T001\" in state.candidate_threads. Evaluate only that thread.\nDetermine whether current_event resumes or continues the specific archived discussion represented by candidate_thread. Use current_event, recent_context, and the candidate_thread anchors. Evaluate this candidate thread independently. An old thread may be resumed after a long gap, but shared terminology, numbers, dimensions, or components alone are not enough.",
+                  "criteria": {
+                    "belongs": "The current event clearly resumes, refers back to, continues, updates, repeats, or acts on the same specific problem, objective, investigation, decision, or work chain represented by the archived thread. Explicit return cues such as 'back to', 'about the bracket', 'that earlier test', or compatible indirect references can support this.",
+                    "does_not_belong": "The current event belongs to a different discussion or only shares generic terminology, values, measurements, or technical concepts with the archived thread. The current recent_context points to another subject or objective.",
+                    "uncertain": "There is plausible overlap with the archived thread, but there is not enough information to determine whether the speaker is actually returning to it."
+                  }
+                }
+              }
+            },
+            "status": "done",
+            "attempted": true,
+            "output": {
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "current_event": {
+                    "event_id": "E003",
+                    "chunk_id": "return",
+                    "timestamp": "00:00:00",
+                    "type": "observation",
+                    "text": "Input return",
+                    "status": "active"
+                  },
+                  "recent_context": [
+                    {
+                      "chunk_id": "first",
+                      "text": "Input first"
+                    },
+                    {
+                      "chunk_id": "switch",
+                      "text": "Input switch"
+                    }
+                  ],
+                  "candidate_threads": [
+                    {
+                      "thread_id": "T001",
+                      "status": "archived",
+                      "title": "Input first",
+                      "created_by_event_id": "E001",
+                      "anchor_event_ids": [
+                        "E001"
+                      ],
+                      "anchors": [
+                        {
+                          "event_id": "E001",
+                          "chunk_id": "first",
+                          "timestamp": "00:00:00",
+                          "type": "observation",
+                          "text": "Input first",
+                          "status": "active"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "questions": {
+                  "belongs_to_archive_thread__T001": {
+                    "type": "choice",
+                    "instructions": "For this question, candidate_thread is the entry with thread_id \"T001\" in state.candidate_threads. Evaluate only that thread.\nDetermine whether current_event resumes or continues the specific archived discussion represented by candidate_thread. Use current_event, recent_context, and the candidate_thread anchors. Evaluate this candidate thread independently. An old thread may be resumed after a long gap, but shared terminology, numbers, dimensions, or components alone are not enough.",
+                    "criteria": {
+                      "belongs": "The current event clearly resumes, refers back to, continues, updates, repeats, or acts on the same specific problem, objective, investigation, decision, or work chain represented by the archived thread. Explicit return cues such as 'back to', 'about the bracket', 'that earlier test', or compatible indirect references can support this.",
+                      "does_not_belong": "The current event belongs to a different discussion or only shares generic terminology, values, measurements, or technical concepts with the archived thread. The current recent_context points to another subject or objective.",
+                      "uncertain": "There is plausible overlap with the archived thread, but there is not enough information to determine whether the speaker is actually returning to it."
+                    }
+                  }
+                }
+              },
+              "response": {
+                "model": "fixture",
+                "answers": {
+                  "belongs_to_archive_thread__T001": {
+                    "type": "choice",
+                    "choice": "belongs",
+                    "confidence": 0.2,
+                    "probabilities": {
+                      "belongs": 0.7,
+                      "does_not_belong": 0.15,
+                      "uncertain": 0.15
+                    }
+                  }
+                }
+              },
+              "latencyMs": 1,
+              "provider": "official"
+            }
+          }
+        ],
+        "queuedAt": "2026-10-06T00:08:15.383Z",
+        "startedAt": "2026-10-06T00:08:15.384Z",
+        "active_thread_id": "T002",
+        "result": {
+          "thread_id": "T001",
+          "route": "archive",
+          "reason": "reopened"
+        },
+        "finishedAt": "2026-10-06T00:08:15.385Z"
+      }
+    ]
+  },
+  "startedAt": "2026-10-06T00:08:15.380Z",
+  "finishedAt": "2026-10-06T00:08:15.383Z"
+}

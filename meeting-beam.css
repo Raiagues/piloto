@@ -1,0 +1,19 @@
+.beam-room-tabs { display:flex; align-self:stretch; min-width:0; gap:3px; overflow-x:auto; }
+.beam-room-tab { white-space:nowrap; border:0; border-radius:0; padding:0 11px; background:transparent; font:inherit; font-size:11px; color:#819fb7; }
+.beam-room-tab[aria-selected="true"] { color:#bddfff; box-shadow:inset 0 -2px #68aff0; }
+.beam-room-tab:hover { color:#d2e7f7; background:#0d2940; }
+.beam-room-host { min-height:0; min-width:0; overflow:auto; border-radius:0 0 9px 9px; }
+.beam-discussion-suggestion { flex:none; display:flex; align-items:center; gap:16px; min-width:0; padding:10px 13px; margin:0 0 9px; border:1px solid #294b63; border-radius:5px; background:#071e31; color:#a6c5dc; font:11px/1.6 Arial,sans-serif; }
+.beam-suggestion-copy { display:flex; align-items:baseline; flex:1; flex-wrap:wrap; gap:3px 12px; min-width:0; }
+.beam-suggestion-copy strong { color:#b9d8ed; font-weight:500; white-space:nowrap; }
+.beam-suggestion-copy span { color:#91b1cb; }
+.beam-discussion-suggestion .compact-button { flex:none; font-size:11px; color:#b8daf4; }
+.beam-suggestion-dismiss { flex:none; padding:2px 5px; color:#7798b2; font-size:18px; line-height:1; }
+.beam-command-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 0 0; font:11px Arial,sans-serif; }
+.beam-compose-toggle { color:#8eafc7; }
+.beam-command-input { flex:1; min-width:200px; padding:9px 12px; background:#041626; color:#c7dfef; border:1px solid #294b63; border-radius:5px; font:12px Arial,sans-serif; }
+.beam-command-input::placeholder { color:#638299; }
+.has-beam .room-toolbar { overflow:visible; }
+.has-beam .room-view { flex:1; gap:10px; overflow:visible; }
+@media(max-width:1050px){ .has-beam .room-toolbar { flex-wrap:wrap; height:auto; min-height:40px; gap:0; } .has-beam.room-canvas-panel { grid-template-rows:auto minmax(0,1fr); } .beam-room-tabs{min-height:38px;} .has-beam .room-view-options{margin-left:auto;min-height:32px;} }
+@media(max-width:600px){.beam-room-tab{font-size:10px;padding:0 7px;}.beam-discussion-suggestion{gap:8px;flex-wrap:wrap;padding:9px 10px;}.beam-suggestion-copy{flex-basis:calc(100% - 30px);}.beam-suggestion-dismiss{margin-left:auto;order:1;}.beam-discussion-suggestion .compact-button{order:2;}.beam-command-input{font-size:12px;}.has-beam .room-view{width:100%;}}

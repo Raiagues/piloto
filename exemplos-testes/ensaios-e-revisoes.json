@@ -1,0 +1,246 @@
+{
+  "batch_id": "TYPED-CURATED-01",
+  "cases": [
+    {
+      "id": "F01",
+      "current_utterance": "Fan F7 has excessive housing vibration at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "F02",
+      "current_utterance": "For fan F7 with its rotor balanced and running at 3000 rpm, housing vibration must not exceed 2 mm/s.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "F03",
+      "current_utterance": "Rotor imbalance may explain the excessive housing vibration of fan F7.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "F04",
+      "current_utterance": "Let us run vibration trial V1 on fan F7: balance its rotor, operate at 3000 rpm, and measure housing vibration to test the rotor-imbalance hypothesis.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F05",
+      "current_utterance": "V1 is complete: fan F7 with its rotor balanced at 3000 rpm measured 1 mm/s housing vibration. This meets the 2 mm/s limit and supports the imbalance hypothesis as an explanation, without proving it.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F06",
+      "current_utterance": "Tomorrow, repeat V1 as a new trial named V2 on the same fan F7, again with its rotor balanced at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F07",
+      "current_utterance": "V2 is complete: fan F7 with its rotor balanced at 3000 rpm measured 4 mm/s housing vibration, violating the 2 mm/s limit. We are not drawing a causal conclusion from this run.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F08",
+      "current_utterance": "Let us schedule vibration trial V3 on fan F7 with its rotor unbalanced at 3000 rpm to test the rotor-imbalance hypothesis.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F09",
+      "current_utterance": "We have decided to replace scheduled trial V3 with a test of fan F7 with its rotor balanced at 2500 rpm. V3 is cancelled.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "F10",
+      "current_utterance": "Implementing that replacement decision, let us schedule trial V3R: measure housing vibration on fan F7 with its rotor balanced at 2500 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "F11",
+      "current_utterance": "The report for trial V3R records 1.5 mm/s vibration on fan F7 with its rotor balanced. The operator used 2800 rpm instead of the planned 2500 rpm. This run does not evaluate the requirement specified at 3000 rpm.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "F12",
+      "current_utterance": "Based specifically on the 1 mm/s measurement reported in V1, we approve rotor balancing for the next fan prototype. This choice does not establish the root cause or erase later measurements.",
+      "expected_store_memory": true,
+      "expected_event_type": "decision"
+    },
+    {
+      "id": "L01",
+      "current_utterance": "Separately, sensor enclosure E7 is leaking water through its door seal.",
+      "expected_store_memory": true,
+      "expected_event_type": "observation"
+    },
+    {
+      "id": "L02",
+      "current_utterance": "The sensor enclosure E7 door seal may leak only when its gasket is cold.",
+      "expected_store_memory": true,
+      "expected_event_type": "hypothesis"
+    },
+    {
+      "id": "L03",
+      "current_utterance": "Let us investigate the cold-gasket hypothesis in seal trial L1: use enclosure E7 with gasket G1 at 10 C, apply 2 bar water pressure for 60 minutes, and measure ingress.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "L04",
+      "current_utterance": "The L1 test log confirms enclosure E7, gasket G1, and 10 C, and records 4 ml of water ingress. The applied pressure and test duration were not recorded. The leakage is evidence consistent with the cold-gasket hypothesis, not proof of it.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "L05",
+      "current_utterance": "In the L1 test plan, the specified 2 bar means gauge pressure, not absolute pressure.",
+      "expected_store_memory": true,
+      "expected_event_type": "requirement"
+    },
+    {
+      "id": "L06",
+      "current_utterance": "For comparison with the L1 test plan at 10 C, let us test the cold-gasket hypothesis with seal trial L2: enclosure E7, gasket G1, 20 C, 2 bar gauge water pressure, and 60 minutes. The warmer run will check whether cold is necessary for leakage.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_proposal"
+    },
+    {
+      "id": "L07",
+      "current_utterance": "L2 is complete: enclosure E7 with gasket G1 at 20 C under 2 bar gauge water pressure for 60 minutes admitted 4 ml. Leakage at the warmer temperature is evidence against cold being necessary for the leak; it does not identify the cause.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    },
+    {
+      "id": "L08",
+      "current_utterance": "A separate report filed under trial L1 records 3 ml of water ingress, but its setup identity is unresolved: the label could refer to enclosure E7 with gasket G1 or to enclosure E8 with gasket G2. The report does not establish which configuration was used.",
+      "expected_store_memory": true,
+      "expected_event_type": "test_result"
+    }
+  ],
+  "expected_threads": {
+    "F01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T001"
+    },
+    "F02": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F03": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F04": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F05": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F06": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F07": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F08": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F09": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F10": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F11": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "F12": {
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T001"
+    },
+    "L01": {
+      "expected_action": "create_new_thread",
+      "expected_thread_id": "T002",
+      "expected_active_thread_id": "T001",
+      "expected_active_result": "does_not_belong",
+      "expected_archive_results": {}
+    },
+    "L02": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L03": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L04": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L05": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L06": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L07": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    },
+    "L08": {
+      "expected_active_thread_id": "T002",
+      "expected_active_result": "belongs",
+      "expected_action": "keep_active_thread",
+      "expected_thread_id": "T002"
+    }
+  }
+}

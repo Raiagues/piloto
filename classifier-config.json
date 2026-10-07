@@ -1,0 +1,25 @@
+{
+  "model": "jev-latest",
+  "questions": {
+    "tipo": {
+      "type": "choice",
+      "instructions": "What is the main communication intent of this meeting excerpt? Classify the statement, not its topic.",
+      "criteria": {
+        "requisito": "A requirement: the system must or should do something.",
+        "decisao": "An explicitly agreed decision.",
+        "acao": "An assigned task or next step.",
+        "duvida": "A question asking for information, or unresolved uncertainty.",
+        "outro": "None of these."
+      }
+    },
+    "relevancia": {
+      "type": "score",
+      "instructions": "How useful is this excerpt for capturing concrete project requirements or meeting follow-up?",
+      "criteria": ["Not useful", "Vague or incomplete", "Concrete and useful", "Explicit important requirement, decision or assigned task"]
+    },
+    "depende_de_contexto": {
+      "type": "noul",
+      "instructions": "Does this excerpt require missing earlier context to understand it correctly, such as an unresolved pronoun or an unfinished sentence?"
+    }
+  }
+}

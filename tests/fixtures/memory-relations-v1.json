@@ -1,0 +1,566 @@
+{
+  "schemaVersion": 1,
+  "batch": {
+    "batch_id": "LEGACY",
+    "cases": [
+      {
+        "id": "C01",
+        "current_utterance": "Legacy event 1",
+        "expected_store_memory": true,
+        "expected_event_type": "hypothesis"
+      },
+      {
+        "id": "C02",
+        "current_utterance": "Legacy event 2",
+        "expected_store_memory": true,
+        "expected_event_type": "observation"
+      },
+      {
+        "id": "C03",
+        "current_utterance": "Legacy event 3",
+        "expected_store_memory": true,
+        "expected_event_type": "test_result"
+      }
+    ]
+  },
+  "provider": "official",
+  "threshold": 0.8,
+  "questions": {
+    "should_store_memory": {
+      "type": "noul",
+      "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+      "criteria": {
+        "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+        "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+      "criteria": {
+        "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+        "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+        "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+        "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+        "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+        "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+        "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+        "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+      }
+    }
+  },
+  "questionVersion": null,
+  "createdAt": "2026-10-04T21:20:59.169Z",
+  "status": "done",
+  "executionMode": "step",
+  "records": [
+    {
+      "id": "C01",
+      "status": "done",
+      "stage": "hypothesis",
+      "startedAt": "2026-10-04T21:20:59.172Z",
+      "receivedOffsetMs": 2,
+      "processingStartedAt": "2026-10-04T21:20:59.172Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 1"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-04T21:20:59.173Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 1"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "hypothesis",
+              "confidence": 0.3,
+              "probabilities": {
+                "observation": 0,
+                "hypothesis": 1,
+                "test_proposal": 0,
+                "test_result": 0,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "hypothesis",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "hypothesis"
+      },
+      "timestamp": "2026-10-04T21:20:59.173Z"
+    },
+    {
+      "id": "C02",
+      "status": "done",
+      "stage": "observation",
+      "startedAt": "2026-10-04T21:20:59.174Z",
+      "receivedOffsetMs": 4,
+      "processingStartedAt": "2026-10-04T21:20:59.174Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 2"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-04T21:20:59.174Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 2"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "observation",
+              "confidence": 0.3,
+              "probabilities": {
+                "observation": 1,
+                "hypothesis": 0,
+                "test_proposal": 0,
+                "test_result": 0,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "observation",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "observation"
+      },
+      "timestamp": "2026-10-04T21:20:59.174Z"
+    },
+    {
+      "id": "C03",
+      "status": "done",
+      "stage": "test_result",
+      "startedAt": "2026-10-04T21:20:59.174Z",
+      "receivedOffsetMs": 4,
+      "processingStartedAt": "2026-10-04T21:20:59.174Z",
+      "storeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 3"
+          },
+          "questions": {
+            "should_store_memory": {
+              "type": "noul",
+              "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+              "criteria": {
+                "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+                "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "should_store_memory": {
+              "type": "noul",
+              "noul": 0.96
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "typeStartedAt": "2026-10-04T21:20:59.175Z",
+      "typeOutput": {
+        "request": {
+          "model": "jev-latest",
+          "state": {
+            "current_utterance": "Legacy event 3"
+          },
+          "questions": {
+            "event_type": {
+              "type": "choice",
+              "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+              "criteria": {
+                "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+                "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+                "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+                "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+                "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+                "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+                "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+                "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+              }
+            }
+          }
+        },
+        "response": {
+          "model": "fixture",
+          "answers": {
+            "event_type": {
+              "type": "choice",
+              "choice": "test_result",
+              "confidence": 0.3,
+              "probabilities": {
+                "observation": 0,
+                "hypothesis": 0,
+                "test_proposal": 0,
+                "test_result": 1,
+                "decision": 0,
+                "action_item": 0,
+                "requirement": 0,
+                "other": 0
+              }
+            }
+          }
+        },
+        "provider": "official",
+        "latencyMs": 1
+      },
+      "result": {
+        "store": true,
+        "type": "test_result",
+        "storeProbability": 0.96,
+        "typeProbability": 1,
+        "storeMatches": true,
+        "typeMatches": true,
+        "correct": true,
+        "lowConfidence": false,
+        "verdict": "pass",
+        "destination": "test_result"
+      },
+      "timestamp": "2026-10-04T21:20:59.175Z"
+    }
+  ],
+  "calls": 6,
+  "meeting_events": [
+    {
+      "event_id": "E001",
+      "chunk_id": "C01",
+      "timestamp": "00:00:00",
+      "type": "hypothesis",
+      "text": "Legacy event 1",
+      "status": "open",
+      "store_confidence": 0.96,
+      "type_confidence": 1
+    },
+    {
+      "event_id": "E002",
+      "chunk_id": "C02",
+      "timestamp": "00:00:00",
+      "type": "observation",
+      "text": "Legacy event 2",
+      "status": "active",
+      "store_confidence": 0.96,
+      "type_confidence": 1
+    },
+    {
+      "event_id": "E003",
+      "chunk_id": "C03",
+      "timestamp": "00:00:00",
+      "type": "test_result",
+      "text": "Legacy event 3",
+      "status": "active",
+      "store_confidence": 0.96,
+      "type_confidence": 1
+    }
+  ],
+  "raw_window": [
+    {
+      "chunk_id": "C01",
+      "timestamp": "00:00:00",
+      "text": "Legacy event 1"
+    },
+    {
+      "chunk_id": "C02",
+      "timestamp": "00:00:00",
+      "text": "Legacy event 2"
+    },
+    {
+      "chunk_id": "C03",
+      "timestamp": "00:00:00",
+      "text": "Legacy event 3"
+    }
+  ],
+  "relation_worker": {
+    "schemaVersion": 1,
+    "config": {
+      "candidate_rules": {
+        "test_result": [
+          {
+            "type": "test_proposal",
+            "status": "open"
+          },
+          {
+            "type": "hypothesis",
+            "status": "open"
+          },
+          {
+            "type": "requirement",
+            "status": "active"
+          }
+        ]
+      },
+      "questions": {
+        "has_relation": {
+          "type": "noul",
+          "instructions": "Is current_event meaningfully related to candidate {{candidate_id}}? Always evaluate the direction current_event -> candidate. Use the supplied event text, type and status; do not invent missing context.",
+          "criteria": {
+            "true": "The current_event refers to, evaluates, provides a result for, supports, contradicts, depends on, affects, replaces, or otherwise has a meaningful semantic connection to candidate {{candidate_id}}.",
+            "false": "The current_event and candidate {{candidate_id}} concern different subjects, objectives, conditions, or project matters and do not have a meaningful semantic connection."
+          }
+        }
+      }
+    },
+    "version": null,
+    "status": "done",
+    "calls": 1,
+    "jobs": [
+      {
+        "event_id": "E001",
+        "status": "skipped",
+        "candidate_ids": [],
+        "parts": [],
+        "scores": [],
+        "queuedAt": "2026-10-04T21:20:59.174Z",
+        "reason": "no_rule"
+      },
+      {
+        "event_id": "E002",
+        "status": "skipped",
+        "candidate_ids": [],
+        "parts": [],
+        "scores": [],
+        "queuedAt": "2026-10-04T21:20:59.174Z",
+        "reason": "no_rule"
+      },
+      {
+        "event_id": "E003",
+        "status": "done",
+        "candidate_ids": [
+          "E001"
+        ],
+        "parts": [
+          {
+            "request": {
+              "model": "jev-latest",
+              "state": {
+                "current_event": {
+                  "event_id": "E003",
+                  "chunk_id": "C03",
+                  "timestamp": "00:00:00",
+                  "type": "test_result",
+                  "text": "Legacy event 3",
+                  "status": "active"
+                },
+                "candidates": [
+                  {
+                    "event_id": "E001",
+                    "chunk_id": "C01",
+                    "timestamp": "00:00:00",
+                    "type": "hypothesis",
+                    "text": "Legacy event 1",
+                    "status": "open"
+                  }
+                ]
+              },
+              "questions": {
+                "has_relation__E001": {
+                  "type": "noul",
+                  "instructions": "Is current_event meaningfully related to candidate E001? Always evaluate the direction current_event -> candidate. Use the supplied event text, type and status; do not invent missing context.",
+                  "criteria": {
+                    "true": "The current_event refers to, evaluates, provides a result for, supports, contradicts, depends on, affects, replaces, or otherwise has a meaningful semantic connection to candidate E001.",
+                    "false": "The current_event and candidate E001 concern different subjects, objectives, conditions, or project matters and do not have a meaningful semantic connection."
+                  }
+                }
+              }
+            },
+            "status": "done",
+            "attempted": true,
+            "output": {
+              "request": {
+                "model": "jev-latest",
+                "state": {
+                  "current_event": {
+                    "event_id": "E003",
+                    "chunk_id": "C03",
+                    "timestamp": "00:00:00",
+                    "type": "test_result",
+                    "text": "Legacy event 3",
+                    "status": "active"
+                  },
+                  "candidates": [
+                    {
+                      "event_id": "E001",
+                      "chunk_id": "C01",
+                      "timestamp": "00:00:00",
+                      "type": "hypothesis",
+                      "text": "Legacy event 1",
+                      "status": "open"
+                    }
+                  ]
+                },
+                "questions": {
+                  "has_relation__E001": {
+                    "type": "noul",
+                    "instructions": "Is current_event meaningfully related to candidate E001? Always evaluate the direction current_event -> candidate. Use the supplied event text, type and status; do not invent missing context.",
+                    "criteria": {
+                      "true": "The current_event refers to, evaluates, provides a result for, supports, contradicts, depends on, affects, replaces, or otherwise has a meaningful semantic connection to candidate E001.",
+                      "false": "The current_event and candidate E001 concern different subjects, objectives, conditions, or project matters and do not have a meaningful semantic connection."
+                    }
+                  }
+                }
+              },
+              "response": {
+                "model": "fixture",
+                "answers": {
+                  "has_relation__E001": {
+                    "type": "noul",
+                    "noul": 0.95
+                  }
+                }
+              },
+              "provider": "official",
+              "latencyMs": 1
+            }
+          }
+        ],
+        "scores": [
+          {
+            "target_id": "E001",
+            "probability": 0.95,
+            "accepted": true
+          }
+        ],
+        "queuedAt": "2026-10-04T21:20:59.175Z",
+        "startedAt": "2026-10-04T21:20:59.176Z",
+        "finishedAt": "2026-10-04T21:20:59.177Z"
+      }
+    ]
+  },
+  "relations": [
+    {
+      "relation_id": "R001",
+      "source_event_id": "E003",
+      "target_type": "meeting_event",
+      "target_id": "E001",
+      "relation_confidence": 0.95
+    }
+  ],
+  "startedAt": "2026-10-04T21:20:59.170Z",
+  "finishedAt": "2026-10-04T21:20:59.175Z"
+}

@@ -1,0 +1,138 @@
+{
+  "name": "Protótipo · 3 mm × 4 mm",
+  "language": "en",
+  "model": "jev-latest",
+  "state": {
+    "recent_context": [
+      "Speaker A: We have been seeing too much deformation around this bracket.",
+      "Speaker B: The current part is 3 mm aluminum.",
+      "Speaker A: We haven't tested another thickness yet."
+    ],
+    "current_utterance": "Speaker C: Let's make one 4 mm version for the next prototype and compare both before we decide whether to change the design."
+  },
+  "questions": {
+    "meaningful_event": {
+      "type": "noul",
+      "instructions": "Does the current utterance introduce a meaningful project event?",
+      "criteria": {
+        "true": "It introduces or changes a hypothesis, test, proposal, decision, action item, risk, requirement, or important project constraint.",
+        "false": "It is casual conversation, repetition, clarification without consequence, background information, or an unrelated side conversation."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary project event expressed in the current utterance.",
+      "criteria": {
+        "observation": "Reports a result, fact, measurement, problem, or current condition.",
+        "hypothesis": "Suggests a possible explanation, cause, effect, or idea that has not yet become a concrete proposal.",
+        "test_proposal": "Proposes an experiment, prototype, trial, validation, measurement, or comparison.",
+        "change_proposal": "Proposes changing the design, material, dimension, process, requirement, schedule, or another project property.",
+        "decision": "Explicitly confirms or commits to a choice or change.",
+        "action_item": "Assigns or establishes a concrete task that should be performed.",
+        "risk": "Identifies something that may negatively affect the project.",
+        "none": "No meaningful project event is expressed."
+      }
+    },
+    "decision_is_final": {
+      "type": "noul",
+      "instructions": "Does the current utterance explicitly establish a decision that should be treated as decided rather than merely explored or tested?",
+      "criteria": {
+        "true": "The speaker clearly commits the project to a choice, change, requirement, or course of action.",
+        "false": "The statement is exploratory, hypothetical, conditional, a suggestion, a test, or does not contain a decision."
+      }
+    },
+    "test_is_proposed": {
+      "type": "noul",
+      "instructions": "Does the current utterance propose performing a test, experiment, prototype, trial, measurement, or comparison?",
+      "criteria": {
+        "true": "A concrete activity is proposed for learning, comparing alternatives, validating something, or reducing uncertainty.",
+        "false": "No such experimental or validation activity is proposed."
+      }
+    },
+    "project_impact": {
+      "type": "score",
+      "instructions": "How much could the information in the current utterance affect the project if acted upon?",
+      "criteria": [
+        "No meaningful project impact.",
+        "Minor impact limited to discussion, documentation, or a small local adjustment.",
+        "Moderate impact affecting a component, test, task, or near-term engineering decision.",
+        "High impact affecting design, material, cost, schedule, safety, requirements, architecture, or a major project decision."
+      ]
+    },
+    "commitment_level": {
+      "type": "score",
+      "instructions": "How committed is the current utterance to a course of action?",
+      "criteria": [
+        "Pure speculation or open discussion.",
+        "An idea or possibility worth considering.",
+        "A concrete proposal, test, or intended next step.",
+        "An explicit decision or commitment that should be treated as active."
+      ]
+    },
+    "affected_area": {
+      "type": "choice",
+      "instructions": "Which project area is primarily affected by the current utterance?",
+      "criteria": {
+        "design": "Geometry, architecture, configuration, dimensions, or physical design.",
+        "material": "Material selection or material properties.",
+        "manufacturing": "Production, fabrication, assembly, or manufacturing process.",
+        "performance": "Performance, behavior, efficiency, strength, or measured results.",
+        "cost": "Price, budget, purchasing, or financial impact.",
+        "schedule": "Timing, deadline, sequence, or delivery impact.",
+        "safety": "Safety, hazard, compliance, or failure risk.",
+        "process": "Team workflow, procedure, documentation, or organizational process.",
+        "other": "Another project area or insufficient information."
+      }
+    },
+    "requires_followup": {
+      "type": "noul",
+      "instructions": "Does this utterance create something that the team should track or revisit later?",
+      "criteria": {
+        "true": "It creates a test, open question, proposed change, unresolved risk, action item, pending decision, or other item whose outcome matters later.",
+        "false": "Nothing introduced here needs to be tracked after this moment."
+      }
+    }
+  },
+  "expected": {
+    "meaningful_event": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.85
+    },
+    "event_type": {
+      "type": "choice",
+      "value": "test_proposal",
+      "minProbability": 0.75
+    },
+    "decision_is_final": {
+      "type": "noul",
+      "value": false,
+      "minProbability": 0.85
+    },
+    "test_is_proposed": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.9
+    },
+    "project_impact": {
+      "type": "score",
+      "value": 2,
+      "minProbability": 0.55
+    },
+    "commitment_level": {
+      "type": "score",
+      "value": 2,
+      "minProbability": 0.7
+    },
+    "affected_area": {
+      "type": "choice",
+      "value": "design",
+      "minProbability": 0.6
+    },
+    "requires_followup": {
+      "type": "noul",
+      "value": true,
+      "minProbability": 0.85
+    }
+  }
+}

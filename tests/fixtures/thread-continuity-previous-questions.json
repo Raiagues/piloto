@@ -1,0 +1,20 @@
+[
+  {
+    "type": "choice",
+    "instructions": "Decide whether current_event clearly continues the same conversational thread as active_thread. Use recent_context as the strongest evidence of conversational continuity, and use active_thread.events to understand what the thread is about. Do not decide based on whether the current event could technically be relevant to the same project. The question is whether the conversation itself provides enough evidence that this event continues this specific thread. If the connection is merely plausible but not established, choose uncertain.",
+    "criteria": {
+      "belongs": "There is clear conversational evidence that current_event continues the same specific problem, investigation, objective, test chain, decision chain, or line of work. This may be shown by an explicit reference, a clear continuation of the immediately preceding discussion, an answer or result to something in the thread, or another strong contextual link.",
+      "does_not_belong": "There is clear conversational evidence that current_event concerns a different problem, component in context, objective, investigation, decision chain, or line of work. A clear topic switch or explicit introduction of another subject supports this result.",
+      "uncertain": "The current event could plausibly belong to the active thread, but the conversation does not provide enough evidence to establish that continuation. Use this for isolated requirements, facts, constraints, or statements that might apply to the active subject but do not explicitly or contextually identify it. Also use uncertain rather than guessing when deciding would require an unstated assumption."
+    }
+  },
+  {
+    "type": "choice",
+    "instructions": "Determine whether current_event continues the specific discussion represented by active_thread. Use active_thread.events to understand the established thread and use recent_context to resolve conversational references. A recent event marked pending or unassigned has not changed the active thread and should not by itself be treated as a topic switch. An isolated uncertain event may temporarily interrupt a thread without ending it.",
+    "criteria": {
+      "belongs": "The current event clearly continues or returns to the same established problem, objective, investigation, test chain, decision chain, or line of work. Indirect expressions such as 'the real issue', 'that test', 'again', or 'the problem' count when they can be resolved from the established active thread. A pending intervening event does not prevent a later event from belonging to the active thread.",
+      "does_not_belong": "There is clear evidence that the current event starts or continues a different problem, objective, investigation, decision chain, component in context, or line of work. A topic change should be supported by the conversation rather than inferred only from a new technical fact.",
+      "uncertain": "The current event could plausibly belong to the active thread, but there is not enough evidence to establish or reject that continuation. Use uncertain when assigning the event would require an unstated assumption."
+    }
+  }
+]

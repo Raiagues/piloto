@@ -1,0 +1,2379 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f6">
+<title>Viga · editor livre</title>
+<style>
+:root{--bg:#f5f6f6;--paper:#fff;--ink:#28323e;--muted:#798591;--line:#e2e7ea;--blue:#4b73b8;--soft:#edf3fb;--beam:#ca8673;--red:#b74f3b;--green:#26765f;--purple:#9165ac}
+*{box-sizing:border-box}html,body{height:100%;margin:0;overflow:hidden}body{font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);-webkit-text-size-adjust:100%}button,input,select{font:inherit;color:inherit;min-width:0}button,select{cursor:pointer}button{background:#fff;border:1px solid var(--line);border-radius:7px;padding:6px 9px}button:hover{background:#f2f5f8}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--blue);outline-offset:2px}button,input,select{-webkit-tap-highlight-color:transparent}input[type=number]{appearance:textfield;-moz-appearance:textfield;font-variant-numeric:tabular-nums}input::-webkit-inner-spin-button{display:none}input:invalid{border-color:var(--red)!important}input,select{border:1px solid var(--line);border-radius:6px;background:#fff}input[type=range]{accent-color:var(--blue);border:0;cursor:pointer;touch-action:pan-y}h1,h2,h3,p{margin:0}svg{display:block}[hidden]{display:none!important}.app{height:100dvh;padding:14px 18px;display:grid;grid-template-rows:38px minmax(0,1fr);gap:10px;max-width:1800px;margin:auto}.topbar{display:flex;align-items:center;justify-content:space-between}.brand{display:flex;align-items:center;gap:10px}.brand h1{font-size:21px;letter-spacing:-.5px;font-weight:620}.brand-mark{background:#e8edef;padding:7px;border-radius:8px;color:#6e8391}.topbar .version{font-size:11px;color:var(--muted)}.shell{display:grid;grid-template-columns:258px minmax(0,1fr);gap:12px;min-height:0}.card{border:1px solid var(--line);border-radius:11px;background:#fff;min-height:0;min-width:0;overflow:hidden}.controls{display:flex;flex-direction:column;min-height:0}.controls-header{padding:13px 14px 10px;display:flex;gap:8px;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line)}.controls-header h2{font-size:13px;font-weight:600}.icon-button{width:28px;height:28px;padding:0;display:grid;place-items:center;color:var(--muted)}.controls-content{min-height:0;overflow:auto;scrollbar-width:thin;padding:0 14px 12px}.group{padding:12px 0;border-bottom:1px solid var(--line)}.group:last-child{border:0}.group-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:8px}.group-head h3{font-size:11px;font-weight:600;letter-spacing:.15px}.group-head .delete{font-size:10px;padding:3px 6px;border:0;color:#a65a4d}.field{display:block;margin:0 0 10px}.field:last-child{margin-bottom:0}.field-line{display:flex;align-items:center;gap:6px;justify-content:space-between}.field-label{font-size:11px;color:var(--muted)}.value{display:flex;align-items:center;gap:5px}.value input{width:67px;padding:5px 6px;text-align:right;font-size:12px;min-height:29px}.value .unit{font-size:10px;color:var(--muted);min-width:21px}.field input[type=range]{display:block;width:100%;height:4px;margin:10px 0 1px}.field-line select{font-size:11px;padding:5px;max-width:145px;min-height:29px}.field-line .value select{max-width:57px}.object-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}.object-tabs button{min-width:30px;padding:4px 9px;font-size:11px}.object-tabs button.active{background:var(--soft);border-color:#afc4e1;color:#3d639e}.type-picker{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:9px}.type-choice{padding:4px 2px;display:flex;flex-direction:column;gap:2px;align-items:center;font-size:9px}.type-choice svg{width:34px;height:22px}.type-choice.active{background:var(--soft);border-color:#b2c5df;color:#4167a1}.support-feedback{font-size:10px;color:var(--green);display:flex;gap:9px;flex-wrap:wrap;margin-top:8px}.add-tools{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding-top:12px}.controls>.add-tools{padding:10px 14px;border-top:1px solid var(--line);flex:none;margin-top:auto}.controls-content{flex:1}.add-tools button{padding:7px 3px;font-size:10px;color:#456493}.example-select{width:100%;padding:6px 7px;font-size:11px;min-height:29px}.minor-controls{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted);margin-top:10px}.minor-controls input{width:60px;padding:4px;text-align:right}.node-detail{margin-top:10px;padding:10px;background:#f5f8fb;border-radius:7px;font-size:11px}.node-detail h3{font-size:11px}.node-detail .node-value{font-size:17px;color:var(--blue);margin:5px 0}.node-detail .formula{font-size:10px;color:#506a88;line-height:1.6;overflow-wrap:anywhere}.node-detail .parents{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.node-detail button{font-size:9px;padding:3px 5px}.detail-close{float:right;border:0;padding:0 4px;background:none}.workspace{display:grid;grid-template-rows:minmax(230px,.95fr) minmax(250px,1.05fr);gap:10px;min-width:0;min-height:0}.scene{display:grid;grid-template-rows:29px minmax(0,1fr) auto}.scene-head{padding:7px 15px 0;display:flex;align-items:center;justify-content:space-between}.scene-head h2{font-size:11px;font-weight:500}.scene-head .beam-total{font-size:10px;color:var(--muted)}.drawing-wrap{min-height:0;min-width:0;overflow:hidden}.drawing,.dep-map,.diagram-svg{width:100%;height:100%;display:block;user-select:none;touch-action:pan-y}.drawing text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;fill:var(--ink)}.drawing .dim{fill:var(--blue);font-size:12px}.drawing .force-label{fill:var(--red);font-weight:550}.drawing .moment-label{fill:var(--blue);font-weight:550}.drawing .weight-label{fill:var(--purple);font-size:12px}.drawing .reaction-label{fill:var(--green);font-size:13px;font-weight:580}.halo{paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}.drawing > line,.drawing > path,.drawing > text{pointer-events:none}.drag{cursor:ew-resize;touch-action:none}.edit{cursor:pointer}.hit{fill:transparent}.selection-mark{stroke:#99b4d8;fill:none;stroke-dasharray:3 3;opacity:.7;pointer-events:none}.handle:hover .hover-fill{opacity:.08}.hover-fill{fill:var(--blue);opacity:0}.state{margin:0 12px 8px;padding:6px 8px;background:#fcf2e7;color:#8f6035;font-size:10px;border-radius:6px}.state.error{color:#a34e3e;background:#fcf0ed}.analysis{display:grid;grid-template-rows:40px minmax(0,1fr);position:relative}.analysis-head{padding:0 13px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);gap:10px}.analysis-tabs{display:flex;gap:17px;height:100%}.analysis-tabs button{border:0;border-radius:0;font-size:11px;color:var(--muted);padding:0;background:none}.analysis-tabs button.active{color:var(--ink);box-shadow:inset 0 -2px var(--blue)}.graph-tools,.plot-tools{display:flex;gap:5px;align-items:center}.graph-tools button,.plot-tools button{font-size:10px;padding:4px 6px}.graph-tools select,.plot-tools select{font-size:10px;padding:4px 5px;max-width:132px}.plot-tools button.active{background:var(--soft);border-color:#b4c7e3;color:#3d649c}.graph-pane{position:relative;min-height:0;overflow:hidden}.graph-wrap{height:100%;min-width:0;overflow:hidden}.dep-map{touch-action:none;cursor:grab}.dep-map:active{cursor:grabbing}.dep-map .edge{stroke:#bdcbd8;stroke-width:1.1;fill:none;opacity:.63}.dep-map .edge.active{stroke:var(--blue);opacity:.95;stroke-width:2}.dep-map .edge.muted{opacity:.10}.dep-map .node{cursor:pointer}.dep-map .node rect{fill:#fff;stroke:#d3dfe8;stroke-width:1.2}.dep-map .node.active rect{fill:#f0f5fc;stroke:#8dabd8}.dep-map .node.source rect{fill:var(--blue);stroke:var(--blue)}.dep-map .node.source text{fill:#fff}.dep-map .node.changed rect{stroke-width:2.5}.dep-map .node.output rect{fill:#f2f8f5;stroke:#bdd5c7}.dep-map .node.output.active rect{fill:#e9f4ed;stroke:var(--green)}.dep-map .node.selected rect{stroke:var(--blue);stroke-width:2.5}.dep-map text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--ink)}.dep-map .label{font-size:12px;font-weight:500}.dep-map .sub{font-size:11px;fill:#607589}.dep-map .output .sub{fill:var(--green)}.graph-zoom{position:absolute;bottom:9px;right:10px;display:flex;gap:3px}.graph-zoom button{font-size:12px;padding:4px 8px;background:#ffffffed}.graph-key{position:absolute;bottom:11px;left:13px;display:flex;gap:11px;color:var(--muted);font-size:9px;pointer-events:none}.graph-key i{display:inline-block;width:7px;height:7px;margin-right:4px;border:1px solid #9ab4d6;background:#f0f5fc;border-radius:2px}.graph-key .changed{border-width:2px;border-color:var(--blue)}.plots-pane{display:grid;grid-template-rows:minmax(0,1fr) 41px;min-height:0}.diagram-wrap{min-height:0;position:relative}.diagram-svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:12px;fill:#4e5d6c}.diagram-svg .plot-label{fill:#384b63;font-weight:550}.diagram-svg .graph-number{font-weight:560;fill:#28323e}.probe{padding:7px 14px;display:flex;align-items:center;gap:9px;border-top:1px solid #edf0f3;font-size:11px}.probe input[type=range]{flex:1;min-width:35px;margin:0;height:4px}.probe output{font-variant-numeric:tabular-nums;white-space:nowrap}.probe select{padding:3px;font-size:10px}.probe .probe-force{color:var(--green)}.probe .probe-moment{color:var(--blue)}.mobile-nav{display:none}.hidden-caption{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+@media(min-width:761px) and (max-height:850px){.app{padding:8px 12px;gap:7px;grid-template-rows:33px minmax(0,1fr)}.shell{gap:8px;grid-template-columns:243px minmax(0,1fr)}.workspace{gap:8px;grid-template-rows:minmax(222px,.93fr) minmax(220px,1.07fr)}.group{padding:9px 0}.controls-header{padding:8px 12px}.controls-content{padding:0 12px 9px}.field{margin-bottom:8px}.field input[type=range]{margin-top:8px}.add-tools{padding-top:8px}.type-choice svg{height:19px}.type-choice{font-size:9px}.group-head{margin-bottom:7px}.analysis{grid-template-rows:35px minmax(0,1fr)}}
+@media(max-width:760px){.app{padding:8px max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));grid-template-rows:32px 35px minmax(0,1fr);gap:7px}.brand-mark{display:none}.brand h1{font-size:19px}.topbar .version{font-size:10px}.mobile-nav{display:flex;gap:3px;background:#e8edef;border-radius:8px;padding:3px}.mobile-nav button{flex:1;border:0;background:none;padding:3px;font-size:11px}.mobile-nav button.active{background:#fff;box-shadow:0 1px 4px #20354a10}.shell{display:flex;flex-direction:column;gap:8px}.workspace{display:grid;flex:1;min-height:0;grid-template-rows:minmax(220px,1fr)}.controls{display:none}.scene{grid-template-rows:25px minmax(0,1fr) auto}.analysis{display:none}.scene-head{padding:5px 11px 0}.scene-head h2{font-size:10px}.drawing text{font-size:12px}.drawing .dim{font-size:11px}.drawing .force-label,.drawing .reaction-label,.drawing .moment-label{font-size:12px}.drawing .weight-label{font-size:11px}body[data-view=diagrams] .workspace{grid-template-rows:minmax(200px,.82fr) minmax(250px,1.18fr)}body[data-view=diagrams] .analysis{display:grid}body[data-view=graph] .scene{display:none}body[data-view=graph] .workspace{grid-template-rows:minmax(0,1fr)}body[data-view=graph] .analysis{display:grid}body[data-view=controls] .workspace{flex:0 0 215px;display:block}body[data-view=controls] .scene{height:100%}body[data-view=controls] .analysis{display:none}body[data-view=controls] .controls{display:flex;flex:1;order:2;min-height:0}.controls-content{padding:0 13px 14px;display:grid;grid-template-columns:1fr 1fr;gap:0 16px}.controls-content .group.beam-group,.controls-content .add-tools,.controls-content .node-detail{grid-column:1/-1}.beam-group .beam-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.group{padding:10px 0}.value input{font-size:16px;min-height:32px;width:62px}.field-line select{font-size:12px}.field input[type=range]{height:17px;margin:5px 0 0}.type-picker{gap:2px}.type-choice{font-size:8px;padding:3px 1px}.type-choice svg{width:28px;height:22px}.object-tabs button{padding:6px 9px;min-height:32px}.analysis-head{padding:0 10px;flex-wrap:wrap;gap:4px}.analysis-tabs{gap:11px}.analysis-tabs button{font-size:10px}.analysis{grid-template-rows:39px minmax(0,1fr)}.plot-tools button{font-size:10px;padding:5px}.graph-tools select{max-width:95px;font-size:10px}.graph-tools button{font-size:10px}.graph-key{font-size:8px;left:9px;bottom:8px}.graph-zoom{bottom:7px;right:7px}.graph-zoom button{min-width:32px;height:32px}.probe{flex-wrap:wrap;padding:6px 9px;gap:6px;font-size:10px}.probe input[type=range]{height:18px}.probe output{font-size:10px}.plots-pane{grid-template-rows:minmax(0,1fr) 61px}.probe .probe-values{width:100%;display:flex;gap:16px}.state{font-size:9px}.controls-header{padding:8px 13px}.add-tools button{font-size:11px;min-height:35px}.topbar .version button{font-size:10px;padding:4px 7px}}
+@media(pointer:coarse){button{touch-action:manipulation}.handle .hover-fill{opacity:.03}}
+
+/* Painéis, cargas distribuídas e mapa hierárquico. */
+.node-change{font-size:10px;line-height:1.5;color:var(--muted);margin-top:8px}.add-tools{grid-template-columns:repeat(2,1fr)}
+.controls>.add-tools{padding:9px 12px;gap:5px}
+.add-tools button{min-height:31px}
+.field-line .value select{max-width:69px;font-size:10px}
+.value input{width:65px}
+.fixed-side{margin:7px 0}.side-buttons{display:flex;gap:4px;margin-top:6px}.side-buttons button{flex:1;font-size:10px}.side-buttons .active{background:var(--soft);border-color:#b2c5df;color:var(--blue)}
+.scene-options{display:flex;align-items:center;gap:14px}.reaction-toggle{display:flex;align-items:center;gap:5px;font-size:11px;color:#527763;cursor:pointer}.reaction-toggle input{accent-color:var(--green);width:13px;height:13px;margin:0}.fixed-support{cursor:pointer;touch-action:pan-y}
+.graph-roles{position:absolute;left:12px;top:9px;display:flex;gap:13px;font-size:10px;background:#fffffff2;padding:3px 6px;border-radius:5px;pointer-events:none;color:#7b8490}.graph-roles i{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px}.parameter-dot{background:#768ba1}.calculation-dot{background:#ab8b57}.output-dot{background:#378069}
+.dep-map .node.parameter rect{fill:#f6f8fb;stroke:#cad6e2}.dep-map .node.calculation rect{fill:#fffefa;stroke:#ddd6c7}.dep-map .node.output rect{fill:#f1f8f4;stroke:#bfd6c8}.dep-map .node rect{transition:fill .12s}.dep-map .node.active rect{fill:#f0f5ff;stroke:#8babd5}.dep-map .node.source rect{fill:var(--blue);stroke:var(--blue)}.dep-map .node.source text{fill:white}.dep-map .node.selected rect{stroke:var(--blue);stroke-width:2}.dep-map .node.changed rect{stroke-width:2.5}.dep-map .node.unfocused{opacity:.35}.dep-map .label{font-size:12.2px;font-weight:520}.dep-map .sub{font-size:11.5px}.dep-map .edge{stroke:#b4c1cd;opacity:.5;stroke-width:1.25;stroke-linejoin:round;stroke-linecap:round}.dep-map .edge.active{stroke:var(--blue);opacity:.92;stroke-width:2}.dep-map .edge.muted{opacity:.07}.graph-key{background:#ffffffe8;padding:2px 4px;border-radius:4px}.graph-zoom{background:#ffffffe8;border-radius:5px}.graph-tools #graph-expand{font-size:18px;line-height:16px;padding:3px 6px}
+body.graph-expanded .workspace{grid-template-rows:minmax(0,1fr)}body.graph-expanded .scene{display:none}body.graph-expanded .analysis{display:grid;height:100%}
+@media(max-width:760px){.scene-options{gap:7px}.reaction-toggle{font-size:10px}.scene-head .beam-total{display:none}.graph-roles{font-size:9px;gap:10px;top:7px;left:7px}.graph-key{bottom:8px;max-width:180px;font-size:8px}.graph-zoom button{min-width:28px;padding:3px 6px}.graph-zoom{right:5px}.graph-tools #graph-expand{display:none}.controls-content{grid-template-columns:1fr}.controls-content .group{grid-column:1/-1}.beam-group .beam-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}#support-controls,#load-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}#support-controls>.group-head,#support-controls>.object-tabs,#support-controls>.type-picker,#support-controls>.support-feedback,#load-controls>.group-head,#load-controls>.object-tabs{grid-column:1/-1}#load-controls>.field:has(select[data-field=load-kind]){grid-column:1/-1}#support-controls .type-choice{font-size:10px;flex-direction:row;justify-content:center;gap:4px;min-height:32px}#support-controls .type-picker{margin:0}.field-line .value select{font-size:12px}.field-line{flex-wrap:wrap;gap:4px}.field-label{font-size:11px}.field .value input{font-size:16px;min-height:34px}.field .value{margin-left:auto}.controls>.add-tools{grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px}.add-tools button{font-size:10px;padding:6px 2px;min-height:35px}.fixed-side{margin:0}.side-buttons button{min-height:34px}.graph-tools select{max-width:116px}}
+
+
+/* Editor livre */
+.controls>.add-tools{grid-template-columns:repeat(2,1fr)}
+.add-tools button{min-height:34px}
+.graph-view-switch{display:flex;background:#eef1f4;border-radius:6px;padding:2px;gap:2px}
+.graph-view-switch button{border:0;background:transparent;padding:3px 6px;font-size:10px;color:var(--muted)}
+.graph-view-switch button.active{background:#fff;color:var(--ink);box-shadow:0 1px 3px #22374a14}
+.graph-fluid-control{display:flex;align-items:center;gap:4px;padding:3px 6px;border:1px solid var(--line);border-radius:6px;background:#fff;font-size:9px;color:var(--muted);white-space:nowrap}
+.graph-fluid-control input{margin:0;accent-color:var(--blue)}
+.context-menu{position:fixed;z-index:50;width:180px;background:#fff;border:1px solid #d9e0e6;border-radius:9px;padding:5px;box-shadow:0 10px 35px #24354424}
+.context-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 9px;font-size:11px}
+.context-menu button:hover{background:#f1f5f8}
+.context-menu .danger{color:#a75243}
+.graph-pane{display:grid;grid-template-columns:minmax(0,1fr);min-height:0;overflow:hidden}
+.graph-pane.detail-open{grid-template-columns:minmax(0,1fr) 265px}
+.graph-stage{position:relative;min-width:0;min-height:0;overflow:hidden}
+.graph-stage .graph-wrap{position:absolute;inset:0}
+.graph-detail{position:relative;min-width:0;min-height:0;overflow:auto;background:#fbfcfd;border-left:1px solid #e1e6eb;padding:14px 14px 18px;z-index:4}
+.graph-detail h3{font-size:13px;margin:1px 22px 2px 0}
+.graph-detail .kind{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.graph-detail .value{display:block;font-size:17px;color:var(--blue);margin:5px 0 10px;font-variant-numeric:tabular-nums}
+.graph-detail p{font-size:10px;line-height:1.55;color:#5e6d7a;margin:0 0 8px}
+.graph-detail .close-detail{position:absolute;right:6px;top:6px;border:0;background:transparent;padding:3px 6px;color:var(--muted)}
+.graph-detail-section{border-top:1px solid #e5e9ed;padding-top:10px;margin-top:10px}
+.graph-detail-section:first-of-type{border-top:0;padding-top:0}
+.graph-detail-label{font-size:9px;letter-spacing:.45px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.latex-box{font-family:"STIX Two Math","Cambria Math","Times New Roman",serif;font-size:12px;line-height:1.55;background:#fff;border:1px solid #e1e6eb;border-radius:7px;padding:8px 9px;color:#344b67;overflow-wrap:anywhere}
+.change-box{display:flex;gap:8px;align-items:flex-start;border-radius:7px;background:#eef4fb;padding:8px 9px;color:#3f5f87;font-size:10px;line-height:1.45}
+.change-box .change-arrow{font-size:17px;line-height:1;font-weight:650;color:var(--blue)}
+.change-box .change-values{font-variant-numeric:tabular-nums}
+.impact-chips{display:flex;flex-wrap:wrap;gap:5px}
+.impact-chips button{border:1px solid #dde5ec;background:#fff;border-radius:999px;padding:4px 7px;font-size:9px;color:#506273;max-width:100%;white-space:normal;text-align:left}
+.impact-chips button:hover{border-color:#9eb6d6;background:#f3f7fc}
+.impact-chips .direction{color:var(--blue);font-weight:700;margin-right:3px}
+.graph-role-note{font-size:10px;color:#657480;line-height:1.55}
+.dep-map .edge{stroke-linecap:round;stroke-linejoin:round;transition:opacity .12s,stroke-width .12s,stroke .12s}
+.dep-map .node,.dep-map .force-node{transition:opacity .12s}
+.dep-map .node.graph-dim,.dep-map .force-node.graph-dim{opacity:.10}
+.dep-map .edge.graph-dim,.dep-map .force-edge.graph-dim{opacity:.035!important}
+.dep-map .node.graph-context,.dep-map .force-node.graph-context{opacity:.48}
+.dep-map .edge.graph-context,.dep-map .force-edge.graph-context{stroke:#7895b8!important;opacity:.34!important;stroke-width:1.45!important}
+.dep-map .node.graph-focus,.dep-map .force-node.graph-focus{opacity:1}
+.dep-map .edge.graph-focus,.dep-map .force-edge.graph-focus{stroke:var(--blue)!important;opacity:1!important;stroke-width:2.35!important}
+.dep-map .node.graph-focus rect{stroke:var(--blue);stroke-width:2.15}
+.dep-map .node.selected,.dep-map .force-node.selected{opacity:.82}
+.dep-map .node.selected rect{stroke:#315f9f;stroke-width:2.55;filter:drop-shadow(0 2px 5px #395f991f)}
+.dep-map .node.selected.graph-context rect{stroke:#6f8fb7;stroke-width:2.15;filter:drop-shadow(0 1px 4px #395f9914)}
+.dep-map .force-node.selected.graph-context .halo-ring{stroke:#6f8fb7;opacity:.62}
+.dep-map .node.hovered rect{stroke:#234f91;stroke-width:2.8;filter:drop-shadow(0 2px 7px #315f9f28)}
+.dep-map .force-node.hovered .halo-ring{stroke:#234f91;opacity:1}
+.dep-map .change-arrow{font-size:11px;font-weight:700;fill:var(--blue)}
+.dep-map .force-edge{stroke:#aab8c6;stroke-width:1;opacity:.34;transition:opacity .12s,stroke-width .12s,stroke .12s}
+.dep-map .force-edge.active{stroke:var(--blue);stroke-width:1.7;opacity:.9}
+.dep-map .force-node{cursor:grab}
+.dep-map .force-node:active{cursor:grabbing}
+.dep-map .force-node .halo-ring{fill:none;stroke:transparent;stroke-width:8}
+.dep-map .force-node.active .halo-ring{stroke:#b6c9e4;opacity:.65}
+.dep-map .force-node.source .halo-ring{stroke:#4b73b8;opacity:.9}
+.dep-map .force-node.graph-focus .halo-ring,.dep-map .force-node.selected .halo-ring{stroke:#4b73b8;opacity:.82}
+.dep-map .force-node circle.core{stroke:#fff;stroke-width:1.7}
+.dep-map .force-node.parameter circle.core{fill:#71869c}
+.dep-map .force-node.calculation circle.core{fill:#b18a52}
+.dep-map .force-node.output circle.core{fill:#3f846d}
+.dep-map .force-node text{font-size:10px;fill:#3f4b57;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}
+.dep-map .force-node .force-role{font-size:8px;fill:#788592;font-weight:400}
+.dep-map .force-node .force-change{font-size:10px;fill:var(--blue);font-weight:700}
+
+.live-relations{position:absolute;right:12px;top:10px;z-index:3;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 8px;max-width:52%;padding:5px 7px;border:1px solid #e2e7ec;border-radius:7px;background:#ffffffdb;backdrop-filter:blur(4px);font-size:8px;color:#667582;pointer-events:none}
+.live-relations span{display:flex;align-items:center;gap:4px;white-space:nowrap}.live-relations i{display:inline-block;width:16px;height:0;border-top:2px solid #93a4b4}
+.live-relations .flow-origin i{border-color:#a47c46;border-top-style:solid}.live-relations .flow-impact i{border-color:#3d7f6b;border-top-style:solid}.live-relations .rel-define i{border-top-style:solid}.live-relations .rel-condiciona i{border-top-style:dashed;border-color:#a47c46}.live-relations .rel-gera i{border-top-style:solid;border-color:#8b6aa3}.live-relations .rel-compoe i{border-top:3px double #3f846d}.live-relations .rel-propaga i{border-top-style:dotted;border-color:#70859b}
+.impact-chips .relation-tag{display:inline-block;margin-left:5px;padding:1px 4px;border-radius:999px;background:#edf1f4;color:#667685;font-size:8px;font-weight:500}.impact-chips .depth-tag{display:inline-block;margin-right:4px;color:#7890a6;font-size:8px;font-weight:650}
+.dep-map.live-map .force-edge.rel-define{stroke-dasharray:none}.dep-map.live-map .force-edge.rel-condiciona{stroke-dasharray:6 4}.dep-map.live-map .force-edge.rel-gera{stroke-dasharray:11 3}.dep-map.live-map .force-edge.rel-compoe{stroke-dasharray:2 2}.dep-map.live-map .force-edge.rel-propaga{stroke-dasharray:1.5 4}
+.dep-map.live-map .force-edge.live-upstream{stroke:#a47c46!important;opacity:.92!important;stroke-width:2.15!important}.dep-map.live-map .force-edge.live-downstream{stroke:#3d7f6b!important;opacity:1!important;stroke-width:2.35!important}
+.dep-map.live-map .force-node.live-upstream .halo-ring{stroke:#c5a474;opacity:.72}.dep-map.live-map .force-node.live-downstream .halo-ring{stroke:#78ad99;opacity:.78}.dep-map.live-map .force-node.live-root .halo-ring{stroke:#315f9f;opacity:1;stroke-width:10}.dep-map.live-map .force-node.live-root circle.core{stroke:#315f9f;stroke-width:2.4}
+.dep-map.live-map .force-node.graph-dim{opacity:.075}.dep-map.live-map .force-edge.graph-dim{opacity:.025!important}
+
+.empty-group{font-size:10px;color:var(--muted);padding:3px 0 6px}
+@media(max-width:760px){
+  .controls>.add-tools{grid-template-columns:repeat(3,1fr)}
+  .graph-view-switch button{font-size:9px;padding:4px}
+  .graph-fluid-control{font-size:8px;padding:3px 5px}
+  .graph-pane.detail-open{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 168px}
+  .graph-stage{grid-column:1;grid-row:1}
+  .graph-detail{grid-column:1;grid-row:2;border-left:0;border-top:1px solid #e1e6eb;padding:10px 12px}
+  .graph-detail h3{font-size:12px}
+  .graph-detail .value{font-size:15px;margin:3px 0 7px}
+  .graph-detail-section{margin-top:7px;padding-top:7px}
+  .latex-box{padding:6px 7px;font-size:11px}
+  .impact-chips button{font-size:8px;padding:3px 6px}
+  .context-menu{width:170px}
+  .live-relations{right:7px;top:35px;max-width:68%;font-size:7px;gap:4px 6px;padding:4px 5px}
+}
+
+@media(max-width:760px){
+  .analysis{grid-template-rows:64px minmax(0,1fr)}
+  .analysis-head{display:grid;grid-template-columns:1fr;grid-template-rows:30px 30px;padding:1px 8px 0;align-items:center}
+  .analysis-tabs{grid-row:1;gap:14px}
+  .graph-tools,.plot-tools{grid-row:2;width:100%;display:flex;gap:4px;min-width:0}
+  .graph-view-switch{flex:0 0 auto}
+  .graph-tools select{flex:1;max-width:none;min-width:76px}
+  #graph-expand{display:none}
+  .plot-tools select{margin-left:auto}
+}
+
+/* Edição contextual no próprio bloco de equilíbrio. */
+.controls-head-actions{display:flex;align-items:center;gap:7px}
+.control-reaction-toggle{display:flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff;color:var(--muted);font-size:10px;white-space:nowrap;cursor:pointer}
+.control-reaction-toggle input{margin:0;accent-color:var(--green)}
+.object-browser .object-list-label{font-size:9px;text-transform:uppercase;letter-spacing:.55px;color:var(--muted);margin:9px 0 5px}
+.object-browser .object-tabs{margin-bottom:5px}
+.object-browser .object-tabs button{background:#fff}
+.object-browser .object-tabs button.active{background:var(--soft);border-color:#abc1df;color:#3c639c}
+.scene-body{min-width:0;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);overflow:hidden}
+.scene-body.editor-open{grid-template-columns:minmax(0,1fr) 258px}
+.element-editor{min-width:0;min-height:0;background:#fbfcfd;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.element-editor-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 11px 8px;border-bottom:1px solid var(--line);flex:none}
+.element-editor-head h3{font-size:13px;font-weight:600}
+.element-editor-kicker{display:block;font-size:8px;text-transform:uppercase;letter-spacing:.75px;color:var(--muted);margin-bottom:1px}
+.element-editor-body{min-height:0;overflow:auto;padding:0 12px 12px;scrollbar-width:thin}
+.element-editor-body>.group{border:0;padding:11px 0 0}
+.element-editor-body .group-head{margin-bottom:10px}
+.element-editor-body .object-tabs{display:none}
+.element-editor-body .type-picker{margin-bottom:12px}
+.element-editor-body .field{margin-bottom:12px}
+.element-editor-body .support-feedback{padding:7px 8px;background:#f1f7f4;border-radius:6px;margin-top:4px}
+.element-editor-body .delete{color:#a65a4d}
+.scene-head{padding-right:15px}
+@media(max-width:760px){
+  .controls-head-actions{gap:5px}
+  .control-reaction-toggle{font-size:9px;padding:4px 6px}
+  .scene-body.editor-open{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 186px}
+  .element-editor{border-left:0;border-top:1px solid var(--line)}
+  .element-editor-head{padding:6px 10px 4px;min-height:33px}
+  .element-editor-body{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;padding:4px 10px 9px}
+  .element-editor-body>.group{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;padding-top:2px}
+  .element-editor-body .group-head,.element-editor-body .type-picker,.element-editor-body .support-feedback{grid-column:1/-1}
+  .element-editor-body .field{margin:0}
+  .element-editor-body .type-picker{grid-template-columns:repeat(3,1fr);margin:0}
+  .element-editor-body .type-choice{min-height:38px;flex-direction:row;font-size:9px}
+  .element-editor-body .type-choice svg{width:26px;height:20px}
+  .element-editor-body .field input[type=range]{height:16px;margin-top:3px}
+  .element-editor-body .field .value input{font-size:15px;min-height:31px}
+}
+
+
+/* Seção, material e resultados estruturais. */
+.beam-section-preview{grid-column:1/-1;border:1px solid var(--line);border-radius:9px;background:linear-gradient(145deg,#f8fafb,#eef2f4);min-height:116px;padding:6px 8px;display:grid;place-items:center;overflow:hidden}
+.beam-section-preview svg{width:100%;height:110px;display:block}
+.beam-editor-note{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;align-items:center;padding:7px 8px;border-radius:7px;background:#f6f8fa;color:var(--muted);font-size:9px}
+.beam-editor-note strong{color:var(--ink);font-size:10px;font-weight:600}
+.beam-apply-mass{grid-column:1/-1;font-size:10px;padding:6px 8px;color:#456493;background:#f7f9fb}
+.calculations-pane{min-height:0;overflow:auto;padding:13px 14px;background:#fbfcfd}
+.calc-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px}
+.calc-card{border:1px solid var(--line);border-radius:9px;background:#fff;padding:9px 10px;min-width:0}
+.calc-card .calc-kicker{font-size:9px;color:var(--muted);margin-bottom:4px}
+.calc-card .calc-value{font-size:17px;font-weight:620;letter-spacing:-.25px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calc-card .calc-sub{font-size:9px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calc-card.primary{border-color:#c7d6e8;background:#f7faff}
+.calc-card.stress{border-color:#d7cbea;background:#fbf9fd}
+.calc-card.safe{border-color:#c8ddd2;background:#f7fbf9}
+.calc-lower{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:8px;margin-top:8px}
+.calc-panel{border:1px solid var(--line);border-radius:9px;background:#fff;padding:10px 11px;min-width:0}
+.calc-panel h3{font-size:10px;margin-bottom:7px}
+.calc-properties{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px 10px}
+.calc-property{min-width:0}
+.calc-property span{display:block;font-size:8px;color:var(--muted)}
+.calc-property strong{display:block;font-size:11px;font-weight:560;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calc-equations{display:grid;grid-template-columns:1fr 1fr;gap:4px 11px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:9px;color:#4c6077;line-height:1.55}
+.calc-equations div{min-width:0;overflow-wrap:anywhere}
+.calc-reactions{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.calc-chip{padding:4px 7px;border-radius:999px;background:#f2f5f7;color:#53616e;font-size:9px}
+.calc-empty{height:100%;display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;padding:20px}
+@media(max-width:1100px){.calc-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.calc-lower{grid-template-columns:1fr}.calc-equations{grid-template-columns:1fr 1fr}}
+@media(max-width:760px){
+  .mobile-nav button{font-size:10px}
+  .calculations-pane{padding:9px}
+  .calc-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+  .calc-card{padding:8px}
+  .calc-card .calc-value{font-size:15px}
+  .calc-properties{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .calc-equations{grid-template-columns:1fr}
+  body[data-view=calculations] .scene{display:none}
+  body[data-view=calculations] .workspace{grid-template-rows:minmax(0,1fr)}
+  body[data-view=calculations] .analysis{display:grid}
+  .beam-section-preview{min-height:95px}
+  .beam-section-preview svg{height:90px}
+}
+
+</style>
+</head>
+<body data-view="beam">
+<main class="app">
+<header class="topbar"><div class="brand"><div class="brand-mark" aria-hidden="true"><svg width="21" height="19" viewBox="0 0 25 22"><path d="M2 6H23M5 8L2 15H8Z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="20" cy="12" r="3" fill="none" stroke="currentColor"/><path d="M15 16H25" stroke="currentColor"/></svg></div><h1>Viga</h1></div><div class="version">Apoios · cargas · impactos</div></header>
+<nav class="mobile-nav" aria-label="Visualização"><button data-mobile="beam" class="active">Viga</button><button data-mobile="diagrams">V + M</button><button data-mobile="graph">Mapa</button><button data-mobile="calculations">Cálculos</button><button data-mobile="controls">Controles</button></nav>
+<div class="shell" id="shell">
+<aside class="card controls" aria-label="Controles completos">
+<header class="controls-header"><h2>Controles</h2><div class="controls-head-actions"><label class="reaction-toggle control-reaction-toggle" title="Mostrar ou ocultar reações de apoio"><input type="checkbox" id="show-reactions"><span>Reações</span></label><button class="icon-button" id="reset" aria-label="Restaurar viga em balanço inicial" title="Restaurar"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 10a8 8 0 1 1 1 7M4 4v6h6"/></svg></button></div></header>
+<div class="controls-content" id="controls-content">
+<section class="group beam-group"><div class="group-head"><h3>Viga</h3></div><div class="beam-fields" id="beam-fields"></div></section>
+<section class="group object-browser" id="object-browser"></section>
+<section id="node-detail" class="node-detail" hidden></section>
+</div><div class="add-tools"><button id="add-support">＋ Apoio</button><button id="add-block">＋ Bloco</button><button id="add-force">＋ Força</button><button id="add-moment">＋ Momento</button><button id="add-udl">＋ Distribuída</button></div></aside>
+<div class="workspace">
+<section class="card scene"><header class="scene-head"><h2>Equilíbrio</h2><span class="beam-total" id="case-caption"></span></header><div class="scene-body" id="scene-body"><div class="drawing-wrap" id="drawing-wrap"><svg id="drawing" class="drawing" role="img" aria-label="Viga interativa com forças, momentos e reações"></svg></div><aside id="element-editor" class="element-editor" aria-label="Editar componente selecionado" hidden><header class="element-editor-head"><div><span class="element-editor-kicker">Componente</span><h3 id="element-editor-title">Editar</h3></div><button id="close-element-editor" class="icon-button" type="button" aria-label="Fechar edição">×</button></header><div id="element-editor-body" class="element-editor-body"><section class="group" id="beam-controls"></section><section class="group" id="support-controls"></section><section class="group" id="load-controls"></section></div></aside></div><p id="state-note" class="state" aria-live="polite" hidden></p></section>
+<section class="card analysis" id="analysis"><header class="analysis-head"><div class="analysis-tabs"><button data-analysis="graph" class="active">Dependências</button><button data-analysis="diagrams">Diagramas</button><button data-analysis="calculations">Cálculos</button></div><div class="graph-tools" id="graph-tools"><div class="graph-view-switch" role="group" aria-label="Visualização das dependências"><button type="button" data-graph-style="hierarchy" class="active">Hierarquia</button><button type="button" data-graph-style="force">Grafo</button><button type="button" data-graph-style="live">Mapa vivo</button></div><label id="graph-fluid-control" class="graph-fluid-control" hidden><input id="graph-fluid" type="checkbox" checked><span>Fluido</span></label><select id="graph-filter" aria-label="Filtrar dependências"><option value="all">Tudo</option></select><button id="clear-highlight" aria-label="Limpar o destaque da alteração">Limpar</button><button id="graph-expand" aria-label="Ampliar mapa">⤢</button></div><div class="plot-tools" id="plot-tools" hidden><button data-plot="both" class="active">V + M</button><button data-plot="V">V</button><button data-plot="M">M</button><select id="plot-unit" aria-label="Unidade dos diagramas"><option value="1000">kN</option><option value="1">N</option></select></div></header>
+<div class="graph-pane" id="graph-pane"><div class="graph-stage" id="graph-stage"><div id="graph-wrap" class="graph-wrap"><svg id="dep-map" class="dep-map" role="img" aria-label="Mapa de dependências, impactos e relações"></svg></div><div class="graph-roles"><span><i class="parameter-dot"></i>Parâmetro</span><span><i class="calculation-dot"></i>Cálculo</span><span><i class="output-dot"></i>Resultado</span></div><div id="live-relations" class="live-relations" hidden><span class="flow-origin"><i></i>origem</span><span class="flow-impact"><i></i>impacto</span><span class="rel-define"><i></i>define</span><span class="rel-condiciona"><i></i>condiciona</span><span class="rel-gera"><i></i>gera</span><span class="rel-compoe"><i></i>compõe</span><span class="rel-propaga"><i></i>propaga</span></div><div class="graph-key"><span><i></i>Reavaliado</span><span><i class="changed"></i>Valor alterado</span><span>↑↓ direção</span></div><div class="graph-zoom"><button id="graph-minus" aria-label="Diminuir zoom">−</button><button id="graph-fit">Ajustar</button><button id="graph-organize" aria-label="Reorganizar os nós">↺</button><button id="graph-plus" aria-label="Aumentar zoom">＋</button></div></div><aside id="graph-detail" class="graph-detail" hidden></aside></div>
+<div class="plots-pane" id="plots-pane" hidden><div class="diagram-wrap" id="diagram-wrap"><svg id="diagram-svg" class="diagram-svg" role="img" aria-label="Esforço cortante e momento fletor alinhados à viga"></svg></div><div class="probe"><label for="probe-range">x</label><input type="range" min="0" max="6" step="0.001" value="2" id="probe-range" aria-label="Seção analisada"><output id="probe-x">2 m</output><select id="probe-side" aria-label="Lado do corte"><option value="right">x⁺</option><option value="left">x⁻</option></select><span class="probe-values"><output class="probe-force" id="probe-v"></output> &nbsp; <output class="probe-moment" id="probe-m"></output></span></div></div>
+<div class="calculations-pane" id="calculations-pane" hidden><div id="calculations-content"></div></div>
+</section>
+</div></div>
+</main>
+<div id="context-menu" class="context-menu" hidden></div>
+<!-- Modelo 2D didático. Viga uniforme, linear elástica e sem recalques. O peso próprio é uniforme.
+     Reações de estruturas com vínculos excedentes usam EI constante. Não é verificação normativa.
+     Fontes
+     https://engineeringstatics.org/Chapter_08.html
+     https://engineeringstatics.org/VM_diagrams.html
+     https://engineeringstatics.org/VM_relations.html
+     https://interactivetextbooks.citg.tudelft.nl/computational-modelling/structural_linear/euler_bernouilli.html
+     Carga distribuída uniforme em qualquer subintervalo. Integração exata dos polinômios de Hermite.
+      Reações, V e M consideram o carregamento original, sem trocar a distribuição por uma força no diagrama.
+      Forças horizontais, rigidez variável, recalques e efeitos não lineares não estão incluídos.
+      https://engineeringstatics.org/distributed-loads.html
+      A verificação desta versão está em viga_validacao_distribuidas.html. -->
+<script id="beam-app">
+
+'use strict';
+// Forças internas em N, posições em m e momentos positivos anti-horários.
+const initial = {L:10,mbar:10,g:9.81,supports:[{id:'s1',name:'A',x:0,type:'pin',edge:'left'},{id:'s2',name:'B',x:10,type:'roller',edge:'right'}],loads:[{id:'p1',name:'C',x:7,kind:'mass',value:50,direction:1,unit:'kg',edge:null}]};
+const photoExample = {L:6,mbar:0,g:9.81,supports:[{id:'s1',name:'A',x:0,type:'pin',edge:'left'},{id:'s2',name:'B',x:6,type:'roller',edge:'right'}],loads:[{id:'p1',name:'C',x:2,kind:'force',value:10000,direction:1,unit:'kN',edge:null},{id:'p2',name:'D',x:4,kind:'force',value:10000,direction:1,unit:'kN',edge:null},{id:'p3',name:'M₁',x:6,kind:'moment',value:15000,direction:-1,unit:'kNm',edge:'right'}]};
+const distributedExample = {L:6,mbar:0,g:9.81,supports:[{id:'s1',name:'A',x:0,type:'pin',edge:'left'},{id:'s2',name:'B',x:4,type:'roller',edge:null}],loads:[{id:'p1',name:'q1',x:0,end:4,kind:'udl',value:20000,direction:1,unit:'kNpm',edge:'left',endEdge:null},{id:'p2',name:'C',x:6,kind:'force',value:20000,direction:1,unit:'kN',edge:'right'}]};
+const blankInitial = {L:6,mbar:0,g:9.81,supports:[],loads:[]};
+// Caso inicial simples para editar livremente: balanço de 6 m com 10 kN na ponta.
+const startCase = {L:6,mbar:0,g:9.81,supports:[{id:'s1',name:'A',x:0,type:'fixed',edge:'left'}],loads:[{id:'p1',name:'P1',x:6,kind:'force',value:10000,direction:1,unit:'kN',edge:'right'}]};
+let showReactions=false;
+const color = {ink:'#384753',beam:'#ca8673',edge:'#835f53',blue:'#4b73b8',red:'#b74f3b',green:'#26765f',purple:'#9165ac',muted:'#8b959e',orange:'#986331'};
+const supportNames = {pin:'Articulado',roller:'Rolete',fixed:'Engaste'};
+
+const materialLibrary = {
+  steel:{name:'Aço estrutural',E:200e9,yield:250e6,rho:7850,color:'#78828b'},
+  aluminum:{name:'Alumínio 6061-T6',E:68.9e9,yield:276e6,rho:2700,color:'#b3bec6'},
+  stainless:{name:'Aço inox 304',E:193e9,yield:215e6,rho:8000,color:'#98a4ab'},
+  custom:{name:'Personalizado',E:200e9,yield:250e6,rho:7850,color:'#84909a'}
+};
+const defaultSection={shape:'rect',b:.12,h:.24,tw:.012,tf:.018};
+const defaultMaterial={key:'steel',E:200e9,yield:250e6,rho:7850};
+function ensureBeamModel(s) {
+  if (!s.section) s.section=clone(defaultSection);
+  if (!s.material) s.material=clone(defaultMaterial);
+  if (!['rect','i'].includes(s.section.shape)) s.section.shape='rect';
+  s.section.b=clamp(Number(s.section.b)||defaultSection.b,.005,2);
+  s.section.h=clamp(Number(s.section.h)||defaultSection.h,.005,3);
+  s.section.tw=clamp(Number(s.section.tw)||defaultSection.tw,.001,Math.max(.001,s.section.b*.95));
+  s.section.tf=clamp(Number(s.section.tf)||defaultSection.tf,.001,Math.max(.001,s.section.h*.45));
+  if (!materialLibrary[s.material.key]) s.material.key='custom';
+  s.material.E=clamp(Number(s.material.E)||defaultMaterial.E,1e6,1e12);
+  s.material.yield=clamp(Number(s.material.yield)||defaultMaterial.yield,1e5,5e9);
+  s.material.rho=clamp(Number(s.material.rho)||defaultMaterial.rho,1,30000);
+}
+function materialInfo(s) {
+  ensureBeamModel(s);
+  return {...s.material,name:materialLibrary[s.material.key]?.name||'Personalizado',color:materialLibrary[s.material.key]?.color||'#84909a'};
+}
+function sectionProperties(s) {
+  ensureBeamModel(s);
+  const sec=s.section,b=sec.b,h=sec.h,c=h/2;
+  if (sec.shape==='i') {
+    const tf=clamp(sec.tf,.001,h*.45),tw=clamp(sec.tw,.001,b*.95),hw=h-2*tf;
+    const A=2*b*tf+tw*hw;
+    const I=(b*h**3-(b-tw)*hw**3)/12;
+    const S=I/c;
+    const Q=b*tf*(h/2-tf/2)+(tw*hw/2)*(hw/4);
+    return {shape:'i',b,h,tf,tw,hw,A,I,S,c,Q,shearThickness:tw,valid:A>0&&I>0&&hw>0};
+  }
+  const A=b*h,I=b*h**3/12,S=I/c;
+  return {shape:'rect',b,h,tf:0,tw:b,hw:h,A,I,S,c,Q:null,shearThickness:b,valid:A>0&&I>0};
+}
+function interpSeries(xs,ys,x) {
+  if (x<=xs[0]) return ys[0];
+  if (x>=xs[xs.length-1]) return ys[ys.length-1];
+  let lo=0,hi=xs.length-1;
+  while (hi-lo>1) {const mid=(lo+hi)>>1;if(xs[mid]<=x)lo=mid;else hi=mid;}
+  const t=(x-xs[lo])/(xs[hi]-xs[lo]);
+  return ys[lo]*(1-t)+ys[hi]*t;
+}
+function deflectionData(s,r,sec,mat) {
+  if (!r.valid||!sec.valid||!(mat.E>0&&sec.I>0)) return {max:null,x:null,value:null};
+  const base=Array.from({length:601},(_,i)=>s.L*i/600);
+  const xs=[...base,...beamEvents(s)].sort((a,b)=>a-b).filter((v,i,a)=>i===0||Math.abs(v-a[i-1])>1e-10*s.L);
+  const kappa=xs.map(x=>internalAt(s,r,x,'right').M/(mat.E*sec.I));
+  const theta0=Array(xs.length).fill(0),y0=Array(xs.length).fill(0);
+  for (let i=1;i<xs.length;i++) {
+    const dx=xs[i]-xs[i-1];
+    theta0[i]=theta0[i-1]+.5*(kappa[i-1]+kappa[i])*dx;
+    y0[i]=y0[i-1]+.5*(theta0[i-1]+theta0[i])*dx;
+  }
+  let C1=0,C2=0;
+  const fixed=[...s.supports].filter(p=>p.type==='fixed').sort((a,b)=>a.x-b.x);
+  if (fixed.length) {
+    const x=fixed[0].x,th=interpSeries(xs,theta0,x),yy=interpSeries(xs,y0,x);
+    C1=-th;C2=-yy-C1*x;
+  } else {
+    const supports=[...s.supports].sort((a,b)=>a.x-b.x);
+    if (supports.length<2||Math.abs(supports[1].x-supports[0].x)<1e-12) return {max:null,x:null,value:null};
+    const xa=supports[0].x,xb=supports[1].x;
+    const ya=interpSeries(xs,y0,xa),yb=interpSeries(xs,y0,xb);
+    C1=-(yb-ya)/(xb-xa);C2=-ya-C1*xa;
+  }
+  let best={x:xs[0],value:y0[0]+C1*xs[0]+C2};
+  for (let i=1;i<xs.length;i++) {
+    const value=y0[i]+C1*xs[i]+C2;
+    if (Math.abs(value)>Math.abs(best.value)) best={x:xs[i],value};
+  }
+  return {max:Math.abs(best.value),x:best.x,value:best.value};
+}
+function structuralResults(s,r) {
+  const sec=sectionProperties(s),mat=materialInfo(s);
+  const d=diagramData(s,r);
+  if (!r.valid||d.Mmax===null||!sec.valid) return {sec,mat,d,sigma:null,tau:null,fos:null,deflection:{max:null,x:null,value:null},geomMass:sec.A*s.L*mat.rho};
+  const sigma=sec.S>0?d.Mmax/sec.S:null;
+  const tau=sec.shape==='i'&&sec.I>0&&sec.shearThickness>0?d.Vmax*sec.Q/(sec.I*sec.shearThickness):sec.A>0?1.5*d.Vmax/sec.A:null;
+  const fos=sigma>0?mat.yield/sigma:Infinity;
+  const deflection=deflectionData(s,r,sec,mat);
+  return {sec,mat,d,sigma,tau,fos,deflection,geomMass:sec.A*s.L*mat.rho};
+}
+function setSection(key,value) {
+  ensureBeamModel(state);
+  remember(['section_'+key]);
+  if (key==='shape'&&['rect','i'].includes(value)) {state.section.shape=value;sidebarSignature='';}
+  if (['b','h','tw','tf'].includes(key)&&Number.isFinite(value)) state.section[key]=value;
+  state.section.b=clamp(state.section.b,.005,2);
+  state.section.h=clamp(state.section.h,.005,3);
+  state.section.tw=clamp(state.section.tw,.001,state.section.b*.95);
+  state.section.tf=clamp(state.section.tf,.001,state.section.h*.45);
+  requestRender();
+}
+function setMaterial(key,value) {
+  ensureBeamModel(state);
+  remember(['material_'+key]);
+  if (key==='key'&&materialLibrary[value]) {
+    state.material.key=value;
+    if (value!=='custom') {
+      state.material.E=materialLibrary[value].E;
+      state.material.yield=materialLibrary[value].yield;
+      state.material.rho=materialLibrary[value].rho;
+    }
+    sidebarSignature='';
+  }
+  if (key==='E'&&Number.isFinite(value)) state.material.E=clamp(value,1e6,1e12);
+  if (key==='yield'&&Number.isFinite(value)) state.material.yield=clamp(value,1e5,5e9);
+  if (key==='rho'&&Number.isFinite(value)) state.material.rho=clamp(value,1,30000);
+  requestRender();
+}
+function sectionPreviewSVG(s) {
+  const sec=sectionProperties(s),mat=materialInfo(s),fill=mat.color,edge='#59636c',dx=55,dy=-18;
+  if (sec.shape==='i') {
+    const x=55,y=28,w=88,h=92,tf=Math.max(8,Math.min(20,92*sec.tf/sec.h)),tw=Math.max(7,Math.min(24,88*sec.tw/sec.b));
+    const parts=[[x,y,w,tf],[x+(w-tw)/2,y+tf,tw,h-2*tf],[x,y+h-tf,w,tf]];
+    let out='<svg viewBox="0 0 230 130" aria-label="Vista tridimensional do perfil I">';
+    for (const [px,py,pw,ph] of parts) out+=`<rect x="${px+dx}" y="${py+dy}" width="${pw}" height="${ph}" rx="2" fill="${fill}" opacity=".34" stroke="${edge}" stroke-width="1"/>`;
+    for (const [px,py,pw,ph] of parts) {
+      out+=`<polygon points="${px},${py} ${px+dx},${py+dy} ${px+pw+dx},${py+dy} ${px+pw},${py}" fill="${fill}" opacity=".22"/>`;
+      out+=`<polygon points="${px+pw},${py} ${px+pw+dx},${py+dy} ${px+pw+dx},${py+ph+dy} ${px+pw},${py+ph}" fill="${fill}" opacity=".18"/>`;
+      out+=`<rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="2" fill="${fill}" opacity=".82" stroke="${edge}" stroke-width="1.2"/>`;
+    }
+    out+=`<text x="12" y="119" fill="#66727d" font-size="10">b ${fmt(sec.b*1000,0)} mm · h ${fmt(sec.h*1000,0)} mm · tw ${fmt(sec.tw*1000,0)} · tf ${fmt(sec.tf*1000,0)}</text></svg>`;
+    return out;
+  }
+  const ratio=sec.b/sec.h,w=clamp(72*ratio,.45*72,105),h=clamp(72/Math.max(ratio,.55),58,92),x=52,y=31;
+  return `<svg viewBox="0 0 230 130" aria-label="Vista tridimensional da seção retangular"><polygon points="${x},${y} ${x+dx},${y+dy} ${x+w+dx},${y+dy} ${x+w},${y}" fill="${fill}" opacity=".28"/><polygon points="${x+w},${y} ${x+w+dx},${y+dy} ${x+w+dx},${y+h+dy} ${x+w},${y+h}" fill="${fill}" opacity=".20"/><rect x="${x+dx}" y="${y+dy}" width="${w}" height="${h}" rx="2" fill="${fill}" opacity=".34" stroke="${edge}" stroke-width="1"/><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2" fill="${fill}" opacity=".84" stroke="${edge}" stroke-width="1.2"/><text x="12" y="119" fill="#66727d" font-size="10">b ${fmt(sec.b*1000,0)} mm · h ${fmt(sec.h*1000,0)} mm</text></svg>`;
+}
+
+let state = clone(startCase);
+ensureBeamModel(state);
+let result = null;
+let previousGraph = [];
+let graphNodes = [];
+let sources = new Set();
+let selection = null;
+let geometry = null;
+let drag = null;
+let framePending = false;
+let panelSignature = '';
+function byId(id) { return document.getElementById(id); }
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function clamp(value,low,high) { return Math.max(low,Math.min(high,value)); }
+function fmt(value,digits=2) {
+  if (!Number.isFinite(value)) return '—';
+  return (Math.abs(value)<1e-8?0:value).toLocaleString('pt-BR',{maximumFractionDigits:digits});
+}
+function esc(value) { return String(value).replace(/[&<>"']/g,escapeChar); }
+function escapeChar(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }
+function forceText(value) { return Math.abs(value)>=1000 ? fmt(value/1000)+' kN' : fmt(value,1)+' N'; }
+function momentText(value) { return Math.abs(value)>=1000 ? fmt(value/1000)+' kN·m' : fmt(value,1)+' N·m'; }
+function differs(a,b) {
+  if (typeof a==='number' && typeof b==='number') return Math.abs(a-b)>1e-7*Math.max(1,Math.abs(a),Math.abs(b));
+  return JSON.stringify(a)!==JSON.stringify(b);
+}
+// Eliminação com pivoteamento e escala diagonal.
+function solveLinear(matrix,vector) {
+  const n=vector.length;
+  if (!n) return [];
+  const scale=matrix.map((row,i)=>1/Math.sqrt(Math.max(Math.abs(row[i]),1e-30)));
+  const a=matrix.map((row,i)=>row.map((v,j)=>v*scale[i]*scale[j]).concat(vector[i]*scale[i]));
+  for (let k=0;k<n;k++) {
+    let pivot=k;
+    for (let i=k+1;i<n;i++) if (Math.abs(a[i][k])>Math.abs(a[pivot][k])) pivot=i;
+    if (Math.abs(a[pivot][k])<1e-12) throw new Error('Não foi possível resolver esta configuração com precisão. Revise os apoios.');
+    [a[k],a[pivot]]=[a[pivot],a[k]];
+    for (let i=k+1;i<n;i++) {
+      const ratio=a[i][k]/a[k][k];
+      for (let j=k+1;j<=n;j++) a[i][j]-=ratio*a[k][j];
+      a[i][k]=0;
+    }
+  }
+  const x=Array(n).fill(0);
+  for (let i=n-1;i>=0;i--) {
+    let v=a[i][n];
+    for (let j=i+1;j<n;j++) v-=a[i][j]*x[j];
+    x[i]=v/a[i][i];
+  }
+  return x.map((v,i)=>v*scale[i]);
+}
+
+// Apoios e cargas podem ocupar a mesma posição. Apenas apoios duplicados são rejeitados.
+// Convenções internas. P e q positivos para baixo, C e reações de momento anti-horários.
+function loadForce(p,s) { return p.kind==='mass' ? p.value*s.g : p.kind==='force' ? p.value*p.direction : 0; }
+function loadMoment(p) { return p.kind==='moment' ? p.value*p.direction : 0; }
+function loadIntensity(p) { return p.kind==='udl' ? p.value*p.direction : 0; }
+function distributedText(value) { return Math.abs(value)>=1000 ? fmt(value/1000)+' kN/m' : fmt(value,1)+' N/m'; }
+function loadText(p) {
+  if (p.kind==='mass') return fmt(p.value)+' kg';
+  if (p.kind==='udl') return distributedText(p.value);
+  return p.kind==='moment' ? momentText(p.value) : forceText(p.value);
+}
+function calculate(s) {
+  const Wbar=s.mbar*s.g;
+  const forces=s.loads.filter(p=>p.kind!=='udl').map(p=>({id:p.id,x:p.x,P:loadForce(p,s),M:loadMoment(p)}));
+  const distributed=s.loads.filter(p=>p.kind==='udl').map(p=>({id:p.id,a:p.x,b:p.end,q:loadIntensity(p)}));
+  const total=Wbar+forces.reduce((sum,p)=>sum+p.P,0)+distributed.reduce((sum,p)=>sum+p.q*(p.b-p.a),0);
+  const demand=Wbar*s.L/2+forces.reduce((sum,p)=>sum+p.P*p.x-p.M,0)+distributed.reduce((sum,p)=>sum+p.q*(p.b-p.a)*(p.a+p.b)/2,0);
+  const dofs=s.supports.reduce((sum,p)=>sum+(p.type==='fixed'?2:1),0);
+  const r={valid:false,error:'',warning:'',hyper:dofs>2,Wbar,xbar:s.L/2,forces,distributed,total,demand,q:Wbar/s.L,reactions:[],forceError:null,momentError:null};
+  if (![s.L,s.mbar,s.g].every(Number.isFinite)||s.L<=0||s.mbar<0||s.g<=0) {r.error='Revise os valores da viga.';return r;}
+  const invalidLoad=s.loads.some(p=>![p.x,p.value,p.direction].every(Number.isFinite)||p.x<0||p.x>s.L||p.value<0||!['mass','force','moment','udl'].includes(p.kind)||![-1,1].includes(p.direction));
+  if (invalidLoad) {r.error='Revise os valores das cargas.';return r;}
+  if (distributed.some(p=>!Number.isFinite(p.b)||p.b<=p.a||p.b>s.L)) {r.error='O fim da carga distribuída deve ficar depois do início, dentro da viga.';return r;}
+  if (!s.supports.length) {r.error='Sem apoios. A estrutura está livre.';return r;}
+  if (s.supports.some(p=>!Number.isFinite(p.x)||p.x<0||p.x>s.L||!supportNames[p.type])) {r.error='Há um apoio fora da viga ou com tipo inválido.';return r;}
+  if (new Set(s.supports.map(p=>p.id)).size!==s.supports.length) {r.error='Há identificadores de apoio repetidos.';return r;}
+  if (new Set(s.loads.map(p=>p.id)).size!==s.loads.length) {r.error='Há identificadores de carga repetidos.';return r;}
+  if (s.supports.every(p=>p.type==='roller')) {r.error='Falta uma restrição horizontal. Use um articulado ou um engaste.';return r;}
+  if (!s.supports.some(p=>p.type==='fixed')&&s.supports.length<2) {r.error='A viga pode girar. Falta um apoio ou um engaste.';return r;}
+  const tol=1e-10*s.L;
+  for (let i=0;i<s.supports.length;i++) for (let j=i+1;j<s.supports.length;j++) {
+    const a=s.supports[i],b=s.supports[j];
+    if (Math.abs(a.x-b.x)<=tol) {r.error='Apoios '+a.name+' e '+b.name+' na mesma posição. Separe ou remova um deles.';return r;}
+  }
+  try {
+    if (dofs===2) {
+      if (s.supports.length===1) {
+        const p=s.supports[0];
+        r.reactions=[{...p,R:total,M:demand-total*p.x}];
+      } else {
+        const a=s.supports[0],b=s.supports[1];
+        const rb=(demand-total*a.x)/(b.x-a.x);
+        r.reactions=[{...a,R:total-rb,M:0},{...b,R:rb,M:0}];
+      }
+    } else r.reactions=stiffnessReactions(s,r);
+  } catch(error) {r.error=error.message;return r;}
+  r.forceError=r.reactions.reduce((sum,p)=>sum+p.R,0)-total;
+  r.momentError=r.reactions.reduce((sum,p)=>sum+p.R*p.x+p.M,0)-demand;
+  const absQ=distributed.reduce((sum,p)=>sum+Math.abs(p.q)*(p.b-p.a),0);
+  const scaleF=Math.max(1,Wbar+forces.reduce((sum,p)=>sum+Math.abs(p.P),0)+absQ);
+  const scaleM=Math.max(1,scaleF*s.L+forces.reduce((sum,p)=>sum+Math.abs(p.M),0));
+  const invalid=r.reactions.some(p=>!Number.isFinite(p.R)||!Number.isFinite(p.M));
+  if (invalid||Math.abs(r.forceError)>1e-7*scaleF||Math.abs(r.momentError)>1e-7*scaleM) {
+    r.error='Equilíbrio não confirmado numericamente. Revise esta configuração.';
+    r.reactions=[];return r;
+  }
+  r.valid=true;
+  const lift=r.reactions.filter(p=>p.type==='roller'&&p.R<-1e-8*scaleF);
+  if (lift.length) r.warning='O rolete '+lift.map(p=>p.name).join(', ')+' exigiria retenção. Resultados do vínculo bilateral ideal.';
+  return r;
+}
+// Primitivas exatas das quatro funções de Hermite, na coordenada local z.
+function shapePrimitive(z,h) {
+  return [z-z**3+z**4/2,h*(z*z/2-2*z**3/3+z**4/4),z**3-z**4/2,h*(-(z**3)/3+z**4/4)];
+}
+// Apenas apoios e extremidades criam nós. Cargas não criam elementos curtos.
+function stiffnessReactions(s,r) {
+  const raw=[0,1,...s.supports.map(p=>p.x/s.L)].sort((a,b)=>a-b);
+  const nodes=raw.filter((v,i)=>i===0||v-raw[i-1]>1e-10);
+  const n=2*nodes.length;
+  const K=Array.from({length:n},()=>Array(n).fill(0));
+  const F=Array(n).fill(0);
+  const ranges=[{a:0,b:s.L,q:r.q},...r.distributed];
+  for (let e=0;e<nodes.length-1;e++) {
+    const h=nodes[e+1]-nodes[e];
+    const k=[[12,6*h,-12,6*h],[6*h,4*h*h,-6*h,2*h*h],[-12,-6*h,12,-6*h],[6*h,2*h*h,-6*h,4*h*h]];
+    for (let i=0;i<4;i++) for (let j=0;j<4;j++) K[2*e+i][2*e+j]+=k[i][j]/h**3;
+    for (const p of ranges) {
+      const a=Math.max(nodes[e],p.a/s.L),b=Math.min(nodes[e+1],p.b/s.L);
+      if (b<=a||p.q===0) continue;
+      const left=shapePrimitive((a-nodes[e])/h,h);
+      const right=shapePrimitive((b-nodes[e])/h,h);
+      for (let i=0;i<4;i++) F[2*e+i]-=p.q*s.L*h*(right[i]-left[i]);
+    }
+  }
+  for (const p of r.forces) {
+    const t=p.x/s.L;
+    const at=nodes.findIndex(x=>Math.abs(x-t)<=1e-10);
+    if (at>=0) {F[2*at]-=p.P;F[2*at+1]+=p.M/s.L;continue;}
+    const e=nodes.findIndex((x,i)=>i<nodes.length-1&&t>x&&t<nodes[i+1]);
+    if (e<0) throw new Error('Não foi possível localizar uma carga na viga.');
+    const h=nodes[e+1]-nodes[e],z=(t-nodes[e])/h;
+    const N=[1-3*z*z+2*z**3,h*(z-2*z*z+z**3),3*z*z-2*z**3,h*(-z*z+z**3)];
+    const D=[(-6*z+6*z*z)/h,1-4*z+3*z*z,(6*z-6*z*z)/h,-2*z+3*z*z];
+    for (let i=0;i<4;i++) F[2*e+i]+=-p.P*N[i]+p.M/s.L*D[i];
+  }
+  const restrained=new Set();
+  for (const p of s.supports) {
+    const i=nodes.findIndex(x=>Math.abs(x-p.x/s.L)<=1e-10);
+    if (i<0) throw new Error('Não foi possível localizar um apoio.');
+    restrained.add(2*i);
+    if (p.type==='fixed') restrained.add(2*i+1);
+  }
+  const free=Array.from({length:n},(_,i)=>i).filter(i=>!restrained.has(i));
+  const A=free.map(i=>free.map(j=>K[i][j]));
+  const b=free.map(i=>F[i]);
+  const solved=solveLinear(A,b),u=Array(n).fill(0);
+  for (let i=0;i<free.length;i++) u[free[i]]=solved[i];
+  const residual=K.map((row,i)=>row.reduce((sum,k,j)=>sum+k*u[j],0)-F[i]);
+  return s.supports.map(p=>{
+    const i=nodes.findIndex(x=>Math.abs(x-p.x/s.L)<=1e-10);
+    return {...p,R:residual[2*i],M:p.type==='fixed'?residual[2*i+1]*s.L:0};
+  });
+}
+function rangeAt(p,x) {
+  const ell=clamp(x-p.a,0,p.b-p.a);
+  return {ell,V:-p.q*ell,M:-p.q*ell*(x-p.a-ell/2)};
+}
+function intensityAt(r,x) {
+  return r.q+r.distributed.reduce((sum,p)=>sum+(x>p.a&&x<p.b?p.q:0),0);
+}
+function internalAt(s,r,x,side='right') {
+  if (!r.valid) return {V:null,M:null};
+  const t=clamp(x,0,s.L),eps=1e-10*s.L;
+  const include=a=>side==='left'?a<t-eps:a<=t+eps;
+  let V=-r.q*t,M=-r.q*t*t/2;
+  for (const p of r.distributed) {const d=rangeAt(p,t);V+=d.V;M+=d.M;}
+  for (const p of r.reactions) if (include(p.x)) {V+=p.R;M+=p.R*(t-p.x)-p.M;}
+  for (const p of r.forces) if (include(p.x)) {V-=p.P;M-=p.P*(t-p.x)+p.M;}
+  const scaleF=Math.max(1,Math.abs(r.total)),scaleM=Math.max(1,Math.abs(r.demand),scaleF*s.L);
+  if (Math.abs(V)<1e-11*scaleF) V=0;
+  if (Math.abs(M)<1e-11*scaleM) M=0;
+  return {V,M};
+}
+function beamEvents(s) {
+  const xs=[0,s.L,...s.supports.map(p=>p.x),...s.loads.flatMap(p=>p.kind==='udl'?[p.x,p.end]:[p.x])].sort((a,b)=>a-b);
+  return xs.filter((v,i)=>i===0||v-xs[i-1]>1e-10*s.L);
+}
+function diagramData(s,r) {
+  const events=beamEvents(s),segments=[],points=[];
+  if (!r.valid) return {events,segments,points,Vmax:null,Mmax:null};
+  for (let i=0;i<events.length;i++) {
+    const x=events[i],left=internalAt(s,r,x,'left'),right=internalAt(s,r,x,'right');
+    points.push({x,side:'left',...left},{x,side:'right',...right});
+    if (i===events.length-1) continue;
+    const b=events[i+1],values=[],q=intensityAt(r,(x+b)/2);
+    for (let j=0;j<=40;j++) {
+      const at=x+(b-x)*j/40;
+      values.push({x:at,...internalAt(s,r,at,j===40?'left':'right')});
+    }
+    if (Math.abs(q)>1e-12) {
+      const root=x+right.V/q;
+      if (root>x+1e-10*s.L&&root<b-1e-10*s.L) points.push({x:root,side:'right',...internalAt(s,r,root)});
+    }
+    segments.push({a:x,b,q,values});
+  }
+  const vmax=points.reduce((best,p)=>Math.abs(p.V)>Math.abs(best.V)?p:best,points[0]);
+  const mmax=points.reduce((best,p)=>Math.abs(p.M)>Math.abs(best.M)?p:best,points[0]);
+  return {events,segments,points,Vmax:Math.abs(vmax.V),Mmax:Math.abs(mmax.M),vmax,mmax};
+}
+
+let selectedSupport='';
+let selectedLoad='';
+let selectedNode='';
+let analysisView='graph';
+let plotMode='both';
+let probeX=2;
+let probeSide='right';
+let chosenExample='blank';
+let sidebarSignature='';
+let graphFilter='all';
+let graphStyle='hierarchy';
+let graphHover='';
+let graphSelected='';
+let forceFluid=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let forcePositions={};
+let forceVelocities={};
+let forceSignature='';
+let forceRuntime=null;
+let forceFrame=0;
+let forceSteps=0;
+let forceTemperature=0;
+let forcePinned='';
+let graphCamera={x:0,y:0,k:1,fit:true};
+let graphBounds={W:1000,H:400};
+let graphDrag=null;
+function isDynamicGraphStyle() {return graphStyle==='force'||graphStyle==='live';}
+function remember(roots) {previousGraph=clone(graphNodes);sources=new Set(roots);}
+function requestRender() {if (!framePending) {framePending=true;requestAnimationFrame(renderFrame);}}
+function renderFrame() {framePending=false;render();}
+function positionEdge(x) {return Math.abs(x)<1e-9?'left':Math.abs(x-state.L)<1e-9?'right':null;}
+function positionId(kind,id) {return (kind==='support'?'support_':'load_')+id+'_x';}
+function setBeam(key,value) {
+  if (!Number.isFinite(value)) return;
+  remember([key]);
+  if (key==='L') {
+    const oldL=state.L;
+    state.L=clamp(value,.5,20);
+    for (const p of state.supports) {
+      if (p.type==='fixed'&&!p.edge) p.edge=p.x<=oldL/2?'left':'right';
+      p.x=p.edge==='right'?state.L:p.edge==='left'?0:Math.min(p.x,state.L);
+    }
+    for (const p of state.loads) {
+      p.x=p.edge==='right'?state.L:p.edge==='left'?0:Math.min(p.x,state.L);
+      if (p.kind==='udl') {
+        p.end=p.endEdge==='right'?state.L:Math.min(p.end,state.L);
+        p.end=Math.max(.01,p.end);
+        p.x=Math.min(p.x,p.end-.01);
+      }
+    }
+    probeX=Math.min(probeX,state.L);
+  }
+  if (key==='mbar') state.mbar=clamp(value,0,10000);
+  if (key==='g') state.g=clamp(value,.1,30);
+  requestRender();
+}
+function setSupport(id,key,value) {
+  const p=state.supports.find(v=>v.id===id);
+  if (!p) return;
+  if (key==='x'&&p.type==='fixed') return;
+  remember(['support_'+id+'_'+(key==='mount'?'x':key)]);
+  if (key==='type'&&supportNames[value]) {
+    p.type=value;
+    if (value==='fixed') {
+      p.edge=p.x<=state.L/2?'left':'right';
+      p.x=p.edge==='left'?0:state.L;
+    }
+    sidebarSignature='';
+  }
+  if (key==='mount'&&p.type==='fixed'&&['left','right'].includes(value)) {
+    p.edge=value;p.x=value==='left'?0:state.L;
+  }
+  if (key==='x'&&Number.isFinite(value)) {p.x=clamp(value,0,state.L);p.edge=positionEdge(p.x);}
+  requestRender();
+}
+function setLoad(id,key,value) {
+  const p=state.loads.find(v=>v.id===id);
+  if (!p) return;
+  const physicalKey=p.kind==='mass'?'mass':p.kind==='moment'?'M':p.kind==='udl'?'q':'P';
+  if (key!=='unit') remember(['load_'+id+'_'+(['value','direction','kind'].includes(key)?physicalKey:key)]);
+  if (key==='x'&&Number.isFinite(value)) {
+    p.x=clamp(value,0,p.kind==='udl'?p.end-.01:state.L);
+    p.edge=positionEdge(p.x);
+  }
+  if (key==='end'&&p.kind==='udl'&&Number.isFinite(value)) {
+    p.end=clamp(value,p.x+.01,state.L);
+    p.endEdge=positionEdge(p.end);
+  }
+  if (key==='value'&&Number.isFinite(value)) p.value=clamp(value,0,p.kind==='mass'?10000:1e7);
+  if (key==='direction') p.direction=Number(value)===-1?-1:1;
+  if (key==='unit') p.unit=value;
+  if (key==='kind'&&['mass','force','moment','udl'].includes(value)&&value!==p.kind) {
+    const oldKind=p.kind,oldForce=loadForce(p,state);
+    if (value==='mass') {p.value=['moment','udl'].includes(oldKind)?50:Math.abs(oldForce)/state.g;p.unit='kg';p.direction=1;}
+    if (value==='force') {p.value=['moment','udl'].includes(oldKind)?1000:Math.abs(oldForce);p.unit=p.value>=1000?'kN':'N';p.direction=oldForce<0?-1:1;}
+    if (value==='moment') {p.value=1000;p.unit='kNm';p.direction=-1;}
+    if (value==='udl') {
+      p.value=1000;p.unit='kNpm';p.direction=1;
+      p.x=Math.min(p.x,state.L/2);p.end=state.L;p.edge=positionEdge(p.x);p.endEdge='right';
+    }
+    p.kind=value;
+    sources.add('load_'+id+'_'+(value==='mass'?'mass':value==='moment'?'M':value==='udl'?'q':'P'));
+    sidebarSignature='';graphCamera.fit=true;
+  }
+  requestRender();
+}
+function shiftDistributed(id,newStart) {
+  const p=state.loads.find(v=>v.id===id);
+  if (!p||p.kind!=='udl') return;
+  remember(['load_'+id+'_x','load_'+id+'_end']);
+  const width=p.end-p.x;
+  p.x=clamp(newStart,0,state.L-width);p.end=p.x+width;
+  p.edge=positionEdge(p.x);p.endEdge=positionEdge(p.end);
+  requestRender();
+}
+function freePosition(items) {
+  const xs=[0,...items.map(p=>p.x),state.L].sort((a,b)=>a-b);
+  let longest=-1,pos=state.L/2;
+  for (let i=1;i<xs.length;i++) if (xs[i]-xs[i-1]>longest) {longest=xs[i]-xs[i-1];pos=(xs[i]+xs[i-1])/2;}
+  return Math.round(pos*10000)/10000;
+}
+let idCounterS=1,idCounterP=1;
+function addSupport(xPos=null) {
+  if (state.supports.length>=8) return;
+  idCounterS++;const id='s'+idCounterS,name='S'+idCounterS;
+  remember(['support_'+id+'_x','support_'+id+'_type']);
+  const type=state.supports.some(p=>p.type!=='roller')?'roller':'pin';
+  const x=Number.isFinite(xPos)?clamp(xPos,0,state.L):freePosition(state.supports);
+  state.supports.push({id,name,type,x,edge:positionEdge(x)});
+  selectedSupport=id;selection={kind:'support',id};sidebarSignature='';graphCamera.fit=true;
+  requestRender();
+}
+function addLoad(kind='force',xPos=null) {
+  if (state.loads.length>=10) return;
+  idCounterP++;
+  const id='p'+idCounterP,name=kind==='moment'?'M'+idCounterP:kind==='udl'?'q'+idCounterP:kind==='mass'?'B'+idCounterP:'P'+idCounterP;
+  const fallback=kind==='moment'?state.L:kind==='udl'?0:freePosition(state.loads);
+  const x=Number.isFinite(xPos)?clamp(xPos,0,state.L):fallback;
+  const value=kind==='mass'?20:1000;
+  const p={id,name,x,kind,value,direction:kind==='moment'?-1:1,unit:kind==='mass'?'kg':kind==='moment'?'kNm':kind==='udl'?'kNpm':'kN',edge:positionEdge(x)};
+  if (kind==='udl') {const span=Math.max(.5,state.L/3);p.x=clamp(x,0,Math.max(0,state.L-.01));p.end=Math.min(state.L,p.x+span);if(p.end-p.x<.01){p.x=Math.max(0,state.L-span);p.end=state.L;}p.edge=positionEdge(p.x);p.endEdge=positionEdge(p.end);}
+  state.loads.push(p);
+  remember(['load_'+id+'_x','load_'+id+'_'+(kind==='moment'?'M':kind==='udl'?'q':kind==='mass'?'mass':'P')]);
+  selectedLoad=id;selection={kind:'load',id};sidebarSignature='';graphCamera.fit=true;
+  requestRender();
+}
+function removeObject(kind,id) {
+  const list=kind==='support'?state.supports:state.loads;
+  const i=list.findIndex(p=>p.id===id);
+  if (i<0) return;
+  remember([]);
+  for (const n of graphNodes) if (n.deps.some(d=>d.startsWith(kind==='support'?'support_'+id:'load_'+id))) sources.add(n.id);
+  list.splice(i,1);
+  if (kind==='support') selectedSupport=list[Math.min(i,list.length-1)]?.id||'';
+  else selectedLoad=list[Math.min(i,list.length-1)]?.id||'';
+  selection=null;sidebarSignature='';selectedNode='';graphCamera.fit=true;
+  requestRender();
+}
+function deleteSelected() {if (selection&&(selection.kind==='load'||selection.kind==='support')) removeObject(selection.kind,selection.id);}
+function applyExample() {
+  state=clone(startCase);
+  idCounterS=1;idCounterP=1;
+  selectedSupport='s1';selectedLoad='p1';probeX=state.L/2;
+  selectedNode='';graphSelected='';selection=null;previousGraph=[];sources.clear();sidebarSignature='';graphCamera.fit=true;
+  graphLayoutSignature='';graphNodeOffsets={};forcePositions={};forceSignature='';
+  hideContextMenu();
+  requestRender();
+}
+
+
+function openInspector(kind,id='') {
+  selection={kind,id};
+  if (kind==='support') selectedSupport=id;
+  if (kind==='load') selectedLoad=id;
+  sidebarSignature='';
+  requestRender();
+}
+function closeInspector() {selection=null;selectedNode='';requestRender();}
+function numberField(key,label,value,unit,min,max,step=0.01,slider=true) {
+  const num=`<input data-field="${key}" type="number" min="${min}" max="${max}" step="any" value="${value}" aria-label="${esc(label)}" required>`;
+  const range=slider?`<input type="range" data-field="${key}" min="${min}" max="${max}" step="${step}" value="${value}" aria-label="${esc(label)}">`:'';
+  return `<label class="field"><span class="field-line"><span class="field-label">${esc(label)}</span><span class="value">${num}<span class="unit">${esc(unit)}</span></span></span>${range}</label>`;
+}
+function unitScale(p) {return ['kN','kNm','kNpm'].includes(p.unit)?1000:1;}
+function tabButtons(items,id,kind) {return '<div class="object-tabs">'+items.map(p=>`<button data-select="${kind}" data-id="${p.id}" class="${p.id===id?'active':''}">${esc(p.name)}</button>`).join('')+'</div>';}
+function buildControls() {
+  if (!state.supports.some(p=>p.id===selectedSupport)) selectedSupport=state.supports[0]?.id||'';
+  if (!state.loads.some(p=>p.id===selectedLoad)) selectedLoad=state.loads[0]?.id||'';
+  const a=state.supports.find(p=>p.id===selectedSupport),p=state.loads.find(p=>p.id===selectedLoad);
+  const sig=JSON.stringify([selection?.kind||'',selection?.id||'',selectedSupport,a?.type,a?.edge,selectedLoad,p?.kind,p?.unit,state.section?.shape,state.material?.key,state.supports.map(p=>[p.id,p.name,p.type,p.edge]),state.loads.map(p=>[p.id,p.name,p.kind,p.unit])]);
+  if (sig!==sidebarSignature) {
+    sidebarSignature=sig;
+    byId('beam-fields').innerHTML=numberField('beam-L','Comprimento',state.L,'m',.5,20,.01)+numberField('beam-mbar','Massa da viga',state.mbar,'kg',0,10000,.1,true);
+
+    let browser='<div class="group-head"><h3>Elementos</h3></div>';
+    if (!state.supports.length&&!state.loads.length) browser+='<div class="empty-group">Adicione um apoio ou uma carga</div>';
+    if (state.supports.length) browser+='<div class="object-list-label">Apoios</div>'+tabButtons(state.supports,selection?.kind==='support'?selection.id:'','support');
+    if (state.loads.length) browser+='<div class="object-list-label">Cargas</div>'+tabButtons(state.loads,selection?.kind==='load'?selection.id:'','load');
+    byId('object-browser').innerHTML=browser;
+
+    let supports='<div class="group-head"><h3>Apoio '+(a?esc(a.name):'')+'</h3>'+(a?`<button class="delete" data-remove="support" data-id="${a.id}">Remover</button>`:'')+'</div>';
+    if (a) {
+      supports+='<div class="type-picker">';
+      for (const type of ['pin','roller','fixed']) supports+=`<button class="type-choice${type===a.type?' active':''}" data-support-type="${type}" aria-label="${supportNames[type]}" aria-pressed="${type===a.type}">${typeIcon(type)}<span>${supportNames[type]}</span></button>`;
+      supports+='</div>';
+      if (a.type==='fixed') supports+='<div class="fixed-side"><span class="field-label">Extremidade</span><div class="side-buttons"><button data-mount="left">Esquerda</button><button data-mount="right">Direita</button></div></div>';
+      else supports+=numberField('support-x','Posição '+a.name,a.x,'m',0,state.L,.01);
+      supports+='<div class="support-feedback" id="support-feedback"></div>';
+    }
+    byId('support-controls').innerHTML=supports;
+
+    let loads='<div class="group-head"><h3>'+(p?esc(p.name):'Carga')+'</h3>'+(p?`<button class="delete" data-remove="load" data-id="${p.id}">Remover</button>`:'')+'</div>';
+    if (p) {
+      loads+='<label class="field"><span class="field-line"><span class="field-label">Tipo</span><select data-field="load-kind" aria-label="Tipo da carga"><option value="mass">Peso do bloco</option><option value="force">Força vertical</option><option value="moment">Momento</option><option value="udl">Distribuída uniforme</option></select></span></label>';
+      const scale=unitScale(p);
+      let units='<span class="unit">kg</span>';
+      if (p.kind!=='mass') {
+        const options=p.kind==='udl'?'<option value="Npm">N/m</option><option value="kNpm">kN/m</option>':p.kind==='force'?'<option value="N">N</option><option value="kN">kN</option>':'<option value="Nm">N·m</option><option value="kNm">kN·m</option>';
+        units='<select data-field="load-unit" aria-label="Unidade da carga">'+options+'</select>';
+      }
+      const label=p.kind==='mass'?'Massa':p.kind==='moment'?'Momento':p.kind==='udl'?'Intensidade':'Força';
+      loads+=`<label class="field"><span class="field-line"><span class="field-label">${label}</span><span class="value"><input data-field="load-value" type="number" min="0" max="${p.kind==='mass'?10000:1e7/scale}" step="any" value="${p.value/scale}" required aria-label="Valor da carga">${units}</span></span><input data-field="load-value" type="range" min="0" max="${Math.max(p.kind==='mass'?200:50,p.value/scale*2)}" step="${p.kind==='mass'?.1:.01}" value="${p.value/scale}" aria-label="Valor da carga"></label>`;
+      loads+=numberField('load-x',p.kind==='udl'?'Início':'Posição',p.x,'m',0,p.kind==='udl'?p.end-.01:state.L,.01);
+      if (p.kind==='udl') loads+=numberField('load-end','Fim',p.end,'m',p.x+.01,state.L,.01);
+      if (p.kind!=='mass') loads+='<label class="field"><span class="field-line"><span class="field-label">Sentido</span><select data-field="load-direction" aria-label="Sentido da carga">'+(p.kind==='moment'?'<option value="-1">Horário ↻</option><option value="1">Anti-horário ↺</option>':'<option value="1">Para baixo ↓</option><option value="-1">Para cima ↑</option>')+'</select></span></label>';
+    }
+    byId('load-controls').innerHTML=loads;
+
+    ensureBeamModel(state);
+    const sec=sectionProperties(state),mat=materialInfo(state);
+    const materialOptions=Object.entries(materialLibrary).map(([key,item])=>`<option value="${key}">${esc(item.name)}</option>`).join('');
+    let beamControls='<div class="group-head"><h3>Seção e material</h3></div>';
+    beamControls+='<div class="beam-section-preview" id="beam-3d-preview"></div>';
+    beamControls+='<label class="field"><span class="field-line"><span class="field-label">Formato</span><select class="full-select" data-field="section-shape"><option value="rect">Retangular</option><option value="i">Perfil I / H</option></select></span></label>';
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Largura b</span><span class="value"><input data-field="section-b" type="number" min="5" max="2000" step="1" value="${sec.b*1000}"><span class="unit">mm</span></span></span></label>`;
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Altura h</span><span class="value"><input data-field="section-h" type="number" min="5" max="3000" step="1" value="${sec.h*1000}"><span class="unit">mm</span></span></span></label>`;
+    if (sec.shape==='i') {
+      beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Alma tw</span><span class="value"><input data-field="section-tw" type="number" min="1" max="${sec.b*950}" step=".5" value="${sec.tw*1000}"><span class="unit">mm</span></span></span></label>`;
+      beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Mesa tf</span><span class="value"><input data-field="section-tf" type="number" min="1" max="${sec.h*450}" step=".5" value="${sec.tf*1000}"><span class="unit">mm</span></span></span></label>`;
+    }
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Material</span><select class="full-select" data-field="material-key">${materialOptions}</select></span></label>`;
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Módulo E</span><span class="value"><input data-field="material-E" type="number" min=".001" max="1000" step=".1" value="${mat.E/1e9}"><span class="unit">GPa</span></span></span></label>`;
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Escoamento σy</span><span class="value"><input data-field="material-yield" type="number" min=".1" max="5000" step="1" value="${mat.yield/1e6}"><span class="unit">MPa</span></span></span></label>`;
+    beamControls+=`<label class="field"><span class="field-line"><span class="field-label">Densidade</span><span class="value"><input data-field="material-rho" type="number" min="1" max="30000" step="10" value="${mat.rho}"><span class="unit">kg/m³</span></span></span></label>`;
+    beamControls+='<div class="beam-editor-note"><span>Área <strong id="beam-area-value"></strong></span><span>Massa geom. <strong id="beam-geom-mass"></strong></span></div>';
+    beamControls+='<button type="button" class="beam-apply-mass" data-apply-geom-mass="1">Usar massa geométrica como massa da viga</button>';
+    byId('beam-controls').innerHTML=beamControls;
+  }
+
+  const values={'beam-L':state.L,'beam-mbar':state.mbar,'section-shape':state.section.shape,'section-b':state.section.b*1000,'section-h':state.section.h*1000,'section-tw':state.section.tw*1000,'section-tf':state.section.tf*1000,'material-key':state.material.key,'material-E':state.material.E/1e9,'material-yield':state.material.yield/1e6,'material-rho':state.material.rho,'support-x':a?.x,'load-x':p?.x,'load-end':p?.end,'load-kind':p?.kind,'load-value':p?p.value/unitScale(p):0,'load-unit':p?.unit,'load-direction':p?.direction};
+  for (const input of document.querySelectorAll('#controls-content [data-field],#element-editor-body [data-field]')) {
+    const key=input.dataset.field;
+    if (key==='support-x') input.max=state.L;
+    if (key==='load-x') input.max=p?.kind==='udl'?p.end-.01:state.L;
+    if (key==='load-end') {input.max=state.L;input.min=(p?.x||0)+.01;}
+    if (key==='beam-mbar'&&input.type==='range') input.max=Math.max(100,state.mbar*2);
+    if (key==='load-value'&&p) {
+      const max=p.kind==='mass'?10000:1e7/unitScale(p);
+      if (input.type==='number') input.max=max;
+      else if (values[key]>Number(input.max)) input.max=Math.min(max,values[key]*2);
+    }
+    if (document.activeElement!==input&&values[key]!==undefined) input.value=String(values[key]);
+  }
+  for (const button of document.querySelectorAll('[data-support-type]')) {
+    const on=a?.type===button.dataset.supportType;
+    button.classList.toggle('active',on);button.setAttribute('aria-pressed',String(on));
+  }
+  for (const button of document.querySelectorAll('[data-mount]')) button.classList.toggle('active',a?.edge===button.dataset.mount);
+  const rr=a&&result.valid?result.reactions.find(r=>r.id===a.id):null;
+  if (byId('support-feedback')) byId('support-feedback').textContent=rr?'R'+a.name+' '+forceText(rr.R)+(a.type==='fixed'?'  ·  M'+a.name+' '+momentText(rr.M):''):'—';
+  byId('case-caption').textContent=result.hyper?'EI constante':'';
+  byId('add-support').disabled=state.supports.length>=8;
+  for (const id of ['add-block','add-force','add-moment','add-udl']) byId(id).disabled=state.loads.length>=10;
+  byId('show-reactions').checked=showReactions;
+  const currentSec=sectionProperties(state),currentMat=materialInfo(state);
+  if (byId('beam-3d-preview')) byId('beam-3d-preview').innerHTML=sectionPreviewSVG(state);
+  if (byId('beam-area-value')) byId('beam-area-value').textContent=fmt(currentSec.A*1e6,0)+' mm²';
+  if (byId('beam-geom-mass')) byId('beam-geom-mass').textContent=fmt(currentSec.A*state.L*currentMat.rho,1)+' kg';
+  renderElementEditor();
+  renderNodeDetail();
+}
+
+function renderElementEditor() {
+  const panel=byId('element-editor'),body=byId('scene-body');
+  const beam=selection?.kind==='beam';
+  const support=selection?.kind==='support'?state.supports.find(p=>p.id===selection.id):null;
+  const load=selection?.kind==='load'?state.loads.find(p=>p.id===selection.id):null;
+  const visible=Boolean(beam||support||load);
+  panel.hidden=!visible;
+  body.classList.toggle('editor-open',visible);
+  byId('beam-controls').hidden=!beam;
+  byId('support-controls').hidden=!support;
+  byId('load-controls').hidden=!load;
+  if (!visible) return;
+  byId('element-editor-title').textContent=beam?'Viga · seção e material':support?'Apoio '+support.name:load.name;
+}
+
+function controlsInput(event) {
+  const field=event.target.closest('[data-field]');
+  if (!field) return;
+  const key=field.dataset.field;
+  if (field.tagName==='INPUT'&&(field.value.trim()===''||!field.validity.valid)) return;
+  const value=field.tagName==='SELECT'?field.value:Number(field.value);
+  if (key==='section-shape') setSection('shape',value);
+  else if (['section-b','section-h','section-tw','section-tf'].includes(key)) setSection(key.slice(8),Number(value)/1000);
+  else if (key==='material-key') setMaterial('key',value);
+  else if (key==='material-E') setMaterial('E',Number(value)*1e9);
+  else if (key==='material-yield') setMaterial('yield',Number(value)*1e6);
+  else if (key==='material-rho') setMaterial('rho',Number(value));
+  else if (key.startsWith('beam-')) setBeam(key.slice(5),Number(value));
+  else if (key==='support-x') setSupport(selectedSupport,'x',Number(value));
+  else if (key.startsWith('load-')) {
+    const p=state.loads.find(p=>p.id===selectedLoad);
+    if (!p) return;
+    setLoad(p.id,key.slice(5),key==='load-value'?Number(value)*unitScale(p):value);
+  }
+}
+function controlsClick(event) {
+  const b=event.target.closest('button');
+  if (!b) return;
+  if (b.dataset.select) openInspector(b.dataset.select,b.dataset.id);
+  if (b.dataset.supportType) setSupport(selectedSupport,'type',b.dataset.supportType);
+  if (b.dataset.mount) setSupport(selectedSupport,'mount',b.dataset.mount);
+  if (b.dataset.remove) removeObject(b.dataset.remove,b.dataset.id);
+  if (b.dataset.applyGeomMass) {
+    const sr=structuralResults(state,result);
+    if (Number.isFinite(sr.geomMass)) setBeam('mbar',sr.geomMass);
+  }
+  if (b.dataset.nodeLink) openNode(b.dataset.nodeLink);
+  if (b.dataset.closeNode) {selectedNode='';graphSelected='';renderNodeDetail();requestRender();}
+}
+function renderNodeDetail() {
+  const host=byId('node-detail');
+  const n=graphNodes.find(n=>n.id===selectedNode);
+  host.hidden=!n;
+  if (!n) return;
+  const deps=n.deps.map(id=>graphNodes.find(v=>v.id===id)).filter(Boolean);
+  const links=deps.map(d=>`<button data-node-link="${d.id}">${esc(d.name)}</button>`).join('');
+  host.innerHTML=`<button class="detail-close" data-close-node="1" aria-label="Fechar detalhe">×</button><h3>${esc(n.name)}</h3><div class="node-value">${esc(n.display)}</div><div class="formula">${esc(n.formula||'Entrada independente')}</div>${n.changeReason?'<p class="node-change">'+esc(n.changeReason)+'</p>':''}<div class="parents">${links}</div>`;
+}
+function openNode(id) {
+  const n=graphNodes.find(n=>n.id===id);
+  if (!n) return;
+  selectedNode=id;graphSelected=id;
+  renderGraphDetail();
+  if (n.editor?.startsWith('support:')) {selectedSupport=n.editor.split(':')[1];selection={kind:'support',id:selectedSupport};}
+  if (n.editor?.startsWith('load:')) {selectedLoad=n.editor.split(':')[1];selection={kind:'load',id:selectedLoad};}
+  if (n.editor==='beam') selection={kind:'beam',id:''};
+  sidebarSignature='';
+  requestRender();
+}
+function setAnalysis(view) {
+  analysisView=view;
+  if (view!=='graph') document.body.classList.remove('graph-expanded');
+  for (const b of document.querySelectorAll('[data-analysis]')) b.classList.toggle('active',b.dataset.analysis===view);
+  byId('graph-pane').hidden=view!=='graph';
+  byId('plots-pane').hidden=view!=='diagrams';
+  byId('calculations-pane').hidden=view!=='calculations';
+  byId('graph-tools').hidden=view!=='graph';
+  byId('plot-tools').hidden=view!=='diagrams';
+  if (window.innerWidth<=760) setMobileView(view==='graph'?'graph':view==='calculations'?'calculations':'diagrams',false);
+  requestRender();
+}
+function setMobileView(view,also=true) {
+  document.body.dataset.view=view;
+  for (const b of document.querySelectorAll('[data-mobile]')) b.classList.toggle('active',b.dataset.mobile===view);
+  if (also&&['graph','diagrams','calculations'].includes(view)) setAnalysis(view);
+  requestRender();
+}
+function setProbe(x) {
+  if (!Number.isFinite(x)) return;
+  remember(['probe_x']);probeX=clamp(x,0,state.L);requestRender();
+}
+
+// As posições físicas definem as coordenadas do desenho.
+function line(x1,y1,x2,y2,stroke,width=1.2,extra='') { return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${width}" ${extra}/>`; }
+function text(x,y,value,kind='',anchor='middle',extra='') { return `<text x="${x}" y="${y}" class="${kind}" text-anchor="${anchor}" ${extra}>${esc(value)}</text>`; }
+function arrow(x,y1,y2,stroke,width=2.3) {
+  const sign=y2>=y1?1:-1;
+  const base=y2-sign*8;
+  return line(x,y1,x,base+sign,stroke,width,'stroke-linecap="round"')+`<path d="M${x-3.7},${base}L${x},${y2}L${x+3.7},${base}Z" fill="${stroke}"/>`;
+}
+function momentArrow(x,y,r,positive,stroke,width=2.2) {
+  const start=positive?.72:-.72;
+  const end=positive?-4.2:4.2;
+  const sx=x+r*Math.cos(start),sy=y+r*Math.sin(start);
+  const ex=x+r*Math.cos(end),ey=y+r*Math.sin(end);
+  const sign=positive?-1:1;
+  const tx=-Math.sin(end)*sign,ty=Math.cos(end)*sign;
+  const bx=ex-7*tx,by=ey-7*ty;
+  return `<path d="M${sx},${sy}A${r},${r} 0 1 ${positive?0:1} ${ex},${ey}" fill="none" stroke="${stroke}" stroke-width="${width}"/><path d="M${ex},${ey}L${bx-3.5*ty},${by+3.5*tx}L${bx+3.5*ty},${by-3.5*tx}Z" fill="${stroke}"/>`;
+}
+function ground(x,y,w) {
+  let out=line(x-w,y,x+w,y,color.ink,1.2);
+  for (let i=-w+4;i<=w;i+=6) out+=line(x+i,y,x+i-4,y+5,'#a9b2b8',.8);
+  return out;
+}
+function supportGlyph(x,y,type,edge=null) {
+  if (type==='roller') return `<circle cx="${x}" cy="${y+9}" r="8" fill="#fafcfc" stroke="${color.ink}" stroke-width="1.5"/>`+ground(x,y+18,19);
+  if (type==='pin') return `<path d="M${x-6},${y}Q${x},${y-7} ${x+6},${y}L${x+12},${y+22}H${x-12}Z" fill="#d8e1e5" stroke="${color.ink}" stroke-width="1.4"/><circle cx="${x}" cy="${y+2}" r="3.5" fill="white" stroke="${color.ink}" stroke-width="1.1"/>`+ground(x,y+23,21);
+  if (edge==='left'||edge==='right') {
+    const a=edge==='left'?x-11:x;
+    return `<rect x="${a}" y="${y-35}" width="11" height="65" fill="url(#hatch)"/>`+line(x,y-35,x,y+30,color.ink,2);
+  }
+  return `<path d="M${x-8},${y-12}V${y+22}H${x+8}V${y-12}" fill="url(#hatch)" stroke="${color.ink}" stroke-width="1.4"/>`+ground(x,y+23,22);
+}
+function typeIcon(type) {
+  const pin='<path d="M17 7L12 24H30L25 7Z" fill="#d8e1e5" stroke="currentColor"/><circle cx="21" cy="9" r="3" fill="white" stroke="currentColor"/><path d="M6 25H36" stroke="currentColor"/>';
+  const roller='<circle cx="21" cy="16" r="7" fill="white" stroke="currentColor" stroke-width="1.3"/><path d="M6 25H36M8 7H34" stroke="currentColor"/>';
+  const fixed='<path d="M16 3V27M17 14H38M15 4L7 12M15 10L7 18M15 16L7 24" stroke="currentColor" stroke-width="1.4" fill="none"/>';
+  return `<svg viewBox="0 0 42 30" aria-hidden="true">${type==='pin'?pin:type==='roller'?roller:fixed}</svg>`;
+}
+function dimension(x1,x2,y,value,labelX=null) {
+  return line(x1,y,x2,y,color.blue,1)+line(x1,y-4,x1,y+4,color.blue,1)+line(x2,y-4,x2,y+4,color.blue,1)+text(labelX===null?(x1+x2)/2:labelX,y-7,value,'dim halo');
+}
+function handleStart(kind,id,labelText,extra='') { return `<g class="handle drag" data-kind="${kind}" data-id="${id||''}" tabindex="0" role="button" aria-label="${esc(labelText)}" ${extra}>`; }
+function renderDrawing() {
+  const wrap=byId('drawing-wrap');
+  if (!wrap.clientWidth||!wrap.clientHeight) return;
+  const W=wrap.clientWidth,H=wrap.clientHeight,mobile=W<550;
+  const VH=mobile?Math.min(350,Math.max(H,280)):Math.max(H,266),vw=W,pad=mobile?46:79;
+  const free=Math.max(100,vw-2*pad);
+  const span=free*((mobile?.74:.64)+(mobile?.26:.36)*state.L/20);
+  const x0=pad,end=x0+span,scale=span/state.L;
+  const beamY=clamp(VH*.49,132,VH-112),centerY=beamY+8;
+  const xOf=x=>x0+x*scale;
+  geometry={width:W,height:VH,x0,end,scale,beamY,derivative:free*(mobile?.26:.36)/20};
+  let svg='<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(35)"><rect width="6" height="6" fill="#f8f9fa"/><path d="M0 0V6" stroke="#89949e" stroke-width="1"/></pattern></defs>';
+  svg+='<g class="edit" data-kind="beam" tabindex="0" role="button" aria-label="Editar viga">'+dimension(x0,end,23,'L = '+fmt(state.L)+' m')+`<rect class="hit" x="${x0}" y="3" width="${span}" height="28"/></g>`;
+  svg+=line(x0,30,x0,beamY-5,color.blue,.8,'opacity=".25" stroke-dasharray="3 5"')+line(end,30,end,beamY-5,color.blue,.8,'opacity=".25" stroke-dasharray="3 5"');
+  svg+=`<g class="edit" data-kind="beam" tabindex="0" role="button" aria-label="Propriedades da viga"><rect x="${x0}" y="${beamY}" width="${span}" height="16" fill="${color.beam}" stroke="${color.edge}" stroke-width="1.3"/>`;
+  svg+=line(x0+1,beamY+3,end-1,beamY+3,'#f5d4c4',1.1)+line(x0+1,beamY+13,end-1,beamY+13,'#a86c5a',1.1)+`<rect class="hit" x="${x0}" y="${beamY-3}" width="${span}" height="23"/></g>`;
+  for (const p of state.supports) {
+    const x=xOf(p.x),fixed=p.type==='fixed',selected=selection?.kind==='support'&&selection.id===p.id;
+    svg+=`<g class="handle ${fixed?'edit fixed-support':'drag'}" data-kind="support" data-id="${p.id}" ${fixed?'data-locked="1"':''} tabindex="0" role="button" aria-label="Apoio ${esc(p.name)}">`;
+    svg+=supportGlyph(x,beamY+16,p.type,p.edge||positionEdge(p.x));
+    const right=p.x/state.L>.85,labelX=x+(right?21:-21);
+    svg+=text(labelX,beamY+31,p.name,'halo',right?'start':'end',selected?`style="fill:${color.blue};font-weight:650"`:'');
+    svg+=`<rect class="hit" x="${x-20}" y="${fixed?beamY-26:beamY+16}" width="40" height="${fixed?70:35}"/></g>`;
+  }
+  // Cargas distribuídas inseridas pelo usuário aparecem como distribuição explícita.
+  const distributedLoads=state.loads.filter(p=>p.kind==='udl');
+  const bands=[];
+  for (const p of distributedLoads) {
+    let lane=0;
+    while (bands.some(b=>b.lane===lane&&p.x<b.end&&p.end>b.x)) lane++;
+    bands.push({x:p.x,end:p.end,lane});
+    const a=xOf(p.x),b=xOf(p.end),y=Math.max(50,beamY-41-lane*23),c=color.red;
+    svg+=handleStart('load',p.id,'Carga distribuída '+p.name,'data-drag-mode="range"');
+    svg+=`<path d="M${a},${beamY-4}V${y}H${b}V${beamY-4}" fill="${c}" fill-opacity=".025" stroke="${c}" stroke-width="1"/>`;
+    const count=Math.max(2,Math.floor((b-a)/25)+1);
+    for (let i=0;i<count;i++) {
+      const x=a+(b-a)*i/(count-1);
+      svg+=arrow(x,p.direction===1?y:beamY-4,p.direction===1?beamY-4:y,c,1.35);
+    }
+    const labelX=clamp((a+b)/2,56,vw-60);
+    svg+=text(labelX,y-9,p.name+' = '+distributedText(p.value),'force-label halo','middle','style="font-size:12px"');
+    svg+=`<rect class="hit" x="${a}" y="${y-4}" width="${Math.max(1,b-a)}" height="12"/><rect class="hit" x="${labelX-60}" y="${y-24}" width="120" height="19"/></g>`;
+    for (const [x,mode] of [[a,'range-start'],[b,'range-end']]) {
+      svg+=handleStart('load',p.id,mode==='range-start'?'Início de '+p.name:'Fim de '+p.name,`data-drag-mode="${mode}"`);
+      svg+=`<circle cx="${x}" cy="${y}" r="3.4" fill="white" stroke="${c}" stroke-width="1.3"/><circle class="hit" cx="${x}" cy="${y}" r="10"/></g>`;
+    }
+  }
+  // O peso próprio continua sendo calculado como distribuição uniforme, mas é mostrado pela resultante
+  // no centro da viga para não parecer uma carga distribuída adicionada pelo usuário.
+  if (result.Wbar>1e-9) {
+    const x=xOf(state.L/2),topY=Math.max(53,beamY-68),labelY=topY-8;
+    svg+=handleStart('weight','','Massa da viga','data-drag-mode="value"');
+    svg+=arrow(x,topY,beamY-5,color.purple,2.1);
+    svg+=text(clamp(x,62,vw-62),labelY,'Wviga = '+forceText(result.Wbar),'weight-label halo','middle','style="font-size:12px"');
+    svg+=`<rect class="hit" x="${x-12}" y="${topY-5}" width="24" height="${Math.max(24,beamY-topY)}"/><rect class="hit" x="${x-65}" y="${labelY-14}" width="130" height="20"/></g>`;
+  }
+  const labels=[];
+  const forceLoads=state.loads.filter(p=>['mass','force'].includes(p.kind)).sort((a,b)=>a.x-b.x);
+  for (const p of forceLoads) {
+    const x=xOf(p.x);let lane=0;
+    while(labels.some(v=>v.lane===lane&&Math.abs(v.x-x)<(mobile?84:105))) lane++;
+    labels.push({x,lane});
+    const bodyH=p.kind==='mass'?30:0,arrowEnd=beamY-5-bodyH;
+    const topY=Math.max(49,beamY-82-lane*23-(p.kind==='mass'?15:0));
+    const down=p.kind==='mass'||p.direction===1,labelX=clamp(x,54,vw-55),P=loadForce(p,state);
+    svg+=handleStart('load',p.id,'Carga '+p.name,'data-drag-mode="move"');
+    if (p.kind==='mass') svg+=`<rect x="${x-17}" y="${beamY-bodyH}" width="34" height="${bodyH}" fill="#d9dddc" stroke="${color.ink}" stroke-width="1.25"/>`+text(x,beamY-10,p.name);
+    else svg+=`<rect x="${x-4}" y="${beamY-3}" width="8" height="4" fill="#9aa6ad" stroke="${color.ink}" stroke-width=".8"/>`;
+    svg+=`<rect class="hit" x="${x-16}" y="${beamY-Math.max(22,bodyH)}" width="32" height="${Math.max(28,bodyH+5)}"/></g>`;
+    svg+=handleStart('load',p.id,'Valor da carga '+p.name,'data-drag-mode="both"');
+    if (Math.abs(P)>1e-9) svg+=arrow(x,down?topY+6:arrowEnd,down?arrowEnd:topY+6,color.red,2.4);
+    const labelY=Math.min(topY-6,arrowEnd-8);
+    svg+=text(labelX,labelY,(p.kind==='mass'?'P'+p.name:p.name)+' = '+forceText(Math.abs(P)),'force-label halo');
+    svg+=`<rect class="hit" x="${labelX-53}" y="${labelY-14}" width="106" height="20"/><rect class="hit" x="${x-10}" y="${topY+4}" width="20" height="${Math.max(5,arrowEnd-topY)}"/></g>`;
+  }
+  const momentLoads=state.loads.filter(p=>p.kind==='moment');
+  for (let i=0;i<momentLoads.length;i++) {
+    const p=momentLoads[i],x=xOf(p.x),my=centerY,radius=23+(i%2)*3;
+    const labelX=clamp(x,65,vw-65),labelY=beamY-31-(i%2)*18;
+    svg+=handleStart('load',p.id,'Momento '+p.name,'data-drag-mode="both"');
+    svg+=`<circle cx="${x}" cy="${my}" r="2.8" fill="${color.blue}"/>`;
+    svg+=`<g class="applied-moment" data-center-x="${x}" data-center-y="${my}">`+momentArrow(x,my,radius,p.direction===1,color.blue,2.15)+'</g>';
+    svg+=`<circle cx="${x}" cy="${my}" r="${radius}" fill="none" stroke="transparent" stroke-width="12" pointer-events="stroke"/>`;
+    svg+=text(labelX,labelY,p.name+' = '+momentText(p.value),'moment-label halo','middle','style="font-size:12px"');
+    svg+=`<rect class="hit" x="${labelX-68}" y="${labelY-14}" width="136" height="20"/></g>`;
+  }
+  if (showReactions&&result.valid) {
+    const placed=[];
+    for (const p of [...result.reactions].sort((a,b)=>a.x-b.x)) {
+      const x=xOf(p.x),down=p.R<-1e-8,c=down&&p.type==='roller'?color.orange:color.green;
+      const rx=clamp(x,60,vw-61);let lane=0;
+      while (placed.some(v=>Math.abs(v.x-rx)<110&&v.lane===lane)) lane++;
+      placed.push({x:rx,lane});
+      const y=beamY+80+Math.min(lane,2)*15;
+      svg+=`<g class="support-reaction edit" data-kind="support" data-id="${p.id}" tabindex="0" role="button" aria-label="Reação no apoio ${esc(p.name)}">`;
+      if (Math.abs(p.R)>1e-8) svg+=arrow(x,down?beamY+13:beamY+65,down?beamY+65:beamY+13,c,2.5);
+      svg+=text(rx,y,'R'+p.name+' = '+forceText(Math.abs(p.R)),'reaction-label halo','middle',`style="fill:${c}"`);
+      svg+=`<rect class="hit" x="${rx-55}" y="${y-13}" width="110" height="18"/></g>`;
+      if (p.type==='fixed') {
+        if (Math.abs(p.M)>1e-8) svg+=`<g class="reaction-moment">`+momentArrow(x,centerY,35,p.M>=0,color.green,1.65)+'</g>';
+        svg+=text(clamp(rx,66,vw-66),y+16,'M'+p.name+' = '+momentText(Math.abs(p.M)),'reaction-label halo','middle','style="font-size:11px"');
+      }
+    }
+  }
+  const unique=beamEvents(state),dimY=VH-12;
+  for (let i=1;i<unique.length;i++) {
+    const a=xOf(unique[i-1]),b=xOf(unique[i]);
+    if (b-a>32) svg+=dimension(a,b,dimY,fmt(unique[i]-unique[i-1])+' m');
+    else svg+=line(a,dimY,b,dimY,color.blue,.8);
+  }
+  for (const p of unique) svg+=line(xOf(p),dimY-4,xOf(p),dimY+3,color.blue,.8);
+  // O puxador de comprimento não ocupa o símbolo do engaste.
+  svg+=handleStart('length','','Comprimento da viga');
+  svg+=`<circle cx="${end}" cy="23" r="3" fill="white" stroke="${color.blue}" stroke-width="1.2"/><circle class="hit" cx="${end}" cy="23" r="12"/></g>`;
+  const drawing=byId('drawing');drawing.setAttribute('viewBox',`0 0 ${vw} ${VH}`);drawing.innerHTML=svg;
+  const note=byId('state-note');const blank=!state.supports.length&&!state.loads.length&&state.mbar===0;note.hidden=blank||(result.valid&&!result.warning);note.className='state'+(!result.valid?' error':'');note.textContent=result.valid?result.warning:result.error;
+}
+
+// Um nó representa uma grandeza ou um vínculo específico, nunca uma lista de cargas.
+// Um nó por grandeza física. O sentido pertence ao sinal da própria força.
+function makeGraph(s,r,section=probeX,side=probeSide) {
+  const nodes=[];
+  function add(id,name,value,display,deps,role='calculation',editor='',formula='') {
+    nodes.push({id,name,value,display,deps:[...new Set(deps)],role,editor,formula,output:role==='output'});
+  }
+  const sx=p=>'support_'+p.id+'_x',st=p=>'support_'+p.id+'_type';
+  const lx=p=>'load_'+p.id+'_x',lp=p=>'load_'+p.id+'_P',lm=p=>'load_'+p.id+'_M';
+  add('L','Comprimento L',s.L,fmt(s.L)+' m',[],'parameter','beam','Comprimento total da viga');
+  add('mbar','Massa da viga',s.mbar,fmt(s.mbar)+' kg',[],'parameter','beam','Massa total, independente do comprimento nesta versão');
+  add('g','Gravidade g',s.g,fmt(s.g)+' m/s²',[],'parameter','beam');
+  for (const p of s.supports) {
+    add(st(p),'Tipo de '+p.name,p.type,supportNames[p.type],[],'parameter','support:'+p.id,'Condições de deslocamento e rotação no apoio');
+    add(sx(p),'Posição de '+p.name,p.x,fmt(p.x)+' m',['L',st(p)],p.edge?'calculation':'parameter','support:'+p.id,p.edge==='right'?'x'+p.name+' = L':p.edge==='left'?'x'+p.name+' = 0':'0 ≤ x'+p.name+' ≤ L. L limita a posição, mas não a escala.');
+  }
+  const fids=[],mids=[],jids=[],qids=[],qdetails=[];
+  for (const p of s.loads) {
+    const id='load_'+p.id,editor='load:'+p.id;
+    add(lx(p),(p.kind==='udl'?'Início ':'Posição ')+p.name,p.x,fmt(p.x)+' m',['L'],p.edge?'calculation':'parameter',editor,p.edge==='right'?'x = L':p.edge==='left'?'x = 0':'Posição medida da esquerda. O comprimento limita o intervalo disponível.');
+    if (p.kind==='moment') {
+      const value=loadMoment(p);mids.push(lm(p));
+      add(lm(p),'Momento '+p.name,value,momentText(value),[],'parameter',editor,'Momento aplicado com sinal. Anti-horário positivo.');
+    } else if (p.kind==='udl') {
+      const qid=id+'_q',end=id+'_end',length=id+'_ell',center=id+'_xc',Q=id+'_Q',J='j_'+p.id;
+      add(end,'Fim '+p.name,p.end,fmt(p.end)+' m',['L',lx(p)],p.endEdge==='right'?'calculation':'parameter',editor,p.endEdge==='right'?'b = L':'a < b ≤ L. O início limita o fim do intervalo.');
+      add(length,'Extensão '+p.name,p.end-p.x,fmt(p.end-p.x)+' m',[lx(p),end],'calculation',editor,'ℓ = b − a');
+      add(center,'Centro '+p.name,(p.x+p.end)/2,fmt((p.x+p.end)/2)+' m',[lx(p),end],'calculation',editor,'xq = (a + b) / 2');
+      add(qid,'Intensidade '+p.name,loadIntensity(p),distributedText(loadIntensity(p)),[],'parameter',editor,'Intensidade com sinal. Positiva para baixo.');
+      const val=loadIntensity(p)*(p.end-p.x);
+      add(Q,'Resultante '+p.name,val,forceText(val),[qid,length],'calculation',editor,'Q = q × (b − a). Resultante para o equilíbrio global, não para substituir o carregamento no diagrama.');
+      add(J,'Momento de '+p.name,val*(p.x+p.end)/2,momentText(val*(p.x+p.end)/2),[Q,center],'calculation',editor,'J = Q × xq, em relação à extremidade esquerda');
+      qids.push(Q);jids.push(J);qdetails.push(qid,lx(p),end);
+    } else {
+      const value=loadForce(p,s),deps=[];fids.push(lp(p));
+      if (p.kind==='mass') {add(id+'_mass','Massa '+p.name,p.value,fmt(p.value)+' kg',[],'parameter',editor);deps.push(id+'_mass','g');}
+      add(lp(p),p.kind==='mass'?'Peso '+p.name:'Força '+p.name,value,forceText(value),deps,p.kind==='mass'?'calculation':'parameter',editor,p.kind==='mass'?'P = m × g':'Força com sinal. Positiva para baixo.');
+      const j='j_'+p.id;jids.push(j);
+      add(j,'Momento de '+p.name,value*p.x,momentText(value*p.x),[lp(p),lx(p)],'calculation',editor,'J = P × x, em relação à extremidade esquerda');
+    }
+  }
+  add('xbar','Centro da viga',r.xbar,fmt(r.xbar)+' m',['L'],'calculation','beam','xG = L / 2');
+  add('Wbar','Peso da viga W',r.Wbar,forceText(r.Wbar),['mbar','g'],'calculation','beam','W = m × g');
+  add('q','Peso por metro',r.q,distributedText(r.q),['Wbar','L'],'calculation','beam','qg = W / L. Peso próprio uniforme, sem dupla contagem.');
+  add('jbar','Momento do peso',r.Wbar*r.xbar,momentText(r.Wbar*r.xbar),['Wbar','xbar'],'calculation','beam','Jg = W × xG');
+  add('total','Soma vertical T',r.total,forceText(r.total),['Wbar',...fids,...qids],'calculation','','T = W + ΣP + ΣQ');
+  add('demand','Momento externo D',r.demand,momentText(r.demand),['jbar',...jids,...mids],'calculation','','D = Jg + Σ(P × x) + Σ(Q × xq) − ΣC. Não é o momento interno M(x).');
+  const supportDeps=s.supports.flatMap(p=>[sx(p),st(p)]);
+  const geometryDeps=s.loads.filter(p=>p.kind!=='udl').map(lx);
+  const common=['total','demand',...supportDeps];
+  const hyperDeps=['L','q',...fids,...mids,...geometryDeps,...qdetails,...supportDeps];
+  const ordered=[...s.supports].sort((a,b)=>a.x-b.x);
+  for (const p of s.supports) {
+    const v=r.valid?r.reactions.find(v=>v.id===p.id):null;
+    let deps=r.hyper?hyperDeps:common;
+    let formula='Equilíbrio e compatibilidade, EI uniforme. Cada intensidade, intervalo, posição e vínculo entra separadamente no sistema.';
+    if (!r.hyper&&ordered.length===2) {
+      const a=ordered[0],b=ordered[1];
+      formula=p.id===a.id?'R'+p.name+' = (T × x'+b.name+' − D) / (x'+b.name+' − x'+a.name+')':'R'+p.name+' = (D − T × x'+a.name+') / (x'+b.name+' − x'+a.name+')';
+    }
+    if (!r.hyper&&ordered.length===1) {deps=['total',...supportDeps];formula='R'+p.name+' = T';}
+    add('R_'+p.id,'Reação R'+p.name,v?v.R:null,v?forceText(v.R):'—',deps,'output','support:'+p.id,formula);
+    if (p.type==='fixed') add('MR_'+p.id,'Momento M'+p.name,v?v.M:null,v?momentText(v.M):'—',r.hyper?hyperDeps:['total','demand',...supportDeps],'output','support:'+p.id,r.hyper?'Rotação nula no engaste, com EI uniforme e sem recalques':'M'+p.name+' = D − T × x'+p.name);
+  }
+  add('probe_x','Seção x',section,fmt(section)+' m',['L'],'parameter','probe','Coordenada da consulta, limitada a 0 ≤ x ≤ L');
+  add('probe_side','Lado do corte',side,side==='left'?'x⁻':'x⁺',[],'parameter','probe','Limite à esquerda ou à direita de uma carga concentrada');
+  const vparts=[],mparts=[];
+  const sectionDeps=['probe_x','probe_side'];
+  const eps=1e-10*s.L;
+  const included=x=>side==='left'?x<section-eps:x<=section+eps;
+  add('vg','Peso próprio em V',-r.q*section,forceText(-r.q*section),['q','probe_x'],'calculation','beam','Vg = −qg × x');vparts.push('vg');
+  add('mg','Peso próprio em M',-r.q*section*section/2,momentText(-r.q*section*section/2),['q','probe_x'],'calculation','beam','Mg = −qg × x² / 2');mparts.push('mg');
+  for (const p of s.loads) {
+    const id='load_'+p.id,editor='load:'+p.id,on=included(p.x),vid='vc_'+p.id,mid='mc_'+p.id;
+    if (p.kind==='udl') {
+      const partial=rangeAt({a:p.x,b:p.end,q:loadIntensity(p)},section);
+      add(id+'_cut','Trecho de '+p.name,partial.ell,fmt(partial.ell)+' m',[lx(p),id+'_end','probe_x'],'calculation',editor,'ℓx = máximo(0, mínimo(x,b) − a)');
+      add(vid,p.name+' em V',partial.V,forceText(partial.V),[id+'_q',id+'_cut'],'calculation',editor,'Vq = −q × ℓx');
+      add(mid,p.name+' em M',partial.M,momentText(partial.M),[id+'_q',id+'_cut',lx(p),'probe_x'],'calculation',editor,'Mq = −q × ℓx × (x − a − ℓx/2)');
+      vparts.push(vid);mparts.push(mid);
+    } else if (p.kind==='moment') {
+      const val=on?-loadMoment(p):0;
+      add(mid,p.name+' em M',val,momentText(val),[lm(p),lx(p),...sectionDeps],'calculation',editor,'−C após o ponto de aplicação; zero antes');mparts.push(mid);
+    } else {
+      const force=loadForce(p,s),v=on?-force:0,m=on?-force*(section-p.x):0;
+      add(vid,p.name+' em V',v,forceText(v),[lp(p),lx(p),...sectionDeps],'calculation',editor,'−P após a carga; zero antes');vparts.push(vid);
+      add(mid,p.name+' em M',m,momentText(m),[lp(p),lx(p),...sectionDeps],'calculation',editor,'−P × (x − xP) após a carga; zero antes');mparts.push(mid);
+    }
+  }
+  for (const p of s.supports) {
+    const rr=r.valid?r.reactions.find(v=>v.id===p.id):null,on=included(p.x),v=rr?(on?rr.R:0):null;
+    const m=rr?(on?rr.R*(section-p.x)-rr.M:0):null,vid='vr_'+p.id,mid='mr_'+p.id;
+    add(vid,p.name+' em V',v,v===null?'—':forceText(v),['R_'+p.id,sx(p),...sectionDeps],'calculation','support:'+p.id,'+R após o apoio; zero antes');vparts.push(vid);
+    const deps=['R_'+p.id,sx(p),...sectionDeps];
+    if (p.type==='fixed') deps.push('MR_'+p.id);
+    add(mid,p.name+' em M',m,m===null?'—':momentText(m),deps,'calculation','support:'+p.id,'+R × (x − xR) − momento de reação, após o apoio');mparts.push(mid);
+  }
+  const at=internalAt(s,r,section,side),d=diagramData(s,r);
+  add('Vsample','Cortante V(x)',at.V,at.V===null?'—':forceText(at.V),[...vparts,...supportDeps],'output','probe','Soma das contribuições individuais de cortante');
+  add('Msample','Momento M(x)',at.M,at.M===null?'—':momentText(at.M),[...mparts,...supportDeps],'output','probe','Soma das contribuições individuais de momento fletor');
+  const globalV=['L','q',...fids,...s.loads.filter(p=>!['moment','udl'].includes(p.kind)).map(lx),...qdetails,...s.supports.flatMap(p=>['R_'+p.id,sx(p),st(p)])];
+  const globalM=[...globalV,...mids,...s.loads.filter(p=>p.kind==='moment').map(lx),...s.supports.filter(p=>p.type==='fixed').map(p=>'MR_'+p.id)];
+  add('Vmax','Máximo |V|',d.Vmax,d.Vmax===null?'—':forceText(d.Vmax),globalV,'output','','Maior valor absoluto nas seções antes e depois dos eventos');
+  add('Mmax','Máximo |M|',d.Mmax,d.Mmax===null?'—':momentText(d.Mmax),globalM,'output','','Extremos nas fronteiras e nos pontos internos onde V = 0');
+
+  const sec=sectionProperties(s),mat=materialInfo(s),sr=structuralResults(s,r);
+  add('section_shape','Formato da seção',s.section.shape,s.section.shape==='i'?'Perfil I / H':'Retangular',[],'parameter','beam','Geometria da seção transversal');
+  add('section_b','Largura b',sec.b,fmt(sec.b*1000,0)+' mm',[],'parameter','beam','Largura total da seção');
+  add('section_h','Altura h',sec.h,fmt(sec.h*1000,0)+' mm',[],'parameter','beam','Altura total da seção');
+  const sectionDims=['section_shape','section_b','section_h'];
+  if (sec.shape==='i') {
+    add('section_tw','Espessura da alma tw',sec.tw,fmt(sec.tw*1000,1)+' mm',[],'parameter','beam','Espessura da alma');
+    add('section_tf','Espessura da mesa tf',sec.tf,fmt(sec.tf*1000,1)+' mm',[],'parameter','beam','Espessura de cada mesa');
+    sectionDims.push('section_tw','section_tf');
+  }
+  add('section_A','Área A',sec.A,fmt(sec.A*1e6,0)+' mm²',sectionDims,'calculation','beam',sec.shape==='i'?'A = 2 b tf + tw (h − 2 tf)':'A = b h');
+  add('section_I','Inércia Iₓ',sec.I,sec.I.toExponential(3)+' m⁴',sectionDims,'calculation','beam',sec.shape==='i'?'I = [b h³ − (b − tw)(h − 2tf)³] / 12':'I = b h³ / 12');
+  add('section_S','Módulo resistente Sₓ',sec.S,sec.S.toExponential(3)+' m³',['section_I','section_h'],'calculation','beam','S = I / (h / 2)');
+  add('material_E','Módulo E',mat.E,fmt(mat.E/1e9,1)+' GPa',[],'parameter','beam','Módulo de elasticidade do material');
+  add('material_yield','Limite de escoamento σy',mat.yield,fmt(mat.yield/1e6,0)+' MPa',[],'parameter','beam','Valor de referência editável');
+  add('material_rho','Densidade ρ',mat.rho,fmt(mat.rho,0)+' kg/m³',[],'parameter','beam','Densidade do material');
+  add('geom_mass','Massa pela geometria',sr.geomMass,fmt(sr.geomMass,1)+' kg',['section_A','material_rho','L'],'calculation','beam','mgeom = A × L × ρ');
+  add('sigma_max','Tensão máxima σ',sr.sigma,sr.sigma===null?'—':stressText(sr.sigma),['Mmax','section_S'],'output','beam','σmax = |M|max / S');
+  const tauDeps=sec.shape==='i'?['Vmax','section_I','section_b','section_h','section_tw','section_tf']:['Vmax','section_A'];
+  add('tau_max','Tensão cisalhante máxima τ',sr.tau,sr.tau===null?'—':stressText(sr.tau),tauDeps,'output','beam',sec.shape==='i'?'τmax = |V|max Q / (I tw)':'τmax = 1,5 |V|max / A');
+  add('deflection_max','Flecha máxima |δ|',sr.deflection.max,sr.deflection.max===null?'—':fmt(sr.deflection.max*1000,2)+' mm',['section_I','material_E',...globalM],'output','beam','κ = M/(EI), integrada com as condições dos apoios');
+  add('fos_yield','Fator contra escoamento',sr.fos,sr.fos===Infinity?'∞':Number.isFinite(sr.fos)?fmt(sr.fos,2):'—',['material_yield','sigma_max'],'output','beam','FoS = σy / σmax');
+  return nodes;
+}
+
+function reachable(roots,nodes) {
+  const found=new Set(roots);let progress=true;
+  while (progress) {
+    progress=false;
+    for (const n of nodes) if (!found.has(n.id)&&n.deps.some(d=>found.has(d))) {found.add(n.id);progress=true;}
+  }
+  return found;
+}
+function ancestors(ids,nodes) {
+  const found=new Set(ids),todo=[...ids];
+  while (todo.length) {
+    const id=todo.pop(),n=nodes.find(n=>n.id===id);
+    if (!n) continue;
+    for (const d of n.deps) if (!found.has(d)) {found.add(d);todo.push(d);}
+  }
+  return found;
+}
+function syncGraphFilter() {
+  const options=[['reactions','Reações'],['all','Todos os nós'],...graphNodes.filter(n=>n.output).map(n=>[n.id,n.name])];
+  const select=byId('graph-filter');
+  const signature=options.map(x=>x[0]).join('|');
+  if (select.dataset.signature!==signature) {
+    select.dataset.signature=signature;
+    select.innerHTML=options.map(([id,label])=>`<option value="${id}">${esc(label)}</option>`).join('');
+  }
+  if (!options.some(x=>x[0]===graphFilter)) graphFilter='reactions';
+  select.value=graphFilter;
+}
+function updateGraphTransform() {
+  const wrap=byId('graph-wrap');
+  byId('dep-map').setAttribute('viewBox',`0 0 ${wrap.clientWidth} ${wrap.clientHeight}`);
+  const content=byId('graph-content');
+  if (content) content.setAttribute('transform',`translate(${graphCamera.x},${graphCamera.y}) scale(${graphCamera.k})`);
+}
+function zoomGraph(factor,cx=null,cy=null) {
+  const wrap=byId('graph-wrap');
+  if (cx===null) {cx=wrap.clientWidth/2;cy=wrap.clientHeight/2;}
+  const next=clamp(graphCamera.k*factor,.06,4);
+  graphCamera.x=cx-(cx-graphCamera.x)*next/graphCamera.k;
+  graphCamera.y=cy-(cy-graphCamera.y)*next/graphCamera.k;
+  graphCamera.k=next;graphCamera.fit=false;updateGraphTransform();
+}
+let graphLayoutSignature='';
+let graphLayout=null;
+let graphNodeOffsets={};
+const graphPointers=new Map();
+let graphPinch=null;
+
+function drawingXFromClient(clientX) {
+  if (!geometry) return state.L/2;
+  const svg=byId('drawing'),ctm=svg.getScreenCTM();
+  if (!ctm) return state.L/2;
+  const pt=svg.createSVGPoint();pt.x=clientX;pt.y=0;
+  const local=pt.matrixTransform(ctm.inverse());
+  return clamp((local.x-geometry.x0)/geometry.scale,0,state.L);
+}
+function hideContextMenu() {const menu=byId('context-menu');if(menu) menu.hidden=true;}
+function showContextMenu(event) {
+  if (!geometry) return;
+  event.preventDefault();
+  const target=event.target.closest('[data-kind]');
+  const kind=target?.dataset.kind||'beam',id=target?.dataset.id||'';
+  const x=Math.round(drawingXFromClient(event.clientX)*100)/100;
+  let items=[];
+  if (kind==='support'&&id) items=[['Editar apoio',()=>openInspector('support',id)],['Remover apoio',()=>removeObject('support',id),'danger']];
+  else if (kind==='load'&&id) items=[['Editar carga',()=>openInspector('load',id)],['Remover carga',()=>removeObject('load',id),'danger']];
+  else items=[['Adicionar apoio aqui',()=>addSupport(x)],['Adicionar bloco aqui',()=>addLoad('mass',x)],['Adicionar força aqui',()=>addLoad('force',x)],['Adicionar momento aqui',()=>addLoad('moment',x)],['Adicionar distribuída aqui',()=>addLoad('udl',x)]];
+  const menu=byId('context-menu');
+  menu.innerHTML=items.map((it,i)=>`<button type="button" data-context-index="${i}" class="${it[2]||''}">${esc(it[0])}</button>`).join('');
+  menu._actions=items.map(it=>it[1]);
+  const left=Math.min(event.clientX,window.innerWidth-190),top=Math.min(event.clientY,window.innerHeight-(items.length*36+18));
+  menu.style.left=Math.max(6,left)+'px';menu.style.top=Math.max(6,top)+'px';menu.hidden=false;
+}
+function graphRoleName(role) {return {parameter:'Parâmetro',calculation:'Cálculo',output:'Resultado'}[role]||role;}
+function graphRoleDescription(role) {
+  if (role==='parameter') return 'Valor definido diretamente no problema.';
+  if (role==='calculation') return 'Grandeza calculada a partir das entradas conectadas.';
+  if (role==='output') return 'Resultado produzido pelo modelo estrutural.';
+  return '';
+}
+const relationCatalog={
+  define:{label:'define',description:'O valor anterior define diretamente esta grandeza.'},
+  condiciona:{label:'condiciona',description:'A geometria, o vínculo ou o ponto de consulta condiciona como esta grandeza é obtida.'},
+  gera:{label:'gera',description:'A grandeza anterior gera uma contribuição física para esta grandeza.'},
+  compoe:{label:'compõe',description:'Esta entrada é somada ou combinada com outras contribuições.'},
+  propaga:{label:'propaga',description:'O resultado intermediário continua a cadeia de cálculo.'}
+};
+function edgeRelation(fromId,toId) {
+  const from=graphNodes.find(n=>n.id===fromId),to=graphNodes.find(n=>n.id===toId);
+  if (!from||!to) return relationCatalog.propaga;
+  const supportInput=fromId.startsWith('support_');
+  const sectionInput=fromId==='probe_x'||fromId==='probe_side';
+  const geometryTarget=toId.endsWith('_x')||toId.endsWith('_end')||toId.endsWith('_ell')||toId.endsWith('_xc')||toId==='xbar'||toId.endsWith('_cut');
+  const structuralResponse=toId.startsWith('R_')||toId.startsWith('MR_')||toId.startsWith('vr_')||toId.startsWith('mr_');
+  const contribution=/^(j_|vc_|mc_|vr_|mr_)/.test(toId)||['Wbar','q','jbar','vg','mg'].includes(toId);
+  const aggregate=['total','demand','Vsample','Msample','Vmax','Mmax'].includes(toId);
+  if (supportInput||sectionInput||geometryTarget||structuralResponse) return relationCatalog.condiciona;
+  if (aggregate) return relationCatalog.compoe;
+  if (contribution) return relationCatalog.gera;
+  if (from.role==='parameter') return relationCatalog.define;
+  return relationCatalog.propaga;
+}
+function propagationLevels(rootId) {
+  const depth=new Map([[rootId,0]]),queue=[rootId];
+  while (queue.length) {
+    const current=queue.shift(),d=depth.get(current);
+    for (const child of graphNodes.filter(n=>n.deps.includes(current))) if (!depth.has(child.id)) {depth.set(child.id,d+1);queue.push(child.id);}
+  }
+  return [...depth.entries()].filter(([id])=>id!==rootId).map(([id,level])=>({node:graphNodes.find(n=>n.id===id),level})).filter(x=>x.node).sort((a,b)=>a.level-b.level||a.node.name.localeCompare(b.node.name,'pt-BR'));
+}
+function formulaLatex(n) {
+  const raw=n.formula||'';
+  if (!raw) return n.role==='parameter'?'\text{parâmetro independente}':'';
+  return raw
+    .replaceAll('Σ','\sum ')
+    .replaceAll('×','\,')
+    .replaceAll('−','-')
+    .replaceAll('²','^{2}')
+    .replaceAll('³','^{3}')
+    .replaceAll('≤','\le ')
+    .replaceAll('≥','\ge ')
+    .replaceAll('ℓ','\ell ')
+    .replaceAll('δ','\delta ')
+    .replaceAll('σ','\sigma ')
+    .replaceAll('τ','\tau ')
+    .replaceAll('Δ','\Delta ')
+    .replaceAll('→','\rightarrow ');
+}
+function changeInfo(n) {
+  const old=previousGraph.find(v=>v.id===n.id);
+  if (!old) {
+    if (sources.has(n.id)) return {arrow:'●',text:'Elemento adicionado ou ativado.',short:'●'};
+    return null;
+  }
+  if (typeof old.value==='number'&&typeof n.value==='number'&&Number.isFinite(old.value)&&Number.isFinite(n.value)) {
+    const delta=n.value-old.value;
+    const tol=1e-8*Math.max(1,Math.abs(old.value),Math.abs(n.value));
+    if (Math.abs(delta)<=tol) {
+      if ([...old.deps].sort().join('|')!==[...n.deps].sort().join('|')) return {arrow:'↻',text:'As dependências mudaram, mas o valor atual permaneceu igual.',short:'↻'};
+      return null;
+    }
+    const arrow=delta>0?'↑':'↓';
+    const pct=Math.abs(old.value)>1e-12?Math.abs(delta/old.value*100):null;
+    const pctText=pct!==null?' · '+fmt(pct,1)+'%':'';
+    return {arrow,text:`${old.display} → ${n.display}${pctText}`,short:arrow};
+  }
+  if (differs(old.value,n.value)) return {arrow:'↔',text:`${old.display} → ${n.display}`,short:'↔'};
+  if ([...old.deps].sort().join('|')!==[...n.deps].sort().join('|')) return {arrow:'↻',text:'As dependências deste elemento foram alteradas.',short:'↻'};
+  return null;
+}
+function graphDirectFocus(id) {
+  const set=new Set([id]);
+  const n=graphNodes.find(v=>v.id===id);
+  if (n) n.deps.forEach(v=>set.add(v));
+  graphNodes.filter(v=>v.deps.includes(id)).forEach(v=>set.add(v.id));
+  return set;
+}
+function graphDeepFocus(id) {
+  if (!id) return null;
+  return new Set([...ancestors([id],graphNodes),...reachable([id],graphNodes)]);
+}
+function applyGraphFocusDOM() {
+  const svg=byId('dep-map');
+  if (!svg) return;
+
+  const selectedFocus=graphSelected?graphDeepFocus(graphSelected):null;
+  const hoverFocus=graphHover?(graphStyle==='live'?graphDeepFocus(graphHover):graphDirectFocus(graphHover)):null;
+  const hasFocus=Boolean(selectedFocus||hoverFocus);
+  const liveRoot=graphStyle==='live'?(graphHover||graphSelected):'';
+  const liveUp=liveRoot?ancestors([liveRoot],graphNodes):null;
+  const liveDown=liveRoot?reachable([liveRoot],graphNodes):null;
+  if (liveUp) liveUp.delete(liveRoot);
+  if (liveDown) liveDown.delete(liveRoot);
+
+  svg.querySelectorAll('[data-node]').forEach(el=>{
+    const id=el.dataset.node;
+    const inHover=Boolean(hoverFocus&&hoverFocus.has(id));
+    const inSelected=Boolean(selectedFocus&&selectedFocus.has(id));
+    const selected=id===graphSelected;
+    const hovered=id===graphHover;
+
+    el.classList.toggle('graph-focus',inHover||(!hoverFocus&&inSelected));
+    el.classList.toggle('graph-context',Boolean(hoverFocus&&inSelected&&!inHover));
+    el.classList.toggle('graph-dim',Boolean(hasFocus&&!inHover&&!inSelected));
+    el.classList.toggle('selected',selected);
+    el.classList.toggle('hovered',hovered);
+    el.classList.toggle('live-root',Boolean(liveRoot&&id===liveRoot));
+    el.classList.toggle('live-upstream',Boolean(liveUp&&liveUp.has(id)));
+    el.classList.toggle('live-downstream',Boolean(liveDown&&liveDown.has(id)));
+  });
+
+  svg.querySelectorAll('[data-from][data-to]').forEach(el=>{
+    const from=el.dataset.from;
+    const to=el.dataset.to;
+    const inHover=Boolean(hoverFocus&&hoverFocus.has(from)&&hoverFocus.has(to));
+    const inSelected=Boolean(selectedFocus&&selectedFocus.has(from)&&selectedFocus.has(to));
+    const upEdge=Boolean(liveRoot&&liveUp&&liveUp.has(from)&&(liveUp.has(to)||to===liveRoot));
+    const downEdge=Boolean(liveRoot&&liveDown&&(from===liveRoot||liveDown.has(from))&&liveDown.has(to));
+
+    el.classList.toggle('graph-focus',inHover||(!hoverFocus&&inSelected));
+    el.classList.toggle('graph-context',Boolean(hoverFocus&&inSelected&&!inHover));
+    el.classList.toggle('graph-dim',Boolean(hasFocus&&!inHover&&!inSelected));
+    el.classList.toggle('live-upstream',upEdge);
+    el.classList.toggle('live-downstream',downEdge);
+  });
+
+  if (graphSelected) {
+    const selected=svg.querySelector(`[data-node="${CSS.escape(graphSelected)}"]`);
+    if (selected&&selected.parentNode) selected.parentNode.appendChild(selected);
+  }
+
+  if (graphHover&&graphHover!==graphSelected) {
+    const hovered=svg.querySelector(`[data-node="${CSS.escape(graphHover)}"]`);
+    if (hovered&&hovered.parentNode) hovered.parentNode.appendChild(hovered);
+  }
+}
+function clearGraphSelection() {
+  graphSelected='';
+  graphHover='';
+  const pane=byId('graph-pane');
+  if (pane) pane.classList.remove('detail-open');
+  const box=byId('graph-detail');
+  if (box) box.hidden=true;
+  applyGraphFocusDOM();
+}
+function selectGraphNode(id) {
+  if (!graphNodes.some(v=>v.id===id)) return;
+  graphSelected=id;
+  graphHover='';
+  renderGraphDetail();
+  applyGraphFocusDOM();
+}
+function graphHoverIn(event) {
+  if (!window.matchMedia('(hover:hover)').matches) return;
+  const node=event.target.closest('[data-node]');
+  if (!node||node.closest('#dep-map')!==byId('dep-map')) return;
+  if (graphHover===node.dataset.node) return;
+  graphHover=node.dataset.node;
+  applyGraphFocusDOM();
+}
+function graphHoverOut(event) {
+  if (!window.matchMedia('(hover:hover)').matches) return;
+  const from=event.target.closest('[data-node]');
+  if (!from) return;
+  const to=event.relatedTarget?.closest?.('[data-node]');
+  if (to&&to.dataset.node===from.dataset.node) return;
+  graphHover='';
+  applyGraphFocusDOM();
+}
+function graphNodeChip(n,relation='',depth=null) {
+  const c=changeInfo(n);
+  const depthTag=depth!==null?`<span class="depth-tag">+${depth}</span>`:'';
+  const relationTag=relation?`<span class="relation-tag">${esc(relation)}</span>`:'';
+  return `<button type="button" data-graph-detail-node="${esc(n.id)}">${depthTag}${c?`<span class="direction">${esc(c.short)}</span>`:''}${esc(n.name)}${relationTag}</button>`;
+}
+function renderGraphDetail() {
+  const box=byId('graph-detail');
+  const pane=byId('graph-pane');
+  if (!box||!pane) return;
+  const n=graphNodes.find(v=>v.id===graphSelected);
+  if (!n) {
+    box.hidden=true;
+    pane.classList.remove('detail-open');
+    return;
+  }
+  const parents=n.deps.map(id=>graphNodes.find(v=>v.id===id)).filter(Boolean);
+  const children=graphNodes.filter(v=>v.deps.includes(n.id));
+  const propagation=propagationLevels(n.id);
+  const downstream=propagation.map(x=>x.node);
+  const impactSources=[...sources].map(id=>graphNodes.find(v=>v.id===id)).filter(Boolean).filter(src=>reachable([src.id],graphNodes).has(n.id));
+  const change=changeInfo(n);
+  const latex=formulaLatex(n);
+  const sourceSection=impactSources.length?`<div class="graph-detail-section"><div class="graph-detail-label">Impacto atual veio de</div><div class="impact-chips">${impactSources.map(graphNodeChip).join('')}</div></div>`:'';
+  const directSection=`<div class="graph-detail-section"><div class="graph-detail-label">Depende diretamente de</div>${parents.length?`<div class="impact-chips">${parents.map(parent=>graphNodeChip(parent,edgeRelation(parent.id,n.id).label)).join('')}</div>`:'<p>Nenhuma entrada anterior.</p>'}</div>`;
+  const childrenSection=`<div class="graph-detail-section"><div class="graph-detail-label">Impacta diretamente</div>${children.length?`<div class="impact-chips">${children.map(child=>graphNodeChip(child,edgeRelation(n.id,child.id).label)).join('')}</div>`:'<p>Nenhum elemento posterior.</p>'}</div>`;
+  const downstreamSection=downstream.length?`<div class="graph-detail-section"><div class="graph-detail-label">Todo o impacto · ${downstream.length} elementos</div><div class="impact-chips">${propagation.slice(0,40).map(item=>graphNodeChip(item.node,'',item.level)).join('')}</div>${downstream.length>40?`<p>+ ${downstream.length-40} elementos</p>`:''}</div>`:'';
+  box.innerHTML=`<button type="button" class="close-detail" aria-label="Fechar">×</button><div class="kind">${esc(graphRoleName(n.role))}</div><h3>${esc(n.name)}</h3><span class="value">${esc(n.display)}</span><div class="graph-role-note">${esc(graphRoleDescription(n.role))}</div>${change?`<div class="graph-detail-section"><div class="graph-detail-label">Direção da mudança</div><div class="change-box"><span class="change-arrow">${esc(change.arrow)}</span><span class="change-values">${esc(change.text)}</span></div></div>`:''}${latex?`<div class="graph-detail-section"><div class="graph-detail-label">Fórmula em LaTeX</div><div class="latex-box">\(${esc(latex)}\)</div></div>`:''}${sourceSection}${directSection}${childrenSection}${downstreamSection}`;
+  box.hidden=false;
+  pane.classList.add('detail-open');
+  box.querySelector('.close-detail').addEventListener('click',clearGraphSelection);
+  box.querySelectorAll('[data-graph-detail-node]').forEach(button=>button.addEventListener('click',()=>selectGraphNode(button.dataset.graphDetailNode)));
+}
+function hash01(text) {let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619);}return ((h>>>0)%10000)/10000;}
+function forcePhysicsStep(ns,edges,W,H,alpha=1,damping=.84) {
+  const acc={};
+  for (const n of ns) acc[n.id]={x:0,y:0};
+  for (let i=0;i<ns.length;i++) {
+    for (let j=i+1;j<ns.length;j++) {
+      const ai=forcePositions[ns[i].id],bj=forcePositions[ns[j].id];
+      if (!ai||!bj) continue;
+      let dx=bj.x-ai.x,dy=bj.y-ai.y;
+      let d=Math.max(8,Math.hypot(dx,dy));
+      const ux=dx/d,uy=dy/d;
+      let rep=900/(d*d);
+      if (d<48) rep+=(48-d)*.035;
+      acc[ns[i].id].x-=ux*rep;
+      acc[ns[i].id].y-=uy*rep;
+      acc[ns[j].id].x+=ux*rep;
+      acc[ns[j].id].y+=uy*rep;
+    }
+  }
+  for (const e of edges) {
+    const a=forcePositions[e.from],b=forcePositions[e.to];
+    if (!a||!b) continue;
+    let dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy));
+    const ux=dx/d,uy=dy/d;
+    const target=118;
+    const f=(d-target)*.0105;
+    acc[e.from].x+=ux*f;
+    acc[e.from].y+=uy*f;
+    acc[e.to].x-=ux*f;
+    acc[e.to].y-=uy*f;
+  }
+  let energy=0;
+  for (const n of ns) {
+    const p=forcePositions[n.id];
+    const v=forceVelocities[n.id]||(forceVelocities[n.id]={x:0,y:0});
+    const roleX=n.role==='parameter'?W*.24:n.role==='output'?W*.76:W*.5;
+    acc[n.id].x+=(roleX-p.x)*.0035;
+    acc[n.id].y+=(H*.5-p.y)*.0009;
+    if (n.id===forcePinned) {v.x=0;v.y=0;continue;}
+    v.x=(v.x+acc[n.id].x*alpha)*damping;
+    v.y=(v.y+acc[n.id].y*alpha)*damping;
+    const speed=Math.hypot(v.x,v.y);
+    if (speed>5) {v.x=v.x/speed*5;v.y=v.y/speed*5;}
+    p.x=clamp(p.x+v.x,26,W-26);
+    p.y=clamp(p.y+v.y,24,H-24);
+    energy+=Math.abs(v.x)+Math.abs(v.y);
+  }
+  return energy/Math.max(1,ns.length);
+}
+function prepareForceLayout(ns,edges,W,H) {
+  const signature=JSON.stringify(ns.map(n=>n.id).sort())+'|'+JSON.stringify(edges.map(e=>[e.from,e.to]).sort());
+  if (signature===forceSignature&&Object.keys(forcePositions).length) return;
+  forceSignature=signature;
+  forcePositions={};
+  forceVelocities={};
+  const center={x:W/2,y:H/2};
+  ns.forEach((n,i)=>{
+    const angle=2*Math.PI*(i/Math.max(1,ns.length)+hash01(n.id)*.14);
+    const radius=Math.min(W,H)*(.16+.24*hash01('r'+n.id));
+    const roleX=n.role==='parameter'?W*.24:n.role==='output'?W*.76:W*.5;
+    forcePositions[n.id]={x:roleX+Math.cos(angle)*radius*.48,y:center.y+Math.sin(angle)*radius};
+    forceVelocities[n.id]={x:0,y:0};
+  });
+  for (let i=0;i<120;i++) forcePhysicsStep(ns,edges,W,H,.85,.72);
+  Object.values(forceVelocities).forEach(v=>{v.x=0;v.y=0;});
+}
+function updateForceDom() {
+  if (!forceRuntime||!isDynamicGraphStyle()) return;
+  const svg=byId('dep-map');
+  for (const e of forceRuntime.edges) {
+    const a=forcePositions[e.from],b=forcePositions[e.to];
+    const line=svg.querySelector(`[data-from="${CSS.escape(e.from)}"][data-to="${CSS.escape(e.to)}"]`);
+    if (!a||!b||!line) continue;
+    const dx=b.x-a.x,dy=b.y-a.y,d=Math.max(1,Math.hypot(dx,dy));
+    const ux=dx/d,uy=dy/d;
+    line.setAttribute('x1',a.x+ux*9);
+    line.setAttribute('y1',a.y+uy*9);
+    line.setAttribute('x2',b.x-ux*11);
+    line.setAttribute('y2',b.y-uy*11);
+  }
+  for (const n of forceRuntime.ns) {
+    const p=forcePositions[n.id];
+    const el=svg.querySelector(`[data-node="${CSS.escape(n.id)}"]`);
+    if (p&&el) el.setAttribute('transform',`translate(${p.x},${p.y})`);
+  }
+  applyGraphFocusDOM();
+}
+function stopForceMotion() {
+  if (forceFrame) cancelAnimationFrame(forceFrame);
+  forceFrame=0;
+}
+function kickForce(amount=.45) {
+  forceTemperature=Math.max(forceTemperature,amount);
+  forceSteps=0;
+  if (!forceFluid||!isDynamicGraphStyle()||analysisView!=='graph'||!forceRuntime||forceFrame) return;
+  forceFrame=requestAnimationFrame(forceTick);
+}
+function forceTick() {
+  forceFrame=0;
+  if (!forceFluid||!isDynamicGraphStyle()||analysisView!=='graph'||!forceRuntime) return;
+  forceSteps++;
+  const energy=forcePhysicsStep(forceRuntime.ns,forceRuntime.edges,forceRuntime.W,forceRuntime.H,Math.max(.12,forceTemperature),.86);
+  forceTemperature*=.965;
+  updateForceDom();
+  if (forceSteps<220&&(forceTemperature>.025||energy>.12)) forceFrame=requestAnimationFrame(forceTick);
+}
+function renderForceGraph(ns,active,focus,wrap) {
+  const W=Math.max(760,wrap.clientWidth*1.18),H=Math.max(420,wrap.clientHeight*1.38);
+  const visible=new Set(ns.map(n=>n.id));
+  const edges=[];
+  for (const n of ns) for (const dep of n.deps) if (visible.has(dep)) edges.push({from:dep,to:n.id,relation:edgeRelation(dep,n.id)});
+  prepareForceLayout(ns,edges,W,H);
+  forceRuntime={ns,edges,W,H,active};
+  let svg='<defs><marker id="force-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 1L7 4L0 7" fill="none" stroke="#8fa3b6" stroke-width="1.25"/></marker></defs><g id="graph-content">';
+  for (const e of edges) {
+    const on=active.has(e.from)&&active.has(e.to);
+    const dim=focus&&(!focus.has(e.from)||!focus.has(e.to));
+    const rel=e.relation||edgeRelation(e.from,e.to);
+    const fromName=graphNodes.find(n=>n.id===e.from)?.name||e.from,toName=graphNodes.find(n=>n.id===e.to)?.name||e.to;
+    svg+=`<line data-from="${e.from}" data-to="${e.to}" data-relation="${rel.label}" class="force-edge rel-${rel.label.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'')}${on?' active':''}${dim?' muted':''}" marker-end="url(#force-arrow)"><title>${esc(fromName+' '+rel.label+' '+toName+' · '+rel.description)}</title></line>`;
+  }
+  for (const n of ns) {
+    const old=previousGraph.find(v=>v.id===n.id);
+    const changed=old&&differs(old.value,n.value);
+    const change=changeInfo(n);
+    const r=n.role==='output'?7:n.role==='parameter'?6:5.5;
+    const classes=`force-node ${n.role}${active.has(n.id)?' active':''}${sources.has(n.id)?' source':''}${changed?' changed':''}${graphSelected===n.id?' selected':''}`;
+    const showLabel=ns.length<34||n.role!=='calculation'||graphSelected===n.id||graphHover===n.id;
+    const title=graphRoleName(n.role)+' · '+n.name+' · '+n.display+(n.formula?' · '+n.formula:'');
+    svg+=`<g class="${classes}" data-node="${n.id}" tabindex="0" role="button" aria-label="${esc(title)}"><title>${esc(title)}</title><circle class="halo-ring" cx="0" cy="0" r="${r+4}"/><circle class="core" cx="0" cy="0" r="${r}"/>${showLabel?`<text x="10" y="2">${esc(n.name)}</text><text class="force-role" x="10" y="13">${esc(graphRoleName(n.role))}</text>`:''}${change?`<text class="force-change" x="-13" y="-9">${esc(change.short)}</text>`:''}</g>`;
+  }
+  svg+='</g>';
+  byId('dep-map').innerHTML=svg;
+  graphBounds={W,H};
+  if (graphCamera.fit) {
+    const scale=Math.max(.08,Math.min((wrap.clientWidth-24)/W,(wrap.clientHeight-48)/H));
+    graphCamera={x:(wrap.clientWidth-W*scale)/2,y:20+Math.max(0,(wrap.clientHeight-40-H*scale)/2),k:scale,fit:false};
+  }
+  updateGraphTransform();
+  updateForceDom();
+  renderGraphDetail();
+  applyGraphFocusDOM();
+  if (forceFluid) kickForce(.38);
+}
+function makeGraphLayout(ns,portrait) {
+  const ranks={},visiting=new Set(),map=new Map(ns.map(n=>[n.id,n]));
+  function rank(id) {
+    if (ranks[id]!==undefined) return ranks[id];
+    if (visiting.has(id)) throw new Error('Ciclo inesperado no mapa de dependências.');
+    visiting.add(id);
+    const parents=map.get(id).deps.filter(d=>map.has(d));
+    const value=parents.length?1+Math.max(...parents.map(rank)):0;
+    ranks[id]=value;visiting.delete(id);return value;
+  }
+  for (const n of ns) rank(n.id);
+  const count=1+Math.max(...Object.values(ranks));
+  const columns=Array.from({length:count},(_,i)=>ns.filter(n=>ranks[n.id]===i));
+  const order={};
+  function updateOrder() {for (const col of columns) col.forEach((n,i)=>order[n.id]=(i+.5)/Math.max(1,col.length));}
+  updateOrder();
+  // Aproxima os nós de seus pais e filhos sem misturar os níveis.
+  for (let pass=0;pass<6;pass++) {
+    const reverse=pass%2===1;
+    const indices=Array.from({length:count},(_,i)=>reverse?count-1-i:i);
+    for (const c of indices) {
+      const score=n=>{
+        const links=reverse?ns.filter(v=>v.deps.includes(n.id)).map(v=>v.id):n.deps;
+        const ys=links.filter(id=>order[id]!==undefined).map(id=>order[id]);
+        return ys.length?ys.reduce((a,b)=>a+b,0)/ys.length:order[n.id];
+      };
+      columns[c].sort((a,b)=>score(a)-score(b));updateOrder();
+    }
+  }
+  const bw=150,bh=44,pitch=62,gap=54,positions={},edges=[];
+  const rows=Math.max(...columns.map(c=>c.length)),cross=rows*pitch+32;
+  let portraitY=38;
+  for (let c=0;c<count;c++) {
+    const col=columns[c],start=(cross-(col.length-1)*pitch)/2;
+    for (let i=0;i<col.length;i++) {
+      const n=col[i];
+      if (portrait) positions[n.id]={x:100+(i%2)*174,y:portraitY+Math.floor(i/2)*54,w:bw,h:bh,col:c};
+      else positions[n.id]={x:93+c*(bw+gap),y:start+i*pitch,w:bw,h:bh,col:c};
+    }
+    if (portrait) portraitY+=Math.ceil(col.length/2)*54+12;
+  }
+  for (const n of ns) for (const dep of n.deps) if (map.has(dep)) edges.push({from:dep,to:n.id,points:[]});
+  return {positions,edges,W:portrait?374:count*(bw+gap)-gap+36,H:portrait?portraitY:cross+25,portrait};
+}
+function clippedEnd(node,toward) {
+  let dx=toward.x-node.x,dy=toward.y-node.y;
+  if (dx===0&&dy===0) dx=1;
+  const factor=1/Math.max(Math.abs(dx)/(node.w/2),Math.abs(dy)/(node.h/2));
+  return {x:node.x+dx*factor,y:node.y+dy*factor};
+}
+function roundedRoute(points,radius=10) {
+  if (points.length<2) return '';
+  let path=`M${points[0].x},${points[0].y}`;
+  for (let i=1;i<points.length-1;i++) {
+    const a=points[i-1],b=points[i],c=points[i+1];
+    const d1=Math.hypot(b.x-a.x,b.y-a.y),d2=Math.hypot(c.x-b.x,c.y-b.y);
+    if (d1<1e-6||d2<1e-6) continue;
+    const r=Math.min(radius,d1/2,d2/2);
+    const before={x:b.x-(b.x-a.x)*r/d1,y:b.y-(b.y-a.y)*r/d1};
+    const after={x:b.x+(c.x-b.x)*r/d2,y:b.y+(c.y-b.y)*r/d2};
+    path+=`L${before.x},${before.y}Q${b.x},${b.y} ${after.x},${after.y}`;
+  }
+  const last=points[points.length-1];
+  return path+`L${last.x},${last.y}`;
+}
+function graphPosition(id) {
+  const p=graphLayout.positions[id],delta=graphNodeOffsets[id]||0;
+  return {...p,x:p.x+(graphLayout.portrait?delta:0),y:p.y+(graphLayout.portrait?0:delta)};
+}
+function renderedRoute(edge) {
+  const a=graphPosition(edge.from),b=graphPosition(edge.to);
+  const incoming=graphLayout.edges.filter(e=>e.to===edge.to),outgoing=graphLayout.edges.filter(e=>e.from===edge.from);
+  const ip=incoming.findIndex(e=>e.from===edge.from),op=outgoing.findIndex(e=>e.to===edge.to);
+  const incomingOffset=(ip-(incoming.length-1)/2)*3;
+  const outgoingOffset=(op-(outgoing.length-1)/2)*3;
+  if (graphLayout.portrait) {
+    const sx=a.x+outgoingOffset,sy=a.y+a.h/2;
+    const tx=b.x+incomingOffset,ty=b.y-b.h/2;
+    const dy=Math.max(35,Math.abs(ty-sy));
+    const bow=clamp((tx-sx)*.18,-38,38);
+    return `M${sx},${sy}C${sx+bow},${sy+dy*.42} ${tx-bow},${ty-dy*.42} ${tx},${ty}`;
+  }
+  const sx=a.x+a.w/2,sy=a.y+outgoingOffset;
+  const tx=b.x-b.w/2,ty=b.y+incomingOffset;
+  const dx=Math.max(45,Math.abs(tx-sx));
+  const bend=clamp((ty-sy)*.10,-24,24);
+  return `M${sx},${sy}C${sx+dx*.42},${sy+bend} ${tx-dx*.42},${ty-bend} ${tx},${ty}`;
+}
+function renderGraph() {
+  graphNodes=makeGraph(state,result);
+  if (!state.supports.length&&!state.loads.length&&state.mbar===0) graphNodes=graphNodes.filter(n=>['L','mbar','g'].includes(n.id));
+  // Alterações de controles encadeadas ficam registradas, inclusive mudanças de tipo.
+  if (previousGraph.length) for (const n of graphNodes) {
+    const old=previousGraph.find(v=>v.id===n.id);
+    if (old&&[...old.deps].sort().join('|')!==[...n.deps].sort().join('|')) {
+      sources.add(n.id);
+      const removed=old.deps.filter(id=>!n.deps.includes(id)).map(id=>previousGraph.find(p=>p.id===id)?.name||id);
+      const added=n.deps.filter(id=>!old.deps.includes(id)).map(id=>graphNodes.find(p=>p.id===id)?.name||id);
+      n.changeReason=(removed.length?'Entradas removidas '+removed.join(', ')+'. ':'')+(added.length?'Entradas adicionadas '+added.join(', ')+'.':'');
+    }
+    if (n.role==='parameter'&&(!old||differs(old.value,n.value))&&!reachable(sources,graphNodes).has(n.id)) sources.add(n.id);
+  }
+  syncGraphFilter();
+  const wrap=byId('graph-wrap');
+  if (!wrap.clientWidth||!wrap.clientHeight) return;
+  let roots=[];
+  if (graphFilter==='reactions') roots=graphNodes.filter(n=>n.id.startsWith('R_')||n.id.startsWith('MR_')).map(n=>n.id);
+  else if (graphFilter!=='all') roots=[graphFilter];
+  const visible=roots.length?ancestors(roots,graphNodes):new Set(graphNodes.map(n=>n.id));
+  const ns=graphNodes.filter(n=>visible.has(n.id));
+  const portrait=window.innerWidth<=760;
+  const signature=JSON.stringify([portrait,ns.map(n=>[n.id,n.deps])]);
+  if (signature!==graphLayoutSignature) {
+    graphLayoutSignature=signature;
+    graphNodeOffsets={};
+    graphLayout=makeGraphLayout(ns,portrait);
+    graphCamera.fit=true;
+  }
+  const {W,H}=graphLayout;graphBounds={W,H};
+  const active=reachable(sources,graphNodes);
+  const focus=graphSelected?new Set([...ancestors([graphSelected],graphNodes),...reachable([graphSelected],graphNodes)]):null;
+  byId('dep-map').classList.toggle('live-map',graphStyle==='live');
+  byId('live-relations').hidden=graphStyle!=='live';
+  if (isDynamicGraphStyle()) {renderForceGraph(ns,active,focus,wrap);return;}
+  let svg='<defs><marker id="graph-arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L7 4L0 7" fill="none" stroke="#adbdce" stroke-width="1.3"/></marker><marker id="graph-active" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1L7 4L0 7" fill="none" stroke="#4b73b8" stroke-width="1.5"/></marker></defs><g id="graph-content">';
+  const edges=[...graphLayout.edges].sort((a,b)=>Number(active.has(a.from)&&active.has(a.to))-Number(active.has(b.from)&&active.has(b.to)));
+  for (const edge of edges) {
+    const on=active.has(edge.from)&&active.has(edge.to);
+    const dim=focus&&(!focus.has(edge.from)||!focus.has(edge.to));
+    svg+=`<path data-from="${edge.from}" data-to="${edge.to}" class="edge${on?' active':''}${dim?' muted':''}" d="${renderedRoute(edge)}" marker-end="url(#${on?'graph-active':'graph-arrow'})"/>`;
+  }
+  for (const n of ns) {
+    const p=graphPosition(n.id),x=p.x-p.w/2,y=p.y-p.h/2;
+    const old=previousGraph.find(v=>v.id===n.id),changed=old&&differs(old.value,n.value);
+    const change=changeInfo(n);
+    const classes='node '+n.role+(active.has(n.id)?' active':'')+(sources.has(n.id)?' source':'')+(changed?' changed':'')+(graphSelected===n.id?' selected':'')+(focus&&!focus.has(n.id)?' unfocused':'');
+    const roleName={parameter:'Parâmetro',calculation:'Cálculo',output:'Resultado'}[n.role];
+    const stroke={parameter:'#768ba1',calculation:'#ab8b57',output:'#378069'}[n.role];
+    const title=roleName+' · '+n.name+' · '+n.display+(n.formula?' · '+n.formula:'');
+    svg+=`<g class="${classes}" data-node="${n.id}" role="button" tabindex="0" aria-label="${esc(title)}"><title>${esc(title)}</title><rect x="${x}" y="${y}" width="${p.w}" height="${p.h}" rx="8"/><circle cx="${x+11}" cy="${y+13}" r="2.5" fill="${stroke}"/><text x="${x+21}" y="${y+17}" class="label">${esc(n.name)}</text><text x="${x+21}" y="${y+34}" class="sub">${esc(n.display)}</text>${change?`<text x="${x+p.w-12}" y="${y+18}" text-anchor="middle" class="change-arrow">${esc(change.short)}</text>`:''}</g>`;
+  }
+  svg+='</g>';
+  byId('dep-map').innerHTML=svg;
+  if (graphCamera.fit) {
+    const scale=Math.max(portrait?.55:.08,Math.min((wrap.clientWidth-16)/W,(wrap.clientHeight-58)/H));
+    graphCamera={x:(wrap.clientWidth-W*scale)/2,y:28+Math.max(0,(wrap.clientHeight-58-H*scale)/2),k:scale,fit:false};
+  }
+  updateGraphTransform();
+  renderGraphDetail();
+  applyGraphFocusDOM();
+}
+function graphPointerDown(e) {
+  if (e.button>0) return;
+  graphPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  byId('dep-map').setPointerCapture(e.pointerId);
+  const n=e.target.closest('[data-node]');
+  if (graphPointers.size===2) {
+    const [a,b]=[...graphPointers.values()],box=byId('dep-map').getBoundingClientRect();
+    const cx=(a.x+b.x)/2-box.left,cy=(a.y+b.y)/2-box.top;
+    graphPinch={distance:Math.hypot(a.x-b.x,a.y-b.y),k:graphCamera.k,wx:(cx-graphCamera.x)/graphCamera.k,wy:(cy-graphCamera.y)/graphCamera.k};
+    graphDrag=null;
+    forcePinned='';
+    e.preventDefault();
+    return;
+  }
+  if (isDynamicGraphStyle()) {
+    graphDrag={id:e.pointerId,cx:e.clientX,cy:e.clientY,node:n?.dataset.node,start:n?{...forcePositions[n.dataset.node]}:null,x:graphCamera.x,y:graphCamera.y,moved:false};
+    if (n) {forcePinned=n.dataset.node;kickForce(.7);}
+    e.preventDefault();
+    return;
+  }
+  graphDrag={id:e.pointerId,cx:e.clientX,cy:e.clientY,x:graphCamera.x,y:graphCamera.y,node:n?.dataset.node,offset:graphNodeOffsets[n?.dataset.node]||0,moved:false};
+  e.preventDefault();
+}
+function graphPointerMove(e) {
+  if (!graphPointers.has(e.pointerId)) return;
+  graphPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if (graphPinch&&graphPointers.size===2) {
+    const [a,b]=[...graphPointers.values()],box=byId('dep-map').getBoundingClientRect();
+    const distance=Math.max(10,Math.hypot(a.x-b.x,a.y-b.y));
+    const next=clamp(graphPinch.k*distance/graphPinch.distance,.06,4);
+    const cx=(a.x+b.x)/2-box.left,cy=(a.y+b.y)/2-box.top;
+    graphCamera.k=next;
+    graphCamera.x=cx-graphPinch.wx*next;
+    graphCamera.y=cy-graphPinch.wy*next;
+    graphCamera.fit=false;
+    updateGraphTransform();
+    return;
+  }
+  if (!graphDrag||graphDrag.id!==e.pointerId) return;
+  const dx=e.clientX-graphDrag.cx,dy=e.clientY-graphDrag.cy;
+  if (Math.hypot(dx,dy)>5) graphDrag.moved=true;
+  if (!graphDrag.moved) return;
+  if (isDynamicGraphStyle()) {
+    if (graphDrag.node&&graphDrag.start) {
+      const p=forcePositions[graphDrag.node];
+      if (!p) return;
+      p.x=clamp(graphDrag.start.x+dx/graphCamera.k,20,(forceRuntime?.W||graphBounds.W)-20);
+      p.y=clamp(graphDrag.start.y+dy/graphCamera.k,20,(forceRuntime?.H||graphBounds.H)-20);
+      if (forceVelocities[graphDrag.node]) {forceVelocities[graphDrag.node].x=0;forceVelocities[graphDrag.node].y=0;}
+      updateForceDom();
+      kickForce(.85);
+    } else {
+      graphCamera.x=graphDrag.x+dx;
+      graphCamera.y=graphDrag.y+dy;
+      graphCamera.fit=false;
+      updateGraphTransform();
+    }
+    return;
+  }
+  if (graphDrag.node) {
+    graphNodeOffsets[graphDrag.node]=graphDrag.offset+(graphLayout.portrait?dx:dy)/graphCamera.k;
+    renderGraph();
+  } else {
+    graphCamera.x=graphDrag.x+dx;
+    graphCamera.y=graphDrag.y+dy;
+    graphCamera.fit=false;
+    updateGraphTransform();
+  }
+}
+function graphPointerUp(e) {
+  graphPointers.delete(e.pointerId);
+  if (byId('dep-map').hasPointerCapture(e.pointerId)) byId('dep-map').releasePointerCapture(e.pointerId);
+  if (graphPointers.size<2) graphPinch=null;
+  if (!graphDrag||graphDrag.id!==e.pointerId) return;
+  const d=graphDrag;
+  graphDrag=null;
+  if (isDynamicGraphStyle()&&d.node) {forcePinned='';kickForce(.65);}
+  if (!d.moved) {
+    if (d.node) selectGraphNode(d.node);
+    else clearGraphSelection();
+  }
+}
+
+
+function plotCoordinates() {
+  const drawing=byId('drawing'),svg=byId('diagram-svg');
+  const transform=drawing.getScreenCTM(),box=svg.getBoundingClientRect();
+  if (!transform||!geometry) return {x0:55,scale:(box.width-110)/state.L};
+  return {x0:transform.a*geometry.x0+transform.e-box.left,scale:transform.a*geometry.scale};
+}
+function renderPlots() {
+  const wrap=byId('diagram-wrap');
+  if (!wrap.clientWidth||!wrap.clientHeight) return;
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  const svg=byId('diagram-svg');
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  if (!result.valid) {svg.innerHTML=text(W/2,H/2,'Reveja a configuração dos apoios.','plot-label');syncProbe();return;}
+  const geo=plotCoordinates(),xOf=x=>geo.x0+geo.scale*x;
+  const unit=Number(byId('plot-unit').value);
+  const kinds=plotMode==='both'?['V','M']:[plotMode];
+  const d=diagramData(state,result);
+  const n=kinds.length,top=15,bottom=19,row=(H-top-bottom)/n;
+  const mobile=W<550;
+  let out='';
+  for (const x of d.events) out+=line(xOf(x),7,xOf(x),H-14,'#d7dfe5',1,'stroke-dasharray="3 4"');
+  for (let k=0;k<n;k++) {
+    const kind=kinds[k],yTop=top+k*row;
+    const bound=Math.max(1e-12,kind==='V'?d.Vmax:d.Mmax);
+    const half=Math.max(12,(row-44)/2);
+    const zero=yTop+row/2;
+    const amplitude=half/bound;
+    const yOf=value=>zero-value*amplitude;
+    const lineColor=kind==='V'?'#2d725e':'#49698d';
+    const suffix=kind==='V'?(unit===1000?'kN':'N'):(unit===1000?'kN·m':'N·m');
+    out+=line(Math.max(29,xOf(0)-13),zero,Math.min(W-12,xOf(state.L)+27),zero,'#a9b6c1',1.1);
+    out+=text(12,yTop+13,kind,'plot-label','start',`style="font-size:${mobile?13:15}px;fill:${lineColor}"`);
+    out+=text(12,yTop+28,suffix,'plot-label','start','style="font-size:9px"');
+    for (const seg of d.segments) {
+      const first=seg.values[0],last=seg.values[seg.values.length-1];
+      const curve=seg.values.map((p,i)=>(i?'L':'M')+xOf(p.x).toFixed(3)+' '+yOf(p[kind]).toFixed(3)).join('');
+      const area=curve+`L${xOf(last.x)} ${zero}L${xOf(first.x)} ${zero}Z`;
+      out+=`<path d="${area}" fill="${lineColor}" opacity=".055"/><path d="${curve}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linejoin="round"/>`;
+    }
+    for (const x of d.events) {
+      const a=internalAt(state,result,x,'left')[kind],b=internalAt(state,result,x,'right')[kind];
+      if (Math.abs(a-b)>1e-9*bound) out+=line(xOf(x),yOf(a),xOf(x),yOf(b),lineColor,2);
+    }
+    const placed=[];
+    function labelValue(x,value,anchor='middle') {
+      let y=yOf(value)+(value>=0?-7:15);
+      y=clamp(y,yTop+10,yTop+row-4);
+      const px=clamp(xOf(x),44,W-34),word=fmt(value/unit,2);
+      if (placed.some(p=>Math.abs(p.x-px)<Math.max(24,word.length*6)&&Math.abs(p.y-y)<14)) return;
+      placed.push({x:px,y});
+      out+=text(px,y,word,'graph-number halo',anchor,`style="font-size:${mobile?11:12}px"`);
+    }
+    if (kind==='V'&&d.segments.every(seg=>Math.abs(seg.q)<1e-12)) {
+      for (const seg of d.segments) {
+        const mid=(seg.a+seg.b)/2;
+        labelValue(mid,internalAt(state,result,mid).V);
+      }
+    } else {
+      for (let i=0;i<d.events.length;i++) {
+        const x=d.events[i],a=internalAt(state,result,x,'left')[kind],b=internalAt(state,result,x,'right')[kind];
+        if (i===0) labelValue(x,b,'start');
+        else if (i===d.events.length-1) labelValue(x,a,'end');
+        else {labelValue(x,a);if (Math.abs(a-b)>1e-9*bound) labelValue(x,b);}
+      }
+      const max=kind==='V'?d.vmax:d.mmax;
+      if (!d.events.some(x=>Math.abs(x-max.x)<1e-9*state.L)) labelValue(max.x,max[kind]);
+    }
+    const at=internalAt(state,result,probeX,probeSide)[kind];
+    out+=line(xOf(probeX),yTop+2,xOf(probeX),yTop+row-2,'#7e94ab',.9,'stroke-dasharray="2 4" opacity=".45"');
+    out+=`<circle cx="${xOf(probeX)}" cy="${yOf(at)}" r="3.5" fill="white" stroke="${lineColor}" stroke-width="1.6"/>`;
+    if (k<n-1) out+=line(11,yTop+row,W-11,yTop+row,'#edf0f3',1);
+  }
+  out+=text(xOf(0),H-2,'0 m','','middle','style="font-size:10px"');
+  out+=text(xOf(state.L),H-2,fmt(state.L)+' m','','middle','style="font-size:10px"');
+  svg.innerHTML=out;
+  syncProbe();
+}
+function syncProbe() {
+  const r=internalAt(state,result,probeX,probeSide);
+  const range=byId('probe-range');range.max=state.L;
+  if (document.activeElement!==range) range.value=probeX;
+  byId('probe-x').textContent=fmt(probeX,3)+' m';
+  const unit=Number(byId('plot-unit').value),suffix=unit===1000?'kN':'N';
+  byId('probe-v').textContent='V '+(r.V===null?'—':fmt(r.V/unit)+' '+suffix);
+  byId('probe-m').textContent='M '+(r.M===null?'—':fmt(r.M/unit)+' '+suffix+'·m');
+}
+function plotPointer(e) {
+  if (e.type==='pointermove'&&e.buttons!==1) return;
+  const box=byId('diagram-svg').getBoundingClientRect(),geo=plotCoordinates();
+  let x=clamp((e.clientX-box.left-geo.x0)/geo.scale,0,state.L);
+  const nearest=beamEvents(state).reduce((a,b)=>Math.abs(b-x)<Math.abs(a-x)?b:a,0);
+  if (Math.abs(nearest-x)*geo.scale<7) x=nearest;
+  setProbe(x);
+}
+
+
+function stressText(value) {
+  if (!Number.isFinite(value)) return '—';
+  return Math.abs(value)>=1e6?fmt(value/1e6,2)+' MPa':Math.abs(value)>=1e3?fmt(value/1e3,2)+' kPa':fmt(value,2)+' Pa';
+}
+function inertiaText(value) {
+  if (!Number.isFinite(value)) return '—';
+  return value.toExponential(3)+' m⁴';
+}
+function sectionModulusText(value) {
+  if (!Number.isFinite(value)) return '—';
+  return value.toExponential(3)+' m³';
+}
+function renderCalculations() {
+  const host=byId('calculations-content');
+  if (!host) return;
+  const sr=structuralResults(state,result),sec=sr.sec,mat=sr.mat,d=sr.d;
+  if (!result.valid) {
+    host.innerHTML='<div class="calc-empty">Adicione vínculos suficientes para resolver a viga e ver os cálculos estruturais.</div>';
+    return;
+  }
+  const at=internalAt(state,result,probeX,probeSide);
+  const def=sr.deflection.max===null?'—':fmt(sr.deflection.max*1000,2)+' mm';
+  const fos=sr.fos===Infinity?'∞':Number.isFinite(sr.fos)?fmt(sr.fos,2):'—';
+  const shapeName=sec.shape==='i'?'Perfil I / H':'Retangular';
+  const reactions=result.reactions.map(p=>`<span class="calc-chip">R${esc(p.name)} ${esc(forceText(p.R))}${p.type==='fixed'?` · M${esc(p.name)} ${esc(momentText(p.M))}`:''}</span>`).join('');
+  const tauFormula=sec.shape==='i'?'τmax = |V|max · Q / (I · tw)':'τmax = 1,5 · |V|max / A';
+  const secDims=sec.shape==='i'?`b ${fmt(sec.b*1000,0)} · h ${fmt(sec.h*1000,0)} · tw ${fmt(sec.tw*1000,0)} · tf ${fmt(sec.tf*1000,0)} mm`:`b ${fmt(sec.b*1000,0)} · h ${fmt(sec.h*1000,0)} mm`;
+  host.innerHTML=`
+    <div class="calc-summary">
+      <div class="calc-card primary"><div class="calc-kicker">Cortante máximo</div><div class="calc-value">${esc(forceText(d.Vmax))}</div><div class="calc-sub">x ≈ ${fmt(d.vmax?.x,3)} m</div></div>
+      <div class="calc-card primary"><div class="calc-kicker">Momento máximo</div><div class="calc-value">${esc(momentText(d.Mmax))}</div><div class="calc-sub">x ≈ ${fmt(d.mmax?.x,3)} m</div></div>
+      <div class="calc-card stress"><div class="calc-kicker">σ máxima · flexão</div><div class="calc-value">${stressText(sr.sigma)}</div><div class="calc-sub">σ = |M|max / S</div></div>
+      <div class="calc-card stress"><div class="calc-kicker">τ máxima · cisalhamento</div><div class="calc-value">${stressText(sr.tau)}</div><div class="calc-sub">${sec.shape==='i'?'na alma, eixo neutro':'seção retangular'}</div></div>
+      <div class="calc-card"><div class="calc-kicker">Flecha máxima</div><div class="calc-value">${def}</div><div class="calc-sub">${sr.deflection.x===null?'':`x ≈ ${fmt(sr.deflection.x,3)} m`}</div></div>
+      <div class="calc-card safe"><div class="calc-kicker">Fator contra escoamento</div><div class="calc-value">${fos}</div><div class="calc-sub">σy ${stressText(mat.yield)}</div></div>
+    </div>
+    <div class="calc-lower">
+      <section class="calc-panel">
+        <h3>Seção e material</h3>
+        <div class="calc-properties">
+          <div class="calc-property"><span>Perfil</span><strong>${shapeName}</strong></div>
+          <div class="calc-property"><span>Dimensões</span><strong>${secDims}</strong></div>
+          <div class="calc-property"><span>Material</span><strong>${esc(mat.name)}</strong></div>
+          <div class="calc-property"><span>Área A</span><strong>${fmt(sec.A*1e6,0)} mm²</strong></div>
+          <div class="calc-property"><span>Inércia Iₓ</span><strong>${inertiaText(sec.I)}</strong></div>
+          <div class="calc-property"><span>Módulo Sₓ</span><strong>${sectionModulusText(sec.S)}</strong></div>
+          <div class="calc-property"><span>Módulo E</span><strong>${fmt(mat.E/1e9,1)} GPa</strong></div>
+          <div class="calc-property"><span>σy</span><strong>${fmt(mat.yield/1e6,0)} MPa</strong></div>
+          <div class="calc-property"><span>Massa geométrica</span><strong>${fmt(sr.geomMass,1)} kg</strong></div>
+        </div>
+        <div class="calc-reactions">${reactions}</div>
+      </section>
+      <section class="calc-panel">
+        <h3>Cálculos</h3>
+        <div class="calc-equations">
+          <div>|V|max = ${esc(forceText(d.Vmax))}</div>
+          <div>|M|max = ${esc(momentText(d.Mmax))}</div>
+          <div>σmax = |M|max / S = ${stressText(sr.sigma)}</div>
+          <div>${tauFormula} = ${stressText(sr.tau)}</div>
+          <div>κ(x) = M(x) / (E · I)</div>
+          <div>|δ|max = ${def}</div>
+          <div>FoS = σy / σmax = ${fos}</div>
+          <div>Em x = ${fmt(probeX,3)} m · V = ${esc(forceText(at.V))} · M = ${esc(momentText(at.M))}</div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function svgPoint(event) {
+  const svg=byId('drawing');
+  const point=svg.createSVGPoint();
+  point.x=event.clientX;point.y=event.clientY;
+  return point.matrixTransform(svg.getScreenCTM().inverse());
+}
+function pointerDown(event) {
+  if(event.button>0) return;
+  const target=event.target.closest('[data-kind]');
+  if(!target||!geometry) return;
+  if (target.dataset.kind==='beam') {openInspector('beam');event.preventDefault();return;}
+  const point=svgPoint(event);
+  drag={kind:target.dataset.kind,id:target.dataset.id,mode:target.dataset.dragMode||'move',startX:point.x,startY:point.y,origin:clone(state),clientX:event.clientX,clientY:event.clientY,pixelScale:byId('drawing').getScreenCTM().a,scale:geometry.scale,derivative:geometry.derivative,pointer:event.pointerId,moved:false,axis:null};
+  byId('drawing').setPointerCapture(event.pointerId);
+  event.preventDefault();
+}
+function pointerMove(event) {
+  if(!drag||event.pointerId!==drag.pointer) return;
+  if (drag.kind==='support'&&drag.origin.supports.find(p=>p.id===drag.id)?.type==='fixed') return;
+  const dx=(event.clientX-drag.clientX)/drag.pixelScale,dy=(event.clientY-drag.clientY)/drag.pixelScale;
+  if(!drag.moved&&Math.hypot(event.clientX-drag.clientX,event.clientY-drag.clientY)>6) {drag.moved=true;drag.axis=drag.mode==='value'?'y':drag.mode==='both'&&Math.abs(dy)>Math.abs(dx)?'y':'x';}
+  if(!drag.moved) return;
+  if(drag.kind==='support') {
+    const p=drag.origin.supports.find(p=>p.id===drag.id);
+    setSupport(p.id,'x',Math.round((p.x+dx/drag.scale)*100)/100);
+  }
+  if(drag.kind==='load') {
+    const p=drag.origin.loads.find(p=>p.id===drag.id);
+    if (p.kind==='udl'&&drag.mode==='range-start') setLoad(p.id,'x',Math.round((p.x+dx/drag.scale)*100)/100);
+    else if (p.kind==='udl'&&drag.mode==='range-end') setLoad(p.id,'end',Math.round((p.end+dx/drag.scale)*100)/100);
+    else if (p.kind==='udl'&&drag.mode==='range') shiftDistributed(p.id,Math.round((p.x+dx/drag.scale)*100)/100);
+    else if(drag.axis==='y') {
+      const sensitivity=Math.max(p.kind==='mass'?.5:10,p.value/80);
+      setLoad(p.id,'value',Math.round(Math.max(0,p.value-dy*sensitivity)*100)/100);
+    } else setLoad(p.id,'x',Math.round((p.x+dx/drag.scale)*100)/100);
+  }
+  if(drag.kind==='length') setBeam('L',Math.round((drag.origin.L+dx/Math.max(1,drag.derivative))*100)/100);
+  if(drag.kind==='weight') setBeam('mbar',Math.round(Math.max(0,drag.origin.mbar-dy*Math.max(.2,drag.origin.mbar/80))*100)/100);
+  event.preventDefault();
+}
+
+function pointerUp(event) {
+  if(!drag||event.pointerId!==drag.pointer) return;
+  const d=drag;drag=null;
+  if(byId('drawing').hasPointerCapture(event.pointerId)) byId('drawing').releasePointerCapture(event.pointerId);
+  if(!d.moved) {
+    if(d.kind==='support') openInspector('support',d.id);
+    else if(d.kind==='load') openInspector('load',d.id);
+    else openInspector('beam');
+  }
+  requestRender();
+}
+function cancelPointer() {drag=null;}
+function drawingKey(event) {
+  const target=event.target.closest('[data-kind]');
+  if(!target) return;
+  const kind=target.dataset.kind,id=target.dataset.id;
+  if(event.key==='Enter'||event.key===' ') {
+    event.preventDefault();
+    if(kind==='support'||kind==='load') openInspector(kind,id);else openInspector('beam');
+  }
+  if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  const sign=event.key==='ArrowRight'||event.key==='ArrowUp'?1:-1;
+  if(kind==='length') setBeam('L',state.L+sign*.1);
+  if(kind==='weight') setBeam('mbar',state.mbar+sign);
+  if(kind==='support') setSupport(id,'x',state.supports.find(p=>p.id===id).x+sign*.1);
+  if(kind==='load') {
+    const p=state.loads.find(p=>p.id===id);
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight') {if(p.kind==='udl') shiftDistributed(id,p.x+sign*.1);else setLoad(id,'x',p.x+sign*.1);}
+    else setLoad(id,'value',p.value+sign*(p.kind==='mass'?1:100));
+  }
+}
+
+function selfTests() {
+  const tests=[];
+  function near(name,a,b) {tests.push({name,ok:Number.isFinite(a)&&Math.abs(a-b)<=1e-7*Math.max(1,Math.abs(b)),actual:a,expected:b});}
+  function check(name,ok) {tests.push({name,ok:!!ok});}
+  function reaction(r,name) {return r.reactions.find(p=>p.name===name)||{R:NaN,M:NaN};}
+  let s=clone(initial),r=calculate(s);
+  near('Bloco C · RA',reaction(r,'A').R,196.2);
+  near('Bloco C · RB',reaction(r,'B').R,392.4);
+  s.loads[0].x=5;r=calculate(s);near('Carga central · RA',reaction(r,'A').R,294.3);near('Carga central · RB',reaction(r,'B').R,294.3);
+  s=clone(photoExample);r=calculate(s);near('Imagem · RA',reaction(r,'A').R,7500);near('Imagem · RB',reaction(r,'B').R,12500);
+  s.loads[2].direction=1;r=calculate(s);near('Momento invertido · RA',reaction(r,'A').R,12500);near('Momento invertido · RB',reaction(r,'B').R,7500);
+  s=clone(initial);s.supports=[{id:'s1',name:'A',x:0,type:'fixed'}];r=calculate(s);near('Balanço · R',reaction(r,'A').R,588.6);near('Balanço · M',reaction(r,'A').M,3924);
+  s=clone(initial);s.supports[0].type='fixed';s.loads=[];r=calculate(s);near('Engaste e rolete · RA',reaction(r,'A').R,5*98.1/8);near('Engaste e rolete · RB',reaction(r,'B').R,3*98.1/8);near('Engaste e rolete · MA',reaction(r,'A').M,98.1*10/8);
+  s=clone(initial);s.supports.forEach(p=>p.type='fixed');r=calculate(s);near('Biengastada · RA',reaction(r,'A').R,154.998);near('Biengastada · RB',reaction(r,'B').R,433.602);near('Biengastada · MA',reaction(r,'A').M,390.765);near('Biengastada · MB',reaction(r,'B').M,-802.785);
+  s=clone(initial);s.mbar=100/9.81;s.loads=[];s.supports.push({id:'s3',name:'S3',x:5,type:'roller'});r=calculate(s);near('Três apoios · RA',reaction(r,'A').R,18.75);near('Três apoios · RB',reaction(r,'B').R,18.75);near('Três apoios · R central',reaction(r,'S3').R,62.5);
+  s=clone(photoExample);s.supports=[{id:'s1',name:'A',x:0,type:'fixed'}];r=calculate(s);near('Balanço com forças e momento · R',reaction(r,'A').R,20000);near('Balanço com forças e momento · M',reaction(r,'A').M,75000);
+  s=clone(photoExample);s.loads=s.loads.slice(2);r=calculate(s);near('Somente momento · RA',reaction(r,'A').R,-2500);near('Somente momento · RB',reaction(r,'B').R,2500);
+  s=clone(initial);s.loads[0].x=0;s.mbar=0;r=calculate(s);near('Carga no apoio A',reaction(r,'A').R,490.5);near('Carga no apoio A · RB zero',reaction(r,'B').R,0);
+  s=clone(initial);s.supports[0].x=2;s.supports[1].x=8;r=calculate(s);near('Apoios internos · RA',reaction(r,'A').R,130.8);near('Apoios internos · RB',reaction(r,'B').R,457.8);
+  s=clone(initial);s.supports=[];check('Sem apoios',!calculate(s).valid);
+  s=clone(initial);s.supports.pop();check('Um articulado',!calculate(s).valid);
+  s=clone(initial);s.supports.forEach(p=>p.type='roller');check('Só roletes',!calculate(s).valid);
+  s=clone(initial);s.supports[1].x=0;check('Apoios coincidentes',!calculate(s).valid);
+  s=clone(initial);s.supports[0].x=8;r=calculate(s);check('Retenção do rolete',r.valid&&r.warning.length>0);
+  s=clone(initial);s.mbar=0;s.loads=[];r=calculate(s);near('Sem carga · RA',reaction(r,'A').R,0);near('Sem carga · RB',reaction(r,'B').R,0);
+  s=clone(photoExample);s.supports.forEach(p=>p.type='fixed');r=calculate(s);near('Biengastada com momento no apoio · equilíbrio F',r.forceError,0);near('Biengastada com momento no apoio · equilíbrio M',r.momentError,0);
+  return tests;
+}
+
+function render() {
+  ensureBeamModel(state);
+  result=calculate(state);
+  renderElementEditor();
+  renderDrawing();renderGraph();buildControls();renderPlots();renderCalculations();
+}
+function setStateForTest(s) {
+  state=clone(s);ensureBeamModel(state);graphLayoutSignature='';graphNodeOffsets={};sources.clear();previousGraph=[];selection=null;selectedNode='';sidebarSignature='';graphCamera.fit=true;
+  probeX=clamp(probeX,0,state.L);
+  idCounterS=Math.max(2,...state.supports.map(p=>parseInt(p.id.replace(/\D/g,''))||0));
+  idCounterP=Math.max(3,...state.loads.map(p=>parseInt(p.id.replace(/\D/g,''))||0));
+  render();
+}
+function completeTests() {
+  const tests=selfTests();
+  function near(name,a,b,tol=1e-7) {tests.push({name,ok:Number.isFinite(a)&&Math.abs(a-b)<=tol*Math.max(1,Math.abs(b)),actual:a,expected:b});}
+  function check(name,ok) {tests.push({name,ok:!!ok});}
+  let s=clone(photoExample),r=calculate(s),d=diagramData(s,r);
+  near('Imagem V(1 m)',internalAt(s,r,1).V,7500);
+  near('Imagem V(3 m)',internalAt(s,r,3).V,-2500);
+  near('Imagem V(5 m)',internalAt(s,r,5).V,-12500);
+  near('Imagem M(0+)',internalAt(s,r,0).M,0);
+  near('Imagem M(2)',internalAt(s,r,2).M,15000);
+  near('Imagem M(4)',internalAt(s,r,4).M,10000);
+  near('Imagem M(6−)',internalAt(s,r,6,'left').M,-15000);
+  near('Imagem M(6+)',internalAt(s,r,6,'right').M,0);
+  near('Imagem V(6−)',internalAt(s,r,6,'left').V,-12500);
+  near('Imagem V(6+)',internalAt(s,r,6,'right').V,0);
+  near('Imagem V máximo absoluto',d.Vmax,12500);
+  near('Imagem M máximo absoluto',d.Mmax,15000);
+  for (const p of s.loads) {
+    const a=internalAt(s,r,p.x,'left'),b=internalAt(s,r,p.x,'right');
+    if (p.kind==='force') near('Salto de cortante em '+p.name,b.V-a.V,-loadForce(p,s));
+  }
+  s.loads[2].x=3;r=calculate(s);
+  near('Momento interior · RA permanece',r.reactions[0].R,7500);
+  near('Momento interior · salto de M',internalAt(s,r,3).M-internalAt(s,r,3,'left').M,15000);
+  near('Momento interior · sem salto de V',internalAt(s,r,3).V-internalAt(s,r,3,'left').V,0);
+  s=clone(initial);s.loads=[];r=calculate(s);d=diagramData(s,r);
+  near('Peso próprio · M no meio',internalAt(s,r,5).M,98.1*10/8);
+  near('Peso próprio · pico exato de M',d.Mmax,98.1*10/8);
+  near('Peso próprio · V no meio',internalAt(s,r,5).V,0);
+  s=clone(photoExample);s.loads[0].x=6;s.loads[1].x=6;r=calculate(s);
+  check('Duas forças e um momento no mesmo apoio são permitidos',r.valid);
+  s=clone(photoExample);s.supports.forEach(p=>p.type='fixed');s.loads[0].x=1e-8;r=calculate(s);
+  check('Carga próxima do engaste não cria erro de apoio coincidente',r.valid);
+  near('Carga próxima do engaste · equilíbrio de forças',r.forceError,0,1e-6);
+  s=clone(photoExample);s.supports.push({id:'s3',name:'S3',x:3,type:'roller',edge:null});r=calculate(s);
+  check('Três apoios e três cargas',r.valid);
+  near('Três apoios · soma vertical',r.forceError,0,1e-6);
+  near('Três apoios · soma de momentos',r.momentError,0,1e-6);
+  s=clone(photoExample);s.supports[1].x=0;r=calculate(s);
+  check('Dois apoios coincidentes são rejeitados por nome',!r.valid&&r.error.includes('A e B'));
+  s=clone(photoExample);s.supports[1].x=.0001;r=calculate(s);
+  check('Apoios distintos próximos não são confundidos com cargas coincidentes',r.valid);
+  s=clone(photoExample);s.loads[0].value=0;s.loads[1].value=0;s.loads[2].value=0;r=calculate(s);d=diagramData(s,r);
+  near('Sem carga · diagrama V zero',d.Vmax,0);
+  near('Sem carga · diagrama M zero',d.Mmax,0);
+  s=clone(photoExample);r=calculate(s);
+  let graph=makeGraph(s,r);
+  check('Grafo sem agrupamentos de posições, cargas ou apoios',!graph.some(n=>['positions','loadInput','supports','forces','couples','solve'].includes(n.id)));
+  check('Cada posição de carga possui seu próprio nó',s.loads.every(p=>graph.some(n=>n.id==='load_'+p.id+'_x')));
+  check('Cada apoio possui tipo e posição próprios',s.supports.every(p=>graph.some(n=>n.id==='support_'+p.id+'_type')&&graph.some(n=>n.id==='support_'+p.id+'_x')));
+  check('Todo pai do grafo existe',graph.every(n=>n.deps.every(id=>graph.some(p=>p.id===id))));
+  const descendants=reachable(['load_p3_x'],graph);
+  check('Mover um momento puro não afeta reações isostáticas',!descendants.has('R_s1')&&!descendants.has('R_s2'));
+  check('Mover um momento puro afeta o diagrama de M',descendants.has('Msample'));
+  const values=graph.filter(n=>n.id.startsWith('R_')).map(n=>n.value);
+  near('Reação A no grafo',values[0],7500);near('Reação B no grafo',values[1],12500);
+  s=clone(photoExample);s.supports[0].type='fixed';r=calculate(s);graph=makeGraph(s,r);
+  check('Posição de momento participa das reações hiperestáticas',reachable(['load_p3_x'],graph).has('R_s1'));
+  // Relações diferenciais conferidas longe de saltos.
+  for (const x of [.7,2.5,4.5]) {
+    const h=1e-5;
+    const a=internalAt(s,r,x-h),b=internalAt(s,r,x+h),c=internalAt(s,r,x);
+    near('dM/dx = V em '+x+' m',(b.M-a.M)/(2*h),c.V,1e-6);
+    near('dV/dx = −q em '+x+' m',(b.V-a.V)/(2*h),-r.q,1e-6);
+  }
+
+  s=clone(startCase);ensureBeamModel(s);r=calculate(s);
+  let sr=structuralResults(s,r);
+  near('Seção retangular · I',sr.sec.I,.12*.24**3/12,1e-10);
+  near('Balanço 10 kN · Mmax',sr.d.Mmax,60000,1e-8);
+  near('Balanço 10 kN · sigma',sr.sigma,60000/(.12*.24**2/6),1e-8);
+  near('Balanço 10 kN · tau',sr.tau,1.5*10000/(.12*.24),1e-8);
+  near('Balanço 10 kN · flecha',sr.deflection.max,10000*6**3/(3*200e9*(.12*.24**3/12)),5e-4);
+
+  s={L:6,mbar:0,g:9.81,supports:[{id:'s1',name:'A',x:0,type:'pin',edge:'left'},{id:'s2',name:'B',x:6,type:'roller',edge:'right'}],loads:[{id:'p1',name:'P1',x:3,kind:'force',value:10000,direction:1,unit:'kN',edge:null}]};
+  ensureBeamModel(s);r=calculate(s);sr=structuralResults(s,r);
+  near('Apoiada carga central · flecha',sr.deflection.max,10000*6**3/(48*200e9*(.12*.24**3/12)),8e-4);
+
+  s=clone(startCase);ensureBeamModel(s);s.section.shape='i';s.section.b=.20;s.section.h=.30;s.section.tw=.012;s.section.tf=.020;
+  const isp=sectionProperties(s);
+  near('Perfil I · área',isp.A,2*.20*.020+.012*(.30-.040),1e-10);
+  near('Perfil I · inércia',isp.I,(.20*.30**3-(.20-.012)*(.30-.040)**3)/12,1e-10);
+  return tests;
+}
+byId('controls-content').addEventListener('input',controlsInput);
+byId('controls-content').addEventListener('click',controlsClick);
+byId('controls-content').addEventListener('focusout',()=>requestRender());
+byId('element-editor-body').addEventListener('input',controlsInput);
+byId('element-editor-body').addEventListener('click',controlsClick);
+byId('element-editor-body').addEventListener('focusout',()=>requestRender());
+byId('close-element-editor').addEventListener('click',closeInspector);
+byId('add-support').addEventListener('click',()=>addSupport());
+byId('add-block').addEventListener('click',()=>addLoad('mass'));
+byId('add-force').addEventListener('click',()=>addLoad('force'));
+byId('add-moment').addEventListener('click',()=>addLoad('moment'));
+byId('add-udl').addEventListener('click',()=>addLoad('udl'));
+byId('show-reactions').addEventListener('change',e=>{showReactions=e.target.checked;requestRender();});
+byId('graph-expand').addEventListener('click',()=>{document.body.classList.toggle('graph-expanded');graphCamera.fit=true;requestRender();});
+byId('graph-organize').addEventListener('click',()=>{graphLayoutSignature='';graphNodeOffsets={};forceSignature='';forcePositions={};forceVelocities={};graphCamera.fit=true;requestRender();if(isDynamicGraphStyle())kickForce(.9);});
+byId('reset').addEventListener('click',()=>applyExample());
+for (const b of document.querySelectorAll('[data-analysis]')) b.addEventListener('click',()=>setAnalysis(b.dataset.analysis));
+for (const b of document.querySelectorAll('[data-mobile]')) b.addEventListener('click',()=>setMobileView(b.dataset.mobile));
+for (const b of document.querySelectorAll('[data-plot]')) b.addEventListener('click',()=>{
+  plotMode=b.dataset.plot;
+  for (const p of document.querySelectorAll('[data-plot]')) p.classList.toggle('active',p.dataset.plot===plotMode);
+  requestRender();
+});
+byId('plot-unit').addEventListener('change',requestRender);
+byId('probe-range').addEventListener('input',e=>setProbe(Number(e.target.value)));
+byId('probe-side').addEventListener('change',e=>{remember(['probe_side']);probeSide=e.target.value;requestRender();});
+byId('diagram-svg').addEventListener('pointerdown',plotPointer);
+byId('diagram-svg').addEventListener('pointermove',plotPointer);
+byId('graph-filter').addEventListener('change',e=>{graphFilter=e.target.value;graphCamera.fit=true;clearGraphSelection();requestRender();});
+document.querySelectorAll('[data-graph-style]').forEach(button=>button.addEventListener('click',()=>{
+  graphStyle=button.dataset.graphStyle;
+  document.querySelectorAll('[data-graph-style]').forEach(b=>b.classList.toggle('active',b===button));
+  byId('graph-fluid-control').hidden=!isDynamicGraphStyle();
+  byId('live-relations').hidden=graphStyle!=='live';
+  graphCamera.fit=true;
+  forceSignature='';
+  if (!isDynamicGraphStyle()) stopForceMotion();
+  renderGraphDetail();
+  requestRender();
+}));
+byId('graph-fluid').checked=forceFluid;
+byId('graph-fluid-control').hidden=!isDynamicGraphStyle();
+byId('live-relations').hidden=graphStyle!=='live';
+byId('graph-fluid').addEventListener('change',e=>{
+  forceFluid=e.target.checked;
+  if (forceFluid) kickForce(.9);
+  else stopForceMotion();
+});
+byId('dep-map').addEventListener('pointerover',graphHoverIn);
+byId('dep-map').addEventListener('pointerout',graphHoverOut);
+byId('context-menu').addEventListener('click',e=>{const b=e.target.closest('[data-context-index]');if(!b)return;const fn=byId('context-menu')._actions?.[Number(b.dataset.contextIndex)];hideContextMenu();if(fn)fn();});
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('#context-menu'))hideContextMenu();});
+byId('drawing').addEventListener('contextmenu',showContextMenu);
+byId('clear-highlight').addEventListener('click',()=>{sources.clear();previousGraph=[];selectedNode='';clearGraphSelection();requestRender();});
+byId('graph-fit').addEventListener('click',()=>{graphCamera.fit=true;requestRender();});
+byId('graph-plus').addEventListener('click',()=>zoomGraph(1.25));
+byId('graph-minus').addEventListener('click',()=>zoomGraph(.8));
+byId('dep-map').addEventListener('wheel',e=>{e.preventDefault();const box=e.currentTarget.getBoundingClientRect();zoomGraph(Math.exp(-e.deltaY*.0015),e.clientX-box.left,e.clientY-box.top);},{passive:false});
+byId('dep-map').addEventListener('pointerdown',graphPointerDown);
+byId('dep-map').addEventListener('pointermove',graphPointerMove);
+byId('dep-map').addEventListener('pointerup',graphPointerUp);
+byId('dep-map').addEventListener('pointercancel',graphPointerUp);
+byId('dep-map').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){const n=e.target.closest('[data-node]');if(n){e.preventDefault();selectGraphNode(n.dataset.node);}}});
+byId('drawing').addEventListener('pointerdown',pointerDown);
+byId('drawing').addEventListener('pointermove',pointerMove);
+byId('drawing').addEventListener('pointerup',pointerUp);
+byId('drawing').addEventListener('pointercancel',cancelPointer);
+byId('drawing').addEventListener('keydown',drawingKey);
+document.addEventListener('keydown',e=>{
+  const typing=['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName);
+  if (!typing&&(e.key==='Delete'||e.key==='Backspace')&&selection) {e.preventDefault();deleteSelected();}
+});
+const resizeObserver=new ResizeObserver(()=>{graphCamera.fit=true;requestRender();});
+resizeObserver.observe(byId('drawing-wrap'));resizeObserver.observe(byId('graph-wrap'));resizeObserver.observe(byId('diagram-wrap'));
+render();
+window.beamLab={calculate,internalAt,diagramData,makeGraph,reachable,intensityAt,rangeAt,stiffnessReactions,shiftDistributed,sectionProperties,structuralResults,deflectionData,selfTests:completeTests,getState:()=>clone(state),getResult:()=>clone(result),getGraph:()=>clone(graphNodes),getGeometry:()=>clone(geometry),getSelection:()=>clone(selection),setState:setStateForTest,setBeam,setSupport,setLoad,addSupport,addLoad,deleteSelected,removeObject,openInspector,closeInspector,applyExample,setAnalysis,setProbe,setMobileView,getSources:()=>[...sources],getGraphLayout:()=>clone(graphLayout),getGraphCamera:()=>clone(graphCamera),getGraphOffsets:()=>clone(graphNodeOffsets),setReactionVisibility:value=>{showReactions=Boolean(value);render();},getReactionVisibility:()=>showReactions,setGraphStyle:value=>{if(['hierarchy','force','live'].includes(value)){graphStyle=value;forceSignature='';requestRender();}},getGraphStyle:()=>graphStyle};
+
+</script>
+</body></html>

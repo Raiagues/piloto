@@ -1,0 +1,47 @@
+[00:00:00] The reference beam is 6 metres long, with A fixed on the left.
+[00:00:10] In the length study, P1 is 10 kN downward at the free end, with zero self-weight.
+[00:00:21] The length comparison must keep the same tip force and the left fixed support.
+[00:00:31] Maybe shortening the beam to 4 metres would reduce the reaction moment at A.
+[00:00:41] Can everyone hear me?
+[00:00:47] Let's test that idea in L1, with 4 metres and a 10 kN tip load.
+[00:00:58] Yes, I can hear you.
+[00:01:05] The L1 simulation, at 4 metres and 10 kN, reduced A's reaction moment from 60 to 40 kN metres.
+[00:01:17] L1 used 4 metres and 10 kN and gave 40 kN metres. I'm rereading the same simulation result.
+[00:01:29] Let's repeat L1 as L1R, keeping 4 metres and the 10 kN tip load.
+[00:01:39] Now let's discuss the separate distributed-load case.
+[00:01:46] The distributed-load case uses a 6-metre beam fixed on the left, zero self-weight, and no point loads.
+[00:01:58] Its downward distributed load is 2 kN per metre along the full beam.
+[00:02:08] Maybe replacing that distributed load with 12 kN at its centre would preserve the support reactions.
+[00:02:19] Let's test that reaction-equivalence idea, starting with D1 at 2 kN per metre over 6 metres.
+[00:02:30] The D1 simulation, with 2 kN per metre over 6 metres, gave 12 kN and 36 kN metres at A.
+[00:02:43] I'll grab some water.
+[00:02:49] Back to the length study, the L1R repeat simulation used 4 metres and 10 kN and again gave 40 kN metres.
+[00:03:02] Based on that repeat result, we adopt the 4-metre model for the length study only.
+[00:03:13] The report must include a support-reaction check, but the applicable load case is unspecified.
+[00:03:23] Can you zoom in on the shared screen?
+[00:03:31] Back to distributed loading, simulate D2 with 12 kN at x = 3 metres instead of the distributed load.
+[00:03:43] The D2 simulation gave the same reactions as D1, 12 kN and 36 kN metres at A.
+[00:03:55] Maybe D1 and D2 have equal bending moments at x = 4 metres.
+[00:04:05] Let's compare D1 and D2 at x = 4 metres in a new simulation check, D3.
+[00:04:16] In the D3 check at x = 4 metres, D1 gave -4 kN metres and D2 gave zero.
+[00:04:28] Let's move to the separate two-support case.
+[00:04:35] The two-support case has a 6-metre beam, with A pinned at the left end and B on a roller at the right end.
+[00:04:49] Only a 10 kN downward force acts at the centre, and self-weight is zero.
+[00:04:59] Maybe the two supports share that central load equally.
+[00:05:07] Let's check that in S1, with A at zero, B at 6 metres, and 10 kN at the centre.
+[00:05:19] The S1 simulation gave 5 kN upward at each support.
+[00:05:28] My coffee is getting cold.
+[00:05:35] Let's run S2 with the same supports, moving the 10 kN force to x = 4 metres.
+[00:05:47] The S2 simulation gave about 3.33 kN at A and 6.67 kN at B, both upward.
+[00:05:58] Let's return to the length study.
+[00:06:05] Run L2 on the 4-metre cantilever with a 12 kN tip load.
+[00:06:14] In the L2 simulation, I accidentally used 10 kN at the 4-metre tip. The reaction moment was 40 kN metres.
+[00:06:27] Let's rerun L2 as L2R with the specified 12 kN at the 4-metre tip.
+[00:06:37] Sorry, my microphone was muted.
+[00:06:44] The L2R simulation used 12 kN at the 4-metre tip and gave 48 kN metres at A.
+[00:06:56] We will keep the 12 kN length case separate, without replacing the adopted 10 kN model.
+[00:07:07] For distributed loading, that reporting requirement applies to the vertical reaction at A.
+[00:07:17] Can everyone still see the shared screen?
+[00:07:24] Back to the two-support case, the original S1 simulation gave 5 kN upward at each support.
+[00:07:35] We will retain the two-support case as a separate model.
+[00:07:44] Thanks, everyone.
