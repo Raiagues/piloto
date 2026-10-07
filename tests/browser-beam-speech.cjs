@@ -23,6 +23,9 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
      else if(id==='action_mode'){const modes=[...new Set(ops.map(op=>op.type.startsWith('add_')?'add':op.type.startsWith('update_')?'update':op.type.startsWith('remove_')?'remove':op.type.startsWith('change_')?'change':'view'))];choice=modes.length>1?'mixed':modes[0]||'not_applicable';}
      else if(id==='candidate_fit')choice=body.state.deterministic_candidate.issues.length?'incomplete':'exact';
      else if(id==='command_type')choice='conversation';
+     else if(id==='speech_status')choice=/(?:^|\s)(?:de|para|que|foi|era)$/.test(body.state.current_utterance||'')?'unfinished':'finished';
+     else if(id==='speech_join')choice='separate';
+     else if(id==='command_completion')choice=/\d/.test(body.state.next_utterance||'')?'completes':'separate';
      else if(id==='event_type')choice=/^Teste de simulação|^hoje a gente/.test(utterance)?'test_proposal':/^Resultado calculado|^A simulação.*não produziu/.test(utterance)?'test_result':/^Talvez|^então vamos começar|^então o que eu pensei/.test(utterance)?'hypothesis':'observation';
      else if(id==='belongs_to_active_thread'||id.startsWith('belongs_to_archive_thread__'))choice='belongs';
      else if(id.startsWith('relation_type__'))choice=current?.type==='test_result'&&target?.type==='test_proposal'&&simId(current.text)===simId(target.text)?'result_of':'none';
@@ -76,7 +79,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    'então o que eu pensei era da gente pegar e conseguir diminuir o tamanho dela'
   ];
   const visible=selector=>evaluate(`!!document.querySelector(${JSON.stringify(selector)})?.getClientRects().length`);
-  const drained=()=>wait('(()=>{const r=NorteMeetingRoom.snapshot();return r.records.length>0&&r.records.every(x=>x.status==="done")&&r.thread_worker.jobs.every(x=>x.status==="done")&&r.typed_relation_worker.jobs.every(x=>["done","skipped"].includes(x.status));})()');
+  const drained=()=>wait('(()=>{const r=NorteMeetingRoom.snapshot();return r.records.length>0&&r.transcript.every(x=>["done","command","error"].includes(x.status))&&r.records.every(x=>x.status==="done")&&r.thread_worker.jobs.every(x=>x.status==="done")&&r.typed_relation_worker.jobs.every(x=>["done","skipped"].includes(x.status));})()');
   await call('Page.navigate',{url:origin+'/index.html#simulacao'});
   await wait('window.NorteMeetingRoom?.ready() && NorteClassifier.isAvailable() && document.body.dataset.page==="beam"');
   await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');await click('#roomCreateInstant');
@@ -84,6 +87,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(requests.length,0);assert.equal(await evaluate('(window.__speechInstances||[]).length'),0);
   assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(b=>!b.hidden).map(b=>b.textContent)'),['Canvas']);
   assert.equal(await visible('#beamSimulationSuggestion'),false);assert.equal(await evaluate('!!document.querySelector("#beamRoomHint")'),false);
+  assert.equal(await visible('#roomTranscriptPanel'),false,'transcription is hidden by default');await click('#roomTranscriptToggle');
   assert.equal(await evaluate('document.querySelector("#roomTranscriptDivider").getAttribute("aria-valuenow")'),'78','new beam room reserves roughly 22% for transcription');
   const ratio=await evaluate('document.querySelector("#roomTranscriptPanel").getBoundingClientRect().height/document.querySelector("#roomWorkspace").getBoundingClientRect().height');
   assert.ok(ratio>.15&&ratio<.26,'compact default transcript proportion '+ratio);
@@ -96,7 +100,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok((await evaluate('document.querySelector("#roomInterim").textContent')).split(/\s+/).length<=18,'interim preview is bounded while the complete source remains in the ledger');
   await wait('__speechInstances.length===2');
   const firstStop=await evaluate('({duration:__speechInstances[0].stoppedAt-__speechInstances[0].startedAt,stops:__speechInstances[0].stopCalls})');
-  assert.ok(firstStop.duration>=4900&&firstStop.duration<5500,'native capture stops at five seconds: '+firstStop.duration);assert.equal(firstStop.stops,1);
+  assert.ok(firstStop.duration>=14900&&firstStop.duration<15600,'unconfirmed native speech is finalized after fifteen seconds, not on a fixed five-second clock: '+firstStop.duration);assert.equal(firstStop.stops,1);
   await wait('NorteMeetingRoom.snapshot().records.length===3');await drained();
   await wait('document.querySelectorAll("#roomTranscript .room-speech").length===4');
   let run=await snapshot();assert.deepEqual(run.transcript.map(e=>e.text),expected);
@@ -134,22 +138,21 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(await evaluate('document.querySelector("#roomTranscriptDivider").getAttribute("aria-valuenow")'),'73','resize remains available after compact defaults');
   await evaluate('document.querySelector(".room-transcript-scroll").scrollTop=0');await screenshot('final-command');
   await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),false);await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),true);
-  // A command crossing a forced capture boundary uses the existing pending
-  // command context: no fabricated kN, no duplicated action or source text.
+  // A command split by a pause waits for its value and runs once, complete:
+  // no fabricated kN, no premature ambiguous attempt, no duplicated source text.
   await click('#roomLive');await wait('__speechInstances.length===3');
-  await evaluate(`__speech.emit('Norte, mude a força P1 para',false,0);__speech.finalOnStop='Norte, mude a força P1 para'`);
-  await wait('__speechInstances.length===4 && NorteMeetingRoom.snapshot().beam_commands?.length===2');
-  assert.equal((await snapshot()).beam_commands[1].status,'ambiguous');
-  await evaluate(`__speech.emit('12 kN',false,0);__speech.finalOnStop='12 kN'`);await click('#roomLive');
+  await evaluate(`__speech.emit('Norte, mude a força P1 para',false,0);__speech.emit('Norte, mude a força P1 para',true,0)`);
+  await sleep(400);assert.equal((await snapshot()).beam_commands.length,1,'the unfinished instruction waits for its value');
+  await evaluate(`__speech.emit('12 kN',false,1);__speech.finalOnStop='12 kN'`);await click('#roomLive');
   await wait('NorteMeetingRoom.snapshot().beam_lab.state.loads[0].value===12000 && !document.querySelector("#roomLive").disabled');await drained();
-  run=await snapshot();assert.equal(run.beam_commands.length,3);assert.equal(run.beam_commands[2].status,'applied');assert.equal(run.beam_commands[2].raw_text,'12 kN');
+  run=await snapshot();assert.equal(run.beam_commands.length,2);assert.equal(run.beam_commands[1].status,'applied');assert.equal(run.beam_commands[1].text,'Norte, mude a força P1 para 12 kN');
   assert.deepEqual(run.speech_ledger.records.map(r=>r.text),[rawSpeech,rawCommand,'Norte, mude a força P1 para','12 kN']);assert.equal(run.transcript.filter(e=>e.text==='12 kN').length,1);
   await click('#roomFinish');await wait('NorteMeetingRoom.snapshot()?.status==="done" && !NorteMeetingRoom.isRunning()');
-  assert.equal((await snapshot()).transcript.length,11);assert.equal(await evaluate('__speechInstances.length'),4);assert.equal(await evaluate('__speechInstances.every(instance=>instance.stopCalls===1)'),true);
+  assert.equal((await snapshot()).transcript.length,11);assert.equal(await evaluate('__speechInstances.length'),3,'no restarts besides the forced finalization and the two pauses');assert.equal(await evaluate('__speechInstances.every(instance=>instance.stopCalls===1)'),true);
   await evaluate('NorteMeetingRoom.flushStorage()');
   assert.deepEqual(errors,[]);
   assert.equal(await evaluate('NorteMeetingSession.restore(NorteMeetingRoom.snapshot()).transcript.length'),11,'continuation requests restore with their verified original context');
-  console.log('PASS: five-second native capture, short literal transcript rows with bounded unfinished-clause continuation, 65% facts retained, contextual top hint and on-demand simulation tab, source/timing preserved, cross-window command executes once, delayed final on pause retained and memory restore.');
+  console.log('PASS: continuous native capture with a fifteen-second limit for unconfirmed speech, short literal transcript rows with bounded unfinished-clause continuation, 65% facts retained, contextual top hint and on-demand simulation tab, source/timing preserved, a command split at a pause runs once with its value, delayed final on pause retained and memory restore.');
  }finally{
   socket?.close();
   await new Promise(resolve=>{if(chrome.exitCode!==null)return resolve();chrome.once('exit',resolve);chrome.kill('SIGTERM');});

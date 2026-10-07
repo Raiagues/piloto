@@ -9,7 +9,7 @@ const words=text=>(text.match(/\S+/gu)||[]).length;
 const abbreviations=/^(?:sr|sra|srta|dr|dra|prof|profa|eng|engª|etc|ex|art|fig|aprox|vs|mr|mrs|ms|figs)$/iu;
 const filler='(?:tá|ta|então|entao|bom|bem|ok|okay|certo|beleza|aí|ai|agora|olha|é|e|o)';
 const fillers=new RegExp('(?:(?<![\\p{L}\\p{N}])'+filler+'[\\s,;:–—-]+)+$','iu');
-const wake=/\bnorte\s*[,!:;–—-]?\s*(?:(?:por favor|eu quero|eu queria|a gente vai|voc[eê])\s+)?(?:pode|poderia|vamos|mude|muda|mudar|altere|altera|troque|troca|coloque|coloca|adicione|adiciona|remova|remove|retire|retira|exclua|exclui|abra|abre|abrir|inicie|inicia|simule|simula|mostre|mostra|compare|compara|renomeie|renomeia|o assunto|o título|o titulo|move|mova|deixe|deixa|aumente|aumenta|reduza|reduz|diminua|diminui|aplique|aplica|defina|define|quero|preciso|show|open|change|rename)\b/giu;
+const wake=/\bnorte\s*[,!:;–—-]?\s*(?:(?:por favor|eu quero|eu queria|a gente vai|voc[eê])\s+)?(?:pode|poderia|vamos|mude|muda|mudar|altere|altera|troque|troca|coloque|coloca|bote|bota|ponha|põe|poe|adicione|adiciona|acrescente|acrescenta|insira|insere|remova|remove|retire|retira|tire|tira|apague|apaga|exclua|exclui|abra|abre|abrir|inicie|inicia|simule|simula|mostre|mostra|exiba|exibe|compare|compara|use|usa|utilize|utiliza|volte|volta|inverta|inverte|ajuste|ajusta|renomeie|renomeia|o assunto|o título|o titulo|move|mova|deixe|deixa|aumente|aumenta|reduza|reduz|diminua|diminui|aplique|aplica|defina|define|quero|preciso|show|open|change|rename)\b/giu;
 const idea=/\b(?:hoje (?:a gente|nós|nos|vamos)|então vamos começar|entao vamos comecar|a gente vai tentar (?:mudar|alterar|testar|comparar|verificar|medir)|porque (?:ela|ele|a viga|o suporte|a peça|a peca) (?:tinha|tem|está|esta|apresenta)|talvez|pode ser que|suspeito que|a hipótese (?:é|e)|minha hipótese|vamos (?:testar|repetir|verificar|medir|comparar|adotar|manter|avaliar)|precisamos (?:testar|repetir|verificar|medir|confirmar|avaliar)|a gente (?:precisa|pode|vai) (?:testar|repetir|verificar|medir|avaliar)|o resultado (?:foi|mostrou|deu|indica)|os resultados (?:foram|mostraram|indicam)|(?:o teste|o ensaio|a simulação) (?:mostrou|deu|indicou|confirmou|retornou)|(?:testamos|observamos|medimos|obtivemos|decidimos|combinamos|definimos)|ficou decidido|outro (?:ponto|assunto|problema)|mudando de assunto|voltando (?:ao|à|para)|agora (?:vamos|sobre|falando)|(?:maybe|perhaps|let's test|let’s test|we tested|we measured|we decided|the result was|another issue))\b/giu;
 const conjunction=/\s+(?=(?:mas|porém|porem|entretanto|no entanto|além disso|alem disso|por outro lado|e (?:agora|também|tambem|depois|então|entao)|and (?:now|then)|however)\s)/giu;
 function quotedAt(text,index){
@@ -98,7 +98,7 @@ function segment(input,{softWords=12,maxWords=18,preserveCommands=true}={}){
 function split(text,options){return segment(text,options).map(part=>part.text);}
 function entries(entry,source=entry.source||'text'){
  const original=entry.sourceText||entry.text,parts=segment(entry.text);
- return parts.map((part,index)=>({text:part.text,source,speaker:entry.speaker,offsetMs:entry.offsetMs,sourceId:entry.sourceId,segmentId:entry.segmentId,sourceText:index===0?original:undefined,...(index||entry.speechContext?{speechContext:boundedContext([entry.speechContext,entry.text.slice(0,part.start)].filter(Boolean).join(' '))}:{})}));
+ return parts.map((part,index)=>({text:part.text,source,speaker:entry.speaker,offsetMs:entry.offsetMs,endOffsetMs:entry.endOffsetMs,sourceId:entry.sourceId,segmentId:entry.segmentId,sourceText:index===0?original:undefined,...(index||entry.speechContext?{speechContext:boundedContext([entry.speechContext,entry.text.slice(0,part.start)].filter(Boolean).join(' '))}:{})}));
 }
 function boundedContext(text){return String(text||'').trim().split(/\s+/u).slice(-60).join(' ').slice(-1600);}
 // Capture windows remain short. Only a literally unfinished non-command clause
@@ -106,7 +106,8 @@ function boundedContext(text){return String(text||'').trim().split(/\s+/u).slice
 function unfinished(text){
  text=String(text||'').trim();
  if(isCommand(text)||/[.!?…]$/u.test(text))return false;
- return /\b(?:de|do|da|dos|das|para|pra|por|com|uma?|o|a|que|se|então|entao|vai|vou|vamos|suger|consegui)\s*$/iu.test(text)||/\b(?:de|para|pra|em)\s+\d+(?:[.,]\d+)?\s*$/iu.test(text);
+ // \b is ASCII-only in JavaScript: "tensão" would end in the article "o". Use letter-aware edges.
+ return /(?<![\p{L}\p{N}])(?:de|do|da|dos|das|para|pra|por|com|uma?|o|a|que|se|então|entao|vai|vou|vamos|suger|consegui)\s*$/iu.test(text)||/(?<![\p{L}\p{N}])(?:de|para|pra|em)\s+\d+(?:[.,]\d+)?\s*$/iu.test(text);
 }
 function canContinue(previous,next){
  if(!unfinished(previous)||!String(next||'').trim()||isCommand(next))return false;

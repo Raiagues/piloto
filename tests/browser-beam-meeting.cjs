@@ -22,6 +22,9 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
      else if(id==='action_mode'){const modes=[...new Set(ops.map(op=>op.type.startsWith('add_')?'add':op.type.startsWith('update_')?'update':op.type.startsWith('remove_')?'remove':op.type.startsWith('change_')?'change':'view'))];choice=modes.length>1?'mixed':modes[0]||'not_applicable';}
      else if(id==='candidate_fit')choice=body.state.deterministic_candidate.issues.length?'incomplete':'exact';
      else if(id==='command_type')choice='conversation';
+     else if(id==='speech_join')choice='separate';
+     else if(id==='command_completion')choice=/\d/.test(body.state.next_utterance||'')?'completes':'separate';
+     else if(id==='speech_status')choice='finished';
      else if(id==='event_type')choice=/^Teste de simulação/.test(body.state.current_utterance)?'test_proposal':/^Resultado calculado|^A simulação.*não produziu/.test(body.state.current_utterance)?'test_result':/^Talvez/.test(body.state.current_utterance)?'hypothesis':'observation';
      else if(id==='belongs_to_active_thread'||id.startsWith('belongs_to_archive_thread__'))choice='belongs';
      else if(id.startsWith('relation_type__'))choice=current?.type==='test_result'&&target?.type==='test_proposal'&&simId(current.text)===simId(target.text)?'result_of':'none';
@@ -134,8 +137,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok(await evaluate('document.querySelector("[data-chart=deflection] .bw-current-path").getAttribute("d").length>100'));
   assert.equal((await snapshot()).records.length,recordsBeforeView,'graph commands never become invented memory facts');
   assert.ok(await evaluate('[...document.querySelectorAll(".bw-chart svg")].every(svg=>svg.getBoundingClientRect().height>200)'),'engineering plots have readable dimensions in the shared platform CSS');
-  await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),false);
-  await screenshot('graphs');await click('#roomTranscriptToggle');
+  assert.equal(await visible('#roomTranscriptPanel'),false,'transcription is hidden by default');
+  await screenshot('graphs');await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),true);await click('#roomTranscriptToggle');
   assert.equal(await visible('#beamTab-results'),false);assert.equal(await visible('#beamTab-calculations'),false);
   await command('quero ver os resultados');assert.equal(await visible('.bw-pane[data-pane="results"]'),true);
   assert.match(await evaluate('document.querySelector(".bw-pane[data-pane=results]").textContent'),/72/);

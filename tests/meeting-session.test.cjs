@@ -383,3 +383,149 @@ test('restore rejects forged grouped-window provenance instead of silently detac
   run=>run.transcript[1].text='para 150 MM'
  ]){const corrupt=clone(saved);mutate(corrupt);assert.throws(()=>S.restore(corrupt),'the grouped source audit must match the recorded fact');}
 });
+
+// Speech continuation gate (live microphone): Jev decides whether to wait for the rest.
+function gated(unfinished,{fail=null,seen=[],joins=()=>false,pairs=[],completes=()=>false,commands=[]}={}){
+ return (req,provider,lane)=>{
+  if(lane!=='speech')return fixture(req,provider,lane);
+  assert.ok(!JSON.stringify(req).includes('expected_'));
+  if(req.questions.command_completion){
+   assert.deepEqual(Object.keys(req.questions),['command_completion']);commands.push(req.state);
+   const p=completes(req.state.current_utterance,req.state.next_utterance)?.97:.03;
+   return {request:clone(req),provider:'official',latencyMs:1,response:{model:'fixture',answers:{command_completion:{type:'choice',choice:p>.5?'completes':'separate',confidence:.5,probabilities:{completes:p,separate:1-p}}}}};
+  }
+  if(req.questions.speech_join){
+   assert.deepEqual(Object.keys(req.questions),['speech_join']);pairs.push(req.state);if(fail)throw fail;
+   const p=joins(req.state.current_utterance,req.state.next_utterance)?.95:.05;
+   return {request:clone(req),provider:'official',latencyMs:1,response:{model:'fixture',answers:{speech_join:{type:'choice',choice:p>.5?'same_point':'separate',confidence:.5,probabilities:{same_point:p,separate:1-p}}}}};
+  }
+  assert.deepEqual(Object.keys(req.questions),['speech_status']);
+  seen.push(req.state);if(fail)throw fail;
+  const p=unfinished(req.state.current_utterance)?.92:.08;
+  return {request:clone(req),provider:'official',latencyMs:1,response:{model:'fixture',answers:{speech_status:{type:'choice',choice:p>.5?'unfinished':'finished',confidence:.5,probabilities:{finished:1-p,unfinished:p}}}}};
+ };
+}
+const fast={waitMs:120,maxWaitMs:400,pauseMs:6000};
+test('an announced test result waits for the speaker and becomes one chunk with its outcome',async()=>{
+ const seen=[],s=S.create({send:gated(text=>/validou$/.test(text),{seen}),continuation:fast});
+ s.append('RESULTADO a gente testou e validou',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ await sleep(40);assert.equal(s.run.records.length,0,'still waiting for the outcome');
+ s.append('a viga de 13 cm passou no ensaio de tensão',{source:'microphone',speaker:'Ana',offsetMs:3800,endOffsetMs:6000});
+ const run=await s.close();
+ assert.equal(run.records.length,1);assert.equal(run.batch.cases[0].current_utterance,'RESULTADO a gente testou e validou a viga de 13 cm passou no ensaio de tensão');
+ assert.deepEqual(run.batch.cases[0].source_entry_ids,['S0001','S0002']);
+ assert.deepEqual(run.records[0].segmentation.checks.map(c=>[c.wait,c.merged??null]),[[true,true],[false,null]]);
+ assert.equal(seen[0].current_utterance,'RESULTADO a gente testou e validou');assert.equal(seen[1].current_utterance,run.batch.cases[0].current_utterance);
+ assert.equal(run.meeting_events[0].type,'test_result');
+});
+test('a finished piece is processed at once and keeps the previous piece only as context',async()=>{
+ const seen=[],s=S.create({send:gated(()=>false,{seen}),continuation:fast});
+ s.append('o teste de carga deu 12 mm de deslocamento',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ s.append('alguém pode compartilhar a tela',{source:'microphone',speaker:'Ana',offsetMs:3500,endOffsetMs:5000});
+ const run=await s.close();
+ assert.equal(run.records.length,2);assert.equal(seen[1].previous_context,'o teste de carga deu 12 mm de deslocamento');
+});
+test('the gate never merges a new command, a long pause or another speaker',async()=>{
+ for(const [text,meta] of [['Norte, abra a simulação',{speaker:'Ana',offsetMs:3500}],['a viga passou',{speaker:'Ana',offsetMs:20000}],['a viga passou',{speaker:'Bruno',offsetMs:3500}]]){
+  const s=S.create({send:gated(()=>true),continuation:fast});
+  s.append('então o resultado foi',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+  s.append(text,{source:'microphone',...meta,endOffsetMs:meta.offsetMs+1500});
+  const run=await s.close();
+  assert.equal(run.batch.cases[0].current_utterance,'então o resultado foi',text+' '+meta.speaker);
+ }
+});
+test('an unfinished piece without a continuation is processed after the wait instead of being lost',async()=>{
+ const s=S.create({send:gated(()=>true),continuation:fast});
+ s.append('a gente vai tentar fazer',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ const started=Date.now();await sleep(300);assert.equal(s.run.records.length,1,'processed after waitMs');assert.ok(Date.now()-started<400);
+ const run=await s.close();assert.equal(run.records[0].segmentation.checks[0].merged,false);
+});
+test('ongoing unconfirmed speech keeps the wait open until the continuation arrives',async()=>{
+ const s=S.create({send:gated(text=>/foi$/.test(text)),continuation:fast});
+ s.append('o resultado do ensaio de fadiga foi',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ for(let i=0;i<5;i++){await sleep(60);s.heard();}
+ assert.equal(s.run.records.length,0,'speech in progress: no cut after waitMs');
+ s.append('aprovado com 2 milhões de ciclos',{source:'microphone',speaker:'Ana',offsetMs:3400,endOffsetMs:6000});
+ const run=await s.close();assert.equal(run.batch.cases[0].current_utterance,'o resultado do ensaio de fadiga foi aprovado com 2 milhões de ciclos');
+});
+test('a failed continuation check never blocks or drops the piece',async()=>{
+ const s=S.create({send:gated(()=>true,{fail:Error('rede instável')}),continuation:fast});
+ s.append('a gente decidiu usar aço A36',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ const run=await s.close();assert.equal(run.status,'done');assert.equal(run.records.length,1);assert.equal(run.records[0].segmentation.checks[0].error,'rede instável');
+});
+test('typed and imported text never pay for the speech check',async()=>{
+ const seen=[],s=S.create({send:gated(()=>true,{seen}),continuation:fast});
+ s.append('texto digitado completo');s.append('linha importada',{source:'import'});
+ await s.close();assert.equal(seen.length,0);
+});
+test('a complete-looking piece is joined when the next piece completes it (pair check)',async()=>{
+ const pairs=[],s=S.create({send:gated(()=>false,{joins:(a,b)=>/^que é/.test(b),pairs}),continuation:fast});
+ s.append('e isso tá acima do limite que a gente definiu',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ s.append('que é 200 megapascal com o fator de segurança',{source:'microphone',speaker:'Ana',offsetMs:3600,endOffsetMs:6000});
+ s.append('beleza',{source:'microphone',speaker:'Ana',offsetMs:6500,endOffsetMs:7000});
+ const run=await s.close();
+ assert.deepEqual(run.batch.cases.map(c=>c.current_utterance),['e isso tá acima do limite que a gente definiu que é 200 megapascal com o fator de segurança','beleza']);
+ assert.deepEqual(pairs.map(p=>p.next_utterance),['que é 200 megapascal com o fator de segurança','beleza']);
+ assert.equal(pairs[1].current_utterance,'que é 200 megapascal com o fator de segurança','the pair check compares the latest piece');assert.equal(pairs[1].previous_context,'e isso tá acima do limite que a gente definiu');
+ assert.deepEqual(run.records[0].segmentation.checks.map(c=>[c.kind||'status',c.join??c.wait,c.merged??null]),[['status',false,null],['join',true,true],['status',false,null],['join',false,null]]);
+});
+test('a finished piece followed by silence is processed without waiting',async()=>{
+ const pairs=[],s=S.create({send:gated(()=>false,{pairs}),continuation:{...fast,waitMs:5000,maxWaitMs:9000}});
+ s.append('a gente decidiu usar aço A36',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ await sleep(80);assert.equal(s.run.records.length,1,'no wait when nobody is talking');assert.equal(pairs.length,0);await s.close();
+});
+test('while the speaker keeps talking, the next piece is checked before cutting',async()=>{
+ const pairs=[],s=S.create({send:gated(()=>false,{joins:()=>true,pairs}),continuation:fast});
+ s.heard();s.append('eu acho que o problema é a altura da seção',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ for(let i=0;i<3;i++){await sleep(50);s.heard();}
+ assert.equal(s.run.records.length,0,'waits for the piece being spoken');
+ s.append('ela tá baixa demais pra esse comprimento',{source:'microphone',speaker:'Ana',offsetMs:3300,endOffsetMs:5000});
+ const run=await s.close();assert.equal(run.batch.cases[0].current_utterance,'eu acho que o problema é a altura da seção ela tá baixa demais pra esse comprimento');assert.equal(pairs.length,1);
+});
+test('commands to Norte are never extended or absorbed by the pair check',async()=>{
+ const pairs=[],s=S.create({send:gated(()=>false,{joins:()=>true,pairs}),continuation:fast});
+ s.append('só uma dúvida e se a gente usasse alumínio',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ s.append('norte usa alumínio 6061',{source:'microphone',speaker:'Ana',offsetMs:3300,endOffsetMs:5000});
+ s.append('então fica assim',{source:'microphone',speaker:'Ana',offsetMs:5300,endOffsetMs:6000});
+ const run=await s.close();
+ assert.equal(run.transcript.find(t=>t.text==='norte usa alumínio 6061').chunk_id,undefined,'the command is routed on its own');
+ assert.ok(!run.batch.cases.some(c=>/norte usa/.test(c.current_utterance)));assert.ok(!pairs.some(p=>/norte/.test(p.current_utterance+p.next_utterance)));
+});
+test('a command said in two parts takes only its missing value, never the conversation after it',async()=>{
+ const commands=[],s=S.create({send:gated(text=>/para$/.test(text),{joins:()=>true,completes:(a,b)=>/centímetros$/.test(b),commands}),continuation:fast});
+ s.append('norte muda a altura da seção para',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:2500});
+ s.append('30 centímetros',{source:'microphone',speaker:'Ana',offsetMs:3000,endOffsetMs:3800});
+ s.append('norte usa aço',{source:'microphone',speaker:'Ana',offsetMs:5000,endOffsetMs:6000});
+ s.append('então fica o aço mesmo',{source:'microphone',speaker:'Ana',offsetMs:6300,endOffsetMs:7500});
+ const run=await s.close();
+ const [first,value,steel,remark]=run.transcript;
+ assert.equal(first.status,'command');assert.equal(value.status,'command');assert.equal(first.command,value.command,'one instruction');
+ assert.equal(steel.status,'command');assert.notEqual(remark.status,'command','a remark after a complete command stays conversation');
+ assert.ok(run.batch.cases.some(c=>c.current_utterance==='então fica o aço mesmo'));
+ assert.deepEqual(commands.map(c=>c.next_utterance),['30 centímetros']);
+});
+test('a finished point is not extended by a piece that opens a new point',async()=>{
+ const seen=[],pairs=[],s=S.create({send:gated(text=>/foi$/.test(text),{seen,joins:()=>true,pairs}),continuation:fast});
+ s.append('a temperatura não pode passar de 80 graus',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ s.append('e o resultado da última medição foi',{source:'microphone',speaker:'Ana',offsetMs:3300,endOffsetMs:5000});
+ s.append('72 graus depois de 40 minutos',{source:'microphone',speaker:'Ana',offsetMs:5300,endOffsetMs:7000});
+ const run=await s.close();
+ assert.deepEqual(run.batch.cases.map(c=>c.current_utterance),['a temperatura não pode passar de 80 graus','e o resultado da última medição foi 72 graus depois de 40 minutos']);
+ assert.equal(pairs.length,0,'no pair check against an open opener');assert.equal(run.records[0].segmentation.checks.at(-1).opens,true);
+});
+test('a dependent continuation that is complete still goes to the pair check',async()=>{
+ const pairs=[],s=S.create({send:gated(()=>false,{joins:(a,b)=>/^e ver/.test(b),pairs}),continuation:fast});
+ s.append('a gente pode testar aumentar a altura de 24 pra 30 centímetros',{source:'microphone',speaker:'Ana',offsetMs:1000,endOffsetMs:3000});
+ s.append('e ver o que acontece com a tensão',{source:'microphone',speaker:'Ana',offsetMs:3300,endOffsetMs:5000});
+ const run=await s.close();assert.equal(run.batch.cases[0].current_utterance,'a gente pode testar aumentar a altura de 24 pra 30 centímetros e ver o que acontece com a tensão');
+});
+test('a meeting with pieces joined by the continuation check restores, and tampering is still rejected',async()=>{
+ const s=S.create({send:gated(text=>!/fim$/.test(text)),continuation:fast});
+ const pieces=['então o problema','que a gente viu','na semana passada era','a tensão no engaste passando de 250 megapascal fim'];
+ pieces.forEach((text,i)=>s.append(text,{source:'microphone',speaker:'Ana',offsetMs:1000+i*4000,endOffsetMs:3500+i*4000}));
+ const run=await s.close();assert.equal(run.batch.cases[0].source_entry_ids.length,4,'more pieces than the old three-window rule');
+ const saved=clone(run);assert.equal(S.restore(clone(saved)).batch.cases[0].current_utterance,pieces.join(' '));
+ for(const mutate of [r=>{r.records[0].segmentation.checks.forEach(c=>delete c.merged);},r=>{r.transcript[3].text='outro texto';},r=>{r.transcript[1].speaker='Bruno';}]){
+  const corrupt=clone(saved);mutate(corrupt);assert.throws(()=>S.restore(corrupt));
+ }
+});

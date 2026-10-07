@@ -31,6 +31,9 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
      else if(id==='action_mode'){const modes=[...new Set(ops.map(op=>op.type.startsWith('add_')?'add':op.type.startsWith('update_')?'update':op.type.startsWith('remove_')?'remove':op.type.startsWith('change_')?'change':'view'))];choice=modes.length>1?'mixed':modes[0]||'not_applicable';}
      else if(id==='candidate_fit')choice=body.state.deterministic_candidate.issues.length?'incomplete':'exact';
      else if(id==='command_type')choice='conversation';
+     else if(id==='speech_join')choice='separate';
+     else if(id==='command_completion')choice=/\d/.test(body.state.next_utterance||'')?'completes':'separate';
+     else if(id==='speech_status')choice=/(?:^|\s)(?:de|para|que|foi|era)$/.test(utterance)?'unfinished':'finished';
      else if(id==='event_type')choice=/^Teste de simulação|^hoje a gente/.test(utterance)?'test_proposal':/^Resultado calculado|^A simulação.*não produziu/.test(utterance)?'test_result':/^Talvez|^então vamos começar|^então o que eu pensei/.test(utterance)?'hypothesis':'observation';
      else if(id==='belongs_to_active_thread'||id.startsWith('belongs_to_archive_thread__'))choice='belongs';
      else if(id.startsWith('relation_type__'))choice=current?.type==='test_result'&&target?.type==='test_proposal'&&simId(current.text)===simId(target.text)?'result_of':'none';

@@ -5,6 +5,33 @@ const E=require?require('./experiments.js'):root.NorteExperiments,F=require?requ
 const commands=()=>require?require('./meeting-commands.js'):root.NorteMeetingCommands;
 const speech=()=>require?require('./meeting-speech.js'):root.NorteMeetingSpeech;
 const copy=E.clone,MAX_CHUNKS=3000,MAX_TEXT=500000;
+const wordCount=text=>(String(text||'').match(/\S+/gu)||[]).length;
+// Live speech arrives in pieces cut at recognizer pauses. Before a piece becomes
+// a chunk, Jev decides whether the speaker is still in the middle of the point
+// (e.g. announced a test but not its result); if so the next piece is merged.
+// Waiting a few seconds costs less than losing the rest of an explanation.
+const CONTINUATION={version:'speech-continuation-v3',threshold:.55,joinThreshold:.6,maxSources:6,maxWords:90,pauseMs:6000,waitMs:8000,maxWaitMs:25000,speakingMs:1500,
+ questions:{speech_status:{type:'choice',
+ instructions:"Live meeting speech (often Portuguese, without punctuation) is transcribed in short pieces cut at pauses. Decide whether the speaker has finished the point in current_utterance or is still in the middle of saying it. previous_context, when present, is the speech just before; use it only to understand current_utterance. Judge the ending of current_utterance: would a listener wait for the speaker to say what is still missing? Losing the rest of an explanation about a test, problem, result or value is worse than waiting a few seconds.",
+ criteria:{
+  finished:"The point is already said: a complete statement, question, decision, result with its outcome, value with what it refers to, instruction, acknowledgment or short reply. A stated problem or cause is finished even if more detail may follow. Informal wording or missing punctuation do not make it unfinished. A fragment that completes the previous_context is finished. A complete question, even short or hypothetical ('mais alguma coisa', 'e se a gente usasse X'), is finished.",
+  unfinished:"The key content is still missing: it ends with a preposition, article, conjunction, 'que', 'porque', 'era', 'é', or a verb whose object was not said ('vamos tentar fazer', 'a gente vai testar'); or the speaker announces a test, validation, result, problem or explanation without its content yet ('a gente testou e validou' without what or the outcome, 'o resultado foi', 'deixa eu explicar')."
+ }}},
+ // Asked when current_utterance is finished on its own but the speaker kept talking:
+ // the next piece may still complete it ('… o limite que a gente definiu' + 'que é 200 MPa').
+ joinQuestions:{speech_join:{type:'choice',
+ instructions:"Live meeting speech (often Portuguese, without punctuation) is cut into pieces at pauses; one microphone may capture several people. current_utterance was just said and next_utterance came right after a short pause. Decide whether next_utterance continues the same sentence or point of current_utterance, so both must stay together in the meeting record, or starts something separate.",
+ criteria:{
+  same_point:"next_utterance completes or extends the same sentence or point: it begins with a complement or connector that depends on current_utterance ('que é de 5 milímetros' after 'a folga que a gente mediu', 'com o furo mais afastado' after 'vamos repetir o teste', 'e manda o relatório amanhã'), refers back to it to finish the idea ('ela tá fina demais' after 'o problema é a chapa'), or supplies what current_utterance announced or left open (a command's missing value, the decision after 'ficou decidido', the value after 'o resultado foi'), or qualifies the same statement with its condition (the decision after 'ficou decidido', the value after 'o resultado foi').",
+  separate:"next_utterance is a new statement, question, reply, acknowledgment, reaction, command or topic, even about the same subject: an answer to a question, a new hypothesis, problem or point ('talvez seja', 'então sobre', 'só que teve um problema'), or a reaction ('beleza', 'faz sentido', 'olha só'). A leading connector ('e', 'então', 'só que', 'mas') does not join it when it introduces a different kind of fact, e.g. a problem after a test result, a measured result after a requirement, or a new task after a decision."
+ }}},
+ // Instructions to Norte only absorb their missing value/target, never the conversation after them.
+ commandQuestions:{command_completion:{type:'choice',
+ instructions:"current_utterance is a spoken instruction to the assistant Norte (often Portuguese, without punctuation), cut at a pause. next_utterance came right after from the same microphone. Decide whether next_utterance supplies something the instruction still needs, so both form one instruction to execute, or whether it is separate conversation that must not be executed as part of the instruction.",
+ criteria:{
+  completes:"The instruction alone is incomplete and next_utterance is its missing part: a value with or without unit ('40 milímetros', 'pra 12 quilonewtons'), a target or position ('a carga P2', 'na ponta da viga'), or the object of the verb ('o aço inox', 'os diagramas de flecha').",
+  separate:"The instruction was already complete, or next_utterance is a comment, conclusion, reaction, question or new statement, even if it repeats the same value or material ('então fica assim mesmo', 'beleza', 'olha só', 'que é o caso de hoje')."
+ }}}};
 function commandText(text){
  // Timestamped speaker prefixes are transcript metadata, not spoken words.
  // Keep the untouched source in transcript; do not guess arbitrary name prefixes.
@@ -63,9 +90,10 @@ function transcriptMeta(value={}){
   if(typeof value[key]!=='string'||!value[key].trim()||value[key].length>limit)throw Error('Metadado '+key+' da transcrição inválido.');
   metadata[key]=value[key];
  }
- if(value.offsetMs!==undefined&&value.offsetMs!==null){
-  if(typeof value.offsetMs!=='number'||!Number.isFinite(value.offsetMs)||value.offsetMs<0||value.offsetMs>Number.MAX_SAFE_INTEGER)throw Error('Horário da transcrição deve ser um número de milissegundos válido.');
-  metadata.offsetMs=value.offsetMs;
+ for(const key of ['offsetMs','endOffsetMs']){
+  if(value[key]===undefined||value[key]===null)continue;
+  if(typeof value[key]!=='number'||!Number.isFinite(value[key])||value[key]<0||value[key]>Number.MAX_SAFE_INTEGER)throw Error('Horário da transcrição deve ser um número de milissegundos válido.');
+  metadata[key]=value[key];
  }
  return metadata;
 }
@@ -134,13 +162,14 @@ function parseTranscriptEntries(text,name='transcricao.txt'){
  return entries;
 }
 function applyTitles(run){for(const t of run.meeting_threads)if(run.topic_titles?.[t.thread_id])t.title=run.topic_titles[t.thread_id];}
-function create({provider='official',title='Nova reunião',send,onChange=()=>{},now=Date.now,seed=null,commandHandler=null}={}){
+function create({provider='official',title='Nova reunião',send,onChange=()=>{},now=Date.now,seed=null,commandHandler=null,continuation=false}={}){
  if(typeof send!=='function')throw Error('Transporte da reunião ausente.');
  const stamp=new Date(now()).toISOString(),id=root.crypto?.randomUUID?.()||'meeting-'+now()+'-'+Math.random().toString(16).slice(2);
  const run=seed?restore(seed):{schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:2,id,title,provider,threshold:.6,questions:F.validateQuestions(V.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:stamp,status:'running',batch:{batch_id:id.slice(0,80),cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
  if(seed&&run.provider!==provider)throw Error('A revisão deve usar o mesmo provedor da reunião.');
  run.status='running';delete run.finishedAt;
- let queue=[],busy=false,closed=false,halted=false,finishing=false,thread,typed,resolveDone,threadWaiters=[],cancelCalls=new Set(),nextSpeech=null;
+ let queue=[],busy=false,closed=false,halted=false,finishing=false,thread,typed,resolveDone,threadWaiters=[],cancelCalls=new Set(),nextSpeech=null,lastHeard=0;
+ const gate=continuation?{...CONTINUATION,...(typeof continuation==='object'?continuation:{})}:null;
  const done=new Promise(resolve=>resolveDone=resolve);
  function notify(change={}){applyTitles(run);onChange(run,change);}
  function settled(){return run.thread_worker.jobs.every(j=>['done','error','interrupted'].includes(j.status));}
@@ -168,11 +197,59 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
   run.finishedAt=new Date(now()).toISOString();try{notify({phase:'finished'});}finally{resolveDone(run);}
  }
  const adjacent=(a,b)=>a&&b&&a.source===b.source&&a.speaker===b.speaker&&b.offsetMs>=a.offsetMs&&b.offsetMs-a.offsetMs<=9000;
- async function nextWindow(){if(queue.length||closed||halted)return;await new Promise(resolve=>{const timer=setTimeout(finish,7000);function finish(){clearTimeout(timer);nextSpeech=null;resolve();}nextSpeech=finish;});}
+ // The speaker paused at most pauseMs between the two pieces (speech end to speech start).
+ const continues=(a,b)=>a&&b&&a.source===b.source&&a.speaker===b.speaker&&b.offsetMs>=a.offsetMs&&b.offsetMs-(a.endOffsetMs??a.offsetMs)<=gate.pauseMs&&b.offsetMs-a.offsetMs<=60000;
+ // Waits for the next piece. Ongoing speech (heard) keeps the wait open up to maxMs.
+ async function nextWindow(waitMs=7000,maxMs=waitMs){if(queue.length||closed||halted)return;const started=now();await new Promise(resolve=>{let timer=null;function finish(){clearTimeout(timer);nextSpeech=null;resolve();}function check(){const t=now(),idle=t-Math.max(started,lastHeard);if(idle>=waitMs||t-started>=maxMs)return finish();timer=setTimeout(check,Math.max(50,Math.min(500,waitMs-idle)));}nextSpeech=finish;timer=setTimeout(check,Math.max(50,Math.min(500,waitMs)));});}
+ // A piece addressed to Norte is always its own command; it never completes another piece.
+ const addressed=text=>speech().isCommand(text)||/^\s*(?:(?:ok|okay|ei|ol[aá])[\s,!]*)?norte\b/iu.test(text);
+ // The pair check compares the latest piece with the next one; what came before is
+ // context only, otherwise a long merged chunk keeps absorbing new points.
+ async function joinsNext(utterance,next,context,checks,command=false,latest=utterance){
+  const started=now(),earlier=command?'':speech().boundedContext([context,utterance.slice(0,Math.max(0,utterance.length-latest.length))].filter(Boolean).join(' ').trim());
+  const state={current_utterance:command?utterance:latest,next_utterance:next};if(earlier)state.previous_context=earlier;
+  try{
+   run.calls++;const output=await transport('speech')({model:'jev-latest',state,questions:copy(command?gate.commandQuestions:gate.joinQuestions)},provider);
+   const probability=command?output?.response?.answers?.command_completion?.probabilities?.completes:output?.response?.answers?.speech_join?.probabilities?.same_point;
+   if(typeof probability!=='number'||!Number.isFinite(probability))throw Error('Resposta inválida sobre a continuação da fala.');
+   const join=probability>=gate.joinThreshold;checks.push({kind:command?'command':'join',words:wordCount(utterance),probability:Math.round(probability*1000)/1000,join,latencyMs:now()-started});return join;
+  }catch(error){if(error.stopBatch)throw error;checks.push({kind:command?'command':'join',words:wordCount(utterance),error:error.message,join:false});return false;}
+ }
+ // A piece whose last word leaves it open ('… foi', '… é', '… vai', '… de') opens a new point.
+ const opensPoint=text=>speech().unfinished(text)||/(?<![\p{L}\p{N}])(?:foi|era|eram|é|e|ficou|deu|seria)\s*$/iu.test(String(text||'').trim());
+ async function unfinishedSpeech(utterance,context,checks){
+  const started=now(),literal=speech().unfinished(utterance);
+  if(literal){checks.push({words:wordCount(utterance),literal:true,wait:true});return true;}
+  const state={current_utterance:utterance};if(context)state.previous_context=context;
+  try{
+   run.calls++;const output=await transport('speech')({model:'jev-latest',state,questions:copy(gate.questions)},provider);
+   const answer=output?.response?.answers?.speech_status,probability=answer?.probabilities?.unfinished;
+   if(typeof probability!=='number'||!Number.isFinite(probability))throw Error('Resposta inválida sobre a continuação da fala.');
+   const wait=probability>=gate.threshold;checks.push({words:wordCount(utterance),probability:Math.round(probability*1000)/1000,wait,latencyMs:now()-started});return wait;
+  }catch(error){
+   // Never block a chunk on this check: without an answer the piece is processed as is.
+   if(error.stopBatch)throw error;checks.push({words:wordCount(utterance),error:error.message,wait:false});return false;
+  }
+ }
  async function drain(){if(busy)return;busy=true;
-  while(queue.length&&!halted){const entry=queue.shift(),sources=[entry];entry.status='processing';let utterance=entry.text;notify({phase:'input'});
+  while(queue.length&&!halted){const entry=queue.shift(),sources=[entry],checks=[];entry.status='processing';let utterance=entry.text;notify({phase:'input'});
    try{
-    if(['microphone','import'].includes(entry.source))while(sources.length<3&&speech().unfinished(utterance)){
+    if(gate&&entry.source==='microphone')while(sources.length<gate.maxSources&&wordCount(utterance)<gate.maxWords&&!halted){
+     const waiting=await unfinishedSpeech(utterance,entry.speechContext,checks);
+     // Finished on its own: only a speaker who is still talking (or an already queued
+     // piece) can complete it, and only Jev's pair check joins them.
+     const command=addressed(utterance);
+     if(!waiting&&(command||!queue.length&&now()-lastHeard>gate.speakingMs))break;
+     await nextWindow(gate.waitMs,gate.maxWaitMs);const next=queue[0];
+     if(halted||!continues(sources.at(-1),next)||addressed(next.text)){checks.at(-1).merged=false;break;}
+     // An unfinished sentence takes the next piece as is; an instruction only takes its missing part.
+     // A finished point is never extended by a piece that opens a new, still open one
+     // ('… 80 graus' + 'e o resultado da última medição foi'): that piece waits for its own end.
+     if(!waiting&&!command&&opensPoint(next.text)){checks.push({kind:'next',words:wordCount(next.text),opens:true,merged:false});break;}
+     if((command||!waiting)&&!await joinsNext(utterance,next.text,entry.speechContext,checks,command,sources.at(-1).text))break;
+     sources.push(queue.shift());next.status='processing';utterance+=' '+next.text;checks.at(-1).merged=true;notify({phase:'input'});
+    }
+    else if(['microphone','import'].includes(entry.source))while(sources.length<3&&speech().unfinished(utterance)){
      await nextWindow();const next=queue[0];
      if(halted||!adjacent(sources.at(-1),next)||!speech().canContinue(utterance,next.text))break;
      sources.push(queue.shift());next.status='processing';utterance+=' '+next.text;
@@ -189,6 +266,7 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
     const command=extension?.consumed?extension:await commands().process(commandInput,{run,send:transport('commands'),chunkId:entry.id,source:entry.source,speaker:entry.speaker,nowMs:Date.parse(entry.receivedAt)});entry.command=command;
     if(halted){for(const source of sources)source.status='interrupted';break;}
     if(command.consumed){
+     if(checks.length){command.segmentation={version:gate.version,checks};for(const list of [run.beam_commands,run.meeting_commands]){const saved=list?.find(item=>item.id&&item.id===command.id);if(saved)saved.segmentation=copy(command.segmentation);}}
      for(const source of sources){source.status='command';source.command=command;}
      // Computed simulation facts use the normal memory pipeline and retain
      // their origin. They may arrive while an imported transcript is closing.
@@ -200,7 +278,7 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
     }
     if(halted){for(const source of sources)source.status='interrupted';break;}
     const item={id:'C'+String(run.records.length+1).padStart(4,'0'),current_utterance:utterance,...(entry.speechContext?{speech_context:entry.speechContext}:{}),...(sources.length>1?{source_entry_ids:sources.map(s=>s.id)}:{})};run.batch.cases.push(item);
-    const record={id:item.id,status:'running',stage:'store',startedAt:entry.receivedAt,receivedOffsetMs:entry.offsetMs};run.records.push(record);for(const source of sources)source.chunk_id=item.id;
+    const record={id:item.id,status:'running',stage:'store',startedAt:entry.receivedAt,receivedOffsetMs:entry.offsetMs,...(checks.length?{segmentation:{version:gate.version,checks}}:{})};run.records.push(record);for(const source of sources)source.chunk_id=item.id;
     try{
      const req=F.request(item,'store',run.questions);run.calls++;record.storeOutput=await transport('chunks')(req,provider);E.validateOutput(record.storeOutput,{state:req.state,config:req});
      const gate=record.storeOutput.response.answers.should_store_memory,store=E.predicted(gate);let type=null,typeProbability=null;
@@ -241,7 +319,10 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
   if(closed||halted)throw Error('A entrada desta reunião já foi encerrada.');
   const generated=prepareFacts(facts,meta);run.transcript.push(...generated);queue.push(...generated);notify({phase:'received'});queueMicrotask(drain);return true;
  }
- return {run,append,appendFacts,done,close(){closed=true;nextSpeech?.();notify({phase:'closing'});finish();return done;},stop, get accepting(){return !closed&&!halted;},get pending(){return queue.length+(busy?1:0);}};
+ // Called while the recognizer still hears unconfirmed speech: a pending
+ // continuation keeps waiting instead of cutting the speaker off.
+ function heard(){lastHeard=now();}
+ return {run,append,appendFacts,heard,done,close(){closed=true;nextSpeech?.();notify({phase:'closing'});finish();return done;},stop, get accepting(){return !closed&&!halted;},get pending(){return queue.length+(busy?1:0);}};
 }
 function restore(saved){
  const run=copy(saved);
@@ -254,9 +335,12 @@ function restore(saved){
  for(let i=0;i<run.records.length;i++){const r=run.records[i],item=run.batch.cases[i];if(!r||!item||typeof item.id!=='string'||r.id!==item.id||recordIds.has(r.id)||typeof item.current_utterance!=='string'||!item.current_utterance.trim()||!['done','error','interrupted','running','queued'].includes(r.status))throw Error('Origem da memória inválida.');recordIds.add(r.id);E.validateState({current_utterance:item.current_utterance});for(const stage of ['store','type']){const out=r[stage+'Output'];if(out){if(out.provider!==run.provider)throw Error('Provedor da memória inválido.');const request=F.request(item,stage,run.questions);E.validateOutput(out,{state:request.state,config:request});}}
   if(item.source_entry_ids!==undefined){
    const ids=item.source_entry_ids,positions=Array.isArray(ids)?ids.map(id=>run.transcript.findIndex(entry=>entry.id===id)):[];
-   if(!Array.isArray(ids)||ids.length<2||ids.length>3||new Set(ids).size!==ids.length||positions.some((position,index)=>position<0||index&&position!==positions[index-1]+1))throw Error('Origem das janelas de fala inválida.');
+   // Pieces joined by the Jev continuation check carry its audit and its own (wider) limits.
+   const gated=typeof r.segmentation?.version==='string'&&r.segmentation.version.startsWith('speech-continuation')&&Array.isArray(r.segmentation.checks)&&r.segmentation.checks.some(check=>check?.merged===true);
+   const maxPieces=gated?CONTINUATION.maxSources:3,maxStartGap=gated?60000:9000;
+   if(!Array.isArray(ids)||ids.length<2||ids.length>maxPieces||new Set(ids).size!==ids.length||positions.some((position,index)=>position<0||index&&position!==positions[index-1]+1))throw Error('Origem das janelas de fala inválida.');
    const sources=positions.map(position=>run.transcript[position]);
-   if(sources.some((entry,index)=>entry.chunk_id!==item.id||!['microphone','import'].includes(entry.source)||index&&(entry.source!==sources[0].source||entry.speaker!==sources[0].speaker||entry.offsetMs<sources[index-1].offsetMs||entry.offsetMs-sources[index-1].offsetMs>9000))||sources.map(entry=>entry.text).join(' ')!==item.current_utterance)throw Error('Origem das janelas de fala não corresponde ao trecho classificado.');
+   if(sources.some((entry,index)=>entry.chunk_id!==item.id||!(gated?['microphone']:['microphone','import']).includes(entry.source)||index&&(entry.source!==sources[0].source||entry.speaker!==sources[0].speaker||entry.offsetMs<sources[index-1].offsetMs||entry.offsetMs-sources[index-1].offsetMs>maxStartGap))||sources.map(entry=>entry.text).join(' ')!==item.current_utterance)throw Error('Origem das janelas de fala não corresponde ao trecho classificado.');
   }
   if(r.status==='done'){if(!r.storeOutput)throw Error('Classificação de memória ausente.');const gate=r.storeOutput.response.answers.should_store_memory,store=E.predicted(gate);if(store&&!r.typeOutput)throw Error('Classificação do ponto ausente.');const answer=store?r.typeOutput.response.answers.event_type:null,type=store?E.predicted(answer):null;r.result={store,type,storeProbability:E.probabilityOf(gate,store),typeProbability:store?E.probabilityOf(answer,type):null,destination:store?type:'ignore'};}else if(['running','queued'].includes(r.status))r.status='interrupted';
  }

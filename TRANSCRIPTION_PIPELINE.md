@@ -38,6 +38,22 @@ Raw windows still have a 15-second maximum; overlapping model input can refer to
 
 The application does not save raw audio. Recognition may use the browser vendor's service and is not guaranteed offline. Classification is remote with official Jev by default; local inference is an explicit alternative.
 
+## Meeting room: continuous capture and speech continuation
+
+The meeting room (`meeting-room.js`, Simulação de vigas / Reuniões) no longer stops the browser recognizer on a 5-second clock. Each stop left the microphone deaf for about one second while it restarted, which dropped words in the middle of sentences (`de 12 | 13 cm` lost `para`). Chrome's continuous mode already confirms each phrase at a natural pause, so `CaptureWindow` (`speech-windows.js`) only forces a stop when unconfirmed speech stays pending for 15 seconds; silence never stops it. Manual pause and end of meeting still flush the tail.
+
+Confirmed pieces are short and often cut mid-thought, so before a piece becomes a chunk `meeting-session.js` asks Jev (lane `speech`, `continuation: true`, audit in `record.segmentation`):
+
+1. `speech_status` — has the speaker finished the point, or is the key content still missing (`o problema que a gente viu era`, `a gente testou e validou` without the outcome)? Unfinished (p ≥ 0.55) waits for the next piece and joins it. A literal open ending (preposition, `que`, …) skips the call.
+2. `speech_join` — when the piece is finished on its own but the speaker is still talking (or the next piece is queued), does the next piece complete the same point (`… o limite que a gente definiu` + `que é 200 megapascal`)? Joins at p ≥ 0.6, comparing only the latest piece. A next piece that ends open (`e o resultado da última medição foi`) starts its own chunk.
+3. `command_completion` — an instruction to Norte only absorbs its missing value or target (`Norte, muda a altura da seção para` + `30 centímetros`), never the conversation after it.
+
+A chunk joins at most 6 pieces / 90 words; a pause longer than 6 s, another speaker, or a new instruction to Norte always ends it. If a check fails, the piece is processed as is (never dropped). Restoring a saved meeting accepts these wider groups only when the record carries the continuation audit.
+
+Spoken Brazilian Portuguese commands are normalized and audited (`colloquial_imperative`): `compara`, `usa`, `tira`, `bota`, `adiciona` … map to the command forms, and a new force or distributed load said without a sense acts downward (`default_direction`).
+
+`tests/live-meeting-simulation.cjs --run-live` speaks a long, ambiguous Portuguese meeting (half sentences, corrections, three topics, voice commands for the simulator and graphs) into the real page through a recognizer that behaves like Chrome (word-by-word interim results, confirmation at pauses, deaf while restarting) and uses real Jev calls. It checks that no word is lost, that each key fact reaches one chunk intact, that distinct facts are not fused, that every command applies and that the saved meeting reopens. Credentials come from `NORTE_USER` / `NORTE_PASSWORD`; the report is written to `.runtime/simulation/`.
+
 ## Real model, real outputs
 
 The default integration uses [official TypeSafe Jev](https://docs.typesafe.ai/introduction). The previous [jevos](https://github.com/feder-cr/jev) implementation remains opt-in and is not the same model. Successful responses record `provider` and the actual returned model version. Existing `jevos-*` history is labeled local in tests, summaries, comparisons and exports; new official results are not relabeled copies. Each manual batch pins the provider, and a mismatch is rejected instead of mixing engines mid-batch. Incomplete saved live requests are not replayed automatically on reload; the user can retry explicitly.

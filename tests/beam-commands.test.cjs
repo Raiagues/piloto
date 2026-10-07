@@ -93,7 +93,7 @@ test('extra unitless values or quantities outside the represented operation cann
 });
 test('missing units, direction, targets and unsafe dimensions never yield a partial operation',()=>{
  const s=state();s.loads.push({...s.loads[0],id:'p2',name:'P2',x:3,edge:null});
- for(const text of ['Norte, adicione uma força de 12 kN a 4 m','Norte, adicione uma força de 12 kN para baixo','Norte, adicione uma força de 12 para baixo a 4 m','Norte, mude a força para 12 kN','Norte, mova P9 para 3 m','Norte, adicione um momento de 5 kN horário a 3 m','Norte, adicione uma força de 12 kN horizontal a 4 m','Norte, mude o comprimento para 40 m','Norte, mude a espessura para 5 mm','Norte, use alumínio 6351','Norte, adicione um engaste a 2 m','Norte, adicione um apoio articulado no início','Norte, adicione uma carga distribuída de 1 kN/m para baixo de 5 m até 2 m','Norte, mude a carga P1 para -12 kN','Norte, mude a carga P1 para 1.200 N','Norte, abra o simulador e adicione uma força de 12 kN']){const p=C.parse(text,{state:s});assert.equal(p.valid,false,text);assert.deepEqual(p.operations,[],text);assert.ok(p.clarifications.length,text);}
+ for(const text of ['Norte, adicione uma força de 12 kN para baixo','Norte, adicione uma força de 12 para baixo a 4 m','Norte, mude a força para 12 kN','Norte, mova P9 para 3 m','Norte, adicione um momento de 5 kN horário a 3 m','Norte, adicione uma força de 12 kN horizontal a 4 m','Norte, mude o comprimento para 40 m','Norte, mude a espessura para 5 mm','Norte, use alumínio 6351','Norte, adicione um engaste a 2 m','Norte, adicione um apoio articulado no início','Norte, adicione uma carga distribuída de 1 kN/m para baixo de 5 m até 2 m','Norte, mude a carga P1 para -12 kN','Norte, mude a carga P1 para 1.200 N','Norte, abra o simulador e adicione uma força de 12 kN']){const p=C.parse(text,{state:s});assert.equal(p.valid,false,text);assert.deepEqual(p.operations,[],text);assert.ok(p.clarifications.length,text);}
 });
 test('composite commands remain atomic and preserve the original state',()=>{
  const s=state(),before=clone(s),ops=valid('Norte, mude o comprimento para 10 m e adicione uma força de 12 kN para baixo a 10 m',s);
@@ -261,4 +261,19 @@ test('multiple and incompatible targets cannot be narrowed by deleting stated so
  for(const text of ['eu quero reduzir a força P1 e o comprimento de 10 kN para 5 kN','eu quero reduzir o comprimento da viga de 5 metros para 4 kN','eu quero reduzir a força P1 de 10 kN para 5 metros','eu quero reduzir a altura e a largura de 240 mm para 200 mm']){
   const parsed=C.parse(text,opts);assert.equal(parsed.valid,false,text);assert.deepEqual(parsed.operations,[],text);
  }
+});
+test('spoken Portuguese: colloquial imperatives and a new load without a stated sense',()=>{
+ const s=state();
+ for(const [text,type] of [['norte compara antes e depois','compare'],['norte usa alumínio 6061','change_material'],['norte tira a força P1','remove_load'],['norte muda o comprimento para 4 metros e mostra os gráficos','show_graphs']]){
+  const parsed=C.parse(text,{state:s,active:true,source:'microphone'});assert.equal(parsed.valid,true,text);assert.ok(parsed.operations.some(o=>o.type===type),text);
+  assert.ok(parsed.normalizations.some(n=>n.kind==='colloquial_imperative'),'the conversion stays auditable: '+text);
+ }
+ const down=C.parse('norte coloca uma carga de 5 quilonewtons a 2 metros',{state:s,active:true,source:'microphone'});
+ assert.equal(down.valid,true);assert.equal(down.operations[0].load.direction,1,'gravity convention');assert.ok(down.normalizations.some(n=>n.kind==='default_direction'));
+ const up=C.parse('norte adiciona uma força de 5 kN para cima a 2 metros',{state:s,active:true,source:'microphone'});
+ assert.equal(up.operations[0].load.direction,-1);assert.ok(!up.normalizations.some(n=>n.kind==='default_direction'));
+ for(const text of ['norte adiciona um momento de 5 kN·m a 2 metros','norte adiciona uma força de 5 kN horizontal a 2 metros','norte coloca a força P1 em 3 metros']){
+  const parsed=C.parse(text,{state:s,active:true,source:'microphone'});assert.ok(!parsed.normalizations.some(n=>n.kind==='default_direction'),text);
+ }
+ assert.equal(C.parse('a gente usa aço na viga',{state:s,active:true,source:'microphone'}).consumed,false,'a statement in the middle of a sentence is not an order');
 });

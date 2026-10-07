@@ -3,26 +3,35 @@
   const clone = value => JSON.parse(JSON.stringify(value));
   const key = token => token.toLocaleLowerCase().replace(/[.,!?;:]+$/u, '');
 
-  // Bound native recognition, not merely the eventual text presentation. stop()
-  // asks the browser for its final correction; onend is the only restart point.
-  // This clock is separate from Cutter, used by the older audio laboratory.
+  // Continuous native recognition already confirms each phrase at a natural
+  // pause, without stopping. Stopping on a timer cut speakers mid-word and left
+  // the microphone deaf while it restarted (about 1 s per stop), so a boundary is
+  // requested only when unconfirmed speech stays pending longer than
+  // maxPendingMs. stop() asks the browser for its final correction; onend is the
+  // only restart point. This clock is separate from Cutter (audio laboratory).
   class CaptureWindow {
-    constructor({ onBoundary, now = () => performance.now(), schedule = (fn, ms) => setTimeout(fn, ms), cancel = id => clearTimeout(id), maxMs = 5000, pauseMs = 3000 } = {}) {
-      if (typeof onBoundary !== 'function' || maxMs < 3000 || maxMs > 5000 || pauseMs < 0 || pauseMs > maxMs) throw Error('Janela de captura inválida.');
-      Object.assign(this, { onBoundary, now, schedule, cancel, maxMs, pauseMs });
-      this.timer = null; this.startedAt = null; this.requested = false; this.reason = null;
+    constructor({ onBoundary, now = () => performance.now(), schedule = (fn, ms) => setTimeout(fn, ms), cancel = id => clearTimeout(id), maxPendingMs = 15000 } = {}) {
+      if (typeof onBoundary !== 'function' || !(maxPendingMs >= 5000 && maxPendingMs <= 30000)) throw Error('Janela de captura inválida.');
+      Object.assign(this, { onBoundary, now, schedule, cancel, maxPendingMs });
+      this.timer = null; this.startedAt = null; this.pendingSince = null; this.requested = false; this.reason = null;
     }
     start() {
       this.end(); this.requested = false; this.reason = null; this.startedAt = this.now();
-      this.timer = this.schedule(() => this.request('limit'), this.maxMs);
     }
-    speechEnd() { if (this.startedAt !== null && this.now() - this.startedAt >= this.pauseMs) this.request('pause'); }
+    // pending: the recognizer currently shows unconfirmed (interim) speech.
+    activity(pending) {
+      if (this.startedAt === null || this.requested) return;
+      if (!pending) { this.cancel(this.timer); this.timer = null; this.pendingSince = null; return; }
+      if (this.timer !== null) return;
+      this.pendingSince = this.now();
+      this.timer = this.schedule(() => this.request('limit'), this.maxPendingMs);
+    }
     request(reason = 'manual') {
       if (this.requested) return false;
       this.requested = true; this.reason = reason; this.cancel(this.timer); this.timer = null;
       this.onBoundary(reason); return true;
     }
-    end() { this.cancel(this.timer); this.timer = null; this.startedAt = null; }
+    end() { this.cancel(this.timer); this.timer = null; this.startedAt = null; this.pendingSince = null; }
   }
 
   // Event-based word estimates. Final corrections inherit the old word's window.

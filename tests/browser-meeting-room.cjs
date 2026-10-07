@@ -37,6 +37,9 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
      if(q.type==='noul')return [id,{type:'noul',noul:.98}];
      const current=body.state.current_event,target=body.state.candidates?.find(item=>item.event_id===id.split('__')[1]);let choice;
      if(id==='command_type')choice=/^Norte\b/.test(body.state.utterance)?'rename_topic':'conversation';
+     if(id==='speech_join')choice='separate';
+     if(id==='command_completion')choice=/\d/.test(body.state.next_utterance||'')?'completes':'separate';
+     if(id==='speech_status')choice='finished';
      else if(id==='event_type')choice=attentionTypes[attentionText.indexOf(body.state.current_utterance)]||types[utterances.indexOf(body.state.current_utterance)]||'observation';
      else if(id==='belongs_to_active_thread')choice=subject(current.text)===subject(body.state.active_thread.events[0].text)?'belongs':'does_not_belong';
      else if(id.startsWith('belongs_to_archive_thread__')){
@@ -126,7 +129,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const draft=await createInstant();
   assert.equal(draft.startedAt,null);assert.deepEqual(draft.transcript,[]);assert.deepEqual(draft.meeting_events,[]);
   assert.equal(requests.length,0,'instant meeting is only a draft until input arrives');assert.equal(await evaluate('(window.__speechInstances||[]).length'),0);
-  assert.equal(await visible('#roomImport'),true);assert.equal(await visible('#roomLive'),true);assert.equal(await visible('#roomTranscriptPanel'),true,'transcription starts below the canvas');
+  assert.equal(await visible('#roomImport'),true);assert.equal(await visible('#roomLive'),true);assert.equal(await visible('#roomTranscriptPanel'),false,'transcription is hidden by default');
+  await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),true,'the toggle shows the transcription below the canvas');
   assert.equal(await evaluate('document.querySelector("#roomMinutes").disabled'),true);
   assert.equal(await evaluate('document.querySelectorAll(".room-legend [data-status]").length'),6);
   const dividerBefore=await evaluate('Number(document.querySelector("#roomTranscriptDivider").getAttribute("aria-valuenow"))');

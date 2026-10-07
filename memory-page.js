@@ -3,27 +3,27 @@
   const isV2 = new URLSearchParams(location.search).get('profile') === 'memory-v2';
   if (isV2) {
     try {
-      await import('./memory-storage.js?v=20261007-11');
-      await import('./memory-v2.js?v=20261007-11');
+      await import('./memory-storage.js?v=20261007-12');
+      await import('./memory-v2.js?v=20261007-12');
       if (!window.NorteMemoryV2) throw Error('Configuração V2 indisponível.');
-      await import('./typed-relations.js?v=20261007-11');
-      await import('./typed-relations-page.js?v=20261007-11');
-      await import('./meeting-commands.js?v=20261007-11');
-      await import('./meeting-speech.js?v=20261007-11');
-      await import('./meeting-session.js?v=20261007-11');
-      await import('./meeting-evidence.js?v=20261007-11');
-      await import('./meeting-state.js?v=20261007-11');
-      await import('./meeting-review.js?v=20261007-11');
-      await import('./meeting-hierarchy.js?v=20261007-11');
-      await import('./meeting-minutes.js?v=20261007-11');
-      await import('./meeting-amendments.js?v=20261007-11');
-      await import('./meeting-document.js?v=20261007-11');
-      await import('./gemini-minutes.js?v=20261007-11');
-      const geminiStyle=document.createElement('link');geminiStyle.rel='stylesheet';geminiStyle.href='./gemini-minutes.css?v=20261007-11';document.head.append(geminiStyle);
-      await import('./relation-map.js?v=20261007-11');
+      await import('./typed-relations.js?v=20261007-12');
+      await import('./typed-relations-page.js?v=20261007-12');
+      await import('./meeting-commands.js?v=20261007-12');
+      await import('./meeting-speech.js?v=20261007-12');
+      await import('./meeting-session.js?v=20261007-12');
+      await import('./meeting-evidence.js?v=20261007-12');
+      await import('./meeting-state.js?v=20261007-12');
+      await import('./meeting-review.js?v=20261007-12');
+      await import('./meeting-hierarchy.js?v=20261007-12');
+      await import('./meeting-minutes.js?v=20261007-12');
+      await import('./meeting-amendments.js?v=20261007-12');
+      await import('./meeting-document.js?v=20261007-12');
+      await import('./gemini-minutes.js?v=20261007-12');
+      const geminiStyle=document.createElement('link');geminiStyle.rel='stylesheet';geminiStyle.href='./gemini-minutes.css?v=20261007-12';document.head.append(geminiStyle);
+      await import('./relation-map.js?v=20261007-12');
       if (!window.NorteTypedRelations || !window.NorteTypedRelationsPage || !window.NorteMinutes || !window.NorteRelationMap) throw Error('Etapa de relações ou ata indisponível.');
-      const minutesStyle=document.createElement('link');minutesStyle.rel='stylesheet';minutesStyle.href='./meeting-minutes.css?v=20261007-11';document.head.append(minutesStyle);
-      const mapStyle=document.createElement('link');mapStyle.rel='stylesheet';mapStyle.href='./relation-map.css?v=20261007-11';document.head.append(mapStyle);
+      const minutesStyle=document.createElement('link');minutesStyle.rel='stylesheet';minutesStyle.href='./meeting-minutes.css?v=20261007-12';document.head.append(minutesStyle);
+      const mapStyle=document.createElement('link');mapStyle.rel='stylesheet';mapStyle.href='./relation-map.css?v=20261007-12';document.head.append(mapStyle);
     } catch (error) {
       const message = document.getElementById('mfNotice');
       message.textContent = 'Não foi possível carregar Memória V2. Recarregue a página. ' + error.message;

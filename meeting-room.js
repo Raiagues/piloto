@@ -5,26 +5,26 @@ function openPage(){
  if(boot)return boot;
  boot=(async function(){
  const dependencies=[
-  ['NorteMemoryStorage','memory-storage.js?v=20261007-11'],
-  ['NorteMemoryV2','memory-v2.js?v=20261007-11'],
-  ['NorteTypedRelations','typed-relations.js?v=20261007-11'],
-  ['NorteMeetingCommands','meeting-commands.js?v=20261007-11'],
-  ['NorteMeetingSession','meeting-session.js?v=20261007-11'],
-  ['NorteMeetingSpeech','meeting-speech.js?v=20261007-11'],
-  ['NorteMeetingEvidence','meeting-evidence.js?v=20261007-11'],
-  ['NorteMeetingState','meeting-state.js?v=20261007-11'],
-  ['NorteMeetingReview','meeting-review.js?v=20261007-11'],
-  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261007-11'],
-  ['NorteMeetingCanvas','meeting-canvas.js?v=20261007-11'],
-  ['NorteMinutes','meeting-minutes.js?v=20261007-11'],
-  ['NorteMeetingAmendments','meeting-amendments.js?v=20261007-11'],
-  ['NorteMeetingDocument','meeting-document.js?v=20261007-11'],
-  ['NorteGeminiMinutes','gemini-minutes.js?v=20261007-11']
+  ['NorteMemoryStorage','memory-storage.js?v=20261007-12'],
+  ['NorteMemoryV2','memory-v2.js?v=20261007-12'],
+  ['NorteTypedRelations','typed-relations.js?v=20261007-12'],
+  ['NorteMeetingCommands','meeting-commands.js?v=20261007-12'],
+  ['NorteMeetingSession','meeting-session.js?v=20261007-12'],
+  ['NorteMeetingSpeech','meeting-speech.js?v=20261007-12'],
+  ['NorteMeetingEvidence','meeting-evidence.js?v=20261007-12'],
+  ['NorteMeetingState','meeting-state.js?v=20261007-12'],
+  ['NorteMeetingReview','meeting-review.js?v=20261007-12'],
+  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261007-12'],
+  ['NorteMeetingCanvas','meeting-canvas.js?v=20261007-12'],
+  ['NorteMinutes','meeting-minutes.js?v=20261007-12'],
+  ['NorteMeetingAmendments','meeting-amendments.js?v=20261007-12'],
+  ['NorteMeetingDocument','meeting-document.js?v=20261007-12'],
+  ['NorteGeminiMinutes','gemini-minutes.js?v=20261007-12']
  ];
  // Signed in: meetings live in the account (server database) instead of this browser.
- if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261007-11']);
+ if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261007-12']);
  for(const [name,file] of dependencies){if(!window[name])await import('./'+file);if(!window[name])throw Error('Não foi possível carregar a página de reunião.');}
- for(const file of ['meeting-minutes.css?v=20261007-11','gemini-minutes.css?v=20261007-11']){
+ for(const file of ['meeting-minutes.css?v=20261007-12','gemini-minutes.css?v=20261007-12']){
   if(![...document.querySelectorAll('link[rel="stylesheet"]')].some(link=>link.href.endsWith(file))){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file;document.head.append(link);}
  }
  await initialize();
@@ -41,12 +41,12 @@ const button=(label,fn,cls='compact-button')=>{const n=el('button',cls,label);n.
 let current=null,controller=null,mode=null,ready=false,provider='official',starting=false,closing=false,renaming=null,db=null,saveTimer=null,saveQueue=Promise.resolve(),renderFrame=0,lastTranscript='',history=[],view='library',initialized=false;
 let recognition=null,listening=false,micPaused=false,ledger=null,consumed=new Set(),micEnd=null,restartTimer=null,recognitionErrors=0,micStopping=false,stopPromise=null;
 let recognitionWindow=null,recognitionDeadline=null;
-let beamIntegration=null,beamBoot=null;
+let beamIntegration=null,beamBoot=null,savesPending=0;
 async function ensureBeam(){
  if(beamIntegration)return beamIntegration;
  if(!beamBoot)beamBoot=(async()=>{
-  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261007-11');
-  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261007-11';document.head.append(link);}
+  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261007-12');
+  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261007-12';document.head.append(link);}
   beamIntegration=NorteMeetingBeam.create({getRun:()=>current,save:saveSoon,notice,canSubmit:()=>current?.status==='draft'||!!controller?.accepting,submitFacts:async facts=>{
    if(current?.status==='draft'&&!await begin('text'))return false;
    if(!controller?.accepting){notice('Esta reunião já foi encerrada. Crie uma nova reunião para registrar outras simulações.');return false;}
@@ -104,12 +104,12 @@ function save(){
  if(!current)return saveQueue.then(()=>true);
  if(!db){notice('Não foi possível salvar '+savedWhere+'. A reunião continuará aberta para você baixar a ata.');return Promise.resolve(false);}
  const snapshot=JSON.stringify(current),item={id:current.id,title:current.title,date:current.createdAt,startedAt:current.startedAt,status:current.status,points:current.meeting_events.length,room_kind:current.room_kind||'meeting'};
- $('roomSave').textContent='Salvando…';
+ $('roomSave').textContent='Salvando…';savesPending++;
  saveQueue=saveQueue.catch(()=>{}).then(async()=>{
   await db.write(saveKey(item.id),snapshot);
   history=await db.change(INDEX,raw=>{let list=raw?JSON.parse(raw):[];list=[item,...list.filter(x=>x.id!==item.id)].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));return {value:JSON.stringify(list),result:list};});
   renderLibrary();$('roomSave').textContent=inAccount?'Salvo na sua conta':'Salvo neste navegador';return true;
- }).catch(error=>{$('roomSave').textContent='Falha ao salvar';notice((inAccount?cleanError(error)+' ':'Não foi possível salvar no navegador. ')+'Baixe a ata antes de fechar a página.');return false;});
+ }).catch(error=>{$('roomSave').textContent='Falha ao salvar';notice((inAccount?cleanError(error)+' ':'Não foi possível salvar no navegador. ')+'Baixe a ata antes de fechar a página.');return false;}).finally(()=>{savesPending--;});
  return saveQueue;
 }
 function renderLibrary(){
@@ -303,7 +303,7 @@ async function createInstant(){
   if(current&&!await save())return;
   current=draft();controller=null;mode=null;closing=false;lastTranscript='';canvas.reset();
   $('roomTitle').value=current.title;$('roomImportText').value='';$('roomFile').value='';$('roomFileLabel').textContent='Selecionar arquivo';$('roomImportError').textContent='';filename='transcricao.txt';
-  view='room';notice('');transcriptPanel(true);renderView();render();await save();$('roomTitle').focus();
+  view='room';notice('');transcriptPanel(transcriptPreference());renderView();render();await save();$('roomTitle').focus();
  }finally{starting=false;controls();}
 }
 async function openMeeting(id){
@@ -314,7 +314,7 @@ async function openMeeting(id){
   const raw=await db.read(saveKey(id));if(!raw)throw Error('Não foi possível encontrar esta reunião.');
   const saved=Session.restore(JSON.parse(raw));
   current=saved;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();
-  $('roomTitle').value=current.title;view='room';transcriptPanel(true);renderView();
+  $('roomTitle').value=current.title;view='room';transcriptPanel(transcriptPreference());renderView();
   notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();return true;
  }catch(error){notice(cleanError(error));return false;}
  finally{starting=false;controls();}
@@ -335,7 +335,7 @@ async function begin(nextMode){
  try{
   notice('');mode=nextMode;lastTranscript='';canvas.reset();closing=false;
   if(previous.room_kind==='beam')await ensureBeam();
-  controller=Session.create({provider,title:$('roomTitle').value.trim()||'Nova reunião',send,onChange:changed,commandHandler:previous.room_kind==='beam'?beamIntegration.handleCommand:null});
+  controller=Session.create({provider,title:$('roomTitle').value.trim()||'Nova reunião',send,onChange:changed,commandHandler:previous.room_kind==='beam'?beamIntegration.handleCommand:null,continuation:true});
   current=controller.run;
   current.room_kind=previous.room_kind||'meeting';for(const key of ['beam_started','beam_open_tabs','beam_previous_view'])if(previous[key]!==undefined)current[key]=previous[key];if(previous.beam_view)current.beam_view=previous.beam_view;if(previous.beam_recorded)current.beam_recorded=previous.beam_recorded;if(previous.beam_lab)current.beam_lab=previous.beam_lab;if(previous.beam_commands)current.beam_commands=previous.beam_commands;
   current.id=previous.id;current.batch.batch_id=previous.id;current.createdAt=previous.createdAt;current.input_mode=nextMode;
@@ -345,8 +345,10 @@ async function begin(nextMode){
 }
 function renameTopic(id,title){renaming=id;$('roomRenameValue').value=current?.topic_titles?.[id]||current?.meeting_threads.find(t=>t.thread_id===id)?.title||'';const n=Number(id.replace(/\D/g,''));$('roomRenameHint').textContent='Por voz: “Norte, o assunto '+n+' é [nome do assunto]”.';$('roomRenameDialog').showModal();$('roomRenameValue').focus();}
 $('roomRenameForm').onsubmit=e=>{e.preventDefault();const name=$('roomRenameValue').value.trim();if(!name||!current||!renaming)return;current.topic_titles||={};current.topic_titles[renaming]=name;for(const t of current.meeting_threads)if(t.thread_id===renaming)t.title=name;current.title_edits||=[];current.title_edits.push({thread_id:renaming,title:name,source:'manual',at:new Date().toISOString()});$('roomRenameDialog').close();render();saveSoon();};$('roomRenameCancel').onclick=()=>$('roomRenameDialog').close();
+const TRANSCRIPT_PREF='norte.meeting-room.transcript-open.v1';
+function transcriptPreference(){try{return localStorage.getItem(TRANSCRIPT_PREF)==='1';}catch(_){return false;}}
 function transcriptPanel(open){$('meetingPage').classList.toggle('has-transcript',open);$('roomTranscriptPanel').hidden=!open;if($('roomTranscriptDivider'))$('roomTranscriptDivider').hidden=!open;$('roomTranscriptToggle').setAttribute('aria-expanded',String(open));window.NorteLayout?.refresh();}
-$('roomTranscriptToggle').onclick=()=>transcriptPanel($('roomTranscriptPanel').hidden);
+$('roomTranscriptToggle').onclick=()=>{const open=$('roomTranscriptPanel').hidden;transcriptPanel(open);try{localStorage.setItem(TRANSCRIPT_PREF,open?'1':'0');}catch(_){}};
 $('roomTitle').onchange=()=>{if(current){current.title=$('roomTitle').value.trim()||'Nova reunião';saveSoon();}};
 $('roomMinutes').onclick=()=>{if(current)NorteGeminiMinutes.open(current,{autoGenerate:false,onExplore:inspectEvidence,onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();await save();}});};
 $('roomImport').onclick=()=>{$('roomImportDialog').showModal();$('roomImportText').focus();};$('roomImportClose').onclick=()=>$('roomImportDialog').close();let filename='transcricao.txt';
@@ -356,8 +358,9 @@ $('roomFile').onchange=()=>loadFile($('roomFile').files[0]);$('roomDrop').ondrag
 $('roomImportForm').onsubmit=async e=>{e.preventDefault();let parts;try{parts=Session.parseTranscriptEntries($('roomImportText').value,filename);}catch(error){$('roomImportError').textContent=cleanError(error);return;}$('roomImportSubmit').disabled=true;try{if(!await begin('import'))return;for(const part of parts)appendTurn(part,'import');current.import_filename=filename;$('roomImportDialog').close();await controller.close();await save();}catch(error){notice(cleanError(error));controller?.stop(error);}finally{$('roomImportSubmit').disabled=false;render();}};
 $('roomTextForm').onsubmit=async e=>{e.preventDefault();const text=$('roomText').value;if(!text.trim())return;if(current?.status==='draft'&&roomKind()==='beam'&&!await begin('text'))return;if(!controller?.accepting)return;try{appendTurn({text,segmentId:'typed:'+crypto.randomUUID()},'typed');$('roomText').value='';}catch(error){notice(cleanError(error));}};
 function elapsed(){return Math.max(0,Date.now()-Date.parse(current?.startedAt||new Date().toISOString()));}
-function ingestSpeech(event){if(!ledger||!current)return;ledger.ingest(event.results,event.resultIndex,elapsed(),$('roomLanguage').value);for(const [index,record] of ledger.records.entries()){if(record.status!=='final'||consumed.has(record.id))continue;consumed.add(record.id);try{if(controller?.accepting){const previous=ledger.records[index-1],continues=previous?.status==='final'&&previous.speaker===record.speaker&&record.startMs-previous.endMs<2000;appendTurn({text:record.text,sourceText:record.text,sourceId:record.id,segmentId:'microphone:'+ledger.sessionId+':'+record.id,offsetMs:record.startMs,speaker:record.speaker,...(continues?{speechContext:NorteMeetingSpeech.boundedContext(previous.text)}:{})},'microphone');}else{current.transcript.push({id:'AUDIO-'+record.id,text:record.text,source:'microphone',segmentId:'microphone:'+ledger.sessionId+':'+record.id,speaker:record.speaker,receivedAt:new Date().toISOString(),offsetMs:record.startMs,status:'interrupted',error:'Fala preservada após a interrupção; não foi processada.'});if(!renderFrame)renderFrame=requestAnimationFrame(render);}}catch(error){notice(cleanError(error));stopMic();break;}}
- const interim=ledger.records.filter(r=>r.status==='interim').map(r=>r.text).join(' ');$('roomInterim').textContent=interim.trim().split(/\s+/u).slice(-18).join(' ');current.speech_ledger=ledger.snapshot();saveSoon();}
+function ingestSpeech(event){if(!ledger||!current)return;ledger.ingest(event.results,event.resultIndex,elapsed(),$('roomLanguage').value);for(const [index,record] of ledger.records.entries()){if(record.status!=='final'||consumed.has(record.id))continue;consumed.add(record.id);try{if(controller?.accepting){const previous=ledger.records[index-1],continues=previous?.status==='final'&&previous.speaker===record.speaker&&record.startMs-previous.endMs<2000;appendTurn({text:record.text,sourceText:record.text,sourceId:record.id,segmentId:'microphone:'+ledger.sessionId+':'+record.id,offsetMs:record.startMs,...(Number.isFinite(record.endMs)?{endOffsetMs:record.endMs}:{}),speaker:record.speaker,...(continues?{speechContext:NorteMeetingSpeech.boundedContext(previous.text)}:{})},'microphone');}else{current.transcript.push({id:'AUDIO-'+record.id,text:record.text,source:'microphone',segmentId:'microphone:'+ledger.sessionId+':'+record.id,speaker:record.speaker,receivedAt:new Date().toISOString(),offsetMs:record.startMs,status:'interrupted',error:'Fala preservada após a interrupção; não foi processada.'});if(!renderFrame)renderFrame=requestAnimationFrame(render);}}catch(error){notice(cleanError(error));stopMic();break;}}
+ const interim=ledger.records.filter(r=>r.status==='interim').map(r=>r.text).join(' ');$('roomInterim').textContent=interim.trim().split(/\s+/u).slice(-18).join(' ');
+ recognitionWindow?.activity(!!interim.trim());if(interim.trim())controller?.heard?.();current.speech_ledger=ledger.snapshot();saveSoon();}
 function launchRecognition(){if(!listening||micStopping||recognition)return;const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;const instance=new Recognition();recognition=instance;instance.lang=$('roomLanguage').value;instance.continuous=true;instance.interimResults=true;ledger.beginRun();
  const capture=new NorteWindows.CaptureWindow({onBoundary:()=>{
   if(instance!==recognition)return;
@@ -367,7 +370,6 @@ function launchRecognition(){if(!listening||micStopping||recognition)return;cons
  }});recognitionWindow=capture;
  instance.onstart=()=>{if(instance!==recognition)return;if(capture.startedAt===null)capture.start();};
  instance.onspeechstart=()=>{if(instance===recognition)ledger.speechStart(elapsed());};instance.onresult=event=>{if(instance!==recognition)return;recognitionErrors=0;ingestSpeech(event);};
- instance.onspeechend=()=>{if(instance===recognition)capture.speechEnd();};
  instance.onerror=event=>{if(instance!==recognition||event.error==='no-speech'||(event.error==='aborted'&&micStopping))return;recognitionErrors++;listening=false;micPaused=true;notice(({ 'not-allowed':'O microfone não foi autorizado. Permita o acesso no navegador ou importe uma transcrição.','audio-capture':'Não foi possível acessar o microfone. Confira o dispositivo.','network':'A transcrição perdeu a conexão. Você pode retomar o microfone ou continuar por texto.','service-not-allowed':'Este navegador não autorizou a transcrição. Use um navegador compatível ou importe o texto.'})[event.error]||'A captura de fala foi interrompida. Você pode retomar o microfone.');controls();};
  instance.onend=()=>{if(instance!==recognition)return;capture.end();clearTimeout(recognitionDeadline);recognitionDeadline=null;recognitionWindow=null;ledger.finishRun();if(current){current.speech_ledger=ledger.snapshot();saveSoon();}$('roomInterim').textContent='';recognition=null;if(!renderFrame)renderFrame=requestAnimationFrame(render);micEnd?.();micEnd=null;if(listening&&controller?.accepting)restartTimer=setTimeout(()=>launchRecognition(),0);controls();};
  try{instance.start();capture.start();}catch(error){capture.end();listening=false;micPaused=true;recognition=null;recognitionWindow=null;notice('Não foi possível iniciar o microfone. Você pode importar a transcrição.');controls();}
@@ -415,12 +417,13 @@ $('roomCreateInstant').onclick=createInstant;$('roomBack').onclick=showLibrary;
 document.addEventListener('click',event=>{if(!$('roomCreateMenu').hidden&&!$('roomCreateMenu').contains(event.target)&&!$('roomNew').contains(event.target)){$('roomCreateMenu').hidden=true;$('roomNew').setAttribute('aria-expanded','false');}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('roomCreateMenu').hidden){$('roomCreateMenu').hidden=true;$('roomNew').setAttribute('aria-expanded','false');$('roomNew').focus();}});
 window.addEventListener('norte:page-changed',renderView);
-window.addEventListener('beforeunload',e=>{if(isRunning()){e.preventDefault();e.returnValue='';}save();});
+// Account saves travel over the network: closing the page mid-save would drop the end of the meeting.
+window.addEventListener('beforeunload',e=>{if(isRunning()||savesPending){e.preventDefault();e.returnValue='';}save();});
 setInterval(()=>{if(current&&view==='room')controls();},1000);
 window.NorteMeetingRoom={isRunning,snapshot,whenIdle:()=>controller?.done||Promise.resolve(current),flushStorage:save,ready:()=>ready,view:()=>(current?.room_kind||'meeting')===roomKind()?view:'library',openMeeting,showLibrary};
 controls();
 if(inAccount)$('roomSave').textContent='Na sua conta';
 try{db=inAccount?await NorteRemoteStorage.open():await NorteMemoryStorage.open();if(!inAccount)await resetLegacyMeetings();history=JSON.parse(await db.read(INDEX)||'[]');}catch(error){notice(cleanError(error));}
-initialized=true;renderLibrary();transcriptPanel(true);renderView();render();zoomLabel();await checkHealth();
+initialized=true;renderLibrary();transcriptPanel(transcriptPreference());renderView();render();zoomLabel();await checkHealth();
 }
 })();
