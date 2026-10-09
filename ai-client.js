@@ -6,7 +6,7 @@ const enabled=()=>root.document?.body.dataset.auth==='on';
 const normalized=text=>String(text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
 function possibleRequest(text){
  const value=normalized(text);
- return /\b(simula\w*|viga|calculo\w*|resultado\w*|grafico\w*|forca|carga|p\s*\d+|comprimento|secao)\b/.test(value)&&/\b(quero|queria|vamos|bora|abr\w*|abirr|mostr\w*|simula\w*|aument\w*|reduz\w*|diminu\w*|muda\w*|coloc\w*|bota\w*|altera\w*|pode|poderia)\b/.test(value);
+ return /\b(simula\w*|viga|calculo\w*|resultado\w*|grafico\w*|forca|carga|p\s*\d+|comprimento|secao)\b/.test(value)&&/\b(quero|queria|vamos|bora|abr\w*|abirr|mostr\w*|simular|simula|simule|simulem|aument\w*|reduz\w*|diminu\w*|muda\w*|coloc\w*|bota\w*|altera\w*|pode|poderia)\b/.test(value);
 }
 function guarded(text){return /\b(nao|nunca|nem|talvez|disse|falou|exemplo|hipoteticamente|poderiamos)\b|^(se|quando|imagine|suponha)\b/.test(normalized(text))||/["“”]/.test(text);}
 function schedule(){if(!timer&&queue.size&&failures<4)timer=setTimeout(()=>{timer=null;flush();},failures?Math.min(1000*2**failures,15000):500);}

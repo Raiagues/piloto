@@ -26,6 +26,7 @@ test('incomplete commands do not count as failures',async()=>{
 test('resolver never sends negation, numbers or physical state externally',async()=>{
  const {api,requests}=client();
  assert.equal(await api.resolve('não abra a simulação','r'),null);
+ assert.equal(await api.resolve('a simulação está na tela','r'),null);
  assert.equal(await api.resolve('muda a força para 12 kN','r'),null);
  await api.resolve('bora mostrar essa simulação','r');
  assert.equal(requests.length,1);assert.deepEqual(Object.keys(requests[0].body).sort(),['allow_model','session_id','text']);
