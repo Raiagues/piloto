@@ -88,7 +88,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const draft=await createInstant();assert.equal(draft.room_kind,'beam');
   await wait('!!NorteMeetingRoom.snapshot()?.beam_lab');
   assert.equal(await visible('#beamCommandForm'),false);assert.equal(await visible('#beamRoomTabs'),true);
-  assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(x=>!x.hidden).map(x=>x.textContent)'),['Canvas']);
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(x=>!x.hidden).map(x=>x.textContent)'),['Canvas','Simulação','Gráficos','Resultados','Cálculos']);
   assert.equal(await visible('#roomSessionBar'),false,'beam meetings have no repeated footer status');
   assert.equal(await visible('#beamRoomHost'),false,'draft starts on the meeting canvas');
   const first=await command('tá então o Norte vamos simular um teste uma discussão vamos simular uma viga');assert.equal(first.command_type,'open_simulation');
@@ -139,7 +139,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok(await evaluate('[...document.querySelectorAll(".bw-chart svg")].every(svg=>svg.getBoundingClientRect().height>200)'),'engineering plots have readable dimensions in the shared platform CSS');
   assert.equal(await visible('#roomTranscriptPanel'),false,'transcription is hidden by default');
   await screenshot('graphs');await click('#roomTranscriptToggle');assert.equal(await visible('#roomTranscriptPanel'),true);await click('#roomTranscriptToggle');
-  assert.equal(await visible('#beamTab-results'),false);assert.equal(await visible('#beamTab-calculations'),false);
+  assert.equal(await visible('#beamTab-results'),true);assert.equal(await visible('#beamTab-calculations'),true);
   await command('quero ver os resultados');assert.equal(await visible('.bw-pane[data-pane="results"]'),true);
   assert.match(await evaluate('document.querySelector(".bw-pane[data-pane=results]").textContent'),/72/);
   await command('mostra os cálculos');assert.equal(await visible('.bw-pane[data-pane="calculations"]'),true);
@@ -188,7 +188,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await evaluate('document.querySelector("#roomText").value="Talvez reduzir o comprimento diminua a deformação.";document.querySelector("#roomTextForm").requestSubmit()');
   await wait('NorteMeetingRoom.snapshot().meeting_events.length===1');await drained();
   await wait('!!document.querySelector("#beamSimulationSuggestion")?.getClientRects().length');
-  assert.equal(await visible('#beamTab-simulation'),false,'discussion suggests a simulation without showing its tab');
+  assert.equal(await visible('#beamTab-simulation'),true,'discussion suggests a simulation and keeps its tab visible');
   const callsBeforeManual=requests.length;
   await click('#beamSimulationSuggestion .compact-button');await click('.bw-drawing [data-object="beam"]');await edit('[data-field="beam.L"]',5);
   await wait('NorteMeetingRoom.snapshot().beam_lab.state.L===5');

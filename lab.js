@@ -203,16 +203,17 @@
     }
     document.body.dataset.page = page;
     const meetingPage = ['meeting','beam'].includes(page);
-    $('#sessionContent').hidden = page === 'memory' || meetingPage; $('#memoryPage').hidden = page !== 'memory';
+    $('#sessionContent').hidden = page === 'memory' || page === 'observatory' || meetingPage; $('#memoryPage').hidden = page !== 'memory';
+    $('#aiObservatoryPage').hidden = page !== 'observatory';
     const roomOpen = window.NorteMeetingRoom?.view() === 'room';
     $('#meetingPage').hidden = !meetingPage || !roomOpen; $('#meetingHeader').hidden = !meetingPage || !roomOpen;
     $('#roomLibrary').hidden = !meetingPage || roomOpen; $('#roomLibraryHeader').hidden = !meetingPage || roomOpen;
-    for (const [selector, active] of [['#meetingMode', page==='meeting'], ['#beamMode', page==='beam'], ['#manualMode', page==='manual'], ['#automatedMode', page==='automated'], ['#memoryMode', page==='memory' && !memoryV2], ['#memoryV2Mode', page==='memory' && memoryV2], ['#liveMode', !enabled]]) { $(selector).classList.toggle('selected', active); if (active) $(selector).setAttribute('aria-current', 'page'); else $(selector).removeAttribute('aria-current'); }
+    for (const [selector, active] of [['#aiObservatoryMode', page==='observatory'], ['#meetingMode', page==='meeting'], ['#beamMode', page==='beam'], ['#manualMode', page==='manual'], ['#automatedMode', page==='automated'], ['#memoryMode', page==='memory' && !memoryV2], ['#memoryV2Mode', page==='memory' && memoryV2], ['#liveMode', !enabled]]) { $(selector).classList.toggle('selected', active); if (active) $(selector).setAttribute('aria-current', 'page'); else $(selector).removeAttribute('aria-current'); }
     for (const selector of ['.header-context', '.audio-widget', '.header-actions', '.log-options']) $(selector).hidden = enabled;
     $('.manual-page-title').hidden = !enabled || meetingPage; $('#testToolbar').hidden = !enabled;
     $('#logHeading').textContent = enabled ? 'Testes' : 'Transcrição';
     $('.log-shell').setAttribute('aria-label', enabled ? 'Testes' : 'Transcrição da reunião');
-    $('.manual-page-title h1').textContent = page==='beam' ? 'Reuniões · simulação de vigas' : page==='meeting' ? 'Reuniões' : page==='memory' ? (memoryV2 ? 'Fluxo de memória V2' : 'Fluxo de memória') : page==='automated' ? 'Testes automatizados' : 'Classificador manual';
+    $('.manual-page-title h1').textContent = page==='observatory' ? 'Agentes e métricas' : page==='beam' ? 'Reuniões · simulação de vigas' : page==='meeting' ? 'Reuniões' : page==='memory' ? (memoryV2 ? 'Fluxo de memória V2' : 'Fluxo de memória') : page==='automated' ? 'Testes automatizados' : 'Classificador manual';
     document.title = enabled ? 'Norte · ' + $('.manual-page-title h1').textContent : 'Norte · ' + $('#meetingName').value;
     $('#liveStateView').hidden = enabled; $('#manualStateView').hidden = !enabled;
     renderInputTabs();
@@ -233,15 +234,15 @@
     if (typeof next === 'boolean') next = next ? 'manual' : 'live';
     if (restricted) next = 'beam';
     if (busy || loadingExample || window.NorteMemoryPage?.isRunning() || window.NorteMeetingRoom?.isRunning() || !C.getConfig()) {
-      if (busy || loadingExample || window.NorteMemoryPage?.isRunning() || window.NorteMeetingRoom?.isRunning()) { window.dispatchEvent(new CustomEvent('norte:notice', { detail: 'Aguarde ou interrompa a execução antes de mudar de página.' })); history.replaceState(null, '', page==='beam'?'#simulacao':page==='meeting'?'#reuniao':page==='memory'?'#memoria':page==='live'?'#ao-vivo':page==='automated'?'#automatizados':'#manual'); }
+      if (busy || loadingExample || window.NorteMemoryPage?.isRunning() || window.NorteMeetingRoom?.isRunning()) { window.dispatchEvent(new CustomEvent('norte:notice', { detail: 'Aguarde ou interrompa a execução antes de mudar de página.' })); history.replaceState(null, '', page==='observatory'?'#agentes':page==='beam'?'#simulacao':page==='meeting'?'#reuniao':page==='memory'?'#memoria':page==='live'?'#ao-vivo':page==='automated'?'#automatizados':'#manual'); }
       return;
     }
     setMode(next);
-    const hash=next==='beam'?'#simulacao':next==='meeting'?'#reuniao':next==='memory'?'#memoria':next==='live'?'#ao-vivo':next==='automated'?'#automatizados':'#manual';
+    const hash=next==='observatory'?'#agentes':next==='beam'?'#simulacao':next==='meeting'?'#reuniao':next==='memory'?'#memoria':next==='live'?'#ao-vivo':next==='automated'?'#automatizados':'#manual';
     if (updateHistory && location.hash !== hash) history.pushState(null, '', hash);
     if (innerWidth <= 900) sidebar(false);
   }
-  const fromLocation = () => navigate(location.hash === '#simulacao' ? 'beam' : location.hash === '#reuniao' ? 'meeting' : (location.hash === '#memoria' || memoryV2 && !location.hash)?'memory':location.hash === '#automatizados'?'automated':location.hash === '#manual'?'manual':'live', false);
+  const fromLocation = () => navigate(location.hash === '#agentes' ? 'observatory' : location.hash === '#simulacao' ? 'beam' : location.hash === '#reuniao' ? 'meeting' : (location.hash === '#memoria' || memoryV2 && !location.hash)?'memory':location.hash === '#automatizados'?'automated':location.hash === '#manual'?'manual':'live', false);
   window.addEventListener('popstate', fromLocation);
   window.addEventListener('hashchange', fromLocation);
   function compatibleExpected(values, questions) {
@@ -288,6 +289,7 @@
     target.addEventListener('drop',event=>{const source=event.dataTransfer.getData(inputDragType);if(!['state','questions'].includes(source))return;event.preventDefault();event.stopPropagation();inputTab=source;delete $('#inputPaneBody').dataset.dropInput;setInputLayout(layout);if(layout==='tabs')$('#'+source+'InputTab').focus();});
   }
   $('#meetingMode').addEventListener('click', () => navigate('meeting'));
+  $('#aiObservatoryMode').addEventListener('click', () => navigate('observatory'));
   $('#beamMode').addEventListener('click', () => navigate('beam'));
   $('#manualMode').addEventListener('click', () => navigate(true));
   $('#automatedMode').addEventListener('click', () => navigate('automated'));

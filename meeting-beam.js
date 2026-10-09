@@ -24,34 +24,42 @@ function create({getRun,save,notice,submit,submitFacts,canSubmit}){
  const tabs=el('div','beam-room-tabs');tabs.id='beamRoomTabs';tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','Vistas da reunião');
  const host=el('section','beam-room-host');host.id='beamRoomHost';host.hidden=true;host.setAttribute('role','tabpanel');host.setAttribute('aria-label','Simulação da viga');
  const tabLabels={canvas:'Canvas',simulation:'Simulação',graphs:'Gráficos',results:'Resultados',calculations:'Cálculos'};
- let enabled=false,workspace=null,runId=null,tab='canvas',previousTab='canvas',processing=false,recorded=new Set(),lastHint='',dismissedHint='',openedTabs=new Set(['canvas']);
+ let enabled=false,workspace=null,runId=null,tab='canvas',previousTab='canvas',processing=false,recorded=new Set(),lastHint='',dismissedHint='',openedTabs=new Set(Object.keys(tabLabels));
  const commandBar=el('form','beam-command-bar');commandBar.id='beamCommandForm';
  const label=el('label','room-visually-hidden','Pedido para a simulação');label.htmlFor='beamCommandText';
- const input=el('input','beam-command-input');input.id='beamCommandText';input.autocomplete='off';input.maxLength=1200;input.placeholder='O que você quer alterar ou ver?';
+ const input=el('input','beam-command-input');input.id='beamCommandText';input.autocomplete='off';input.maxLength=1200;input.placeholder='Ex.: vamos simular uma viga · mude a força P1 para 12 kN';
  const send=el('button','compact-button','Enviar');send.type='submit';
  const close=el('button','text-button','Fechar');close.type='button';
  commandBar.append(label,input,send,close);commandBar.hidden=true;
+ const feedback=el('div','beam-command-feedback');feedback.id='beamCommandFeedback';feedback.hidden=true;feedback.setAttribute('aria-live','polite');
+ const feedbackText=el('span'),correct=el('button','text-button','Entendeu'),incorrect=el('button','text-button','Não era isso');correct.type=incorrect.type='button';
+ let feedbackCommand=null;
+ for(const [button,value] of [[correct,true],[incorrect,false]])button.onclick=()=>{root.NorteAI?.feedback(getRun(),feedbackCommand,value);feedbackText.textContent='Retorno registrado para melhorar a interpretação.';correct.hidden=incorrect.hidden=true;};
+ feedback.append(feedbackText,correct,incorrect);
  const compose=el('button','text-button beam-compose-toggle','Escrever');compose.type='button';compose.id='beamComposeToggle';compose.setAttribute('aria-controls','beamCommandForm');compose.setAttribute('aria-expanded','false');compose.setAttribute('aria-label','Escrever um pedido para a simulação');
  document.querySelector('.room-view-options').prepend(compose);
  function composer(open){commandBar.hidden=!enabled||!open;compose.setAttribute('aria-expanded',String(open&&enabled));if(open&&enabled)input.focus();}
  compose.onclick=()=>composer(commandBar.hidden);close.onclick=()=>composer(false);input.onkeydown=event=>{if(event.key==='Escape')composer(false);};
  const hint=el('aside','beam-discussion-suggestion');hint.id='beamSimulationSuggestion';hint.hidden=true;hint.setAttribute('aria-label','Sugestão para testar a hipótese');
+ const discover=el('aside','beam-discover');discover.id='beamDiscover';discover.hidden=true;
+ const discoverCopy=el('div','beam-discover-copy');discoverCopy.append(el('strong','','Da conversa ao cálculo'),el('span','','Abra a simulação pelas abas ou diga “vamos simular uma viga”. Depois, peça alterações com suas palavras.'));
+ const discoverOpen=el('button','compact-button','Abrir simulação');discoverOpen.type='button';discoverOpen.onclick=()=>showTab('simulation',{manual:true});
+ discover.append(discoverCopy,discoverOpen);
  const hintCopy=el('div','beam-suggestion-copy'),hintTitle=el('strong','','Teste em discussão'),hintText=el('span','');hintText.setAttribute('aria-live','polite');hintCopy.append(hintTitle,hintText);
- const open=el('button','compact-button','Abrir simulação');open.type='button';open.onclick=()=>{dismissedHint=lastHint;showTab('simulation');};
+ const open=el('button','compact-button','Abrir simulação');open.type='button';open.onclick=()=>{dismissedHint=lastHint;showTab('simulation',{manual:true});};
  const dismiss=el('button','text-button beam-suggestion-dismiss','×');dismiss.type='button';dismiss.setAttribute('aria-label','Dispensar sugestão de simulação');dismiss.onclick=()=>{dismissedHint=lastHint;hint.hidden=true;};hint.append(hintCopy,open,dismiss);
- $('meetingPage').insertBefore(hint,$('roomWorkspace'));panel.append(host);view.prepend(tabs);$('meetingPage').insertBefore(commandBar,$('roomSessionBar'));
- for(const [key,title] of Object.entries(tabLabels)){const b=el('button','beam-room-tab',title);b.type='button';b.id='beamTab-'+key;b.hidden=!openedTabs.has(key);b.setAttribute('role','tab');b.setAttribute('aria-controls',key==='canvas'?'roomCanvas':'beamRoomHost');b.onclick=()=>showTab(key);tabs.append(b);}
+ $('meetingPage').insertBefore(discover,$('roomWorkspace'));$('meetingPage').insertBefore(hint,$('roomWorkspace'));panel.append(host);view.prepend(tabs);$('meetingPage').insertBefore(commandBar,$('roomSessionBar'));$('meetingPage').insertBefore(feedback,$('roomSessionBar'));
+ for(const [key,title] of Object.entries(tabLabels)){const b=el('button','beam-room-tab',title);b.type='button';b.id='beamTab-'+key;b.setAttribute('role','tab');b.setAttribute('aria-controls',key==='canvas'?'roomCanvas':'beamRoomHost');b.onclick=()=>showTab(key,{manual:true});tabs.append(b);}
  tabs.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;event.preventDefault();const list=Object.keys(tabLabels).filter(key=>openedTabs.has(key)),index=list.indexOf(tab),next=event.key==='Home'?0:event.key==='End'?list.length-1:(index+(event.key==='ArrowRight'?1:-1)+list.length)%list.length;showTab(list[next]);$('beamTab-'+list[next]).focus();});
  function writeStatus(text,kind=''){if(kind==='review')notice(text);}
  function ensureWorkspace(){
   const run=getRun();if(!run||run.room_kind!=='beam')return null;
   if(workspace&&runId===run.id)return workspace;
   workspace?.destroy();runId=run.id;recorded=new Set(run.beam_recorded||[]);lastHint='';dismissedHint='';hint.hidden=true;
-  // Older drafts persisted a simulation tab even though nobody had opened it.
-  // Only an actual request unlocks the simulator and its saved inspection tabs.
+  // All capabilities are discoverable; preserve the user's selected view.
   const started=run.beam_started===true;
   tab=started&&Object.hasOwn(tabLabels,run.beam_view)?run.beam_view:'canvas';previousTab=started&&Object.hasOwn(tabLabels,run.beam_previous_view)?run.beam_previous_view:'canvas';
-  openedTabs=new Set(['canvas',...(started?(run.beam_open_tabs||[]).filter(key=>Object.hasOwn(tabLabels,key)):[]),tab]);
+  openedTabs=new Set(Object.keys(tabLabels));
   workspace=root.NorteBeamWorkspace.mount(host,{data:run.beam_lab,onChange(data,detail){const current=getRun();if(current?.id!==runId)return;current.beam_lab=data;save();},onTabChange(next){if(next!==tab)showTab(next);},onRecord:async data=>{
    const key=data.version?.id||data.currentId;if(recorded.has(key)){writeStatus('Esta versão já foi registrada na reunião.');return false;}
    if(!await submitFacts(facts(data)))return false;
@@ -59,7 +67,7 @@ function create({getRun,save,notice,submit,submitFacts,canSubmit}){
   }});
   run.beam_lab=workspace.snapshot();save();return workspace;
  }
- function showTab(next){
+ function showTab(next,{manual=false}={}){
   if(!Object.hasOwn(tabLabels,next))next='simulation';
   const run=getRun();if(enabled)ensureWorkspace();if(next!==tab)previousTab=tab;tab=next;openedTabs.add(tab);
   if(enabled){run.beam_view=tab;run.beam_previous_view=previousTab;run.beam_open_tabs=[...openedTabs];if(tab!=='canvas')run.beam_started=true;save();}
@@ -67,17 +75,18 @@ function create({getRun,save,notice,submit,submitFacts,canSubmit}){
   stage.hidden=enabled&&tab!=='canvas';host.hidden=!enabled||tab==='canvas';
   $('roomConnectionsToggle').hidden=enabled&&tab!=='canvas';view.querySelector('.room-topic-browser').hidden=enabled&&tab!=='canvas';
   if(enabled&&tab!=='canvas')workspace?.showTab(tab);
+  if(enabled&&manual)root.NorteAI?.record({id:root.crypto.randomUUID(),session_id:run.id,kind:'intent',text:tabLabels[tab],intent:({simulation:'open_simulation',graphs:'show_graphs',results:'show_results',calculations:'show_calculations',canvas:'show_canvas'})[tab],status:'success',source:'ui',latency_ms:0,details:{trigger:'tab'}});
   refreshHintVisibility(run);
  }
  function activate(active,run){
-  enabled=active;tabs.hidden=!active;compose.hidden=!active;if(!active)composer(false);refreshHintVisibility(run);canvasTitle.hidden=active;panel.classList.toggle('has-beam',active);
+  enabled=active;tabs.hidden=!active;compose.hidden=!active;if(!active){composer(false);feedback.hidden=true;}refreshHintVisibility(run);canvasTitle.hidden=active;panel.classList.toggle('has-beam',active);
   if(active){ensureWorkspace();showTab(tab);}else{stage.hidden=false;host.hidden=true;$('roomConnectionsToggle').hidden=false;view.querySelector('.room-topic-browser').hidden=false;}
  }
- function refreshHintVisibility(run){hint.hidden=!enabled||run?.id!==runId||!['draft','running'].includes(run?.status)||tab!=='canvas'||!lastHint||lastHint===dismissedHint;}
+ function refreshHintVisibility(run){hint.hidden=!enabled||run?.id!==runId||!['draft','running'].includes(run?.status)||tab!=='canvas'||!lastHint||lastHint===dismissedHint;discover.hidden=!enabled||run?.id!==runId||tab!=='canvas'||run?.beam_started===true;}
  function suggestionFor(event){
   const text=String(event?.text||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const target=/\bespessura\b/.test(text)?'a espessura':/\b(altura|largura|secao)\b/.test(text)?'a seção da viga':/\b(comprimento|tamanho)\b/.test(text)?'o comprimento da viga':/\b(forca|carga|carregamento)\b/.test(text)?'o carregamento':/\b(apoio|suporte|engaste)\b/.test(text)?'os apoios':'essa hipótese';
-  return 'Para testar '+target+', peça, por exemplo: “Norte, vamos simular uma viga”.';
+  return 'Para testar '+target+', peça, por exemplo: “vamos simular uma viga” ou use as abas acima.';
  }
  function update(run){
   if(!enabled||run?.id!==runId)return;
@@ -102,11 +111,18 @@ function create({getRun,save,notice,submit,submitFacts,canSubmit}){
   const recent=run.transcript.map((item,index)=>({item,index,at:eventTime(item)})).filter(({item,at})=>item.source!=='simulation'&&!sourceIds.has(item.id)&&['done','command'].includes(item.status)&&Number.isFinite(at)&&at<=firstMs).sort((a,b)=>a.at-b.at||a.index-b.index).slice(-6);
   const context={recentTranscript:recent.map(({item,at})=>({id:item.id,text:item.text,offsetMs:item.offsetMs,source:item.source,speaker:item.speaker,command_id:item.command?.id,created_at:new Date(at).toISOString()})),pendingAudit,lastCommand};
   const options={active:!!run.beam_started,activeTab:tab,simulationFocus:ws.snapshot().simulationFocus,previousTab,availableTabs:[...openedTabs],context,source:entry.source,speaker:entry.speaker,nowMs};
-  if(!root.NorteBeamCommands.isCandidate?.(text,{...options,state:ws.snapshot().state}))return null;
+  const candidate=root.NorteBeamCommands.isCandidate?.(text,{...options,state:ws.snapshot().state});
+  const guarded=root.NorteBeamCommands.interpret(text,{...options,state:ws.snapshot().state}).guarded;
+  if(!guarded&&root.NorteAI?.possibleRequest(text))entry.ai_replay_state=copy(ws.snapshot().state);
+  const recovery=!candidate&&!guarded?await root.NorteAI?.resolve(text,run.id):null;
+  if(!isActive()||getRun()?.id!==run.id)return {consumed:true,status:'interrupted',message:'Comando interrompido.'};
+  if(!candidate&&!recovery)return null;
   ws.flushPending();const before=ws.snapshot(),state=copy(before.state);processing=true;host.inert=true;update(run);writeStatus('Interpretando o comando…');
   let audit;
   try{
-   audit=await root.NorteBeamCommands.process(text,{state,run,transport,provider,...options});
+   audit=await root.NorteBeamCommands.process(recovery?'abrir simulação':text,{state,run,transport,provider,...options});
+   if(recovery){audit.raw_text=text;audit.interpretation_source=recovery.source;audit.rule_id=recovery.rule_id||null;audit.normalizations.push({kind:'learned_intent',from:text,to:audit.interpreted_text,rule_id:audit.rule_id});if(audit.candidate)audit.candidate.raw_text=text;}
+   audit.beam_state_before=state;
    if(!isActive()||getRun()?.id!==run.id)return {consumed:true,status:'interrupted',message:'Comando interrompido.'};
    if(!audit?.consumed)return null;
    audit.id='BC'+String((run.beam_commands?.length||0)+1).padStart(4,'0');audit.text=text;audit.chunk_id=entry.id;audit.created_at=new Date(nowMs).toISOString();audit.processed_at=new Date().toISOString();audit.speaker=entry.speaker;audit.source_entry_ids=[...sourceIds];audit.source_offset_ms=entry.offsetMs;audit.source_end_offset_ms=lastSource.offsetMs;
@@ -128,12 +144,13 @@ function create({getRun,save,notice,submit,submitFacts,canSubmit}){
    return audit;
   }catch(error){
    if(!isActive())return {consumed:true,status:'interrupted',message:'Comando interrompido.'};
-   const failed={...audit,id:audit?.id||'BC'+String((run.beam_commands?.length||0)+1).padStart(4,'0'),text,chunk_id:entry.id,consumed:true,status:'error',message:error.message};(run.beam_commands||=[]).push(copy(failed));save();writeStatus(error.message,'review');return failed;
+   const failed={...audit,id:audit?.id||'BC'+String((run.beam_commands?.length||0)+1).padStart(4,'0'),text,chunk_id:entry.id,beam_state_before:state,consumed:true,status:'error',message:error.message};(run.beam_commands||=[]).push(copy(failed));save();writeStatus(error.message,'review');return failed;
   }finally{processing=false;host.inert=false;update(getRun());}
  }
  activate(false,null);
  function acknowledge(command,run){
   if(run?.id!==runId||!command?.id)return;
+  feedbackCommand=command;feedback.hidden=!enabled;correct.hidden=incorrect.hidden=!root.NorteAI||command.status==='awaiting_continuation';feedbackText.textContent=command.status==='applied'?({open_simulation:'Simulação aberta.',show_graphs:'Gráficos abertos.',show_results:'Resultados abertos.',show_calculations:'Cálculos abertos.',show_canvas:'Canvas aberto.'})[command.operations?.[0]?.type]||'Alteração aplicada à viga.':command.message||'Pedido registrado.';
   if(command.memory_enqueued&&command.version_id){recorded.add(command.version_id);run.beam_recorded=[...recorded];}
   const saved=run.beam_commands?.find(c=>c.id===command.id);if(saved)Object.assign(saved,{memory_enqueued:command.memory_enqueued,memory_error:command.memory_error,message:command.message});
   if(command.memory_error)writeStatus(command.message,'review');save();

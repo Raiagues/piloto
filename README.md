@@ -7,6 +7,8 @@ Reuniões com simulação de vigas: transcrição ao vivo, canvas de assuntos, s
 
 **Publicar no Render**: veja [DEPLOY.md](DEPLOY.md). Atalho: <https://render.com/deploy?repo=https://github.com/Raiagues/piloto>
 
+**Comandos naturais, agentes e métricas**: veja [AGENTES.md](AGENTES.md) para ativar Gemini/OpenAI, configurar limites e entender o painel visual do admin.
+
 ## Rodar localmente
 
 ```bash

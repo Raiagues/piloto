@@ -220,6 +220,10 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
  async function unfinishedSpeech(utterance,context,checks){
   const started=now(),literal=speech().unfinished(utterance);
   if(literal){checks.push({words:wordCount(utterance),literal:true,wait:true});return true;}
+  // Complete navigation is deterministic and reversible. Do not spend a
+  // speech-gating API call (or wait for another phrase) before showing a view.
+  const beam=root.NorteBeamCommands||(require?require('./beam-commands.js'):null);
+  if(beam&&commandHandler){const candidate=beam.parse(utterance,{active:!!run.beam_started,state:run.beam_lab?.state});if(candidate.candidate_operations?.length&&!candidate.issues?.length&&candidate.candidate_operations.every(op=>['open_simulation','show_canvas','show_graphs','show_results','show_calculations','show_section','compare'].includes(op.type))){checks.push({words:wordCount(utterance),navigation:true,wait:false});return false;}}
   const state={current_utterance:utterance};if(context)state.previous_context=context;
   try{
    run.calls++;const output=await transport('speech')({model:'jev-latest',state,questions:copy(gate.questions)},provider);
@@ -347,5 +351,5 @@ function restore(saved){
  Object.assign(run,F.memoryState(run));if(run.thread_worker){run.thread_worker=T.restore(run.thread_worker,run);T.syncMemory(run);}if(run.typed_relation_worker){run.typed_relation_worker=TR.restore(run.typed_relation_worker,run);TR.syncMemory(run);}
  if(['running','finishing'].includes(run.status))run.status='interrupted';for(const entry of run.transcript)if(['processing','queued'].includes(entry.status))entry.status='interrupted';applyTitles(run);return run;
 }
-return {create,restore,parseTranscript,parseTranscriptEntries,split,MAX_CHUNKS};
+return {create,restore,parseTranscript,parseTranscriptEntries,split,MAX_CHUNKS,speechGate:copy(CONTINUATION)};
 });

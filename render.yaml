@@ -28,6 +28,36 @@ services:
         sync: false
       - key: GOOGLE_API_KEY
         sync: false
+      - key: AI_AGENTS_ENABLED
+        value: "true"
+      - key: AI_EXTERNAL_REVIEW_ENABLED
+        value: "true"
+      - key: AI_AGENT_PROVIDER
+        value: gemini
+      - key: AI_AUTO_PUBLISH
+        value: "true"
+      - key: AI_AGENT_MODEL
+        value: gemini-2.5-flash
+      - key: AI_GEMINI_INPUT_USD_PER_MILLION
+        value: "0.30"
+      - key: AI_GEMINI_OUTPUT_USD_PER_MILLION
+        value: "2.50"
+      - key: AI_OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: AI_OPENAI_INPUT_USD_PER_MILLION
+        value: "0.40"
+      - key: AI_OPENAI_OUTPUT_USD_PER_MILLION
+        value: "1.60"
+      - key: AI_DAILY_BUDGET_USD
+        value: "1.00"
+      - key: AI_DAILY_CALL_LIMIT
+        value: "50"
+      - key: AI_RETENTION_DAYS
+        value: "90"
+      - key: JEV_INPUT_USD_PER_MILLION
+        value: "0.042"
+      - key: JEV_OUTPUT_USD_PER_MILLION
+        value: "0"
 
 databases:
   - name: norte-db

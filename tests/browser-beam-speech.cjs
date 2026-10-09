@@ -71,7 +71,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const origin='http://127.0.0.1:'+server.address().port;
 
   const rawSpeech='Oi gente vamos começar a reunião então tá a gente vai começar a discutir primeiro a parte de do tamanho da viga ela deu problema no teste anterior e a gente tem que resolver isso tá como que a gente vai fazer então o que eu pensei era da gente pegar e conseguir diminuir o tamanho dela';
-  const rawCommand='tá então o Norte vamos simular um teste uma discussão vamos simular uma viga';
+  const rawCommand='tá então quero fazer uma simulação';
   const expected=[
    'Oi gente vamos começar a reunião então tá a gente vai começar a discutir primeiro a parte de',
    'do tamanho da viga ela deu problema no teste anterior',
@@ -85,7 +85,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');await click('#roomCreateInstant');
   await wait('NorteMeetingRoom.snapshot()?.status==="draft" && !!window.NorteMeetingBeam');
   assert.equal(requests.length,0);assert.equal(await evaluate('(window.__speechInstances||[]).length'),0);
-  assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(b=>!b.hidden).map(b=>b.textContent)'),['Canvas']);
+  assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(b=>!b.hidden).map(b=>b.textContent)'),['Canvas','Simulação','Gráficos','Resultados','Cálculos']);
   assert.equal(await visible('#beamSimulationSuggestion'),false);assert.equal(await evaluate('!!document.querySelector("#beamRoomHint")'),false);
   assert.equal(await visible('#roomTranscriptPanel'),false,'transcription is hidden by default');await click('#roomTranscriptToggle');
   assert.equal(await evaluate('document.querySelector("#roomTranscriptDivider").getAttribute("aria-valuenow")'),'78','new beam room reserves roughly 22% for transcription');
@@ -115,7 +115,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(run.records[1].storeOutput.request.state.speech_context.preceding_words,expected.slice(0,2).join(' '));
   await wait('document.querySelectorAll("#roomBoard .room-node").length===2');
   assert.ok(run.records.filter(r=>r.result.store).every(r=>r.result.typeProbability===.65),'the canvas keeps useful classifications below the old 80% gate');
-  assert.equal(await visible('#beamSimulationSuggestion'),true);assert.match(await evaluate('document.querySelector("#beamSimulationSuggestion").textContent'),/testar o comprimento.*por exemplo/);assert.equal(await visible('#beamTab-simulation'),false,'a test suggestion does not reveal simulation until requested');
+  assert.equal(await visible('#beamSimulationSuggestion'),true);assert.match(await evaluate('document.querySelector("#beamSimulationSuggestion").textContent'),/testar o comprimento.*por exemplo/);assert.equal(await visible('#beamTab-simulation'),true,'simulation remains discoverable during a discussion');
   assert.equal(run.beam_lab.state.section.b,.12);assert.equal(run.beam_lab.state.section.h,.24,'an unspecified 20→25cm discussion never changes a structural dimension');
   await evaluate('document.querySelector(".room-transcript-scroll").scrollTop=0');await screenshot('exact-asr');
   // A final result arriving during stop must pass through the same segmenter once.
@@ -141,18 +141,18 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   // A command split by a pause waits for its value and runs once, complete:
   // no fabricated kN, no premature ambiguous attempt, no duplicated source text.
   await click('#roomLive');await wait('__speechInstances.length===3');
-  await evaluate(`__speech.emit('Norte, mude a força P1 para',false,0);__speech.emit('Norte, mude a força P1 para',true,0)`);
+  await evaluate(`__speech.emit('mude a força P1 para',false,0);__speech.emit('mude a força P1 para',true,0)`);
   await sleep(400);assert.equal((await snapshot()).beam_commands.length,1,'the unfinished instruction waits for its value');
   await evaluate(`__speech.emit('12 kN',false,1);__speech.finalOnStop='12 kN'`);await click('#roomLive');
   await wait('NorteMeetingRoom.snapshot().beam_lab.state.loads[0].value===12000 && !document.querySelector("#roomLive").disabled');await drained();
-  run=await snapshot();assert.equal(run.beam_commands.length,2);assert.equal(run.beam_commands[1].status,'applied');assert.equal(run.beam_commands[1].text,'Norte, mude a força P1 para 12 kN');
-  assert.deepEqual(run.speech_ledger.records.map(r=>r.text),[rawSpeech,rawCommand,'Norte, mude a força P1 para','12 kN']);assert.equal(run.transcript.filter(e=>e.text==='12 kN').length,1);
+  run=await snapshot();assert.equal(run.beam_commands.length,2);assert.equal(run.beam_commands[1].status,'applied');assert.equal(run.beam_commands[1].text,'mude a força P1 para 12 kN');
+  assert.deepEqual(run.speech_ledger.records.map(r=>r.text),[rawSpeech,rawCommand,'mude a força P1 para','12 kN']);assert.equal(run.transcript.filter(e=>e.text==='12 kN').length,1);
   await click('#roomFinish');await wait('NorteMeetingRoom.snapshot()?.status==="done" && !NorteMeetingRoom.isRunning()');
   assert.equal((await snapshot()).transcript.length,11);assert.equal(await evaluate('__speechInstances.length'),3,'no restarts besides the forced finalization and the two pauses');assert.equal(await evaluate('__speechInstances.every(instance=>instance.stopCalls===1)'),true);
   await evaluate('NorteMeetingRoom.flushStorage()');
   assert.deepEqual(errors,[]);
   assert.equal(await evaluate('NorteMeetingSession.restore(NorteMeetingRoom.snapshot()).transcript.length'),11,'continuation requests restore with their verified original context');
-  console.log('PASS: continuous native capture with a fifteen-second limit for unconfirmed speech, short literal transcript rows with bounded unfinished-clause continuation, 65% facts retained, contextual top hint and on-demand simulation tab, source/timing preserved, a command split at a pause runs once with its value, delayed final on pause retained and memory restore.');
+  console.log('PASS: continuous native capture with a fifteen-second limit for unconfirmed speech, short literal transcript rows with bounded unfinished-clause continuation, 65% facts retained, contextual top hint and visible simulation tabs, source/timing preserved, a command split at a pause runs once with its value, delayed final on pause retained and memory restore.');
  }finally{
   socket?.close();
   await new Promise(resolve=>{if(chrome.exitCode!==null)return resolve();chrome.once('exit',resolve);chrome.kill('SIGTERM');});

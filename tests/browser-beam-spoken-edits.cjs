@@ -88,9 +88,9 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await wait('window.NorteMeetingRoom?.ready() && NorteClassifier.isAvailable() && document.body.dataset.page==="beam"');
   await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');await click('#roomCreateInstant');
   await wait('NorteMeetingRoom.snapshot()?.status==="draft" && !!window.NorteMeetingBeam');
-  assert.equal(await visible('#beamTab-simulation'),false,'simulation stays on demand');
+  assert.equal(await visible('#beamTab-simulation'),true,'simulation is discoverable from the start');
   await click('#roomLive');await wait('!!window.__speech');
-  await say('Norte vamos simular uma viga',57000);
+  await say('abirr simulação',57000);
   await wait('NorteMeetingRoom.snapshot().beam_commands?.some(c=>c.status==="applied"&&c.operations.some(o=>o.type==="open_simulation"))');await settled();
   let run=await snapshot();assert.equal(run.beam_lab.state.L,6);assert.equal(run.beam_lab.versions.length,1);assert.equal(await visible('#beamTab-simulation'),true);
   assert.ok(run.transcript.some(t=>t.source==='simulation'),'calculated facts enter the normal meeting pipeline between speech');
@@ -124,11 +124,11 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok(run.transcript.some(t=>t.source==='simulation'&&/momento fletor máximo absoluto 25 kN/.test(t.text)),'new computations feed the meeting memory');
   assert.equal(await evaluate('document.querySelector("#roomNotice").hidden||!document.querySelector("#roomNotice").textContent'),true,'no stale unclear-target banner after successful force update');
   const rows=await evaluate('[...document.querySelectorAll("#roomTranscript .room-speech")].map(e=>({text:e.querySelector(".room-speech-text").textContent,time:e.querySelector("time").textContent}))');
-  assert.deepEqual(rows.map(r=>r.text),['Norte vamos simular uma viga','beleza eu quero reduzir de','para 5 metros','eu quero reduzir o tamanho da viga de 5 m para','me','eu quero reduzir a força P1 de 10 Kg','é 5 Kilo newtons']);
+  assert.deepEqual(rows.map(r=>r.text),['abirr simulação','beleza eu quero reduzir de','para 5 metros','eu quero reduzir o tamanho da viga de 5 m para','me','eu quero reduzir a força P1 de 10 Kg','é 5 Kilo newtons']);
   assert.deepEqual(rows.map(r=>r.time),['00:00:57','00:01:03','00:01:08','00:01:13','00:01:18','00:01:23','00:01:28']);
   assert.equal(run.transcript.filter(t=>t.source==='microphone').length,7,'every literal capture is preserved once');
   assert.equal(run.speech_ledger.records.filter(r=>r.status==='final').length,7);
-  assert.equal(await visible('#beamTab-graphs'),false);assert.equal(await visible('#beamTab-results'),false);assert.equal(await visible('#beamTab-calculations'),false);
+  assert.equal(await visible('#beamTab-graphs'),true);assert.equal(await visible('#beamTab-results'),true);assert.equal(await visible('#beamTab-calculations'),true);
   for(const {body} of requests.filter(item=>item.body?.questions.beam_action))assert.ok(body.state.conversation_context.recent_utterances.every(text=>!/^Teste de simulação|^Resultado calculado da simulação/.test(text)),'computed facts must not replace the prior human utterance');
   await screenshot('complete');
   await click('#roomFinish');await wait('NorteMeetingRoom.snapshot()?.status==="done" && !NorteMeetingRoom.isRunning()');

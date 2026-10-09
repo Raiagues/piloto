@@ -26,6 +26,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 import auth
 from config import Settings, load_settings
 import gemini_minutes
+import ai_runtime
 
 ROOT = Path(__file__).resolve().parent
 ALLOWED = {'index.html', 'styles.css', 'memory-flow.css', 'memory-flow.js', 'memory-page.js', 'relation-worker.js', 'app.js', 'transcription.js', 'speech-windows.js', 'classifier.js', 'workspace.js', 'experiments.js', 'automation.js', 'lab.js', 'classifier-config.json', 'manual-test-example.json'}
@@ -34,6 +35,7 @@ ALLOWED.update({'memory-v2.js','gemini-minutes.js','gemini-minutes.css','reuniao
 ALLOWED.update({'beam-engine.js','beam-commands.js','beam-workspace.js','beam-workspace.css','meeting-beam.js','meeting-beam.css','meeting-speech.js'})
 ALLOWED.update({'meeting-document.js','meeting-amendments.js'})
 ALLOWED.update({'account.js', 'account.css', 'remote-storage.js'})
+ALLOWED.update({'ai-client.js', 'ai-observatory.js', 'ai-observatory.css'})
 ALLOWED.update({'typed-relations.js', 'typed-relations-page.js', 'meeting-minutes.js', 'meeting-minutes.css', 'relation-map.js', 'relation-map.css', 'memory-storage.js',
                 'vendor/minutes/jspdf-4.2.1.umd.min.js', 'vendor/minutes/DejaVuSans-2.37.ttf',
                 'tests/fixtures/typed-relations-curated.json', 'tests/fixtures/typed-relations-holdout.json', 'tests/fixtures/typed-relations-b002.json',
@@ -45,6 +47,7 @@ ADMIN_ONLY = {'manual-test-example.json'} | {name for name in ALLOWED if name.st
 SETTINGS = Settings()
 OFFICIAL_URL = 'https://api.typesafe.ai/v1/systemone'
 STORE = None
+AI_RUNTIME = None
 COOKIE = 'norte_session'
 AUTH_REQUIRED = {'error': 'Entre na sua conta para continuar.', 'code': 'auth'}
 LOGIN_THROTTLE = auth.Throttle(8, 15 * 60)
@@ -52,7 +55,11 @@ NETWORK_THROTTLE = auth.Throttle(40, 15 * 60)
 SIGNUP_THROTTLE = auth.Throttle(10, 60 * 60)
 MAX_RECORD_REQUEST = 32_000_000
 POST_ROUTES = ('/api/classify', '/api/relations', '/api/typed-relations', '/api/minutes', '/api/records',
-               '/api/auth/login', '/api/auth/signup', '/api/auth/logout')
+               '/api/auth/login', '/api/auth/signup', '/api/auth/logout',
+               '/api/ai/events', '/api/ai/resolve', '/api/ai/memory/query',
+               '/api/admin/ai/replay', '/api/admin/ai/run', '/api/admin/ai/aliases')
+AI_THROTTLE = auth.Throttle(120, 60)
+AI_ADMIN_THROTTLE = auth.Throttle(10, 60)
 # One request per lane per account: accounts never block each other.
 LANE_NAMES = ('classify', 'relations', 'typed-relations', 'minutes')
 LANES = {}
@@ -295,6 +302,14 @@ class Handler(SimpleHTTPRequestHandler):
             if not user: return self.json_response(401, AUTH_REQUIRED)
             if route == '/api/auth/me': return self.json_response(200, {'user': public_user(user)})
             if route == '/api/records': return self.read_record(user)
+            if route in ('/api/ai/aliases', '/api/admin/ai/overview'):
+                if route.startswith('/api/admin/') and user['role'] != 'admin': return self.json_response(403, {'error': 'Acesso restrito ao administrador.'})
+                if AI_RUNTIME is None: return self.json_response(503, {'error': 'Agentes ainda não inicializados.'})
+                try:
+                    return self.json_response(200, AI_RUNTIME.overview() if route.startswith('/api/admin/') else AI_RUNTIME.aliases(user['id']))
+                except Exception as error:
+                    self.log_error('AI read failed: %s', type(error).__name__)
+                    return self.json_response(503, {'error': 'Não foi possível consultar os agentes.'})
             return self.json_response(404, {'error': 'Rota inexistente.'})
         return super().do_GET()
     def health(self, user):
@@ -330,6 +345,7 @@ class Handler(SimpleHTTPRequestHandler):
         user = self.current_user()
         if not user: return self.json_response(401, AUTH_REQUIRED)
         if self.path == '/api/records': return self.write_record(user)
+        if self.path.startswith(('/api/ai/', '/api/admin/ai/')): return self.ai_request(user)
         if self.headers.get('X-Norte-Provider') not in (None, SETTINGS.provider): return self.json_response(409, {'error': 'O provedor mudou. Atualize a página e inicie um novo teste.'})
         try:
             body = self.read_json(2_000_000 if self.path == '/api/minutes' else 64000)
@@ -341,13 +357,65 @@ class Handler(SimpleHTTPRequestHandler):
         if not lane.acquire(blocking=False):
             if self.path == '/api/minutes': return self.json_response(429, {'error':'Há uma organização em andamento. Aguarde um momento e tente novamente.','code':'busy','retryable':True,'retry_after_seconds':5})
             return self.json_response(429, {'error': 'Worker ocupado; tente novamente.'})
+        started = time.monotonic()
+        usage_result, usage_status, usage_provider, usage_model = {}, 'error', ('jev' if SETTINGS.provider == 'official' else 'local'), 'jev-latest'
+        if self.path == '/api/minutes': usage_provider, usage_model = 'gemini', SETTINGS.gemini_model
         try:
-            if self.path == '/api/minutes': return self.json_response(200, gemini_minutes.generate(body['source'], load_settings()))
-            return self.json_response(200, classify(body, SETTINGS))
+            if self.path == '/api/minutes':
+                result = gemini_minutes.generate(body['source'], load_settings())
+                usage_result = {'usageMetadata': result.get('usage_metadata', {})}
+                usage_status = 'success'
+                return self.json_response(200, result)
+            result = classify(body, SETTINGS)
+            usage_result, usage_status = result.get('response', {}), 'success'
+            return self.json_response(200, result)
         except (OSError, ValueError): return self.json_response(503, {'error': 'Não foi possível carregar a configuração do servidor.'})
         except gemini_minutes.MinutesError as error: return self.json_response(error.status, error.response())
         except ProviderError as error: return self.json_response(error.status, {'error': str(error)})
-        finally: lane.release()
+        finally:
+            lane.release()
+            if AI_RUNTIME is not None:
+                try: AI_RUNTIME.record_usage(user['id'], usage_provider, usage_model, self.path.rsplit('/', 1)[-1], usage_result, (time.monotonic() - started) * 1000, usage_status)
+                except Exception as error: self.log_error('AI usage write failed: %s', type(error).__name__)
+
+    def ai_request(self, user):
+        admin = self.path.startswith('/api/admin/')
+        if admin and user['role'] != 'admin': return self.json_response(403, {'error': 'Acesso restrito ao administrador.'})
+        if AI_RUNTIME is None: return self.json_response(503, {'error': 'Agentes ainda não inicializados.'})
+        throttle = AI_ADMIN_THROTTLE if admin else AI_THROTTLE
+        if throttle.blocked(user['id']): return self.json_response(429, {'error': 'Muitas solicitações; tente novamente em instantes.'})
+        throttle.hit(user['id'])
+        try:
+            body = self.read_json(640000 if self.path.endswith('/events') else 64000)
+            if not isinstance(body, dict): raise ValueError('Requisição inválida.')
+            if self.path == '/api/ai/events': result = AI_RUNTIME.ingest(user['id'], body)
+            elif self.path == '/api/ai/resolve': result = AI_RUNTIME.resolve(user['id'], body)
+            elif self.path == '/api/ai/memory/query':
+                if set(body) - {'query', 'session_id'}: raise ValueError('Campos da consulta inválidos.')
+                result = AI_RUNTIME.memory.query(user['id'], body.get('query'), body.get('session_id'))
+            elif self.path == '/api/admin/ai/aliases':
+                if set(body) != {'id', 'action'} or body['action'] != 'disable': raise ValueError('Use id e action=disable.')
+                result = AI_RUNTIME.rollback(body['id'])
+            elif self.path == '/api/admin/ai/replay':
+                if set(body) - {'cases'}: raise ValueError('Envie cases ou um objeto vazio.')
+                cases = body.get('cases')
+                if cases is not None:
+                    if not isinstance(cases, list) or not 1 <= len(cases) <= 100: raise ValueError('Use de 1 a 100 casos.')
+                    for case in cases:
+                        if not isinstance(case, dict) or not isinstance(case.get('text'), str) or not 1 <= len(case['text']) <= 2000 or case.get('expected_intent') not in (None, ai_runtime.INTENT): raise ValueError('Caso inválido: use text e expected_intent open_simulation ou null.')
+                result = AI_RUNTIME.enqueue(user['id'], 'replay', body)
+            else:
+                if body: raise ValueError('Envie um objeto vazio.')
+                users = STORE._run('SELECT DISTINCT user_id FROM ai_events LIMIT 1000', fetch='all')
+                jobs = [AI_RUNTIME.enqueue(row[0], 'audit', dedup_key=f'manual-audit:{row[0]}:{ai_runtime.stamp() // 30}') for row in users]
+                result = AI_RUNTIME.enqueue(user['id'], 'metrics')
+                result['audit_jobs'] = [j['job_id'] for j in jobs]
+            return self.json_response(200, result)
+        except (ValueError, TypeError, RecursionError, OverflowError) as error:
+            return self.json_response(400, {'error': str(error) or 'Requisição inválida.'})
+        except Exception as error:
+            self.log_error('AI request failed: %s', type(error).__name__)
+            return self.json_response(503, {'error': 'Não foi possível concluir a solicitação dos agentes.'})
 
     def account(self, action):
         if STORE is None: return self.json_response(503, {'error': 'Contas indisponíveis neste servidor.'})
@@ -429,7 +497,7 @@ def open_store(settings):
 
 
 def main():
-    global ENGINE_URL, SETTINGS, STORE
+    global ENGINE_URL, SETTINGS, STORE, AI_RUNTIME
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
     parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', '8000')))
@@ -438,6 +506,8 @@ def main():
     except (OSError, ValueError) as error: raise SystemExit(str(error))
     try: STORE = open_store(SETTINGS)
     except auth.AuthError as error: raise SystemExit('ADMIN_USERNAME/ADMIN_PASSWORD: ' + str(error))
+    AI_RUNTIME = ai_runtime.Runtime(STORE, SETTINGS)
+    AI_RUNTIME.start()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     engine, engine_log = None, None
     if SETTINGS.provider == 'local':
@@ -459,6 +529,7 @@ def main():
             try: engine.wait(timeout=8)
             except subprocess.TimeoutExpired: engine.kill(); engine.wait()
         if engine_log: engine_log.close()
+        AI_RUNTIME.stop()
         STORE.close()
 
 

@@ -116,16 +116,16 @@ test('classifier candidates express engineering names and units while executable
  const support=C.buildRequest('Norte, quero mudar o tipo do apoio para articulado',{state:s});assert.equal(support.state.deterministic_candidate.operations[0].patch.type,'articulado');assert.equal(C.parse(support.state.utterance,{state:s}).operations[0].patch.type,'pin');
  const load=C.buildRequest('Norte, adicione um momento de 5 kNm horário na ponta',{state:s});assert.deepEqual(load.state.deterministic_candidate.operations[0].load.magnitude,{value:5,unit:'kN·m'});assert.equal(load.state.deterministic_candidate.operations[0].load.direction,'horário');assert.equal(load.state.beam_state.loads[0].magnitude.value,10);
 });
-test('strict parameterless views validate intent and mode but still refuse contradiction or ambiguity',async()=>{
- const open=await C.process('Norte, vamos simular uma viga',{state:state(),transport:transport({fit:'incomplete'})});assert.equal(open.status,'proposed');assert.deepEqual(open.validation_gates,['beam_action']);
- for(const fit of ['contradicted','ambiguous','not_applicable']){const out=await C.process('Norte, vamos simular uma viga',{state:state(),transport:transport({fit})});assert.equal(out.status,'ambiguous',fit);assert.deepEqual(out.operations,[]);}
- const lowIntent=await C.process('Norte, vamos simular uma viga',{state:state(),transport:transport({probability:.8})});assert.equal(lowIntent.status,'ambiguous');
+test('optional classifier evaluation of parameterless views still refuses contradiction or ambiguity',async()=>{
+ const open=await C.process('Norte, vamos simular uma viga',{state:state(),localNavigation:false,transport:transport({fit:'incomplete'})});assert.equal(open.status,'proposed');assert.deepEqual(open.validation_gates,['beam_action']);
+ for(const fit of ['contradicted','ambiguous','not_applicable']){const out=await C.process('Norte, vamos simular uma viga',{state:state(),localNavigation:false,transport:transport({fit})});assert.equal(out.status,'ambiguous',fit);assert.deepEqual(out.operations,[]);}
+ const lowIntent=await C.process('Norte, vamos simular uma viga',{state:state(),localNavigation:false,transport:transport({probability:.8})});assert.equal(lowIntent.status,'ambiguous');
  const decorated=await C.process('Norte, mostre os resultados e os esforços desconhecidos',{state:state(),transport:transport({fit:'incomplete'})});assert.equal(decorated.status,'ambiguous','only a fully matched parameterless sentence bypasses a nonexistent value check');
 });
 test('conversation skips transport and classifier conversation releases the utterance to meeting extraction',async()=>{
  let calls=0;const send=async req=>{calls++;return reply(req,{action:'conversation',mode:'not_applicable',fit:'not_applicable'});};
  for(const text of ['Vamos testar a viga de 10 m','Norte, mude o título do assunto 1 para Viga']){const out=await C.process(text,{state:state(),transport:send});assert.equal(out.status,'conversation');assert.equal(out.consumed,false);}assert.equal(calls,0);
- const rejected=await C.process('Norte, mostre os cálculos',{state:state(),transport:send});assert.equal(rejected.consumed,false);assert.deepEqual(rejected.operations,[]);assert.equal(calls,1);
+ const rejected=await C.process('Norte, mude a força P1 para 12 kN',{state:state(),transport:send});assert.equal(rejected.consumed,false);assert.deepEqual(rejected.operations,[]);assert.equal(calls,1);
 });
 test('timeout, wrong provider, malformed response and changed state retain safe audit but no operations',async()=>{
  for(const send of [async()=>{throw Error('unexpected provider diagnostics SECRET');},async req=>({...reply(req),provider:'local'}),async req=>{const out=reply(req);out.request.state.utterance='forged';return out;},async()=>new Promise(()=>{})]){const out=await C.process('Norte, mova P1 para 4 m',{state:state(),transport:send,timeoutMs:15});assert.equal(out.status,'classification_error');assert.deepEqual(out.operations,[]);assert.doesNotMatch(JSON.stringify(out),/SECRET/);assert.ok(out.requests.length);}

@@ -1,0 +1,131 @@
+/* Compact admin dashboard, sharing Norte's existing palette and typography. */
+.ai-observatory { min-width: 0; min-height: 0; overflow: auto; padding: 0 2px 28px; scrollbar-gutter: stable; }
+body[data-page="observatory"] .app-header { grid-template-columns: 1fr; }
+.ao-toolbar,.ao-actions,.ao-card-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ao-toolbar { padding: 6px 0 16px; flex-wrap: wrap; }
+.ao-eyebrow { font-size: 10px; color: #84b8e8; letter-spacing: .13em; }
+.ao-toolbar p { margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+.ao-actions { justify-content: flex-end; flex-wrap: wrap; }
+.ao-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.ao-tabs button { white-space: nowrap; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); padding: 12px 15px; }
+.ao-tabs button[aria-selected="true"] { border-bottom-color: #77baff; color: #cce8ff; background: #5198da10; }
+.ao-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin-bottom: 16px; }
+.ao-metric,.ao-card { border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(145deg,#0a243c,#071b2e); }
+.ao-metric { padding: 18px; }
+.ao-metric h2 { margin: 0 0 18px; font-weight: 400; color: var(--muted); font-size: 11px; }
+.ao-metric strong { display: block; font-size: clamp(23px,2.4vw,34px); font-weight: 500; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.ao-metric p { margin: 10px 0 0; min-height: 28px; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.ao-meter { margin-top: 12px; background: #ffffff0b; height: 3px; border-radius: 3px; overflow: hidden; }
+.ao-meter i { height: 100%; display: block; background: #62aaff; }
+.ao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ao-card { padding: 20px; margin-bottom: 16px; min-width: 0; }
+.ao-card h2 { font-weight: 500; font-size: 13px; margin: 0; }
+.ao-card-title { margin-bottom: 18px; flex-wrap: wrap; }
+.ao-card-title > span { font-size: 10px; color: var(--muted); }
+.ao-caption { color: var(--muted); font-size: 11px; line-height: 1.7; margin: 10px 0 0; }
+.ao-link { color: #92c6ff; font-size: 11px; border: 0; padding: 0; background: none; text-decoration: none; }
+.ao-link:hover { text-decoration: underline; }
+.ao-empty { color: var(--muted); font-size: 12px; line-height: 1.8; padding: 20px 4px; }
+.ao-stat-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; border-bottom: 1px solid #aacfee0c; padding: 9px 0; font-size: 11px; }
+.ao-stat-row span { color: var(--muted); }
+.ao-stat-row strong { font-weight: 500; text-align: right; }
+.ao-chart { height: 195px; display: flex; align-items: flex-end; gap: 10px; padding-top: 10px; }
+.ao-chart-column { flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; min-width: 0; gap: 8px; }
+.ao-chart-column small,.ao-chart-count { color: var(--muted); font-size: 9px; }
+.ao-bars { height: 100%; width: 100%; display: flex; gap: 3px; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+.ao-bars i { width: 42%; max-width: 25px; background: linear-gradient(#7dbdff,#3278ae); border-radius: 3px 3px 0 0; min-height: 0; }
+.ao-bars i.ao-error-bar { background: #db5265; }
+.ao-legend { display: flex; gap: 7px; align-items: center; font-size: 10px; color: var(--muted); margin-top: 18px; }
+.ao-legend i { width: 8px; height: 8px; background: #62aaff; border-radius: 2px; margin-left: 10px; }
+.ao-legend .ao-legend-error { background: #db5265; }
+.ao-learning { display: grid; grid-template-columns: repeat(5,1fr); list-style: none; gap: 20px; margin: 24px 0; padding: 0; }
+.ao-learning li { display: grid; gap: 8px; position: relative; }
+.ao-learning li:not(:last-child)::after { content: '→'; position: absolute; right: 0; top: 4px; color: #4c7d9e; }
+.ao-step-number { display: grid; place-items: center; height: 28px; width: 28px; color: #7edbbb; background: #35ba9010; border: 1px solid #35ba903d; border-radius: 7px; font-size: 10px; }
+.ao-learning strong { font-size: 12px; font-weight: 500; }
+.ao-learning small { font-size: 10px; color: var(--muted); line-height: 1.5; }
+.ao-services { display: flex; flex-wrap: wrap; gap: 14px 28px; padding: 5px 4px 12px; }
+.ao-services > div { display: grid; gap: 6px; }
+.ao-services span { color: var(--muted); font-size: 10px; }
+.ao-services strong { font-size: 11px; font-weight: 400; }
+.ao-services [data-state="error"] { color: #ffb0be; }
+.ao-services [data-state="success"] { color: #7eddbb; }
+.ao-notice { padding: 10px 14px; background: #1a3856; border: 1px solid #497da6; border-radius: 7px; margin: 0 0 15px; font-size: 12px; }
+.ao-notice[data-tone="error"] { color: #ffb9bd; border-color: #884955; background: #341d2b; }
+.ao-table-wrap { overflow: auto; }
+.ao-table { border-collapse: collapse; width: 100%; font-size: 11px; text-align: left; }
+.ao-table th { font-weight: 400; color: var(--muted); padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ao-table td { padding: 12px 10px; border-bottom: 1px solid #8aadce12; vertical-align: top; max-width: 380px; overflow-wrap: anywhere; }
+.ao-table tr:last-child td { border: 0; }
+.ao-badge { display: inline-block; color: #b3cce2; background: #739dc714; border: 1px solid #739dc72e; border-radius: 4px; font-size: 10px; padding: 3px 6px; white-space: nowrap; }
+.ao-badge[data-status="active"],.ao-badge[data-status="done"],.ao-badge[data-status="validated"],.ao-badge[data-status="approved"],.ao-badge[data-status="completed"] { color: #7eddbb; background: #33d4a010; border-color: #33d4a033; }
+.ao-badge[data-status="error"],.ao-badge[data-status="failed"],.ao-badge[data-status="rejected"] { color: #ffb0be; border-color: #ce65784d; }
+.ao-details summary,.ao-question summary { cursor: pointer; color: #91c6f5; }
+.ao-details pre { max-height: 320px; max-width: 650px; overflow: auto; white-space: pre-wrap; font: 10px/1.7 var(--font-ui); }
+.ao-error-text { color: #ffb1bd; }
+.ao-flow { display: grid; gap: 18px; background-image: radial-gradient(#6fafe31a 1px, transparent 1px); background-size: 20px 20px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; }
+.ao-flow-lane h3 { font-size: 11px; color: var(--muted); font-weight: 400; margin: 0 0 12px; }
+.ao-flow-track { display: flex; gap: 24px; align-items: stretch; }
+.ao-flow-node { position: relative; min-width: 0; flex: 1; border: 1px solid #47789e; border-radius: 8px; background: #0a263f; padding: 15px 12px; text-align: left; }
+.ao-flow-node:hover { border-color: #9cccfa; }
+.ao-flow-node[aria-pressed="true"] { border-color: #76b8ff; background: #123d60; box-shadow: 0 0 0 2px #68abfa1c; }
+.ao-flow-node:not(:last-child)::after { content: '→'; position: absolute; right: -20px; top: 38%; color: #7baecf; }
+.ao-flow-node strong { display: block; font-size: 12px; font-weight: 500; margin-bottom: 7px; }
+.ao-flow-node span { display: block; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.ao-flow-node .ao-flow-contracts { display: grid; gap: 3px; margin-top: 9px; padding-top: 8px; border-top: 1px solid #75acd729; }
+.ao-flow-contracts code { font: 9px/1.5 var(--font-ui); color: #84bbe5; overflow-wrap: anywhere; }
+.ao-flow-lane:last-child .ao-flow-node { border-color: #337f70; background: #082d31; }
+.ao-flow-lane:last-child .ao-flow-node[aria-pressed="true"] { border-color: #68d1b0; background: #104339; }
+.ao-flow-edge { color: #83b5b2; font-size: 10px; text-align: center; margin: 12px 0 0; line-height: 1.6; }
+.ao-node-description { color: var(--muted); font-size: 12px; line-height: 1.8; max-width: 1100px; }
+.ao-question-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.ao-question-chips a { color: #99caff; background: #579bea13; border: 1px solid #579bea36; border-radius: 4px; padding: 6px 8px; text-decoration: none; font-size: 10px; }
+.ao-question-group { margin-bottom: 24px; }
+.ao-question-group h3 { font-weight: 500; font-size: 12px; margin-bottom: 4px; }
+.ao-question-group > p { margin: 0 0 10px; }
+.ao-question { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.ao-question summary { font-size: 11px; }
+.ao-question summary .ao-badge { margin-left: 10px; }
+.ao-instructions { font-size: 11px; line-height: 1.8; white-space: pre-wrap; color: var(--text); }
+.ao-question dl { display: grid; grid-template-columns: minmax(110px,180px) 1fr; gap: 9px 16px; font-size: 11px; line-height: 1.7; }
+.ao-question dt { color: #91c6f5; overflow-wrap: anywhere; }
+.ao-question dd { margin: 0; color: var(--muted); }
+#aoReplayForm > label { display: block; font-size: 11px; margin-bottom: 10px; color: var(--muted); }
+#aoReplayCases { width: 100%; resize: vertical; background: #041523; border: 1px solid var(--line-strong); border-radius: 6px; padding: 14px; font-size: 11px; line-height: 1.7; }
+#aoReplayForm > .ao-actions { margin-top: 14px; }
+.ao-primary { background: #154668; border-color: #629ccd; }
+@media (max-width: 1050px) { .ao-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); } .ao-grid { grid-template-columns: 1fr; } .ao-flow-track { flex-wrap: wrap; } .ao-flow-node { flex: 1 1 35%; } .ao-flow-node:not(:last-child)::after { content: none; } }
+@media (max-width: 600px) { .ao-metrics { gap: 8px; } .ao-metric { padding: 13px; } .ao-card { padding: 14px; } .ao-learning { grid-template-columns: 1fr; gap: 12px; } .ao-learning li { grid-template-columns: 30px 90px 1fr; align-items: center; } .ao-learning li:not(:last-child)::after { content: none; } .ao-flow { padding: 10px; } .ao-flow-track { display: grid; width: 100%; gap: 10px; } .ao-question dl { display: block; } .ao-question dd { margin-bottom: 10px; } .ao-tabs button { padding: 11px 10px; font-size: 11px; } }
+@media print {
+  @page ao-report { size: A4 landscape; margin: 12mm; }
+  body[data-page="observatory"] .ai-observatory { page: ao-report; }
+  body[data-page="observatory"],body[data-page="observatory"] .app-shell,body[data-page="observatory"] .ai-observatory { height: auto !important; overflow: visible !important; width: 100% !important; margin: 0 !important; padding: 0 !important; color: #152a3b; background: white; }
+  body[data-page="observatory"] .sidebar,body[data-page="observatory"] .app-header,body[data-page="observatory"] .ao-tabs,body[data-page="observatory"] .ao-actions,body[data-page="observatory"] .account-expired,body[data-page="observatory"] .ao-notice,body[data-page="observatory"] .ao-link,body[data-page="observatory"] .compact-button,body[data-page="observatory"] #aoReplayForm { display: none !important; }
+  body[data-page="observatory"] .app-shell { display: block; }
+  .ai-observatory #aoOverview[hidden],.ai-observatory #aoArchitecture[hidden] { display: block !important; }
+  .ai-observatory #aoActivity,.ai-observatory #aoReplay,.ai-observatory .ao-contracts,.ai-observatory #aoNodeDetail,.ai-observatory .ao-services { display: none !important; }
+  #aoArchitecture { break-before: page; }
+  .ao-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
+  .ao-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ao-card,.ao-metric { padding: 12px; margin-bottom: 10px; }
+  .ao-metric h2 { margin-bottom: 12px; }
+  .ao-metric strong { font-size: 26px; }
+  .ao-metric p { font-size: 9px; }
+  .ao-learning { margin: 14px 0; }
+  .ao-stat-row { padding: 6px 0; }
+  .ao-flow-track { flex-wrap: nowrap; }
+  .ao-flow-node { flex: 1; }
+  .ao-flow-node:not(:last-child)::after { content: '→'; }
+  .ao-card,.ao-metric { break-inside: avoid; color: #152a3b; background: white; border-color: #b8c8d3; }
+  .ao-caption,.ao-node-description,.ao-metric p,.ao-metric h2,.ao-services span,.ao-learning small,.ao-toolbar p,.ao-stat-row span,.ao-flow-node span,.ao-flow-lane h3,.ao-table th,.ao-question-group > p,.ao-card-title > span,.ao-chart-count,.ao-chart-column small,.ao-legend,.ao-flow-contracts code { color: #456078; }
+  .ao-flow { background: #f3f7fa; border-color: #a3b8c9; }
+  .ao-flow-node,.ao-flow-node[aria-pressed="true"],.ao-flow-lane:last-child .ao-flow-node { color: #152a3b; background: #edf4f8; }
+  .ao-table-wrap { overflow: visible; }
+  .ao-table td { max-width: none; }
+  #aoNodeDetail,#aoQuestions { break-inside: auto; }
+  .ao-question { break-inside: avoid; }
+  .ao-details pre { max-height: none; }
+  .ao-chart { height: 120px; }
+  .ao-question[open] { color: #152a3b; }
+  .ao-instructions,.ao-question dd { color: #29485b; }
+}

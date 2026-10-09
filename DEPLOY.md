@@ -2,6 +2,8 @@
 
 Guia para seguir na ordem, copiando e colando. Tempo total: uns 15 minutos.
 
+Para as novas camadas de IA, comandos naturais e dashboard, siga também [AGENTES.md](AGENTES.md). Ele inclui a configuração atual de provedores, chaves, limites e operação em segundo plano.
+
 ## O que o site faz agora
 
 - **Login e cadastro**: qualquer pessoa cria uma conta com usuário e senha.

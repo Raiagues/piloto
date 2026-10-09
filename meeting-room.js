@@ -5,26 +5,26 @@ function openPage(){
  if(boot)return boot;
  boot=(async function(){
  const dependencies=[
-  ['NorteMemoryStorage','memory-storage.js?v=20261007-12'],
-  ['NorteMemoryV2','memory-v2.js?v=20261007-12'],
-  ['NorteTypedRelations','typed-relations.js?v=20261007-12'],
-  ['NorteMeetingCommands','meeting-commands.js?v=20261007-12'],
-  ['NorteMeetingSession','meeting-session.js?v=20261007-12'],
-  ['NorteMeetingSpeech','meeting-speech.js?v=20261007-12'],
-  ['NorteMeetingEvidence','meeting-evidence.js?v=20261007-12'],
-  ['NorteMeetingState','meeting-state.js?v=20261007-12'],
-  ['NorteMeetingReview','meeting-review.js?v=20261007-12'],
-  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261007-12'],
-  ['NorteMeetingCanvas','meeting-canvas.js?v=20261007-12'],
-  ['NorteMinutes','meeting-minutes.js?v=20261007-12'],
-  ['NorteMeetingAmendments','meeting-amendments.js?v=20261007-12'],
-  ['NorteMeetingDocument','meeting-document.js?v=20261007-12'],
-  ['NorteGeminiMinutes','gemini-minutes.js?v=20261007-12']
+  ['NorteMemoryStorage','memory-storage.js?v=20261009-1'],
+  ['NorteMemoryV2','memory-v2.js?v=20261009-1'],
+  ['NorteTypedRelations','typed-relations.js?v=20261009-1'],
+  ['NorteMeetingCommands','meeting-commands.js?v=20261009-1'],
+  ['NorteMeetingSession','meeting-session.js?v=20261009-1'],
+  ['NorteMeetingSpeech','meeting-speech.js?v=20261009-1'],
+  ['NorteMeetingEvidence','meeting-evidence.js?v=20261009-1'],
+  ['NorteMeetingState','meeting-state.js?v=20261009-1'],
+  ['NorteMeetingReview','meeting-review.js?v=20261009-1'],
+  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261009-1'],
+  ['NorteMeetingCanvas','meeting-canvas.js?v=20261009-1'],
+  ['NorteMinutes','meeting-minutes.js?v=20261009-1'],
+  ['NorteMeetingAmendments','meeting-amendments.js?v=20261009-1'],
+  ['NorteMeetingDocument','meeting-document.js?v=20261009-1'],
+  ['NorteGeminiMinutes','gemini-minutes.js?v=20261009-1']
  ];
  // Signed in: meetings live in the account (server database) instead of this browser.
- if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261007-12']);
+ if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261009-1'],['NorteAI','ai-client.js?v=20261009-1']);
  for(const [name,file] of dependencies){if(!window[name])await import('./'+file);if(!window[name])throw Error('Não foi possível carregar a página de reunião.');}
- for(const file of ['meeting-minutes.css?v=20261007-12','gemini-minutes.css?v=20261007-12']){
+ for(const file of ['meeting-minutes.css?v=20261009-1','gemini-minutes.css?v=20261009-1']){
   if(![...document.querySelectorAll('link[rel="stylesheet"]')].some(link=>link.href.endsWith(file))){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file;document.head.append(link);}
  }
  await initialize();
@@ -45,8 +45,8 @@ let beamIntegration=null,beamBoot=null,savesPending=0;
 async function ensureBeam(){
  if(beamIntegration)return beamIntegration;
  if(!beamBoot)beamBoot=(async()=>{
-  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261007-12');
-  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261007-12';document.head.append(link);}
+  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261009-1');
+  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261009-1';document.head.append(link);}
   beamIntegration=NorteMeetingBeam.create({getRun:()=>current,save:saveSoon,notice,canSubmit:()=>current?.status==='draft'||!!controller?.accepting,submitFacts:async facts=>{
    if(current?.status==='draft'&&!await begin('text'))return false;
    if(!controller?.accepting){notice('Esta reunião já foi encerrada. Crie uma nova reunião para registrar outras simulações.');return false;}
@@ -291,7 +291,7 @@ function appendTurn(entry,source){
 }
 
 function render(){renderFrame=0;renderBoard();renderTranscript();controls();beamIntegration?.update(current);}
-function changed(run,change){current=run;if(change.phase==='command')beamIntegration?.acknowledge(change.command,run);if(change.phase==='command'&&change.command?.message){if(change.command.status==='applied')notice('');else if(change.command.renamed)window.dispatchEvent(new CustomEvent('norte:notice',{detail:change.command.message}));else notice(change.command.message);}if(change.phase==='error'||change.phase==='stopped')notice(cleanError(change.error||run.error||'Um trecho não pôde ser processado. A transcrição foi preservada.'));if(change.phase==='stopped'&&listening)stopMic();if(!renderFrame)renderFrame=requestAnimationFrame(render);saveSoon();}
+function changed(run,change){current=run;window.NorteAI?.observe(run);if(change.phase==='command')beamIntegration?.acknowledge(change.command,run);if(change.phase==='command'&&change.command?.message){if(change.command.status==='applied')notice('');else if(change.command.renamed)window.dispatchEvent(new CustomEvent('norte:notice',{detail:change.command.message}));else notice(change.command.message);}if(change.phase==='error'||change.phase==='stopped')notice(cleanError(change.error||run.error||'Um trecho não pôde ser processado. A transcrição foi preservada.'));if(change.phase==='stopped'&&listening)stopMic();if(!renderFrame)renderFrame=requestAnimationFrame(render);saveSoon();}
 function draft(title='Nova reunião'){
  const stamp=new Date().toISOString(),id=crypto.randomUUID();
  return {room_kind:roomKind(),schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:2,id,title,provider,threshold:.6,questions:NorteMemoryFlow.validateQuestions(NorteMemoryV2.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:null,status:'draft',batch:{batch_id:id,cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};

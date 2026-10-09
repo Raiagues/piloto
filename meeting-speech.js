@@ -6,6 +6,9 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.NorteMeetingSpeech=api;})(globalThis,function(){
 'use strict';
 const words=text=>(text.match(/\S+/gu)||[]).length;
+// Use the same intent grammar as the simulator. This only protects literal
+// speech boundaries; execution still goes through the command router.
+const beamCommands=()=>typeof module==='object'&&module.exports?require('./beam-commands.js'):globalThis.NorteBeamCommands;
 const abbreviations=/^(?:sr|sra|srta|dr|dra|prof|profa|eng|engª|etc|ex|art|fig|aprox|vs|mr|mrs|ms|figs)$/iu;
 const filler='(?:tá|ta|então|entao|bom|bem|ok|okay|certo|beleza|aí|ai|agora|olha|é|e|o)';
 const fillers=new RegExp('(?:(?<![\\p{L}\\p{N}])'+filler+'[\\s,;:–—-]+)+$','iu');
@@ -26,7 +29,14 @@ function commandStarts(text){
   if(subordinateBefore(text,start)||/\bnão\s*$/iu.test(text.slice(0,start)))continue;
   starts.push(start);
  }
- return [...new Set(starts)];
+ const boundaries=[0,...sentenceBoundaries(text).map(point=>point.at),text.length];
+ for(let i=0;i<boundaries.length-1;i++){
+  const at=boundaries[i],part=text.slice(at,boundaries[i+1]),leading=part.length-part.trimStart().length,start=at+leading;
+  if(quotedAt(text,start)||subordinateBefore(text,start))continue;
+  const intent=beamCommands()?.interpret(part,{active:true});
+  if(intent?.eligible&&!intent.guarded&&/^(?:abra|mostre|exiba|veja|simule|simular|vamos simular|quero simular|mude|altere|ajuste|defina|aumente|reduza|adicione|coloque|insira|acrescente|aplique|mova|desloque|posicione|inverta|remova|retire|apague|exclua|use|utilize|compare|crie)\b/.test(intent.body))starts.push(start);
+ }
+ return [...new Set(starts)].sort((a,b)=>a-b);
 }
 function isCommand(text){const starts=commandStarts(String(text||''));return starts.length>0&&String(text).slice(0,starts[0]).trim()==='';}
 function normalizeCommand(text){return String(text).replace(new RegExp('^\\s*(?:'+filler+'[\\s,;:–—-]+)*(?=norte\\b)','iu'),'');}
@@ -105,7 +115,7 @@ function boundedContext(text){return String(text||'').trim().split(/\s+/u).slice
 // may wait for its next window; this never invents a value or rewrites speech.
 function unfinished(text){
  text=String(text||'').trim();
- if(isCommand(text)||/[.!?…]$/u.test(text))return false;
+ if((isCommand(text)&&/^norte\b/iu.test(normalizeCommand(text)))||/[.!?…]$/u.test(text))return false;
  // \b is ASCII-only in JavaScript: "tensão" would end in the article "o". Use letter-aware edges.
  return /(?<![\p{L}\p{N}])(?:de|do|da|dos|das|para|pra|por|com|uma?|o|a|que|se|então|entao|vai|vou|vamos|suger|consegui)\s*$/iu.test(text)||/(?<![\p{L}\p{N}])(?:de|para|pra|em)\s+\d+(?:[.,]\d+)?\s*$/iu.test(text);
 }

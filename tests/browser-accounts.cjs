@@ -7,7 +7,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const root=path.resolve(__dirname,'..'),temp=await fs.mkdtemp(path.join(os.tmpdir(),'norte-accounts-'));
   const port=await new Promise(resolve=>{const probe=net.createServer().listen(0,'127.0.0.1',()=>{const value=probe.address().port;probe.close(()=>resolve(value));});});
   const base='http://127.0.0.1:'+port,python=process.env.PYTHON||'python3';
-  const env={...process.env,NORTE_PROVIDER:'official',TYPESAFE_API_KEY:'COLE_SUA_CHAVE_AQUI',ADMIN_USERNAME:'admin',ADMIN_PASSWORD:'admin-teste-123',
+  const env={...process.env,NORTE_PROVIDER:'official',TYPESAFE_API_KEY:'COLE_SUA_CHAVE_AQUI',GEMINI_API_KEY:'COLE_SUA_CHAVE_AQUI',AI_EXTERNAL_REVIEW_ENABLED:'false',ADMIN_USERNAME:'admin',ADMIN_PASSWORD:'admin-teste-123',
     NORTE_SQLITE_PATH:path.join(temp,'accounts.sqlite3'),DATABASE_URL:process.env.TEST_DATABASE_URL||''};
   const server=spawn(python,[path.join(root,'server.py'),'--port',String(port)],{cwd:root,env,stdio:['ignore','pipe','pipe']});
   let serverLog='';server.stdout.on('data',d=>serverLog+=d);server.stderr.on('data',d=>serverLog+=d);
@@ -51,16 +51,29 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     assert.equal(await evaluate('getComputedStyle(document.querySelector(".app-shell")).visibility'),'visible');
     assert.equal(await evaluate('document.querySelector("#roomLibraryHeader h1").textContent'),'Simulação de vigas');
     assert.equal(await evaluate('document.querySelector("#accountLogout small").textContent'),'ana.teste');
-    for(const hash of ['#manual','#automatizados','#memoria','#reuniao','#ao-vivo']){
+    for(const hash of ['#manual','#automatizados','#memoria','#reuniao','#ao-vivo','#agentes']){
       await evaluate(`location.hash=${JSON.stringify(hash)}`);await sleep(150);
       assert.equal(await evaluate('document.body.dataset.page'),'beam','regular account stays on the simulation for '+hash);
     }
     assert.equal(await evaluate('fetch("/manual-test-example.json").then(r=>r.status)'),404);
+    assert.equal(await evaluate('fetch("/api/admin/ai/overview").then(r=>r.status)'),403);
+    assert.equal(await evaluate('typeof window.NorteAIObservatory'),'undefined','admin observatory never initializes for regular accounts');
     await shot('user-library');
 
     // Meetings are saved in the account, not in this browser.
     await click('#roomNew');await click('#roomCreateInstant');
     await wait('!document.querySelector("#meetingPage").hidden && document.querySelector("#roomSave").textContent.includes("conta")');
+    await wait('!!document.querySelector("#beamTab-simulation")');
+    assert.deepEqual(await evaluate('[...document.querySelectorAll("#beamRoomTabs button")].filter(n=>!n.hidden).map(n=>n.textContent)'),['Canvas','Simulação','Gráficos','Resultados','Cálculos']);
+    assert.equal(await evaluate('document.querySelector("#beamDiscover").hidden'),false,'simulation discoverable in a new account draft');
+    await click('#beamDiscover button');await wait('!document.querySelector("#beamRoomHost").hidden');
+    assert.equal(await evaluate('document.querySelector("#beamTab-simulation").getAttribute("aria-selected")'),'true');
+    for(const tab of ['graphs','calculations','results']) {
+      await click('#beamTab-'+tab);
+      assert.equal(await evaluate(`document.querySelector('#beamTab-${tab}').getAttribute('aria-selected')`),'true');
+      assert.equal(await evaluate('NorteMeetingRoom.snapshot().status'),'draft','navigation does not start a paid meeting');
+    }
+    await click('#beamTab-canvas');await wait('document.querySelector("#beamRoomHost").hidden');
     await field('#roomTitle','Viga da garagem');await evaluate('document.querySelector("#roomTitle").dispatchEvent(new Event("change",{bubbles:true}))');
     await evaluate('NorteMeetingRoom.flushStorage()');
     await wait('document.querySelector("#roomSave").textContent==="Salvo na sua conta"');
@@ -76,7 +89,15 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     await wait('document.querySelector("#authError").textContent==="Usuário ou senha incorretos."');
     await field('#password','admin-teste-123');await click('#authSubmit');
     await wait('location.pathname==="/" && document.body.dataset.role==="admin" && window.NorteLab && document.body.dataset.page==="live" && !document.querySelector("#manualMode").disabled');
-    assert.deepEqual(await visibleNav(),['liveMode','manualMode','automatedMode','memoryMode','memoryV2Mode','meetingMode','beamMode']);
+    assert.deepEqual(await visibleNav(),['liveMode','manualMode','automatedMode','memoryMode','memoryV2Mode','meetingMode','beamMode','aiObservatoryMode']);
+    await click('#aiObservatoryMode');await wait('document.body.dataset.page==="observatory" && !!document.querySelector("#aoMetrics .ao-metric")');
+    assert.equal(await evaluate('document.querySelector("#aiObservatoryPage").hidden'),false);
+    assert.equal(await evaluate('document.querySelector("#sessionContent").hidden'),true);
+    assert.equal(await evaluate('document.querySelector("#aoMetrics .ao-metric strong").textContent'),'—','no invented accuracy before human labels');
+    await click('#aoArchitectureTab');await wait('document.querySelectorAll(".ao-question").length>=13');
+    assert.equal(await evaluate('document.querySelector("#ao-q-should_store_memory .ao-instructions").textContent===NorteMemoryV2.questions.should_store_memory.instructions'),true,'questions come from runtime');
+    assert.equal(await evaluate('document.querySelector("#ao-q-speech_status .ao-instructions").textContent===NorteMeetingSession.speechGate.questions.speech_status.instructions'),true);
+    await shot('admin-observatory');
     await click('#manualMode');await wait('document.body.dataset.page==="manual"');
     await click('#beamMode');await wait('document.body.dataset.page==="beam" && window.NorteMeetingRoom && !document.querySelector("#roomNew").disabled');
     assert.equal(await evaluate('document.querySelector("#roomLibraryCount").textContent'),'0 reuniões');

@@ -8,7 +8,7 @@
   const types = ['open_simulation','change_beam','load','support','change_section','change_material','show_graphs','show_inspection','compare','compound','other_command','conversation'];
   const defaults = {questions:{
     beam_action:{type:'choice',instructions:'Classify the requested operation in utterance, the interpreted command. raw_utterance preserves original speech. interpretation records deterministic, authorized context completion and ASR correction; use it rather than requiring a literal wake word or perfect sentence. A direct simulation invitation or navigation needs no Norte. Existing simulation context may resolve a unique force, visible unit, recent field or pending command. Quotation, negation, hypothetical and discussion are conversation and must not execute. Do not reject an authorized normalization solely because its raw ASR spelling differs. Never invent a target or value beyond the supplied interpretation. Select compound for multiple explicit operations.',criteria:{
-      open_simulation:'Open or begin viewing the beam simulator: Norte, vamos simular uma viga; abra o simulador.',
+      open_simulation:'Open or begin viewing the beam simulator, with no mandatory wake word: quero fazer uma simulação; vamos simular uma viga; abra o simulador.',
       change_beam:'Change beam length, total manually applied beam mass or gravity. Not cross section or material.',
       load:'Add, update, move, reverse or remove one applied force, mass, moment or uniform distributed load.',
       support:'Add, update, move or remove a support: pin/articulado, roller/rolete or fixed/engaste.',
@@ -22,10 +22,10 @@
       conversation:'Ordinary discussion, proposals to colleagues, negated/hypothetical instructions, quotations, examples, no direct simulator operation.'
     }},
     action_mode:{type:'choice',instructions:'Classify the requested operation mode. Consider intent, not whether deterministic parsing succeeded. Different modes in one utterance are mixed. A load/support update changes an existing item. Adding a new load/support is add. Cross-section/material/beam edits are change.',criteria:{add:'Explicit addition of a load or support.',update:'Edit, move or reverse an existing load or support.',remove:'Remove an explicitly targeted load or support.',change:'Change beam, section or material parameters.',view:'Open simulator, show graphs/results/calculations or compare.',mixed:'Several distinct operation modes requested together.',not_applicable:'No supported direct operation.'}},
-    candidate_fit:{type:'choice',instructions:'Validate candidate against interpreted utterance, interpretation and current context. Raw speech is audit evidence, not a veto on authorized normalization: km→kN is allowed ONLY for a clearly targeted force magnitude, never position/length; omitted units may use that field visible unit; a short follow-up may use the single recent field or pending value. These rules do not invent numbers. Exact requires all requested operations, values and targets represented correctly. No extra fields are required for an update. Opening/navigation/show/compare are complete view operations with no new physical parameters. New loads need position and magnitude; a new force or distributed load said without a sense acts downward (default_direction normalization), like mass; moments need their sense. Compare quantities by their stated units and equivalent_si. A candidate with issues is not exact. Reject negation, quotation, hypothesis, unresolved targets or a genuinely contradictory interpreted candidate.',criteria:{exact:'Candidate faithfully implements the interpreted request and documented contextual normalization; no issues or unresolved fields.',incomplete:'A required value, unit, position, orientation or target remains absent after permitted context completion.',contradicted:'Candidate differs from the interpreted request or applies a normalization incompatible with the target dimension.',ambiguous:'Several targets or fields remain possible, unsupported geometry/material, or conflicting values.',not_applicable:'Conversation or unsupported operation with no executable candidate.'}}
+    candidate_fit:{type:'choice',instructions:'Validate candidate against interpreted utterance, interpretation and current context. Raw speech is audit evidence, not a veto on authorized normalization: km→kN is allowed ONLY for a clearly targeted force magnitude, never position/length; omitted units may use that field visible unit; a short follow-up may use the single recent field or pending value. relative_percentage computes a destination from baseline_si and the requested percent; validate that arithmetic, not literal numeric equality between percent and destination. For aumente/reduza, "em" requests a delta; "para" an absolute destination. These rules do not invent targets or measurements. Exact requires all requested operations, values and targets represented correctly. No extra fields are required for an update. Opening/navigation/show/compare are complete view operations with no new physical parameters. New loads need position and magnitude; a new force or distributed load said without a sense acts downward (default_direction normalization), like mass; moments need their sense. Compare quantities by their stated units and equivalent_si. A candidate with issues is not exact. Reject negation, quotation, hypothesis, unresolved targets or a genuinely contradictory interpreted candidate.',criteria:{exact:'Candidate faithfully implements the interpreted request and documented contextual normalization; no issues or unresolved fields.',incomplete:'A required value, unit, position, orientation or target remains absent after permitted context completion.',contradicted:'Candidate differs from the interpreted request or applies a normalization incompatible with the target dimension.',ambiguous:'Several targets or fields remain possible, unsupported geometry/material, or conflicting values.',not_applicable:'Conversation or unsupported operation with no executable candidate.'}}
   }};
   const examples = [
-    'Norte, vamos simular uma viga.', 'Ok, Norte, mude o comprimento da viga para 10 metros.',
+    'Quero abrir a simulação.', 'Vamos simular uma viga.', 'Mude o comprimento da viga para 10 metros.',
     'Norte, adicione uma força de 12 kN para baixo a 10 m.', 'Norte, mude a força P1 para 15 kN.',
     'Norte, mova a carga P1 para 3,5 m.', 'Norte, inverta o sentido da força P1.',
     'Norte, adicione um momento de 8 kN·m no sentido horário a 4 m.',
@@ -41,6 +41,20 @@
   const colloquialVerbs = {compara:'compare',usa:'use',utiliza:'utilize',troca:'troque',adiciona:'adicione',acrescenta:'acrescente',insere:'insira',aplica:'aplique',move:'mova',desloca:'desloque',posiciona:'posicione',inverte:'inverta',remove:'remova',retira:'retire',tira:'retire',tire:'retire',apaga:'apague',exclui:'exclua',define:'defina',ajusta:'ajuste',cria:'crie',coloca:'coloque',bota:'coloque',bote:'coloque',poe:'coloque',ponha:'coloque',muda:'mude',altera:'altere',mostra:'mostre',exibe:'exiba',abre:'abra',volta:'volte',simula:'simule'};
   const imperative = /^(?:(?:por favor|agora)\s*[, ]*)?(?:abra|abre|abrir|mostre|mostra|mostrar|exiba|exibe|veja|compare|comparar|simule|simular|vamos (?:simular|variar|mudar|alterar)|quero (?:simular|ver|abrir|mudar|alterar|adicionar)|mude|muda|altere|alterar|troque|defina|definir|ajuste|coloque|coloca|adicione|adicionar|insira|acrescente|aplique|mova|desloque|posicione|leve|inverta|remova|retire|apague|exclua|use|utilize|aumente|reduza|crie|criar|reinicie|limpe)\b/;
   const beamWords = /\b(?:canvas|simulacao|simulador|viga|carga|forca|momento|apoio|rolete|engaste|articulado|comprimento|tamanho|secao|perfil|largura|altura|espessura|alma|mesa|flange|material|aco|aluminio|modulo|elasticidade|escoamento|densidade|grafico|graficos|diagrama|diagramas|cortante|flecha|deflexao|resultados|calculos|gravidade|massa|p\d+|s\d+)\b/;
+  // Correct a small navigation vocabulary only. Numbers, units, identifiers and
+  // engineering properties are never fuzzily rewritten.
+  const navigationSpelling = {abirr:'abrir',abir:'abrir',arbir:'abrir',abrirr:'abrir',simulacoa:'simulacao',simulacaoo:'simulacao',simualcao:'simulacao',simulcao:'simulacao',simulaccao:'simulacao',simuladorr:'simulador',simualr:'simular',simualdor:'simulador',caluculos:'calculos',resutados:'resultados'};
+  function viewRequest(body) {
+    const sentence=body.replace(/[.!?]+$/,'').trim();
+    if(!/^(?:(?:eu|voce)\s+)?(?:quero|queria|gostaria|preciso|pode|poderia|consegue|conseguiria|podemos|vamos|bora|abrir|abra|abre|fazer|faca|faz|rodar|rode|roda|iniciar|inicie|inicia|comecar|comece|comeca|acessar|acesse|acessa|ver|mostrar|mostre|mostra|simular|simule|simula)\b/.test(sentence))return null;
+    const open=sentence.match(/^(?:(?:eu\s+)?(?:quero|queria|gostaria de|preciso(?: de)?)\s+|(?:voce\s+)?(?:pode|poderia|consegue|conseguiria|podemos)\s+|(?:vamos|bora)\s+)?(?:(?:me\s+)?(?:abrir|abra|abre|fazer|faca|faz|rodar|rode|roda|iniciar|inicie|inicia|comecar|comece|comeca|acessar|acesse|acessa|ver|mostrar|mostre|mostra)\s+(?:(?:para|pra)\s+mim\s+)?(?:(?:a|o|uma|um|essa|esse)\s+)?(?:simulacao|simulador)(?:\s+(?:de|da|de uma|da nossa)\s+viga)?|(?:simular|simule|simula)(?:\s+(?:(?:uma|a|essa|esta)\s+)?viga)?|(?:uma|a)\s+simulacao)(.*)$/);
+    if(!open)return null;
+    const tail=open[1].trim();
+    // Preserve physical parameters/compound operations for the regular parser.
+    // Discussion, delayed wishes and a different simulation are not navigation.
+    if(tail&&!/^(?:de\s+[-+\d]|de\s+(?:um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\b|com\b|e\s+(?:mude|muda|altere|altera|adicione|adiciona|coloque|coloca|mostre|mostra|reduza|reduz|aumente|aumenta)\b|;)/.test(tail))return null;
+    return 'abra o simulador'+(tail?' '+tail:'');
+  }
   function literalInvocation(text, options={}) {
     const value=normalize(text).trim(),wake=value.match(/^(?:(?:ok|okay|ola|ei)\s*[,!:;.\-]?\s*)?norte(?=$|[\s,!:;.\-])\s*[,!:;.\-]?\s*/);
     const body=(wake?value.slice(wake[0].length):value).replace(/^(?:por favor|agora)\s*[, ]*/,'').replace(/[, ]+por favor[.!]?$/,'');
@@ -107,12 +121,13 @@
     const raw=String(text??''),state=options.state||{},context=contextData(options),normalizations=[],issues=[];
     const record=(kind,from,to,reason,extra={})=>{if(from!==to)normalizations.push({kind,from,to,reason,...extra});return to;};
     let body=normalize(raw).trim();
-    const politeAddress=/^(?:(?:ok|entao|ta)\s*[, ]*)?norte\b[\s,]*(?:voce\s+)?poderia\b/.test(body);
-    const guarded=/["“‘]\s*(?:norte|mude|mova|coloca|vamos simular)/.test(body)||/\b(?:nao|talvez|poderiamos|se fosse|por exemplo|hipoteticamente)\b/.test(body)||(/\bpoderia\b/.test(body)&&!politeAddress)||/^(?:se|quando|diga|fale|imagine|suponha)\b/.test(body)||/\b(?:disse|falou|exemplo de comando)\b/.test(body);
+    const politeAddress=/^(?:(?:ok|entao|ta|por favor)\s*[, ]*)?(?:norte\b[\s,]*)?(?:voce\s+)?poderia\b/.test(body);
+    const guarded=/^["'“‘]|["“‘]\s*(?:norte|mude|mova|coloca|vamos simular|quero)/.test(body)||/\b(?:nao|nunca|nem|talvez|poderiamos|se fosse|por exemplo|hipoteticamente)\b/.test(body)||(/\bpoderia\b/.test(body)&&!politeAddress)||/^(?:se|quando|diga|fale|imagine|suponha)\b/.test(body)||/\b(?:disse|falou|exemplo de comando)\b/.test(body);
     if(guarded)return {raw_text:raw,interpreted_text:raw,normalizations,issues,guarded:true,addressed:false,contextual:false,eligible:false,body};
     const clean=body.replace(/^(?:(?:ta|entao|bom|bem|eh|e|ah|certo|beleza|ok|okay|tipo|assim|olha|vamos la)\b[\s,.:;-]*|o\s+(?=norte\b))+/,'');
     body=record('speech_filler',body,clean,'Remoção de hesitação inicial, sem descartar parâmetros.');
     const wake=body.match(/^(?:ola\s*[, ]*|ei\s*[, ]*)?norte\b[\s,!:;.—-]*/);if(wake)body=body.slice(wake[0].length);
+    body=record('navigation_spelling',body,body.replace(/\b[a-z]+\b/g,word=>navigationSpelling[word]||word),'Correção limitada de grafia em palavras de navegação; medidas e alvos permanecem literais.');
     const pendingPrefix=context.pending?.status==='awaiting_continuation'?context.pending:null;
     const pendingAge=(options.nowMs??Date.now())-Date.parse(pendingPrefix?.continuation_started_at||pendingPrefix?.created_at||'');
     const previous=context.recent.at(-1),previousText=typeof previous==='string'?previous:previous?.text;
@@ -131,9 +146,12 @@
       }else if(/\b(?:mudar|alterar|mude|altere)\s*$/.test(prefix)&&/^(?:para\s+)?[-+]?\d/.test(tail))issues.push({code:'missing_context_field',message:'Diga qual propriedade deseja alterar com esse valor.'});
     }
     body=body.replace(/^(?:por favor|agora)\s*[, ]*/,'').replace(/[, ]+por favor[.!]?$/,'');
+    const simulationRequest=viewRequest(body);
+    if(simulationRequest)body=record('simulation_intent',body,simulationRequest,'Pedido direto para abrir a simulação sem palavra de ativação; parâmetros adicionais ficam sujeitos à validação.');
     const verbs={ver:'mostre',mostrar:'mostre',abrir:'abra',voltar:'volte',mudar:'mude',alterar:'altere',aumentar:'aumente',reduzir:'reduza',diminuir:'reduza',colocar:'coloque',adicionar:'adicione',remover:'remova',mover:'mova',usar:'use',comparar:'compare'};
     let phrasing=body.replace(/^(?:eu|voce)\s+/,'').replace(/^(?:quero|queria|gostaria)\s+que\s+(?:(?:voce|ce)\s+)?/,'');
-    phrasing=phrasing.replace(/^(?:(?:pode|poderia)(?:\s+(?:voce|me))?|quero|queria|gostaria de|vamos)\s+(?:testar\s+)?(ver|mostrar|abrir|voltar|mudar|alterar|aumentar|reduzir|diminuir|colocar|adicionar|remover|mover|usar|comparar)\b/,(_,verb)=>verbs[verb]);
+    phrasing=phrasing.replace(/^(?:(?:pode|poderia|consegue|conseguiria)(?:\s+(?:voce|me))?|quero|queria|gostaria de|preciso(?: de)?|vamos)\s+(?:testar\s+)?(ver|mostrar|abrir|voltar|mudar|alterar|aumentar|reduzir|diminuir|colocar|adicionar|remover|mover|usar|comparar)\b/,(_,verb)=>verbs[verb]);
+    phrasing=phrasing.replace(new RegExp('^('+Object.keys(verbs).join('|')+')\\b'),verb=>verbs[verb]);
     if(wake&&/^(?:pode|poderia|quero|queria|gostaria de)\s+(?:(?:para|pra)\s+)?(?:a gente\s+)?(?:a\s+)?simulacao[.!?]?$/.test(phrasing))phrasing='abra o simulador';
     if(wake&&/^(?:(?:pode|poderia)\s+)?(?:fazer|rodar|simular)\s+(?:uma?\s+|a\s+)?(?:simulacao|viga)[.!?]?$/.test(phrasing))phrasing='abra o simulador';
     phrasing=phrasing.replace(/^(?:vamos deixar|deixa|deixe)\s+(.+?)\s+(?:em|pra|para)\s+([-+]?\d)/,'mude $1 para $2').replace(/^(aumenta|reduz|diminui|diminua)\b/,verb=>verb==='aumenta'?'aumente':'reduza').replace(/\?\s*$/,'');
@@ -147,13 +165,16 @@
     body=record('spoken_preposition',body,body.replace(/\b(para|em|pra)(?=[-+]?\d)/g,'$1 ').replace(/\bpra\b/g,'para').replace(/\bpro\b/g,'para o'),'Forma coloquial da preposição, preservando o alvo.');
     body=record('spoken_quantity',body,spokenNumbers(body),'Número por extenso convertido sem alterar sua unidade.');
     body=record('beam_length_name',body,body.replace(/\btamanho (?:da|de uma|dessa|desta) viga\b/g,'comprimento da viga'),'“Tamanho da viga” identifica o comprimento longitudinal; dimensões da seção mantêm seus nomes.');
+    body=record('beam_length_target',body,body.replace(/^(aumente|reduza|mude|altere|ajuste)\s+(?:(?:a|essa|esta)\s+)?viga\b/,'$1 o comprimento da viga'),'Alteração do tamanho da viga identifica seu comprimento; altura e largura exigem seus próprios nomes.');
+    body=record('spoken_identifier',body,body.replace(/\bp\s+(um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez)\b/g,(_,word)=>'p'+spoken[word]),'Identificador P seguido de número por extenso.');
     body=record('spoken_identifier',body,body.replace(/\bp\s+(\d+)\b/g,(match,id)=>state.loads?.some(load=>normalize(load.id)==='p'+id||normalize(load.name)==='p'+id)?'p'+id:match),'Identificador já existente soletrado na fala.');
     const active=options.active===true||options.simulationActive===true,scope=active||!!wake||!!context.pending;
     const simulationMatches=[...body.matchAll(/(?:vamos simular|quero simular|simule|abr[ae](?: o)? simulador)(?:\s+(?:uma|a))?\s*(?:viga)?/g)];
     if(simulationMatches.length>1){const last=simulationMatches.at(-1),prefix=body.slice(0,last.index).trim();if(/^(?:(?:vamos|simular|quero|um|uma|a|o|teste|discussao|entao|ta|ah|e|fazer|isso)[\s,.;:-]*)+$/.test(prefix))body=record('speech_restart',body,body.slice(last.index),'Reinício da mesma intenção de abrir a simulação, sem parâmetros na hesitação anterior.');}
     const invitation=/^(?:vamos simular|quero simular|simule|abr[ae](?: o)? simulador)\b/.test(body)&&/\b(?:viga|simulador)\b/.test(body);
     const navigation=/^(?:volta|volte|voltar|retorna|retorne|vai|va|mostra|mostre|abre|abra|exiba|quero ver)\b/.test(body)&&/\b(?:canvas|mapa|simulacao|simulador|aba|resultados|graficos?|diagramas?|calculos|secao)\b/.test(body);
-    if(navigation&&!/\d/.test(body)&&!/(?:\be\s+|depois\s+)(?:mude|altere|apague|remova|adicione|mova)\b/.test(body)){
+    const plainNavigation=/^(?:volta|volte|voltar|retorna|retorne|vai|va|mostra|mostre|abre|abra|exiba|quero ver)\s+(?:(?:para|em)\s+)?(?:(?:a|o|as|os)\s+)?(?:aba\s+(?:de\s+)?)?(?:canvas|mapa da reuniao|mapa de discussao|simulacao|simulador|resultados|calculos|mapa de dependencias|secao|graficos?|diagramas?|aba anterior|ultima aba)(?:\s+(?:da|de uma?)\s+viga)?[.!?]*$/;
+    if(navigation&&plainNavigation.test(body)){
       let next=null;
       if(/\b(?:aba anterior|ultima aba)\b/.test(body)){const available=options.availableTabs||['canvas','simulation','graphs','results','calculations'];if(options.previousTab&&available.includes(options.previousTab))next=options.previousTab;else issues.push({code:'missing_previous_tab',message:'Ainda não há uma aba anterior definida. Diga qual vista deseja abrir.'});}
       else if(/\b(?:canvas|mapa da reuniao|mapa de discussao)\b/.test(body))next='canvas';
@@ -224,6 +245,23 @@
           else {const replacement=focusCommand(focus,value);if(replacement)body=record(unitOnly?'pending_unit':'contextual_followup',body,normalize(replacement),'Complemento da propriedade inequívoca do comando recente.',{context_command_id:context.pending?.id||context.last?.id||null,target_id:focus.id||null,field:focus.field});}
         }
       }
+    }
+    const percentage=body.match(/^(aumente|reduza)\s+(.+?)\s+(?:em\s+)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)[.!]?$/);
+    if(scope&&percentage){
+      const relativeFocus=/\b(?:e|ou)\b/.test(percentage[2])?null:focusFromAudit({text:percentage[2]},state),ratio=Number(percentage[3].replace(',','.'))/100;
+      let current,scale=1;
+      if(relativeFocus?.type==='beam')current=state[relativeFocus.field];
+      else if(relativeFocus?.type==='load'&&relativeFocus.field==='value'){const item=state.loads?.find(item=>item.id===relativeFocus.id);current=item?.value;scale=['kN','kNm','kN/m'].includes(relativeFocus.unit)?1000:1;}
+      else if(relativeFocus?.type==='section'){current=state.section?.[relativeFocus.field];scale=.001;}
+      if(relativeFocus&&Number.isFinite(current)&&Number.isFinite(ratio)){
+        const value=Number((current*(1+(percentage[1]==='reduza'?-1:1)*ratio)/scale).toPrecision(12));
+        body=record('relative_percentage',body,normalize(focusCommand(relativeFocus,value+' '+relativeFocus.unit)),'Percentual aplicado ao valor atual de uma única propriedade identificada.',{target_id:relativeFocus.id||null,field:relativeFocus.field,baseline_si:current,percent:ratio*100});
+      }else issues.push({code:'ambiguous_percentage',message:'Indique a propriedade ou a carga cujo valor deve aumentar ou diminuir em porcentagem.'});
+    }
+    // The current field determines an omitted unit, just as it does for loads.
+    const directFocus=focusFromAudit({text:body},state),bareValue=body.match(/\b(?:para|em)\s+([-+]?\d+(?:[.,]\d+)?)[.!]?$/);
+    if(scope&&bareValue&&directFocus&&['beam','section'].includes(directFocus.type)&&!quantities(body).values.length){
+      body=record('display_unit',body,body.replace(/([-+]?\d+(?:[.,]\d+)?)[.!]?$/,bareValue[1]+' '+directFocus.unit),'Unidade exibida para a propriedade explicitamente solicitada.',{field:directFocus.field,unit:directFocus.unit});
     }
     const load=uniqueLoad(body,state),moving=/\b(?:mova|mover|posicao|posicione|desloque|deslocar|leve|a distancia)\b/.test(body);
     if(scope&&load&&/^(?:coloca|coloque|bota|bote)\s+(?:a|essa|esta)\s+(?:forca|carga)\b/.test(body))body=record('existing_target',body,body.replace(/^(?:coloca|coloque|bota|bote)/,'mude'),'Alteração da carga existente indicada pelo contexto.',{target_id:load.id});
@@ -317,6 +355,8 @@
       };
       const target=(kind)=>{
         let list=kind==='load'?working.loads:working.supports;const nouns=kind==='load'?'carga|forca|momento|massa':'apoio|engaste|rolete|articulado';
+        const literalId=s.match(kind==='load'?/\bp\d+\b/:/\bs\d+\b/);
+        if(literalId&&!list.some(item=>[item.id,item.name].filter(Boolean).some(name=>normalize(name)===literalId[0]))){problem('missing_target','Não encontrei o elemento '+literalId[0]+'. Use um identificador da simulação.');return null;}
         const mentions=list.filter(item=>[item.id,item.name].filter(Boolean).some(name=>new RegExp('(?:\\b(?:'+nouns+')\\s+(?:chamad[oa]\\s+)?|\\b)'+escape(normalize(name))+'\\b').test(s)&&(!/^[a-z]$/.test(normalize(name))||new RegExp('\\b(?:'+nouns+')\\s+'+escape(normalize(name))+'\\b').test(s))));
         if(mentions.length===1)return mentions[0];if(mentions.length>1){problem('ambiguous_target','Indique apenas uma '+(kind==='load'?'carga':'posição de apoio')+' por operação.');return null;}
         if(kind==='load'){const requested=/\bforca\b/.test(s)?'force':/\bmomento\b/.test(s)?'moment':/\bdistribuida\b/.test(s)?'udl':/\bmassa\b/.test(s)?'mass':null;if(requested)list=list.filter(item=>item.kind===requested);}
@@ -351,6 +391,7 @@
         const patch={};if(/\b(?:perfil i|secao i)\b/.test(s))patch.shape='i';if(/\b(?:retangular|retangulo)\b/.test(s))patch.shape='rect';
         if(/\b(?:tubo|tubular|circular|redond[oa]|perfil [uthl])\b/.test(s))problem('unsupported_section','Estão disponíveis apenas seção retangular e perfil I.');
         for(const q of by('length')){const before=s.slice(0,q.start).slice(-65);let key=null;if(/(?:alma|\btw)\s*(?:para|em|de|=|com)?\s*$/.test(before))key='tw';else if(/(?:mesa|flange|\btf)\s*(?:para|em|de|=|com)?\s*$/.test(before))key='tf';else if(/(?:largura|base|\bb)\s*(?:(?:da|de) (?:secao|viga)\s*)?(?:para|em|de|=|com)?\s*$/.test(before))key='b';else if(/(?:altura|\bh)\s*(?:(?:da|de) (?:secao|viga)\s*)?(?:para|em|de|=|com)?\s*$/.test(before))key='h';if(!key){const after=s.slice(q.end).match(/^\s*(?:de|da)?\s*(altura|largura|base|alma|mesa|flange)\b/);if(after)key=({altura:'h',largura:'b',base:'b',alma:'tw',mesa:'tf',flange:'tf'})[after[1]];}if(!key){problem('missing_dimension','Identifique a dimensão: largura, altura, espessura da alma ou espessura da mesa.');continue;}used.add(q);if(Object.hasOwn(patch,key))problem('ambiguous_dimension','Indique apenas um valor para cada dimensão da seção.');else patch[key]=q.value;}
+        if(/^(?:aumente|reduza)\b.*\bem\s/.test(s))for(const key of ['b','h','tw','tf'])if(Object.hasOwn(patch,key))patch[key]=working.section[key]+(/^reduza/.test(s)?-1:1)*patch[key];
         if(!Object.keys(patch).length)problem('missing_section','Diga a forma da seção ou qual dimensão deseja alterar, com unidade.');else add({type:'change_section',patch});
       } else if(/\b(?:material|aco|aluminio|elasticidade|modulo|escoamento|densidade)\b/.test(s)){
         const patch={};if(/\binox(?:idavel)?\b/.test(s)||/\b304\b/.test(s))patch.key='stainless';else if(/\baco\b/.test(s))patch.key='steel';if(/\baluminio\b/.test(s))patch.key='aluminum';
@@ -494,12 +535,28 @@
     const request={model:'jev-latest',state:{utterance:candidate.interpreted_text,raw_utterance:text,interpretation:{normalizations:candidate.normalizations,source:options.source||'unspecified'},invocation:{addressed:call.addressed,contextual:call.contextual},conversation_context:{active_tab:options.activeTab||null,previous_tab:options.previousTab||null,available_tabs:options.availableTabs||[],pending_command:context.pending?{id:context.pending.id||null,text:String(context.pending.interpreted_text||context.pending.text||'').slice(0,600)}:null,last_command:context.last?{id:context.last.id||null,text:String(context.last.interpreted_text||context.last.text||'').slice(0,600)}:null,recent_utterances:context.recent.map(row=>String(typeof row==='string'?row:row.text||'').slice(0,250))},simulator_contract:'open_simulation displays the existing/default beam; it does not reset or edit physical parameters. show_canvas returns to the meeting map; show_section opens the section editor. Generic show_graphs displays all three diagrams. compare displays previous vs current, or initial vs current when requested. View operations need no numeric data. Beam patch.L is length in meters. When L changes, attached_end:right, edge:right or endEdge:right follows the new L automatically. Quantities state their units; magnitude and equivalent_si are the SAME quantity. Unspecified fields remain unchanged. Switching section shape to perfil I retains existing dimensions. A lone force/support is an unambiguous target; a force without a unit uses its visible display unit. Ponta on a cantilever is the unique free end. Material presets are complete: aluminum = Alumínio 6061-T6; steel = Aço estrutural; stainless = Aço inox 304. Web = alma, flange = mesa; millimeters are mm. Variar essa força e colocar em X metros requests a position update. Documented context and ASR normalizations are authorized, but never override negation/quotes or invent numeric values.',beam_state:beamState,deterministic_candidate:{operations:candidate.candidate_operations.map(op=>operationForValidation(op,snapshot)),readable_operations:candidate.candidate_operations.map(op=>operationDescription(op,snapshot)),issues:candidate.issues}},questions:validateConfig(options.config||defaults).questions};
     E.validateState(request.state);return request;
   }
+  function localView(candidate) {
+    if(!candidate.valid||candidate.operations.length!==1)return false;
+    const type=candidate.operations[0].type,body=normalize(candidate.interpreted_text).replace(/^norte[\s,]*/,'').replace(/[.!?]+$/,'').trim();
+    if(type==='open_simulation')return /^(?:abra o simulador|(?:vamos simular|quero simular|simule) (?:uma |a )?viga)$/.test(body);
+    if(['show_results','show_calculations','show_canvas','show_section'].includes(type))return /^(?:mostre|exiba|veja) (?:o |os |a )?(?:resultados|calculos|canvas|secao)$/.test(body);
+    if(type==='show_graphs')return /^(?:mostre|exiba|veja) (?:(?:o|os|a|as|todos os) )?(?:(?:graficos?|diagramas?)(?: de)? ?)?(?:(?:cortante|momento fletor|momento|flecha|deflexao)(?:, | e )?)*$/.test(body);
+    return false;
+  }
   async function process(text,options={}) {
     const original=options.state||{},snapshot=stateSnapshot(original),candidate=parse(text,{...options,state:snapshot});
     const audit={id:'BCMD-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7),text,raw_text:text,interpreted_text:candidate.interpreted_text,normalizations:clone(candidate.normalizations),created_at:new Date(options.nowMs??Date.now()).toISOString(),continuation_started_at:candidate.continuation_started_at||null,speaker:options.speaker||null,status:'classifying',consumed:candidate.consumed,command_type:candidate.command_type,probability:null,operations:[],candidate,issues:clone(candidate.issues),clarifications:[...candidate.clarifications],state_fingerprint:candidate.state_fingerprint,requests:[],outputs:[],message:''};
     const finish=(status,message)=>{audit.status=status;audit.message=message;options.onChange?.(clone(audit));return clone(audit);};
     if(!candidate.consumed)return finish('conversation','');
     if(candidate.awaiting_continuation)return finish('awaiting_continuation','');
+    // Viewing an existing tab has no physical side effects. A fully matched,
+    // deterministic view does not depend on network availability or API credit.
+    // Physical edits and additional unmatched instructions still require JEV.
+    if(options.localNavigation!==false&&localView(candidate)){
+      audit.routing='local_navigation';audit.validation_gates=['deterministic_view'];audit.operations=clone(candidate.operations);
+      audit.interpreted_effect=candidate.operations.map(op=>operationDescription(op,snapshot)).join(' ');
+      return finish('proposed','Visualização aberta.');
+    }
     const send=options.transport||options.send;
     if(typeof send!=='function')return finish('classification_error','Não foi possível verificar o comando. A simulação permanece igual; tente novamente.');
     let timer;
@@ -525,6 +582,6 @@
       return finish('classification_error',audit.error_code==='timeout'?'A verificação demorou mais que o esperado. Nenhuma alteração foi aplicada; tente novamente.':'Não foi possível verificar o comando agora. Nenhuma alteração foi aplicada; tente novamente.');
     } finally {clearTimeout(timer);}
   }
-  const api={threshold,types,defaults,examples,interpret,invocation,canHandle,isCandidate:canHandle,parse,quantities,stateSnapshot,fingerprint,validateOperations,validateConfig,buildRequest,process};
+  const api={threshold,types,defaults,examples,interpret,invocation,canHandle,isCandidate:canHandle,parse,localView,quantities,stateSnapshot,fingerprint,validateOperations,validateConfig,buildRequest,process};
   root.NorteBeamCommands=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof globalThis!=='undefined'?globalThis:window);

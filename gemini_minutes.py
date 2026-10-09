@@ -208,5 +208,7 @@ def generate(source,settings):
         raise MinutesError('A versão organizada não passou na conferência dos registros. Seu documento atual foi preservado; tente organizar novamente.',502,'invalid_document',True) from None
     doc['model']=result.get('modelVersion',settings.gemini_model)
     doc['generation_ms']=round((time.monotonic()-started)*1000)
+    # Provider-measured usage only. Missing usage stays unknown in observability.
+    doc['usage_metadata']=result.get('usageMetadata',{})
     doc['source_fingerprint']=hashlib.sha256(json.dumps(source,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
     return doc
