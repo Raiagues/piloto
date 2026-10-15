@@ -12,7 +12,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     proposals:[{id:'RULE-1',phrase:'abrirr o simulador',intent:'open_simulation',status:'published',reason:'Repetição seguida de navegação',evidence_count:3,evaluation:{passed:24,total:24},created_at:1791543620}],
     aliases:[{id:'RULE-1',phrase:'abrirr o simulador',intent:'open_simulation',status:'active',created_at:1791543620}],
     evaluations:[{id:'EVAL-1',kind:'replay',passed:23,total:24,created_at:1791543620,details:{scope:'server_intent_adapter'}}],
-    settings:{agents_enabled:true,external_review_enabled:true,agent_provider:'openai',agent_model:'gpt-4.1-mini',provider_configured:true,provider_status:{provider:'openai',model:'gpt-4.1-mini',configured:true,verified:false,last_status:'untested',last_check_at:null,last_error:null},gemini_configured:false,paid_agents_ready:true,auto_publish:true,retention_days:30,worker_mode:'inline',daily_budget_usd:1,daily_spend_usd:.03,daily_calls_used:2,daily_call_limit:50}
+    settings:{minutes_model:'gemini-3.8-flash',minutes_daily_calls_used:3,minutes_daily_call_limit:50,agents_enabled:true,external_review_enabled:true,agent_provider:'openai',agent_model:'gpt-4.1-mini',provider_configured:true,provider_status:{provider:'openai',model:'gpt-4.1-mini',configured:true,verified:false,last_status:'untested',last_check_at:null,last_error:null},gemini_configured:false,paid_agents_ready:true,auto_publish:true,retention_days:30,worker_mode:'inline',daily_budget_usd:1,daily_spend_usd:.03,daily_calls_used:2,daily_call_limit:50}
   };
   const server=http.createServer(async(req,res)=>{
     try {
@@ -56,6 +56,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     assert.match(cards[1],/90%/);assert.match(cards[3],/1 publicadas \/ 2 propostas/);
     assert.equal(await evaluate('document.querySelectorAll(".ao-chart-column").length'),2);
     assert.match(await evaluate('document.querySelector("#aoCosts").textContent'),/Chamadas com custo desconhecido2/);
+    assert.match(await evaluate('document.querySelector("#aoCosts").textContent'),/Organizações de atas hoje \/ limite3 \/ 50/);
+    assert.match(await evaluate('document.querySelector("#aoCosts").textContent'),/gemini-3.8-flash/);
     assert.equal(await evaluate('document.querySelector("#aoProviderModel").textContent'),'OpenAI · gpt-4.1-mini');
     assert.equal(await evaluate('document.querySelector("#aoProviderConfiguration").textContent'),'Chave e tarifas configuradas');
     assert.equal(await evaluate('document.querySelector("#aoProviderConnection").textContent'),'Ainda não verificado','configuration is not a connection check');

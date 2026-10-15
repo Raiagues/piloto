@@ -362,7 +362,10 @@ class Handler(SimpleHTTPRequestHandler):
         if self.path == '/api/minutes': usage_provider, usage_model = 'gemini', SETTINGS.gemini_model
         try:
             if self.path == '/api/minutes':
-                result = gemini_minutes.generate(body['source'], load_settings())
+                if AI_RUNTIME is not None and not AI_RUNTIME.reserve_minutes_call():
+                    usage_status = 'skipped'
+                    raise gemini_minutes.MinutesError('O limite diário de organização de atas foi atingido. O documento atual foi preservado. Tente no próximo dia ou contate o administrador.', 429, 'daily_limit', False)
+                result = gemini_minutes.generate(body['source'], SETTINGS)
                 usage_result = {'usageMetadata': result.get('usage_metadata', {})}
                 usage_status = 'success'
                 return self.json_response(200, result)
@@ -374,7 +377,7 @@ class Handler(SimpleHTTPRequestHandler):
         except ProviderError as error: return self.json_response(error.status, {'error': str(error)})
         finally:
             lane.release()
-            if AI_RUNTIME is not None:
+            if AI_RUNTIME is not None and usage_status != 'skipped':
                 try: AI_RUNTIME.record_usage(user['id'], usage_provider, usage_model, self.path.rsplit('/', 1)[-1], usage_result, (time.monotonic() - started) * 1000, usage_status)
                 except Exception as error: self.log_error('AI usage write failed: %s', type(error).__name__)
 

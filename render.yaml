@@ -4,7 +4,7 @@ services:
   - type: web
     name: norte
     runtime: python
-    plan: free
+    plan: 0.5c-512mb
     region: virginia
     buildCommand: pip install -r requirements.txt
     startCommand: python server.py --host 0.0.0.0
@@ -19,7 +19,14 @@ services:
       - key: NORTE_PROVIDER
         value: official
       - key: GEMINI_MODEL
-        value: gemini-3.1-pro-preview
+        value: gemini-3.8-flash
+      # Standard até 31/12/2026. A partir de 01/01/2027: 1.50 / 7.50.
+      - key: MINUTES_INPUT_USD_PER_MILLION
+        value: "0.75"
+      - key: MINUTES_OUTPUT_USD_PER_MILLION
+        value: "3.75"
+      - key: MINUTES_DAILY_CALL_LIMIT
+        value: "50"
       - key: ADMIN_USERNAME
         value: admin
       - key: ADMIN_PASSWORD
@@ -37,17 +44,11 @@ services:
       - key: AI_AUTO_PUBLISH
         value: "true"
       - key: AI_AGENT_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.5-flash-lite
       - key: AI_GEMINI_INPUT_USD_PER_MILLION
         value: "0.30"
       - key: AI_GEMINI_OUTPUT_USD_PER_MILLION
         value: "2.50"
-      - key: AI_OPENAI_MODEL
-        value: gpt-4.1-mini
-      - key: AI_OPENAI_INPUT_USD_PER_MILLION
-        value: "0.40"
-      - key: AI_OPENAI_OUTPUT_USD_PER_MILLION
-        value: "1.60"
       - key: AI_DAILY_BUDGET_USD
         value: "1.00"
       - key: AI_DAILY_CALL_LIMIT
@@ -63,6 +64,6 @@ databases:
   - name: norte-db
     databaseName: norte
     user: norte
-    plan: free
+    plan: 0.1c-256mb
     region: virginia
     ipAllowList: []

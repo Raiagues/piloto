@@ -1,6 +1,10 @@
 # Colocar o Norte no ar — GitHub + Render + Postgres
 
-Guia para seguir na ordem, copiando e colando. Tempo total: uns 15 minutos.
+Configuração atual (15/10/2026): **Jev + Gemini 3.8 Flash para atas + Gemini 3.5 Flash-Lite para agentes**. Consulte [AGENTES.md](AGENTES.md) para tarifas, diagnóstico e limites.
+
+**Serviço já existente:** envie o código atualizado ao GitHub, importe [render.env](render.env) em Render → serviço → Environment → Add from .env, atualize a chave Google e publique o último commit. Preserve `TYPESAFE_API_KEY`, `ADMIN_PASSWORD` e `DATABASE_URL`. Atualize ou remova um `GEMINI_API_KEY` antigo, pois ele tem prioridade sobre `GOOGLE_API_KEY`.
+
+**Nova instalação:** o Blueprint declara servidor e banco **pagos**, como descrito abaixo. Aplicá-lo contrata esses recursos; o arquivo local sozinho não altera sua conta.
 
 Para as novas camadas de IA, comandos naturais e dashboard, siga também [AGENTES.md](AGENTES.md). Ele inclui a configuração atual de provedores, chaves, limites e operação em segundo plano.
 
@@ -20,11 +24,7 @@ Para as novas camadas de IA, comandos naturais e dashboard, siga também [AGENTE
 | `TYPESAFE_API_KEY` | Chave do Jev (TypeSafe), que classifica as falas | A mesma chave que você já usa: no seu `.env` local ela está como `JEV_KEY_API=`. |
 | `GOOGLE_API_KEY` | Chave do Gemini, que escreve a ata | Abra <https://aistudio.google.com/apikey> → **Create API key** → copie. Se preferir pelo Google Cloud: <https://console.cloud.google.com/apis/credentials>. Pode ser a mesma `GOOGLE_API_KEY` do seu `.env`. |
 
-Para ver os valores do `.env` local, no terminal da pasta do projeto:
-
-```bash
-cat .env
-```
+Para transferir credenciais locais, abra o `.env` em seu editor e copie somente os valores necessários para o painel Render; não publique o arquivo.
 
 > Dica de segurança (Google Cloud): em <https://console.cloud.google.com/apis/credentials>, abra a chave → **API restrictions** → **Restrict key** → marque só **Generative Language API**. Assim, se a chave vazar, ela não serve para outros serviços.
 
@@ -71,7 +71,7 @@ Atalho para os passos 2–4: <https://render.com/deploy?repo=https://github.com/
 
 ## 4. Custos e limites do plano gratuito (leia antes de divulgar)
 
-- **O site "dorme"** depois de 15 minutos sem acesso. O primeiro acesso depois disso demora ~1 minuto.
+- **Se ainda estiver no plano gratuito**, o site "dorme" depois de 15 minutos sem acesso. O primeiro acesso depois disso demora ~1 minuto.
 - **O Postgres gratuito expira 30 dias depois de criado.** Depois há 14 dias de carência e então **o banco e os dados (contas e reuniões) são apagados**. Antes disso, mude o banco para um plano pago: <https://dashboard.render.com> → **norte-db** → **Upgrade** (ou **Settings → Instance Type**). O preço aparece na tela.
 - Para o site não dormir: **norte** → **Settings → Instance Type** → um plano pago.
 - **Toda conta usa as suas chaves** (TypeSafe e Gemini) e consome os seus créditos. Para limitar quem pode criar conta, crie um código de convite: **norte** → **Environment** → **Add Environment Variable** → `SIGNUP_CODE` = um código qualquer → **Save, rebuild, and deploy**. A tela de cadastro passa a pedir esse código.
@@ -101,7 +101,7 @@ Observação: as reuniões e testes que você fez antes ficaram guardados no nav
 | Sintoma | Causa provável | Como resolver |
 | --- | --- | --- |
 | "A conexão de processamento não está pronta" | `TYPESAFE_API_KEY` vazia ou errada | Corrija em **Environment** e salve. |
-| Ata / PDF não gera | `GOOGLE_API_KEY` vazia, errada ou sem a Generative Language API | Gere outra chave no AI Studio e salve em **Environment**. |
+| Organização da ata não gera | `GOOGLE_API_KEY` vazia, errada ou sem acesso ao modelo | Gere outra chave no AI Studio, confira cobrança e salve em **Environment**. A exportação local não depende da API. |
 | Deploy falha com "ADMIN_USERNAME/ADMIN_PASSWORD" | Senha com menos de 8 caracteres | Use uma senha maior. |
 | Deploy falha no "health check" | Banco ainda criando ou fora do ar | Espere o `norte-db` ficar **Available** e clique **Manual Deploy → Deploy latest commit**. |
 | Primeiro acesso muito lento | Plano gratuito dormindo | Normal; ou mude para plano pago. |
@@ -115,7 +115,9 @@ Observação: as reuniões e testes que você fez antes ficaram guardados no nav
 | `ADMIN_USERNAME` | Não (padrão `admin`) | Usuário da conta admin. |
 | `TYPESAFE_API_KEY` | Sim | Chave do Jev / TypeSafe. |
 | `GOOGLE_API_KEY` | Para a ata | Chave do Gemini. |
-| `GEMINI_MODEL` | Não | Modelo do Gemini (padrão `gemini-3.1-pro-preview`). |
+| `GEMINI_MODEL` | Não | Modelo das atas (padrão `gemini-3.8-flash`). |
+| `MINUTES_INPUT_USD_PER_MILLION` / `MINUTES_OUTPUT_USD_PER_MILLION` | Para estimar custo | Tarifas das atas: 0.75 / 3.75 até 31/12/2026; 1.50 / 7.50 a partir de 01/01/2027. |
+| `MINUTES_DAILY_CALL_LIMIT` | Não (padrão 50) | Tentativas de organização por dia UTC, compartilhadas entre contas; zero desativa. |
 | `DATABASE_URL` | No Render, automática | Endereço do Postgres; o `render.yaml` liga sozinho. |
 | `SIGNUP_CODE` | Não | Código de convite para criar conta. |
 | `ALLOWED_HOSTS` | Só com domínio próprio | Domínios extras aceitos pelo site. |

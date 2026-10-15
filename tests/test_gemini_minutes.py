@@ -108,10 +108,40 @@ class MinutesTests(unittest.TestCase):
             d=G.generate(source(),Settings(gemini_api_key='private-key'))
             req=send.call_args.args[0]
             self.assertNotIn('private-key',req.full_url);self.assertEqual(req.headers['X-goog-api-key'],'private-key');self.assertEqual(d['model'],'gemini-test')
+            self.assertIn('gemini-3.8-flash:generateContent', req.full_url)
+            self.assertEqual(json.loads(req.data)['generationConfig']['thinkingConfig'], {'thinkingLevel': 'medium'})
         with self.assertRaises(G.MinutesError):G.generate(source(),Settings())
 if __name__=='__main__':unittest.main()
 
 class MinutesRouteTests(unittest.TestCase):
+    def test_daily_limit_blocks_provider_and_does_not_count_a_paid_call(self):
+        import ai_runtime
+        import server
+        from urllib.request import Request, urlopen
+        from http.server import ThreadingHTTPServer
+        from support import signed_in
+        _, headers = signed_in(self)
+        settings = Settings(minutes_daily_call_limit=1, gemini_api_key='private-test')
+        runtime = ai_runtime.Runtime(server.STORE, settings)
+        with patch.object(server, 'AI_RUNTIME', runtime), patch.object(server, 'SETTINGS', settings):
+            http = ThreadingHTTPServer(('127.0.0.1', 0), server.Handler)
+            worker = threading.Thread(target=http.serve_forever, daemon=True); worker.start()
+            try:
+                req = Request(f'http://127.0.0.1:{http.server_port}/api/minutes',
+                    data=json.dumps({'source': source()}).encode(), headers={'Content-Type': 'application/json', **headers})
+                with patch.object(G, 'generate', side_effect=G.MinutesError('Falha sintética.', 503, 'unavailable')) as generate:
+                    with self.assertRaises(HTTPError) as first: urlopen(req)
+                    self.assertEqual(first.exception.code, 503)
+                    with self.assertRaises(HTTPError) as second: urlopen(req)
+                    self.assertEqual(second.exception.code, 429)
+                    self.assertEqual(json.load(second.exception)['code'], 'daily_limit')
+                    self.assertEqual(generate.call_count, 1)
+                    self.assertIs(generate.call_args.args[1], settings)
+                    self.assertEqual(runtime.overview()['settings']['minutes_daily_calls_used'], 1)
+                    self.assertEqual(runtime.metrics()['provider_calls'], 1)
+            finally:
+                http.shutdown(); http.server_close(); worker.join(); runtime.stop()
+
     def test_route_private_files_and_origin(self):
         import server
         import threading

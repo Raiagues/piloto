@@ -11,69 +11,50 @@ Site: <https://norte-r007.onrender.com>. No admin, abra **Agentes e métricas** 
 - O replay de alterações físicas usa o parser e o motor de cálculo reais, sobre uma cópia da configuração. Nunca modifica a reunião em andamento.
 - A API de memória consulta reuniões da própria conta. O adaptador pode ser substituído pelo gêmeo digital quando ele existir.
 
-## 2. Qual chave usar agora
+## 2. Configuração recomendada — 15/10/2026
 
-O teste realizado em **09/10/2026** com a chave Gemini local encontrou HTTP **404** no `gemini-2.5-flash` e **403 PERMISSION_DENIED** no `gemini-3.1-flash-lite`: “Your project has been denied access. Please contact support.” A lista de modelos respondeu, mas a geração não. Isso não comprova falta de créditos: o projeto/chave precisa recuperar acesso. As variáveis do Render podem conter outra chave, então confira o diagnóstico do provedor no painel.
+Use **Jev** para as decisões estruturadas, **Gemini 3.8 Flash** para atas e **Gemini 3.5 Flash-Lite** para revisão de frases. Os dois Gemini usam uma única `GOOGLE_API_KEY`, no mesmo projeto e saldo. Não é necessário contratar OpenAI nesta configuração.
 
-Você pode corrigir esse projeto Google ou selecionar a alternativa OpenAI implementada para os agentes. A escolha é explícita: o sistema não muda de fornecedor por conta própria.
+A seleção privilegia versões estáveis e um modelo leve para revisão. O Google restringe os modelos 2.5 a usuários que já os utilizavam; por isso eles deixaram de ser padrão. A qualidade real das atas deve ser conferida com reuniões representativas após validar a chave. Fontes: [modelos](https://ai.google.dev/gemini-api/docs/models), [Flash](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash), [Flash-Lite](https://ai.google.dev/gemini-api/docs/models/gemini-3.5-flash-lite).
 
-### Opção OpenAI
+### Ativar no serviço existente
 
-1. Entre em <https://platform.openai.com>.
-2. Abra **Billing**: <https://platform.openai.com/settings/organization/billing/overview>. Cadastre o meio de pagamento e adicione o saldo disponível na sua conta.
-3. Abra **API keys**: <https://platform.openai.com/api-keys>.
-4. Crie uma chave para o projeto que usará o Norte e copie o valor.
-5. No <https://dashboard.render.com>, abra o serviço que atende `norte-r007.onrender.com` → **Environment** → **Edit**.
-6. Adicione ou altere exatamente:
+1. No [AI Studio](https://aistudio.google.com/apikey), obtenha uma chave de um projeto com acesso à Gemini API. Vincule a cobrança e comece com US$ 10 de crédito em [Billing](https://aistudio.google.com/billing). O mínimo de pré-pagamento publicado é US$ 5.
+2. No [Render](https://dashboard.render.com), abra o serviço do Norte → **Environment**. Atualize `GOOGLE_API_KEY` e preserve `TYPESAFE_API_KEY`, `ADMIN_PASSWORD` e `DATABASE_URL`. Se houver `GEMINI_API_KEY` antiga, remova-a ou atualize-a também: esse alias tem prioridade sobre `GOOGLE_API_KEY` na mesma origem.
+3. Importe **[render.env](render.env)** com **Add from .env**. O arquivo contém somente configurações públicas, sem chaves ou senha. Salve as alterações.
+4. Publique o código atualizado e faça **Manual Deploy → Deploy latest commit**. Um serviço existente não importa automaticamente o YAML a cada deploy.
+5. Rode o diagnóstico abaixo no ambiente que quer verificar e entre como admin em **Agentes e métricas**.
 
-```dotenv
-AI_AGENTS_ENABLED=true
-AI_EXTERNAL_REVIEW_ENABLED=true
-AI_AGENT_PROVIDER=openai
-OPENAI_API_KEY=COLE_A_CHAVE_AQUI
-AI_OPENAI_MODEL=gpt-4.1-mini
-AI_OPENAI_INPUT_USD_PER_MILLION=0.40
-AI_OPENAI_OUTPUT_USD_PER_MILLION=1.60
-AI_DAILY_BUDGET_USD=1.00
-AI_DAILY_CALL_LIMIT=50
-AI_AUTO_PUBLISH=true
-AI_RETENTION_DAYS=90
-JEV_INPUT_USD_PER_MILLION=0.042
-JEV_OUTPUT_USD_PER_MILLION=0
+```bash
+# Apenas autenticação; não gera conteúdo nem testa o saldo para geração:
+python3 scripts/check_apis.py
+# Testes sintéticos pequenos com os adaptadores reais; consomem créditos:
+python3 scripts/check_apis.py --live
 ```
 
-7. Clique **Save, rebuild, and deploy** e aguarde o serviço ficar **Live**.
-8. Entre como admin → **Agentes e métricas** → confira o provedor, a configuração e eventuais erros. “Chave configurada” informa presença da chave; uma chamada bem-sucedida é o que confirma o acesso.
+O diagnóstico não mostra chaves, não envia reuniões e não escreve no banco de produção. Sucesso em listar modelos não comprova permissão de geração. O teste com `--live` verifica uma classificação Jev, uma ata com evidência e uma intenção, somente quando a consulta autenticada do fornecedor passa. Isso não substitui teste de carga ou avaliação de qualidade de reuniões reais.
 
-Coloque a chave diretamente no Render. Localmente, coloque no `.env`, que é ignorado pelo Git. Nunca cole a chave no frontend, em um commit ou em um exemplo público.
+No diagnóstico local de 15/10/2026, a listagem TypeSafe autenticou e a listagem Google retornou **HTTP 401**. É necessário corrigir a autenticação Google; não tratar o erro como prova de falta de créditos. Isso não informa o estado de outra chave configurada no Render.
 
-O modelo usado nessa opção aceita saída estruturada e custa, na consulta de 09/10/2026, **US$ 0,40 por milhão de tokens de entrada e US$ 1,60 de saída**. O envio usa Responses API com `store: false`, sem ferramentas externas. [Modelo e tarifas oficiais](https://developers.openai.com/api/docs/models/gpt-4.1-mini), [saída estruturada](https://developers.openai.com/api/docs/guides/structured-outputs).
+### Custos e limites
 
-### Opção Gemini
+| Uso | Modelo | Entrada / saída, US$ por milhão de tokens |
+| --- | --- | --- |
+| Classificação | `jev-latest` | 0.042 / 0 |
+| Atas | `gemini-3.8-flash` | 0.75 / 3.75 até 31/12/2026 |
+| Agentes | `gemini-3.5-flash-lite` | 0.30 / 2.50 |
 
-1. Abra <https://aistudio.google.com/apikey> e crie uma chave em um projeto com acesso à Gemini API.
-2. Para habilitar cobrança, abra **Set up billing** no projeto no AI Studio. Se a conta usar pré-pagamento, adicione créditos em <https://aistudio.google.com/billing>. A documentação consultada informa compra mínima de US$ 5; siga o valor exibido para sua conta. [Cobrança Gemini](https://ai.google.dev/gemini-api/docs/billing).
-3. No Render → serviço → **Environment**, configure:
+Em **01/01/2027**, atualize `MINUTES_INPUT_USD_PER_MILLION=1.50` e `MINUTES_OUTPUT_USD_PER_MILLION=7.50`, conforme o fim da promoção publicado. As tarifas configuradas servem para estimar consumo; não compram saldo. [Preços Gemini](https://ai.google.dev/gemini-api/docs/pricing), [TypeSafe](https://docs.typesafe.ai/models), [cobrança Google](https://ai.google.dev/gemini-api/docs/billing).
 
-```dotenv
-GOOGLE_API_KEY=COLE_A_CHAVE_GOOGLE_AQUI
-AI_AGENT_PROVIDER=gemini
-AI_EXTERNAL_REVIEW_ENABLED=true
-AI_AGENT_MODEL=gemini-2.5-flash
-AI_GEMINI_INPUT_USD_PER_MILLION=0.30
-AI_GEMINI_OUTPUT_USD_PER_MILLION=2.50
-```
+- `AI_DAILY_BUDGET_USD=1.00` e `AI_DAILY_CALL_LIMIT=50`: revisão e resolução de intenções dos agentes. Não incluem Jev nem atas.
+- `MINUTES_DAILY_CALL_LIMIT=50`: até 50 tentativas de organização de atas por dia UTC, compartilhadas entre contas e persistentes após reiniciar. Erros também gastam uma tentativa. A repetição interna de um erro 503, no máximo uma por tentativa, pode fazer uma chamada adicional. Zero desativa novas organizações.
+- Uma organização bloqueada pelo limite não chama o provedor nem aparece como chamada paga. A ata atual e a exportação local continuam disponíveis.
+- O limite de atas é por quantidade, **não por dólares**. Jev continua sendo cobrado por uso. Acompanhe os painéis dos provedores; a fatura é a referência.
+- `MINUTES_INPUT_USD_PER_MILLION` e `MINUTES_OUTPUT_USD_PER_MILLION`: tarifas exclusivas das atas; incluem a contabilização de raciocínio quando o provedor informa o uso. Alterar modelo exige conferir as tarifas. Uso ausente permanece desconhecido.
 
-4. Mantenha os limites diários do bloco anterior e publique a alteração.
-5. Se continuar aparecendo 403, resolva o acesso do projeto com o Google; comprar saldo não garante corrigir esse erro. Se o modelo retornar 404, confira os modelos disponíveis e atualize **modelo e tarifas juntos**.
+### Alternativa OpenAI já existente
 
-As tarifas acima correspondem ao Gemini 2.5 Flash para texto, incluindo tokens de raciocínio na saída. [Tabela oficial Gemini](https://ai.google.dev/gemini-api/docs/pricing).
-
-**A ata mantém sua integração Gemini própria**, configurada por `GOOGLE_API_KEY` e `GEMINI_MODEL`. Escolher OpenAI para os agentes não migra a geração da ata. A ata local/exportação existente continua disponível; a organização da ata por Gemini depende de recuperar essa API.
-
-### Jev
-
-Mantenha `TYPESAFE_API_KEY` configurada. Para obter uma nova chave, entre em <https://console.typesafe.ai> → dashboard → chaves de API. Cobrança e saldo são gerenciados na mesma conta. A documentação consultada informa **US$ 0,042 por milhão de tokens de entrada, saída gratuita** para Jev 1.13; confira seu contrato se usar outra tarifa. [Primeiros passos](https://docs.typesafe.ai/introduction/quickstart), [modelos e preços](https://docs.typesafe.ai/models).
+O adaptador OpenAI foi preservado para instalações existentes, mas não é usado nem exige saldo na configuração acima. O padrão legado `gpt-4.1-mini` será desligado em 14/01/2027: valide um substituto e suas tarifas antes de adotar essa alternativa. Selecionar OpenAI para os agentes não substitui o Gemini das atas. [Aviso oficial](https://developers.openai.com/api/docs/deprecations).
 
 ## 3. Preciso pagar mais no Render?
 
@@ -83,7 +64,7 @@ No Render, abra o serviço → **Compute** → **Edit** → escolha **0.5c-512mb
 
 O serviço gratuito dorme após 15 minutos sem tráfego, e o Postgres gratuito expira após 30 dias. Não armazene a única cópia das reuniões em SQLite no Render: o filesystem é efêmero. Mantenha `DATABASE_URL` ligada ao Postgres. [Limites gratuitos](https://render.com/docs/free).
 
-O `render.yaml` conserva o plano gratuito: **esta entrega não compra nem troca seu plano**. Ele inclui as novas variáveis para instalações/sincronizações por Blueprint. Em um serviço já existente, confira **Environment**; publicar o código não garante importar novas variáveis do YAML.
+O `render.yaml` agora declara servidor `0.5c-512mb` e banco `0.1c-256mb`, ambos pagos. Alterar o arquivo local não compra recursos; aplicar/sincronizar o Blueprint no Render contrata os planos declarados. Em uma instalação existente, altere o Compute do servidor e do banco separadamente. Ele inclui as novas variáveis para instalações/sincronizações por Blueprint. Em um serviço já existente, confira **Environment**; publicar o código não garante importar novas variáveis do YAML.
 
 O replay físico requer Node.js, disponível nos runtimes nativos do Render. Se faltar em outro ambiente, o histórico informa a indisponibilidade; o processamento da reunião continua. [Ferramentas dos runtimes](https://render.com/docs/native-runtimes).
 

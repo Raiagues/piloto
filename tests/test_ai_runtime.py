@@ -143,7 +143,7 @@ class RuntimeTests(unittest.TestCase):
         self.runtime.settings = dataclasses.replace(self.runtime.settings, ai_gemini_input_usd_per_million=.3, ai_gemini_output_usd_per_million=2.5)
         self.runtime.record_usage(self.user, 'jev', 'jev-latest', 'classify', {}, 40)
         response = {'usageMetadata': {'promptTokenCount': 100, 'candidatesTokenCount': 10, 'thoughtsTokenCount': 5}}
-        price = self.runtime.record_usage(self.user, 'gemini', 'gemini-2.5-flash', 'agent', response, 90)
+        price = self.runtime.record_usage(self.user, 'gemini', self.runtime.settings.ai_agent_model, 'agent', response, 90)
         self.assertAlmostEqual(price, (100 * .3 + 15 * 2.5) / 1000000)
         self.assertIsNone(self.runtime.record_usage(self.user, 'gemini', 'gemini-3.1-pro-preview', 'minutes', response, 90))
         self.assertEqual(self.runtime.metrics()['unknown_cost_calls'], 2)
@@ -154,6 +154,43 @@ class RuntimeTests(unittest.TestCase):
         cost = self.runtime.record_usage(self.user, 'jev', 'jev-latest', 'classify', {'usage': {'input_tokens': 1000}}, 40)
         self.assertAlmostEqual(cost, .000042)
         self.assertEqual(self.store._run('SELECT output_tokens FROM ai_usage', fetch='one')[0], None)
+
+    def test_minutes_price_is_independent_of_agent_price_even_for_same_model(self):
+        self.runtime.settings = dataclasses.replace(self.runtime.settings,
+            gemini_model=self.runtime.settings.ai_agent_model,
+            minutes_input_usd_per_million=.75, minutes_output_usd_per_million=3.75,
+            ai_gemini_input_usd_per_million=.3, ai_gemini_output_usd_per_million=2.5)
+        response = {'usageMetadata': {'promptTokenCount': 20000, 'candidatesTokenCount': 4000, 'thoughtsTokenCount': 1000}}
+        cost = self.runtime.record_usage(self.user, 'gemini', self.runtime.settings.gemini_model, 'minutes', response, 30)
+        self.assertAlmostEqual(cost, .03375)
+        unknown = self.runtime.record_usage(self.user, 'gemini', 'gemini-other-model', 'minutes', response, 30)
+        self.assertIsNone(unknown)
+
+    def test_minutes_limit_is_atomic_separate_from_agents_and_resets_next_utc_day(self):
+        self.runtime.settings = dataclasses.replace(self.runtime.settings, minutes_daily_call_limit=2)
+        results = []
+        with patch.object(A.time, 'strftime', return_value='2026-10-15'):
+            threads = [threading.Thread(target=lambda: results.append(self.runtime.reserve_minutes_call())) for _ in range(8)]
+            for thread in threads: thread.start()
+            for thread in threads: thread.join()
+            self.assertEqual(sum(results), 2)
+            self.assertIsNotNone(self.runtime.reserve_budget(.01))
+            restarted = A.Runtime(self.store, self.runtime.settings)
+            self.assertFalse(restarted.reserve_minutes_call())
+        with patch.object(A.time, 'strftime', return_value='2026-10-16'):
+            self.assertTrue(self.runtime.reserve_minutes_call())
+        self.runtime.settings = dataclasses.replace(self.runtime.settings, minutes_daily_call_limit=0)
+        self.assertFalse(self.runtime.reserve_minutes_call())
+
+    def test_gemini_reasoning_cap_is_reserved_on_unknown_usage(self):
+        self.runtime.settings = dataclasses.replace(self.runtime.settings, ai_external_review_enabled=True,
+            gemini_api_key='private-fixture', ai_gemini_input_usd_per_million=.3, ai_gemini_output_usd_per_million=2.5)
+        with patch.object(A.AI_HTTP, 'open', side_effect=HTTPError('https://provider.invalid', 503, 'private', {}, None)) as request:
+            self.assertIsNone(self.runtime.ask_model(self.user, {'task': 'review_alias', 'text': event()['text']}))
+        payload = json.loads(request.call_args.args[0].data)
+        self.assertEqual(payload['generationConfig']['thinkingConfig'], {'thinkingLevel': 'minimal'})
+        self.assertEqual(payload['generationConfig']['maxOutputTokens'], 1024)
+        self.assertAlmostEqual(self.runtime.overview()['settings']['daily_spend_usd'], (4096 * .3 + 1024 * 2.5) / 1000000)
 
     def test_feedback_errors_are_visible_to_auditor(self):
         self.ingest(event('feedback', kind='feedback', status='success', correct=False))
@@ -221,7 +258,9 @@ class RuntimeTests(unittest.TestCase):
         s = config.load_settings('/nonexistent', {'AI_DAILY_BUDGET_USD': '.15', 'AI_EXTERNAL_REVIEW_ENABLED': 'true'})
         self.assertEqual(s.ai_daily_budget_usd, .15); self.assertTrue(s.ai_external_review_enabled)
         self.assertFalse(config.Settings().ai_external_review_enabled)
-        for key, value in [('AI_DAILY_BUDGET_USD', 'nan'), ('AI_RETENTION_DAYS', '0'), ('AI_AUTO_PUBLISH', 'perhaps')]:
+        for key, value in [('AI_DAILY_BUDGET_USD', 'nan'), ('AI_RETENTION_DAYS', '0'), ('AI_AUTO_PUBLISH', 'perhaps'),
+                           ('MINUTES_DAILY_CALL_LIMIT', '-1'), ('MINUTES_DAILY_CALL_LIMIT', '1.5'),
+                           ('MINUTES_INPUT_USD_PER_MILLION', 'nan'), ('MINUTES_OUTPUT_USD_PER_MILLION', '-1')]:
             with self.assertRaises(ValueError): config.load_settings('/nonexistent', {key: value})
 
 

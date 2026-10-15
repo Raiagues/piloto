@@ -9,6 +9,10 @@ Reuniões com simulação de vigas: transcrição ao vivo, canvas de assuntos, s
 
 **Comandos naturais, agentes e métricas**: veja [AGENTES.md](AGENTES.md) para ativar Gemini/OpenAI, configurar limites e entender o painel visual do admin.
 
+Modelos recomendados: Jev para classificação, Gemini 3.8 Flash para atas e Gemini 3.5 Flash-Lite para agentes. A configuração pública para um serviço Render existente está em [render.env](render.env). O Blueprint usa servidor e Postgres pagos; aplicar o arquivo no Render contrata esses recursos.
+
+Diagnóstico sem gerar conteúdo: `python3 scripts/check_apis.py`. Para testar geração com dados sintéticos e consumo de API: `python3 scripts/check_apis.py --live`. Nenhuma reunião real é enviada pelo diagnóstico.
+
 ## Rodar localmente
 
 ```bash

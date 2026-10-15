@@ -174,7 +174,7 @@ def generate(source,settings):
         raise MinutesError('A organização do documento ainda não está configurada no servidor.',503,'configuration',False)
     if not re.fullmatch(r'gemini-[a-z0-9.\-]+',settings.gemini_model):
         raise MinutesError('A configuração do serviço de organização precisa ser revisada.',503,'configuration',False)
-    payload={'systemInstruction':{'parts':[{'text':(ROOT/'minutes_prompt.txt').read_text()}]},'contents':[{'role':'user','parts':[{'text':json.dumps(source,ensure_ascii=False)}]}], 'generationConfig':{'responseMimeType':'application/json','responseJsonSchema':SCHEMA,'maxOutputTokens':32768, **({'thinkingConfig':{'thinkingLevel':'medium'}} if settings.gemini_model.startswith(('gemini-3.1','gemini-3-flash')) else {})}}
+    payload={'systemInstruction':{'parts':[{'text':(ROOT/'minutes_prompt.txt').read_text()}]},'contents':[{'role':'user','parts':[{'text':json.dumps(source,ensure_ascii=False)}]}], 'generationConfig':{'responseMimeType':'application/json','responseJsonSchema':SCHEMA,'maxOutputTokens':32768, **({'thinkingConfig':{'thinkingLevel':'medium'}} if settings.gemini_model.startswith(('gemini-3.', 'gemini-3-flash')) else {})}}
     req=Request('https://generativelanguage.googleapis.com/v1beta/models/'+settings.gemini_model+':generateContent',data=json.dumps(payload).encode(),headers={'Content-Type':'application/json','x-goog-api-key':settings.gemini_api_key},method='POST')
     started=time.monotonic();deadline=started+REQUEST_TIMEOUT_SECONDS
     try:

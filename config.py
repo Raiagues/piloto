@@ -15,7 +15,10 @@ class Settings:
     api_key: str = field(default='', repr=False)
     gemini_api_key: str = field(default='', repr=False)
     openai_api_key: str = field(default='', repr=False)
-    gemini_model: str = 'gemini-3.1-pro-preview'
+    gemini_model: str = 'gemini-3.8-flash'
+    minutes_input_usd_per_million: float | None = None
+    minutes_output_usd_per_million: float | None = None
+    minutes_daily_call_limit: int = 50
     database_url: str = field(default='', repr=False)
     admin_username: str = 'admin'
     admin_password: str = field(default='', repr=False)
@@ -26,7 +29,7 @@ class Settings:
     # Existing GEMINI_API_KEY for minutes does not opt meeting telemetry in.
     ai_external_review_enabled: bool = False
     ai_auto_publish: bool = True
-    ai_agent_model: str = 'gemini-2.5-flash'
+    ai_agent_model: str = 'gemini-3.5-flash-lite'
     ai_agent_provider: str = 'gemini'
     ai_openai_model: str = 'gpt-4.1-mini'
     ai_daily_budget_usd: float = 1.0
@@ -55,6 +58,7 @@ def load_settings(path=None, environ=None):
             name, value = name.strip(), value.strip()
             if name not in ('NORTE_PROVIDER', 'TYPESAFE_API_KEY', 'JEV_API_KEY', 'JEV_KEY_API', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_MODEL',
                             'DATABASE_URL', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'SIGNUP_CODE', 'ALLOWED_HOSTS',
+                            'MINUTES_INPUT_USD_PER_MILLION', 'MINUTES_OUTPUT_USD_PER_MILLION', 'MINUTES_DAILY_CALL_LIMIT',
                             'AI_AGENTS_ENABLED', 'AI_EXTERNAL_REVIEW_ENABLED', 'AI_AUTO_PUBLISH', 'AI_AGENT_MODEL', 'AI_DAILY_BUDGET_USD',
                             'AI_AGENT_PROVIDER', 'OPENAI_API_KEY', 'AI_OPENAI_MODEL', 'AI_OPENAI_INPUT_USD_PER_MILLION', 'AI_OPENAI_OUTPUT_USD_PER_MILLION',
                             'AI_DAILY_CALL_LIMIT', 'AI_RETENTION_DAYS', 'AI_GEMINI_INPUT_USD_PER_MILLION',
@@ -69,7 +73,7 @@ def load_settings(path=None, environ=None):
     if key and (not key.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in key)):
         raise ValueError('Chave inválida no .env: remova espaços e quebras de linha.')
     gemini_key = next((source[name].strip() for source in (environ, values) for name in ('GEMINI_API_KEY', 'GOOGLE_API_KEY') if source.get(name, '').strip()), '')
-    model = environ.get('GEMINI_MODEL', values.get('GEMINI_MODEL', 'gemini-3.1-pro-preview')).strip()
+    model = environ.get('GEMINI_MODEL', values.get('GEMINI_MODEL', 'gemini-3.8-flash')).strip()
     text = lambda name, default='': environ.get(name, values.get(name, default)).strip()
     def number(name, default=None, integer=False, minimum=0, maximum=1000000):
         raw = text(name, '' if default is None else str(default))
@@ -88,11 +92,14 @@ def load_settings(path=None, environ=None):
     agent_provider = text('AI_AGENT_PROVIDER', 'gemini')
     if agent_provider not in ('gemini', 'openai'): raise ValueError('AI_AGENT_PROVIDER deve ser gemini ou openai.')
     return Settings(provider=provider, api_key=key, gemini_api_key=gemini_key, gemini_model=model,
+                    minutes_input_usd_per_million=number('MINUTES_INPUT_USD_PER_MILLION'),
+                    minutes_output_usd_per_million=number('MINUTES_OUTPUT_USD_PER_MILLION'),
+                    minutes_daily_call_limit=number('MINUTES_DAILY_CALL_LIMIT', 50, integer=True, maximum=10000),
                     database_url=text('DATABASE_URL'), admin_username=text('ADMIN_USERNAME', 'admin') or 'admin',
                     admin_password=text('ADMIN_PASSWORD'), signup_code=text('SIGNUP_CODE'), allowed_hosts=hosts,
                     ai_agents_enabled=boolean('AI_AGENTS_ENABLED', True), ai_auto_publish=boolean('AI_AUTO_PUBLISH', True),
                     ai_external_review_enabled=boolean('AI_EXTERNAL_REVIEW_ENABLED', False),
-                    ai_agent_model=text('AI_AGENT_MODEL', 'gemini-2.5-flash'),
+                    ai_agent_model=text('AI_AGENT_MODEL', 'gemini-3.5-flash-lite'),
                     ai_agent_provider=agent_provider, openai_api_key=text('OPENAI_API_KEY'), ai_openai_model=text('AI_OPENAI_MODEL', 'gpt-4.1-mini'),
                     ai_daily_budget_usd=number('AI_DAILY_BUDGET_USD', 1, maximum=10000),
                     ai_daily_call_limit=number('AI_DAILY_CALL_LIMIT', 50, integer=True, maximum=10000),
