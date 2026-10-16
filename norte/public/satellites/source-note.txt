@@ -1,0 +1,1 @@
+Home satellite views replaced with the three user-approved technical drawings on 2026-08-31. Runtime assets are stored as base64-encoded JPEG payloads in sat-1.jpg.b64.txt through sat-3.jpg.b64.txt.

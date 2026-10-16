@@ -1,0 +1,80 @@
+{
+  "name": "norte",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Raiagues/piloto.git"
+  },
+  "homepage": "https://norte-r007.onrender.com/",
+  "bugs": {
+    "url": "https://github.com/Raiagues/piloto/issues"
+  },
+  "engines": {
+    "node": ">=24.20.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite --host 127.0.0.1 --port 5173 --strictPort --open /norte/",
+    "dev:api": "node server/index.mjs",
+    "start": "node server/index.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run && node --test server/*.test.mjs",
+    "test:api": "node --test server/*.test.mjs",
+    "security:secrets": "node scripts/scan-secrets.mjs",
+    "security:audit": "npm audit --audit-level=high",
+    "quality": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "test:visual": "node scripts/visual-check.mjs",
+    "test:visual:live": "node --env-file-if-exists=.env.local scripts/visual-live-extraction.mjs",
+    "test:acceptance:quetzal": "node --env-file-if-exists=.env.local scripts/acceptance-quetzal-memory.mjs",
+    "test:visual:quetzal": "node scripts/visual-quetzal.mjs",
+    "benchmark:quetzal": "node scripts/benchmark-quetzal.mjs",
+    "benchmark:structural": "node scripts/benchmark-structural.mjs",
+    "benchmark:probe": "node scripts/probe-quetzal-contamination.mjs",
+    "diagnose:project-memory": "node scripts/diagnose-project-memory.mjs",
+    "seed:quetzal": "node scripts/seed-quetzal-validation.mjs",
+    "diagnose:extraction": "node --env-file-if-exists=.env.local scripts/diagnose-extraction.mjs",
+    "benchmark:extract": "node scripts/extract-quetzal.mjs",
+    "test:visual:organization": "node scripts/visual-organization.mjs",
+    "seed:team-preview": "node scripts/seed-team-preview.mjs",
+    "dev:team-preview": "node scripts/dev-team-preview.mjs",
+    "test:visual:teams": "node scripts/visual-team-collaboration.mjs",
+    "test:visual:meetings": "node scripts/visual-meetings.mjs",
+    "test:visual:integrated": "node scripts/visual-integrated-live.mjs",
+    "test:visual:background": "node scripts/visual-extraction-background.mjs"
+  },
+  "dependencies": {
+    "@dagrejs/dagre": "^3.1.1",
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.3",
+    "@fastify/swagger": "^9.8.1",
+    "@fastify/swagger-ui": "^6.1.1",
+    "argon2": "^0.45.1",
+    "fastify": "^5.12.7",
+    "lucide-react": "^1.39.0",
+    "nodemailer": "^10.0.10",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "eslint": "^10.9.1",
+    "pg-mem": "^3.0.14",
+    "playwright-core": "^1.62.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
+  }
+}

@@ -6,6 +6,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const root=path.resolve(__dirname,'..'),temp=await fs.mkdtemp(path.join(os.tmpdir(),'norte-observatory-'));
   const requests=[],errors=[];let offline=false;
   const data={
+    blocks:{version:'blocks-v1',human_labels:2,human_acceptance:.5,corrections:1,restored:0,reused_items:3,human_reused_items:1,provider_calls:4,cost_usd:.001,unknown_cost_calls:1,compression:.4,daily_feedback:[{day:'2026-10-15',action:'accept',count:1},{day:'2026-10-15',action:'correct',count:1}],memory:[{user_id:1,key:'BLOCK1',kind:'block',source:'<img src=x onerror=alert(1)> Texto original.',text:'Texto revisto.',origin:'human',version:2,enabled:1}],evaluations:[{status:'approved',created_at:1791543620,details:{attempt:1,items:2,reason:'Fiel ao original.'}}]},
     metrics:{events:32,decisions:20,successes:18,unrecognized:2,errors:1,human_labeled:0,human_accuracy:null,accuracy:null,success_rate:.9,learning_rate:.5,published_proposals:1,active_aliases:1,proposals:2,latency_p50_ms:85,latency_p95_ms:150,provider_calls:8,input_tokens:1234,output_tokens:123,estimated_cost_usd:.0345,unknown_cost_calls:2,recoveries_detected:3,automatic_evaluations:1},
     daily:[{day:'2026-10-08',events:12,successes:11,errors:1,cost_usd:.01},{day:'2026-10-09',events:20,successes:18,errors:0,cost_usd:.0245}],
     jobs:[{id:'JOB-1',kind:'audit',status:'done',attempts:1,created_at:1791543600,updated_at:1791543620,result:{evidence:'<img src=x onerror=alert(1)>',proposal_id:'RULE-1'}}],
@@ -24,6 +25,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
         let raw='';for await(const part of req)raw+=part;
         const body=raw?JSON.parse(raw):null;requests.push({path:url.pathname,body});
         if(url.pathname.endsWith('/overview'))return json(data);
+        if(url.pathname.endsWith('/blocks/memory')){assert.equal(body.key,'BLOCK1');assert.equal(body.user_id,1);data.blocks.memory[0].enabled=0;return json({ok:true});}
         if(url.pathname.endsWith('/aliases')){assert.equal(body.id,'RULE-1');assert.equal(body.action,'disable');data.aliases[0].status='disabled';data.metrics.active_aliases=0;return json({ok:true});}
         return json({job_id:'JOB-'+requests.length,status:'queued'});
       }
@@ -38,7 +40,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const chrome=spawn('google-chrome',['--headless','--no-sandbox','--disable-gpu','--remote-debugging-port=0','--no-first-run','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
   let socket;
   try{
-    let devtools;for(let i=0;i<100;i++){try{devtools=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(100);}}
+    let devtools;for(let i=0;i<300;i++){try{devtools=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(100);}}
     const tabs=await fetch('http://127.0.0.1:'+devtools+'/json/list').then(r=>r.json());
     socket=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(r=>socket.addEventListener('open',r,{once:true}));
     let next=0;const pending=new Map();
@@ -50,8 +52,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     const shot=async name=>{const image=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.join(os.tmpdir(),'norte-observatory-'+name+'.png'),Buffer.from(image.data,'base64'));};
     await call('Runtime.enable');await call('Page.enable');await call('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
     await call('Page.navigate',{url:base+'/#agentes'});
-    await wait('document.body.dataset.page==="observatory" && document.querySelectorAll(".ao-metric").length===4');
-    const cards=await evaluate('[...document.querySelectorAll(".ao-metric")].map(n=>n.textContent)');
+    await wait('document.body.dataset.page==="observatory" && document.querySelectorAll("#aoOverview .ao-metric").length===4');
+    const cards=await evaluate('[...document.querySelectorAll("#aoOverview .ao-metric")].map(n=>n.textContent)');
     assert.match(cards[0],/Acerto validado—Aguardando/,'operational success never becomes accuracy');
     assert.match(cards[1],/90%/);assert.match(cards[3],/1 publicadas \/ 2 propostas/);
     assert.equal(await evaluate('document.querySelectorAll(".ao-chart-column").length'),2);
@@ -62,6 +64,14 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     assert.equal(await evaluate('document.querySelector("#aoProviderConfiguration").textContent'),'Chave e tarifas configuradas');
     assert.equal(await evaluate('document.querySelector("#aoProviderConnection").textContent'),'Ainda não verificado','configuration is not a connection check');
     assert.equal(await evaluate('document.querySelector("#aoProviderNotice").hidden'),true);
+    await click('#aoBlocksTab');
+    assert.equal(await evaluate('document.querySelector("#aoBlocks").hidden'),false);
+    assert.match(await evaluate('document.querySelector("#aoBlockMetrics").textContent'),/Aprovação humana50%/);
+    assert.equal(await evaluate('document.querySelectorAll("#aoBlockMemory img").length'),0);
+    assert.match(await evaluate('document.querySelector("#aoBlockTrend").textContent'),/2026-10-15/);
+    await shot('blocks');await click('#aoBlockMemory button');
+    await wait('document.querySelector("#aoBlockMemory button").textContent==="Desativada"');
+    await click('#aoOverviewTab');
     data.settings.agent_provider='gemini';data.settings.agent_model='gemini-3.1-flash-lite';
     data.settings.provider_status={provider:'gemini',model:'gemini-3.1-flash-lite',configured:true,verified:false,last_status:'error',last_check_at:1791543620,last_error:{code:'HTTPError',http_status:403,raw_body:'SENSITIVE_PROVIDER_RESPONSE_MUST_NOT_RENDER',api_key:'SECRET_MUST_NOT_RENDER'}};
     await evaluate('NorteAIObservatory.refresh()');
@@ -99,7 +109,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     assert.equal(await evaluate('document.documentElement.scrollWidth<=innerWidth'),true,'no page-level horizontal overflow');
     offline=true;await click('#aoRefresh');await wait('document.querySelector("#aoUpdated").textContent.includes("Última consulta falhou")');
     assert.match(await evaluate('document.querySelector("#aoNotice").textContent'),/indisponível/);
-    assert.equal(await evaluate('document.querySelectorAll(".ao-metric").length'),4,'retain clearly marked previous data');
+    assert.equal(await evaluate('document.querySelectorAll("#aoOverview .ao-metric").length'),4,'retain clearly marked previous data');
     assert.deepEqual(errors,[],'no uncaught page errors');
     console.log('browser-ai-observatory: ok (fixtures, runtime contracts, replay, rollback, offline, mobile, PDF)');
   }finally{socket?.close();chrome.kill();await new Promise(resolve=>server.close(resolve));await sleep(200);await fs.rm(temp,{recursive:true,force:true}).catch(()=>{});}

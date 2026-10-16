@@ -9,7 +9,12 @@ function evidenceFor(run){
  if(!api)throw Error('O filtro de confiabilidade da reunião não foi carregado. Atualize a página.');
  return api.project(run);
 }
-function explicitTitle(run,id,ordinal=1){return String(run.topic_titles?.[id]||'').trim()||'Assunto '+ordinal+': sem título';}
+function explicitTitle(run,id,ordinal=1){
+ const manual=String(run.topic_titles?.[id]||'').trim();if(manual)return manual;
+ const suggestion=run.block_review?.titles?.[id],events=(run.meeting_events||[]).filter(e=>e.thread_id===id);
+ if(suggestion?.text&&suggestion.basis?.length===events.length&&suggestion.basis.every(b=>events.some(e=>e.event_id===b.id&&e.text===b.text)))return suggestion.text;
+ return 'Assunto '+ordinal+': sem título';
+}
 function topicHeading(topic,index){return presentation().topicHeading(topic,index);}
 function meetingMetadata(run){
  const meta=run.meeting_metadata||{},imported=run.input_mode==='import',start=meta.started_at||(!imported?run.startedAt:null),end=meta.ended_at||(!imported?run.finishedAt:null);
@@ -18,16 +23,18 @@ function meetingMetadata(run){
  if(!Number.isFinite(duration)&&Number.isFinite(Date.parse(start))&&Number.isFinite(Date.parse(end)))duration=Math.max(0,Date.parse(end)-Date.parse(start));
  if(!Number.isFinite(duration)&&run.input_mode==='import')duration=Math.max(0,...(run.transcript||[]).map(item=>Number(item.offsetMs)||0));
  const minutes=Number.isFinite(duration)?Math.floor(duration/60000):null,seconds=Number.isFinite(duration)?Math.floor(duration/1000)%60:null;
- return {title:String(meta.title||run.title||'Ata de reunião'),date:date?date.toLocaleDateString('pt-BR'):imported?'Não informada na transcrição':'Não informada',time:date?date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):imported?'Não informado na transcrição':'Não informado',duration:minutes!==null?(minutes>=60?Math.floor(minutes/60)+' h ':'')+(minutes%60)+' min'+(seconds?' '+seconds+' s':''):'Não informada',participants:'Em breve'};
+ return {title:String(meta.title||run.title||'Ata de reunião'),date:date?date.toLocaleDateString('pt-BR'):imported?'Não informada na transcrição':'Não informada',time:date?date.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):imported?'Não informado na transcrição':'Não informado',duration:minutes!==null?(minutes>=60?Math.floor(minutes/60)+' h ':'')+(minutes%60)+' min'+(seconds?' '+seconds+' s':''):'Não informada',participants:(Array.isArray(meta.participants)?meta.participants.join(', '):String(meta.participants||'')).trim()||'Não informados'};
 }
 function api(name,file){const value=root[name]||(typeof require==='function'?require('./'+file):null);if(!value)throw Error('A revisão da ata ainda não foi carregada. Atualize a página.');return value;}
 const amendments=()=>api('NorteMeetingAmendments','meeting-amendments.js');
 const presentation=()=>api('NorteMeetingDocument','meeting-document.js');
 function sourceFor(run){
- const trusted=evidenceFor(run).run,d=root.NorteMinutes.buildDocument(trusted),human=amendments().source?.(run);
- return {run_id:d.source.run_id,batch_id:d.source.batch_id,events:human?.events||d.source.events,relations:human?.relations||d.source.relations,run_status:d.source.run_status,relation_status:d.source.relation_status,post_meeting_edits:human?.edits||(run.post_meeting_edits||[]).map(edit=>({id:edit.id,type:edit.type,change:edit.change,created_at:edit.created_at})),extraction_warnings:[],threads:trusted.meeting_threads?.map((t,index)=>({thread_id:t.thread_id,title:explicitTitle(run,t.thread_id,index+1)}))||[]};
+ const trusted=evidenceFor(run).run,d=root.NorteMinutes.buildDocument(trusted),human=amendments().source?.(run),state=amendments().build(run).state;
+ const events=(human?.events||d.source.events).filter(e=>state.byId[e.event_id]?.current!==false),ids=new Set(events.map(e=>e.event_id));
+ const relations=(human?.relations||d.source.relations).filter(r=>ids.has(r.source_event_id||r.source_id)&&ids.has(r.target_event_id||r.target_id));
+ return {run_id:d.source.run_id,batch_id:d.source.batch_id,events,relations,run_status:d.source.run_status,relation_status:d.source.relation_status,post_meeting_edits:[],extraction_warnings:[],threads:trusted.meeting_threads?.map((t,index)=>({thread_id:t.thread_id,title:explicitTitle(run,t.thread_id,index+1)}))||[]};
 }
-const currentSections=[['hypotheses','Hipóteses'],['tests','Testes'],['decisions','Concluído'],['actions','Em aberto']];
+const currentSections=[['context','Contexto e requisitos'],['hypotheses','Hipóteses'],['tests','Testes realizados'],['results','Resultados'],['decisions','Decisões'],['actions','Pendências']];
 const changeColumns=[['item','Item'],['before','Estado anterior'],['change','Mudança'],['current','Estado atual'],['reason','Motivo'],['consequences','Consequências']];
 const eventText=event=>presentation().eventText(event),eventId=event=>presentation().eventId(event);
 const entryLinks=(...args)=>presentation().entryLinks(...args),linkLabel=link=>presentation().linkLabel(link);
@@ -35,13 +42,35 @@ const sectionsForTopic=(...args)=>presentation().sectionsForTopic(...args),displ
 const pdfDocument=(...args)=>presentation().pdfDocument(...args);
 function localDocument(run){
  const view=amendments().build(run),state=view.state;
- const topics=state.topics.map((t,index)=>({...t,thread_id:t.id||'unassigned',title:explicitTitle(run,t.id,index+1),untitled:!String(run.topic_titles?.[t.id]||'').trim()}));
+ const topics=state.topics.map((t,index)=>({...t,thread_id:t.id||'unassigned',title:explicitTitle(run,t.id,index+1),untitled:explicitTitle(run,t.id,index+1)==='Assunto '+(index+1)+': sem título'}));
+ const refs=new Map(Object.keys(state.byId).map((id,index)=>[id,'Ref. '+(index+1)]));
+ const seen=new WeakSet(),label=value=>{if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);const id=value.event_id||value.id;if(refs.has(id))value.ref_label=refs.get(id);for(const child of Object.values(value)){if(Array.isArray(child))child.forEach(label);else if(child&&typeof child==='object')label(child);}};topics.forEach(label);
  const issues=view.issues||[],warnings=issues.map(issue=>({...issue,target_id:issue.event_id,event_ids:[issue.event_id],message:plainWarning(issue.message)}));
- return {title:'Tópicos discutidos',presentation:'current_only',topics,issues,warnings,invalid_edits:view.invalid_edits||[],mode:'local',batch_id:run.batch?.batch_id||run.batch_id||'reuniao',event_count:state.metrics.events,metadata:meetingMetadata(run)};
+ return {title:'Tópicos discutidos',presentation:'current_only',topics,issues,warnings,invalid_edits:view.invalid_edits||[],mode:'local',meeting_url:presentation().meetingURL?.(run,root.location?.origin)||null,batch_id:run.batch?.batch_id||run.batch_id||'reuniao',event_count:state.metrics.events,metadata:meetingMetadata(run)};
 }
+function conciseText(text,source){
+ if(typeof text!=='string'||!text.trim()||text.length>180||/[\r\n]/.test(text))return null;
+ const values=s=>s.match(/\d+(?:[.,]\d+)*/g)||[],known=new Set(values(source));
+ if(values(text).some(value=>!known.has(value)))return null;
+ return text.trim();
+}
+const quoteText=text=>String(text).replace(/\s+/g,' ').trim().toLocaleLowerCase('pt-BR');
 function organizedDocument(run,result){
  const doc=localDocument(run),events=new Map(sourceFor(run).events.map(e=>[e.event_id,e]));
- for(const topic of doc.topics){const generated=(result.topics||[]).find(t=>(t.thread_id||'unassigned')===topic.thread_id),summary=generated?.summary;if(summary?.text&&summary.event_ids?.length&&summary.event_ids.every(id=>events.has(id)&&(events.get(id).thread_id||'unassigned')===topic.thread_id)){topic.summary={text:summary.text,event_ids:[...summary.event_ids]};topic.history={...topic.history,summary:topic.summary};}}
+ for(const topic of doc.topics){
+  const generated=(result.topics||[]).find(t=>(t.thread_id||'unassigned')===topic.thread_id),summary=generated?.summary;
+  // Legacy introductions remain readable; new output edits each current point.
+  if(!generated?.entries&&summary?.text&&summary.text.length<=400&&summary.event_ids?.length&&summary.event_ids.every(id=>events.has(id)&&(events.get(id).thread_id||'unassigned')===topic.thread_id)){topic.summary={text:summary.text,event_ids:[...summary.event_ids]};topic.history={...topic.history,summary:topic.summary};}
+  const edits=new Map();
+  for(const entry of generated?.entries||[]){const original=events.get(entry.event_id);if(!original||(original.thread_id||'unassigned')!==topic.thread_id)continue;const text=conciseText(entry.text,original.text);if(text)edits.set(entry.event_id,text);}
+  const seen=new WeakSet(),apply=value=>{if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);const id=value.event_id||value.id;if(edits.has(id)&&typeof value.text==='string')value.display_text=edits.get(id);for(const child of Object.values(value)){if(Array.isArray(child))child.forEach(apply);else if(child&&typeof child==='object')apply(child);}};apply(topic);
+  topic.tables=[];
+  for(const table of (generated?.tables||[]).slice(0,3)){
+   if(typeof table.title!=='string'||table.title.length>100||!Array.isArray(table.columns)||!table.columns.length||table.columns.length>5||table.columns.some(c=>typeof c!=='string'||!c.trim()||c.length>60)||!Array.isArray(table.rows)||table.rows.length>16)continue;
+   const rows=table.rows.filter(row=>{const source=events.get(row.event_id);return source&&(source.thread_id||'unassigned')===topic.thread_id&&Array.isArray(row.cells)&&row.cells.length===table.columns.length&&row.cells.every(cell=>typeof cell==='string'&&cell.length<=120&&(!cell.trim()||quoteText(source.text).includes(quoteText(cell))));});
+   if(rows.length===table.rows.length&&rows.length)topic.tables.push({title:table.title,columns:[...table.columns],rows:rows.map(row=>({event_id:row.event_id,cells:[...row.cells]}))});
+  }
+ }
  doc.organization_diagnostics=(result.warnings||[]).map(w=>({...w,message:plainWarning(w.message)}));doc.mode='organized';return doc;
 }
 function warningIcon(){
@@ -59,9 +88,9 @@ function open(run,options={}){
  const controls=el('div','gm-controls');header.append(controls);documentPanel.append(header);
  const notice=el('p','gm-notice');notice.setAttribute('role','status');documentPanel.append(notice);
  const paper=el('main','gm-paper'),aside=el('aside','gm-review');aside.hidden=true;aside.setAttribute('aria-label','Revisão do documento');documentPanel.append(paper);dialog.append(documentPanel,aside);document.body.append(dialog);
- let doc=null,reviewed={},controller=null,closed=false,reviewMode=null,recovering=false,railAnchor=null,exportRequested=false;
+ let doc=null,reviewed={},controller=null,closed=false,reviewMode=null,recovering=false,railAnchor=null,exportRequested=false,exporting=false;
  const status=()=>{notice.textContent='';};
- const persist=()=>{try{localStorage.setItem(key,JSON.stringify({sourceId,doc,reviewed,presentationVersion:9}));return true;}catch(_){notice.textContent='Não foi possível salvar esta ata no navegador. Exporte as correções para preservá-las.';return false;}};
+ const persist=()=>{try{localStorage.setItem(key,JSON.stringify({sourceId,doc,reviewed,presentationVersion:10}));return true;}catch(_){notice.textContent='Não foi possível salvar esta ata no navegador. Exporte as correções para preservá-las.';return false;}};
  const persistEdits=()=>{try{localStorage.setItem(editsKey,JSON.stringify({run_id:run.id||run.run_id||null,edits:run.post_meeting_edits||[]}));return true;}catch(_){return false;}};
  const alignRail=()=>{if(aside.hidden||!railAnchor?.isConnected)return;const top=Math.max(0,Math.min(railAnchor.getBoundingClientRect().top-dialog.getBoundingClientRect().top,dialog.clientHeight-360));aside.style.setProperty('--gm-review-offset',top+'px');};
  const hideReview=()=>{aside.hidden=true;dialog.classList.remove('gm-review-open');reviewMode=null;railAnchor=null;paper.querySelectorAll('.gm-selected').forEach(n=>n.classList.remove('gm-selected'));};
@@ -73,10 +102,12 @@ function open(run,options={}){
  paper.addEventListener('scroll',alignRail,{passive:true});window.addEventListener('resize',alignRail);
  const explore=w=>{
   if(onExplore)return onExplore({run,eventIds:w.event_ids||[],relationIds:w.relation_ids||[],warning:w});
-  const log=el('dialog','gm-log-dialog'),head=el('header','gm-review-header');head.append(el('h3','','Detalhes da classificação'),button('Fechar',()=>log.close()));log.append(head);
-  const eventIds=new Set(w.event_ids||[]),events=(run.meeting_events||[]).filter(e=>eventIds.has(e.event_id)),chunkIds=new Set(events.map(e=>e.chunk_id));
+  const log=el('dialog','gm-log-dialog'),head=el('header','gm-review-header');head.append(el('h3','','Detalhes do registro'),button('Fechar',()=>log.close()));log.append(head);
+  const eventIds=new Set(w.event_ids||[]),view=amendments().build(run),events=[...eventIds].map(id=>view.state.byId[id]?.event||(run.meeting_events||[]).find(e=>e.event_id===id)).filter(Boolean),chunkIds=new Set(events.map(e=>e.chunk_id));
   const payload={warning:w,events,records:(run.records||[]).filter(r=>chunkIds.has(r.id)||chunkIds.has(r.chunk_id)),relations:(run.meeting_relations||[]).filter(r=>(w.relation_ids||[]).includes(r.relation_id)),thread_jobs:(run.thread_worker?.jobs||[]).filter(j=>eventIds.has(j.event_id)),relation_jobs:(run.typed_relation_worker?.jobs||[]).filter(j=>eventIds.has(j.event_id))};
-  log.append(el('pre','gm-log',JSON.stringify(payload,null,2)));dialog.append(log);log.addEventListener('close',()=>log.remove());log.showModal();
+  if(w.message)log.append(el('p','',plainWarning(w.message)));for(const event of events)log.append(el('blockquote','',event.text));
+  if(document.body.dataset.role==='admin'){const details=el('details');details.append(el('summary','','Diagnóstico técnico'),el('pre','gm-log',JSON.stringify(payload,null,2)));log.append(details);}
+  dialog.append(log);log.addEventListener('close',()=>log.remove());log.showModal();
  };
  function itemTopic(item){const ids=item.event_ids||[item.event_id];const event=(run.meeting_events||[]).find(e=>ids.includes(e.event_id)||item.chunk_id&&e.chunk_id===item.chunk_id);return doc.topics.find(t=>t.thread_id===event?.thread_id||t.thread_id===item.target_id)||null;}
  function reviewGroup(item,{direct=false,general='Documento'}={}){
@@ -169,6 +200,7 @@ function open(run,options={}){
   }
  }
  const flag=(target,node)=>{const issue=doc.issues.find(item=>item.event_id===target&&(!item.resolved||item.code==='orphan_result'&&item.disposition==='unknown'));if(!issue)return;const b=button('',()=>showReview(target,node),'gm-flag');b.append(warningIcon());b.setAttribute('aria-label',issue.code==='orphan_result'?'Associar este resultado a um teste':'Confirmar a conclusão deste teste');b.title=issue.message;node.dataset.reviewTarget=target;node.append(b);};
+ function reference(entry){const id=typeof entry==='string'?entry:eventId(entry),record=findEntry(id)||entry;const ref=button(presentation().referenceLabel(record),()=>explore({event_ids:[id]}),'gm-reference');ref.title='Ver registro completo na reunião';return ref;}
  function sourceQuote(event,host,{showFlag=true}={}){
   const text=el('p','gm-source-quote',eventText(event)),id=eventId(event),entry=findEntry(id);
   if(id){text.dataset.sourceAnchor=id;if(!paper.querySelector('#gmEvent-'+CSS.escape(id)))text.id='gmEvent-'+id;}
@@ -176,47 +208,51 @@ function open(run,options={}){
    text.classList.add('gm-editable-quote');text.tabIndex=0;text.setAttribute('role','button');text.setAttribute('aria-label',(entry.type==='test_result'?'Revisar resultado: ':'Revisar teste: ')+eventText(event));
    text.onclick=event=>{if(!event.target.closest('button,a'))showReview(id,text);};text.onkeydown=event=>{if(event.target===text&&['Enter',' '].includes(event.key)){event.preventDefault();showReview(id,text);}};
   }
-  if(showFlag&&id)flag(id,text);host.append(text);return text;
+  if(id){text.append(document.createTextNode(' '),reference(event));if(showFlag)flag(id,text);}host.append(text);return text;
  }
  function currentEntry(entry,key,host){
   const item=el('li','gm-current-entry gm-outline-node gm-node-'+entry.type);item.dataset.eventId=entry.id;item.dataset.state=displayStatus(entry,key);
   const line=el('div','gm-entry-heading');
   if(entry.type==='test_proposal'){
-   item.classList.add('gm-task-entry');const checkbox=button('',()=>entry.completed?pendingForm(entry,line,true):completionForm(entry,line),'gm-checkbox');checkbox.dataset.checked=String(!!entry.completed);checkbox.setAttribute('role','checkbox');checkbox.setAttribute('aria-checked',String(!!entry.completed));checkbox.setAttribute('aria-label',(entry.completed?'Reabrir teste: ':'Registrar conclusão: ')+entry.text);line.append(checkbox);
+   item.classList.add('gm-task-entry');const status=button(entry.completed?'Concluído · revisar':'Pendente · revisar',()=>showReview(entry.id,line),'gm-test-status');status.dataset.completed=String(!!entry.completed);status.setAttribute('aria-label','Revisar teste: '+entry.text);line.append(status);
   }
   if(entry.type==='test_result'&&entry.standalone){item.classList.add('gm-unknown-test');line.append(el('span','gm-unknown-label','Teste desconhecido'));const results=el('ul','gm-entry-evidence'),row=el('li','gm-evidence-link');sourceQuote(entry,row);results.append(row);item.append(line,results);}
   else{sourceQuote(entry,line);item.append(line);}
   if(entry.post_meeting_note)item.append(el('p','gm-user-note','Falta validar: '+entry.post_meeting_note));
-  const completion=presentation().completionDetails(entry);if(completion.length){const details=el('ul','gm-entry-evidence');for(const detail of completion)details.append(el('li','gm-evidence-link',detail.label+': '+detail.text));item.append(details);}
-  const links=entryLinks(entry,key);if(links.length){const refs=el('ul','gm-entry-evidence');for(const link of links){const row=el('li','gm-evidence-link gm-node-'+(link.event?.type||'other'));row.append(el('span','gm-evidence-label',linkLabel(link)+':'));sourceQuote(link.event,row);refs.append(row);}item.append(refs);}host.append(item);
+  const completion=presentation().completionDetails(entry).filter(detail=>['Data','Atendeu ao esperado'].includes(detail.label));if(completion.length)item.append(el('p','gm-entry-state',completion.map(detail=>detail.label+': '+detail.text).join(' · ')));
+  const reasons=presentation().briefReasons(entry);for(const reason of reasons){const note=el('p','gm-incompatibility',reason.text);for(const id of reason.event_ids||[])note.append(document.createTextNode(' '),reference(id));item.append(note);}
+  const reasonIds=new Set(reasons.flatMap(reason=>reason.event_ids||[]));const links=entryLinks(entry,key).filter(link=>link.type!=='contradicts'||!reasonIds.has(link.event_id||eventId(link.event)));if(links.length){const refs=el('p','gm-entry-references');for(const link of links){const span=el('span','',linkLabel(link)+': ');span.append(reference(link.event));refs.append(span);}item.append(refs);}host.append(item);
  }
  function topicBody(topic,section,ordinal){
   const descriptors=sectionsForTopic(topic,ordinal),current=el('div','gm-current');
   for(const descriptor of descriptors){
    const group=el('section',descriptor.kind==='context'?'gm-context-section':'gm-current-section');group.dataset.section=descriptor.source_key;group.dataset.kind=descriptor.key;group.id=descriptor.id;if(descriptor.title)group.append(el('h4','',descriptor.title));
-   const list=el('ul','gm-current-list'+(descriptor.source_key==='actions'?' gm-action-list':''));for(const entry of descriptor.entries||[])currentEntry(entry,descriptor.source_key,list);group.append(list);current.append(group);
+   const list=el('ul','gm-current-list'+(descriptor.source_key==='actions'?' gm-action-list':''));for(const entry of descriptor.entries||[])currentEntry(entry,descriptor.source_key,list);group.append(list);
+   for(const data of descriptor.tables||[]){const wrap=el('div','gm-table-wrap'),table=el('table','gm-table gm-comparison-table');table.append(el('caption','',data.title));const head=el('thead'),heading=el('tr');for(const label of data.headers){const cell=el('th','',label);cell.scope='col';heading.append(cell);}head.append(heading);table.append(head);const body=el('tbody');for(const row of data.rows){const tr=el('tr');row.cells.forEach((value,index)=>{const td=el('td');if(index===row.cells.length-1)td.append(reference(row.event_id));else td.textContent=value||'—';tr.append(td);});body.append(tr);}table.append(body);wrap.append(table);group.append(wrap);}current.append(group);
   }
   if(!descriptors.length)current.append(el('p','gm-muted','Nenhum ponto atual confirmado neste assunto.'));section.append(current);
  }
  function render(){
   const scroll=paper.scrollTop;paper.replaceChildren();if(!doc)return;
   const meta=doc.metadata||meetingMetadata(run),info=el('header','gm-meeting-info');info.append(el('h1','',meta.title));
-  const fields=el('dl','gm-meeting-fields');for(const [label,value] of [['Data',meta.date],['Horário',meta.time],['Duração',meta.duration],['Participantes','Em breve']]){const group=el('div');group.append(el('dt','',label),el('dd',label==='Participantes'?'gm-future':'',value));fields.append(group);}info.append(fields);paper.append(info);
+  const fields=el('dl','gm-meeting-fields');for(const [label,value] of [['Data',meta.date],['Horário',meta.time],['Duração',meta.duration],['Participantes',meta.participants]]){const group=el('div');group.append(el('dt','',label),el('dd','',value));fields.append(group);}info.append(fields);paper.append(info);
   const nav=el('nav','gm-contents');nav.setAttribute('aria-label','Sumário da ata');nav.append(el('h2','','Sumário'));const list=el('ol','gm-contents-list');for(const [index,t] of doc.topics.entries()){const item=el('li'),link=el('a','',topicHeading(t,index));link.href='#gmTopic'+index;link.onclick=e=>{e.preventDefault();paper.querySelector('#gmTopic'+index)?.scrollIntoView({block:'start',behavior:'smooth'});};item.append(link);list.append(item);}nav.append(list);paper.append(nav);
   const reviewActions=el('div','gm-document-actions'),pending=doc.issues.filter(issue=>!issue.resolved);if(pending.length)reviewActions.append(button('Conferir testes · '+pending.length,()=>showReview(null)));reviewActions.append(button('Informações não incluídas'+(excludedItems().length?' · '+excludedItems().length:''),()=>showExcluded()),button('Exportar correções',exportCorrections));paper.append(reviewActions);
   for(const [index,t] of doc.topics.entries()){const section=el('section','gm-topic'),heading=el('h3','',topicHeading(t,index));section.id='gmTopic'+index;flag(t.thread_id,heading);section.append(heading);topicBody(t,section,index+1);paper.append(section);}
-  if(!doc.topics.length)paper.append(el('p','gm-empty','A ata estará disponível quando houver pontos registrados na reunião.'));status();pdf.disabled=false;generateButton.disabled=!!controller||!source.events.length;paper.scrollTop=scroll;if(doc.invalid_edits?.length)notice.textContent='Algumas correções anteriores precisam ser conferidas porque os registros de origem mudaram. Elas continuam disponíveis na exportação.';
+  if(!doc.topics.length)paper.append(el('p','gm-empty','A ata estará disponível quando houver pontos registrados na reunião.'));status();pdf.disabled=!!controller||exporting;generateButton.disabled=!!controller||exporting||!source.events.length;paper.scrollTop=scroll;if(doc.invalid_edits?.length)notice.textContent='Algumas correções anteriores precisam ser conferidas porque os registros de origem mudaram. Elas continuam disponíveis na exportação.';
  }
- async function generate(){if(controller)return;controller=new AbortController();generateButton.disabled=true;notice.textContent='Organizando os assuntos, testes e próximos passos…';dialog.setAttribute('aria-busy','true');const timer=setTimeout(()=>controller?.abort(),190000);
-  try{source=sourceFor(run);const requestedId=root.NorteMinutes.fingerprint(source);const response=await fetch('/api/minutes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source}),signal:controller.signal});if(!response.ok){const error=Error('request');error.status=response.status;try{const details=await response.json();error.code=details.code;}catch(_){}throw error;}const result=await response.json();if(closed)return;if(requestedId!==root.NorteMinutes.fingerprint(sourceFor(run))){notice.textContent='Os registros mudaram durante a organização. O documento atual foi preservado; organize novamente para incluir as alterações.';return;}doc=organizedDocument(run,result);reviewed={};hideReview();render();persist();generateButton.textContent='Organizar novamente';}
+ async function generate(){if(controller||recovering||exporting)return false;controller=new AbortController();generateButton.disabled=true;pdf.disabled=true;localPDF.hidden=true;notice.textContent='Resumindo os tópicos e organizando os valores registrados…';dialog.setAttribute('aria-busy','true');const timer=setTimeout(()=>controller?.abort(),190000);
+  try{source=sourceFor(run);const requestedId=root.NorteMinutes.fingerprint(source);const response=await fetch('/api/minutes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({source}),signal:controller.signal});if(!response.ok){const error=Error('request');error.status=response.status;try{const details=await response.json();error.code=details.code;}catch(_){}throw error;}const result=await response.json();if(closed)return false;if(requestedId!==root.NorteMinutes.fingerprint(sourceFor(run))){notice.textContent='Os registros mudaram durante a organização. O documento atual foi preservado; organize novamente para incluir as alterações.';return false;}sourceId=requestedId;key=PREFIX+sourceId;doc=organizedDocument(run,result);reviewed={};hideReview();render();persist();generateButton.textContent='Organizar novamente';return true;}
   catch(e){if(!closed)notice.textContent=e.name==='AbortError'?'A organização demorou mais que o esperado. Tente novamente; seu documento atual foi preservado.':e.code==='busy'?'Uma organização ainda está em andamento. Aguarde um instante e tente novamente; seu documento atual continua disponível.':e.code==='timeout'?'A organização demorou mais que o esperado. Tente novamente; seu documento atual continua disponível.':e.code==='unavailable'?'O serviço está temporariamente indisponível. Tente novamente em instantes; seu documento atual continua disponível.':e.code==='daily_limit'?'O limite diário de organização de atas foi atingido. Seu documento continua disponível. Tente no próximo dia ou contate o administrador.':e.code==='configuration'?'O serviço de organização precisa ser configurado pelo administrador. Seu documento atual continua disponível.':e.status===429?'O serviço está temporariamente no limite. Tente organizar novamente em alguns minutos; seu documento atual continua disponível.':'Não foi possível organizar o documento agora. Tente novamente; seu documento atual continua disponível.';}
-  finally{clearTimeout(timer);controller=null;generateButton.disabled=!source.events.length;dialog.removeAttribute('aria-busy');}
+  finally{clearTimeout(timer);controller=null;generateButton.disabled=!source.events.length;pdf.disabled=false;dialog.removeAttribute('aria-busy');}
+  return false;
  }
  function exportCorrections(){const payload=amendments().export(run),blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download='correcoes-reuniao-'+String(run.id||'ata').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,60)+'.json';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
- const generateButton=button('Organizar documento',generate),pdf=button('Baixar PDF',async()=>{if(recovering)return;doc=doc||localDocument(run);if(doc.issues.some(issue=>!issue.resolved)){exportRequested=true;notice.textContent='Confira estes testes antes de baixar. Você pode corrigir os resultados ou confirmar o que continua em aberto.';reviewNext();return;}exportRequested=false;pdf.disabled=true;try{await root.NorteMinutes.downloadPDF(pdfDocument(doc,reviewed));status();}catch(e){notice.textContent='Falha ao exportar: '+e.message;}finally{pdf.disabled=false;}},'gm-primary');generateButton.id='gmOrganize';generateButton.title='Organiza a introdução de cada assunto com base nos registros da reunião';pdf.id='gmPDF';pdf.disabled=true;
- controls.append(generateButton,pdf,button('Fechar',()=>dialog.close()));
+ async function download({local=false}={}){if(controller||recovering||exporting)return;const latest=sourceFor(run),latestId=root.NorteMinutes.fingerprint(latest);if(latestId!==sourceId){source=latest;sourceId=latestId;key=PREFIX+sourceId;doc=localDocument(run);reviewed={};render();persist();}doc=doc||localDocument(run);if(doc.issues.some(issue=>!issue.resolved)){exportRequested=true;notice.textContent='Confira estes testes antes de baixar. Você pode corrigir os resultados ou confirmar o que continua em aberto.';reviewNext();return;}exportRequested=false;if(!local&&doc.mode==='local'&&!await generate()){if(!closed){localPDF.hidden=false;notice.textContent+=' Você pode baixar a versão local, sem a síntese de IA.';}return;}if(closed)return;exporting=true;pdf.disabled=true;localPDF.disabled=true;generateButton.disabled=true;try{await root.NorteMinutes.downloadPDF(pdfDocument(doc,reviewed));status();}catch(e){notice.textContent='Falha ao exportar: '+e.message;}finally{exporting=false;pdf.disabled=false;localPDF.disabled=false;generateButton.disabled=!source.events.length;}}
+ const generateButton=button('Resumir ata com IA',generate),pdf=button('Baixar PDF',()=>download(),'gm-primary'),localPDF=button('Baixar versão local',()=>download({local:true}));generateButton.id='gmOrganize';generateButton.title='Resume cada ponto e organiza tabelas com os valores registrados';pdf.id='gmPDF';pdf.disabled=true;localPDF.id='gmLocalPDF';localPDF.hidden=true;
+ controls.append(generateButton,pdf,localPDF,button('Fechar',()=>dialog.close()));
  dialog.addEventListener('close',()=>{closed=true;controller?.abort();window.removeEventListener('resize',alignRail);dialog.remove();});dialog.showModal();
- try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.presentationVersion===9&&saved?.sourceId===sourceId&&saved.doc?.topics&&saved.doc?.warnings){doc=saved.doc;doc.metadata=meetingMetadata(run);doc.topics=doc.topics.map((t,index)=>({...t,title:explicitTitle(run,t.thread_id,index+1),untitled:!String(run.topic_titles?.[t.thread_id]||'').trim()}));doc.warnings=doc.warnings.map(w=>({...w,message:plainWarning(w.message)}));reviewed=saved.reviewed||{};if(doc.mode!=='local')generateButton.textContent='Organizar novamente';}}catch(_){}
+ try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved?.presentationVersion===10&&saved?.sourceId===sourceId&&saved.doc?.topics&&saved.doc?.warnings){doc=saved.doc;doc.metadata=meetingMetadata(run);doc.meeting_url=presentation().meetingURL?.(run,root.location?.origin)||null;doc.topics=doc.topics.map((t,index)=>({...t,title:explicitTitle(run,t.thread_id,index+1),untitled:explicitTitle(run,t.thread_id,index+1)==='Assunto '+(index+1)+': sem título'}));doc.warnings=doc.warnings.map(w=>({...w,message:plainWarning(w.message)}));reviewed=saved.reviewed||{};if(doc.mode!=='local')generateButton.textContent='Organizar novamente';}}catch(_){}
  if(!doc)doc=localDocument(run);render();persist();if(autoGenerate&&doc.mode==='local')generate();return {dialog,get sourceId(){return sourceId;}};
 }
 root.NorteGeminiMinutes={open,sourceFor,pdfDocument,localDocument,organizedDocument,meetingMetadata,currentSections,changeColumns,sectionsForTopic};

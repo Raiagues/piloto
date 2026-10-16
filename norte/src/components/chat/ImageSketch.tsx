@@ -1,0 +1,23 @@
+import { useEffect, useRef, useState } from 'react';
+import { Check, Undo2, X, Eraser } from 'lucide-react';
+import type { ChatAttachment } from '../../lib/conversations';
+import type { Language } from '../../lib/types';
+
+export async function normalizedImage(file: Blob): Promise<string> {
+  if (!['image/png','image/jpeg','image/webp'].includes(file.type) || file.size > 8_000_000) throw new Error('Use uma imagem PNG, JPEG ou WebP de até 8 MB.');
+  const bitmap = await createImageBitmap(file), scale = Math.min(1, 1400 / Math.max(bitmap.width,bitmap.height));
+  const canvas = document.createElement('canvas'); canvas.width=Math.round(bitmap.width*scale); canvas.height=Math.round(bitmap.height*scale);
+  const ctx=canvas.getContext('2d')!; ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();
+  let url=canvas.toDataURL('image/png');
+  // Compress by resizing, never forward the original file or its metadata.
+  while(url.length>1_300_000 && canvas.width>400) { const smaller=document.createElement('canvas');smaller.width=Math.round(canvas.width*.8);smaller.height=Math.round(canvas.height*.8);smaller.getContext('2d')!.drawImage(canvas,0,0,smaller.width,smaller.height);canvas.width=smaller.width;canvas.height=smaller.height;ctx.drawImage(smaller,0,0);url=canvas.toDataURL('image/png'); }
+  if(url.length>1_300_000) throw new Error('A imagem ficou muito grande. Recorte a área que deseja mostrar.');
+  return url;
+}
+export function ImageSketch({ initial,language,onSave,onClose }:{initial?:string;language:Language;onSave:(image:ChatAttachment)=>void;onClose:()=>void}) {
+  const canvas=useRef<HTMLCanvasElement>(null), drawing=useRef(false),history=useRef<string[]>([]);const [color,setColor]=useState('#b34535'),[error,setError]=useState('');const pt=language==='pt';
+  useEffect(()=>{ const el=canvas.current!,ctx=el.getContext('2d')!;el.width=1000;el.height=620;ctx.fillStyle='#fff';ctx.fillRect(0,0,1000,620); if(initial){const image=new Image();image.onload=()=>{el.width=image.width;el.height=image.height;ctx.drawImage(image,0,0);};image.src=initial;} },[initial]);
+  const point=(event:React.PointerEvent<HTMLCanvasElement>)=>{const el=event.currentTarget,rect=el.getBoundingClientRect();return[(event.clientX-rect.left)*el.width/rect.width,(event.clientY-rect.top)*el.height/rect.height] as const;};
+  const restore=(url?:string)=>{if(!url)return;const image=new Image();image.onload=()=>{const el=canvas.current;if(el)el.getContext('2d')!.drawImage(image,0,0);};image.src=url;};
+  return <div className="sketch-backdrop"><section role="dialog" aria-modal="true" aria-label={pt?'Anotar captura ou desenhar':'Annotate or sketch'} className="sketch-dialog"><header><strong>{pt?'Mostre sua ideia':'Show your idea'}</strong><button onClick={onClose} aria-label={pt?'Fechar desenho':'Close sketch'}><X size={18}/></button></header><div className="sketch-tools">{['#b34535','#305ba6','#333333','#b68732'].map(c=><button key={c} aria-label={c} aria-pressed={color===c} style={{background:c}} onClick={()=>setColor(c)}/>)}<button onClick={()=>restore(history.current.pop())}><Undo2 size={16}/>{pt?'Desfazer':'Undo'}</button><button onClick={()=>{const el=canvas.current!;history.current.push(el.toDataURL());const ctx=el.getContext('2d')!;ctx.fillStyle='#fff';ctx.fillRect(0,0,el.width,el.height);}}><Eraser size={16}/>{pt?'Limpar':'Clear'}</button></div><canvas ref={canvas} onPointerDown={event=>{drawing.current=true;event.currentTarget.setPointerCapture(event.pointerId);history.current.push(event.currentTarget.toDataURL());history.current=history.current.slice(-15);const ctx=event.currentTarget.getContext('2d')!;ctx.beginPath();ctx.moveTo(...point(event));ctx.strokeStyle=color;ctx.lineWidth=4;ctx.lineCap='round';}} onPointerMove={event=>{if(drawing.current){const ctx=event.currentTarget.getContext('2d')!;ctx.lineTo(...point(event));ctx.stroke();}}} onPointerUp={event=>{drawing.current=false;event.currentTarget.releasePointerCapture(event.pointerId);}} onPointerCancel={()=>{drawing.current=false;}}/><footer>{error&&<span role="alert">{error}</span>}<small>{pt?'A imagem só será enviada quando você enviar a mensagem.':'The image is sent only when you send the message.'}</small><button className="platform-primary" onClick={()=>{const dataUrl=canvas.current!.toDataURL('image/png');if(dataUrl.length>1_300_000){setError(pt?'Imagem grande demais. Use um recorte menor.':'Image too large. Use a smaller crop.');return;}onSave({dataUrl,name:initial?'captura-anotada.png':'rascunho.png'});}}><Check size={16}/>{pt?'Usar imagem':'Use image'}</button></footer></section></div>;
+}

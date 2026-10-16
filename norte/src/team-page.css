@@ -1,0 +1,913 @@
+.team-page-shell {
+  height: 100dvh;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(80, 138, 194, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(80, 138, 194, .045) 1px, transparent 1px),
+    linear-gradient(180deg, #06182b, #071a2d);
+  background-size: 28px 28px, 28px 28px, auto;
+}
+
+.team-page-main {
+  height: 100dvh;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 62px minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.team-page-topbar {
+  border-bottom: 1px solid var(--line);
+  background: rgba(4, 18, 32, .72);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 22px;
+}
+
+.team-page-topbar > button,
+.team-page-heading button,
+.team-page-footer button,
+.team-page-empty button,
+.team-dialog button,
+.invitation-panel button {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(7, 28, 48, .72);
+  color: #c5d8e8;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.team-page-topbar > button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 10px;
+  font-size: 9px;
+}
+
+.team-page-topbar svg,
+.team-page-heading button svg,
+.team-page-footer button svg,
+.team-page-empty button svg,
+.team-dialog button svg,
+.invitation-panel button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.team-page-workspace {
+  width: min(1240px, calc(100% - 42px));
+  height: 100%;
+  min-height: 0;
+  margin: 0 auto;
+  padding: 18px 0 14px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) 38px;
+  gap: 13px;
+  overflow: hidden;
+}
+
+.team-page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.team-page-heading > div:first-child > span {
+  color: var(--blue);
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+
+.team-page-heading h1 {
+  margin: 4px 0 0;
+  font-size: 25px;
+  font-weight: 430;
+  letter-spacing: 0;
+}
+
+.team-page-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.team-page-actions,
+.team-view-switch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.team-view-switch {
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px;
+}
+
+.team-view-switch button {
+  height: 28px;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.team-view-switch button.active {
+  background: rgba(49, 111, 175, .27);
+  color: white;
+}
+
+.team-invite-button {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  font-size: 9px;
+}
+
+.team-page-surface {
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: rgba(4, 19, 34, .56);
+  overflow: hidden;
+}
+
+.team-page-loading {
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.team-page-loading svg,
+.team-spin {
+  width: 18px;
+  height: 18px;
+  color: var(--blue-soft);
+  animation: team-spin .8s linear infinite;
+}
+
+.team-table-wrap {
+  height: 100%;
+  min-width: 920px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.team-table-head,
+.team-table-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.1fr) minmax(220px, 1.2fr) 120px minmax(170px, .9fr) 120px 36px;
+  gap: 12px;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.team-table-head {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  min-height: 39px;
+  border-bottom: 1px solid var(--line);
+  background: #071b2f;
+  color: #7897b0;
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.team-table-row {
+  min-height: 67px;
+  border-bottom: 1px solid rgba(126, 176, 220, .12);
+}
+
+.team-table-row:hover {
+  background: rgba(27, 70, 110, .13);
+}
+
+.team-table-row strong,
+.team-table-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-table-row strong {
+  color: #dbeafa;
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.team-table-row small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.team-person {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+
+.team-person > span {
+  width: 35px;
+  height: 35px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--blue-soft);
+  font-size: 8px;
+  overflow: hidden;
+}
+
+.team-person > span img,
+.org-level article > span img,
+.org-groups article > span img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-account-status {
+  min-height: 22px;
+  border: 1px solid rgba(211, 171, 82, .3);
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  color: #d7bb75;
+  font-size: 7px;
+}
+
+.team-account-status.active {
+  border-color: rgba(59, 210, 164, .36);
+  color: #8edbc3;
+}
+
+.team-table-row > button {
+  width: 31px;
+  height: 31px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #7796b0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.team-table-row > button:hover:not(:disabled) {
+  background: rgba(74, 142, 202, .17);
+  color: white;
+}
+
+.team-table-row > button:disabled {
+  opacity: .25;
+  cursor: default;
+}
+
+.team-table-row > button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.team-page-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.team-page-empty > svg {
+  width: 28px;
+  height: 28px;
+}
+
+.team-page-empty button {
+  min-height: 33px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 8px;
+}
+
+.team-org-chart {
+  height: 100%;
+  min-width: 720px;
+  overflow: auto;
+  padding: 24px;
+  scrollbar-width: thin;
+}
+
+.org-level,
+.org-groups,
+.org-groups section > div {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.org-level article,
+.org-groups article {
+  width: 150px;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: rgba(5, 24, 42, .84);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-content: center;
+  gap: 3px 8px;
+  padding: 9px;
+}
+
+.org-level article > span,
+.org-groups article > span {
+  grid-row: 1 / 3;
+  width: 29px;
+  height: 29px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--blue-soft);
+  font-size: 7px;
+}
+
+.org-level article strong,
+.org-groups article strong {
+  overflow: hidden;
+  color: #e3f0fc;
+  font-size: 8px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-level article small,
+.org-groups article small {
+  color: var(--muted);
+  font-size: 7px;
+}
+
+.org-leads article {
+  border-color: rgba(88, 175, 245, .55);
+}
+
+.org-stem {
+  width: 1px;
+  height: 30px;
+  margin: 0 auto;
+  background: var(--line-strong);
+}
+
+.org-groups {
+  align-items: flex-start;
+  min-width: max-content;
+}
+
+.org-groups section {
+  position: relative;
+  min-width: 180px;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 15px;
+}
+
+.org-groups section::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 15px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.org-groups h2 {
+  margin: 0 0 10px;
+  color: #86bce9;
+  font-size: 8px;
+  font-weight: 500;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.org-groups section > div {
+  flex-direction: column;
+  align-items: center;
+}
+
+.team-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.team-page-footer span {
+  color: #d9b77c;
+  font-size: 8px;
+}
+
+.team-page-footer button {
+  min-height: 31px;
+  padding: 0 10px;
+  font-size: 8px;
+}
+
+.team-dialog-backdrop {
+  position: fixed;
+  z-index: 1300;
+  inset: 0;
+  background: rgba(1, 9, 17, .74);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.team-dialog {
+  width: min(660px, 100%);
+  max-height: calc(100dvh - 36px);
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: #071b2f;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, .42);
+  overflow: hidden;
+}
+
+.team-dialog > header,
+.team-dialog form > footer,
+.invitation-panel > header,
+.invitation-panel > footer {
+  min-height: 60px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  padding: 11px 15px;
+}
+
+.team-dialog > header span,
+.invitation-panel > header span {
+  color: var(--blue);
+  font-size: 7px;
+  letter-spacing: .1em;
+}
+
+.team-dialog h2,
+.invitation-panel h2 {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.team-dialog > header button,
+.invitation-panel > header button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.team-dialog form {
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+}
+
+.team-invite-note {
+  margin: 15px 16px 0;
+  border-left: 2px solid var(--blue);
+  background: rgba(35, 87, 132, .16);
+  color: #a9c1d5;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.team-invite-note svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.team-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+.team-form-grid label {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.team-form-grid label > span {
+  color: #9fb9cf;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.team-form-grid input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  border: 1px solid rgba(111, 173, 226, .28);
+  border-radius: 4px;
+  outline: 0;
+  background: #06172a;
+  color: white;
+  padding: 0 10px;
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.team-form-grid input:focus {
+  border-color: var(--blue);
+}
+
+.team-form-grid input[readonly] {
+  opacity: .65;
+}
+
+.team-dialog form > footer {
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+
+.team-dialog form > footer button,
+.invitation-panel > footer button {
+  min-height: 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  font-size: 8px;
+}
+
+.team-dialog form > footer button.danger {
+  margin-right: auto;
+  border-color: rgba(221, 101, 111, .4);
+  color: #f0afb5;
+}
+
+.team-dialog button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+.invitation-panel {
+  position: fixed;
+  z-index: 1350;
+  right: 18px;
+  bottom: 18px;
+  width: min(420px, calc(100% - 36px));
+  border: 1px solid rgba(66, 209, 165, .52);
+  border-radius: 7px;
+  background: #071b2f;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .45);
+}
+
+.invitation-panel p {
+  margin: 14px 15px;
+  color: #a9c0d3;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.invitation-panel code {
+  display: block;
+  margin: 0 15px 14px;
+  border: 1px solid var(--line);
+  background: #041322;
+  color: #9be5cf;
+  padding: 10px;
+  font-size: 12px;
+}
+
+.invitation-panel > footer {
+  min-height: 55px;
+  border-top: 1px solid var(--line);
+  border-bottom: 0;
+  justify-content: flex-end;
+}
+
+@keyframes team-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .team-page-main { grid-template-rows: 56px minmax(0, 1fr); }
+  .team-page-topbar { padding: 0 10px; }
+  .team-page-topbar .user-badge { display: none; }
+  .team-page-workspace { width: calc(100% - 20px); padding: 12px 0 10px; }
+  .team-page-heading h1 { font-size: 20px; }
+  .team-page-heading p { max-width: 230px; }
+  .team-view-switch button span,
+  .team-invite-button { font-size: 0; }
+  .team-view-switch button,
+  .team-invite-button { width: 34px; padding: 0; justify-content: center; }
+  .team-form-grid { grid-template-columns: 1fr; }
+  .team-dialog-backdrop { align-items: end; padding: 0; }
+  .team-dialog { width: 100%; border-radius: 7px 7px 0 0; }
+}
+
+/* Readable application scale */
+.team-page-main {
+  grid-template-rows: 76px minmax(0, 1fr);
+}
+
+.team-page-topbar {
+  padding: 0 34px;
+}
+
+.team-page-topbar > button {
+  min-height: 40px;
+  padding: 0 13px;
+  font-size: 12px;
+}
+
+.team-page-topbar svg,
+.team-page-heading button svg,
+.team-page-footer button svg,
+.team-page-empty button svg,
+.team-dialog button svg,
+.invitation-panel button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.team-page-workspace {
+  width: min(1440px, calc(100% - 64px));
+  padding: 30px 0 18px;
+  grid-template-rows: auto minmax(0, 1fr) 48px;
+  gap: 20px;
+}
+
+.team-page-heading > div:first-child > span {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.team-page-heading h1 {
+  margin-top: 7px;
+  font-size: 34px;
+}
+
+.team-page-heading p {
+  margin-top: 7px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.team-view-switch {
+  height: 44px;
+  padding: 4px;
+}
+
+.team-view-switch button {
+  height: 34px;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
+.team-invite-button {
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.team-table-head,
+.team-table-row {
+  grid-template-columns: minmax(250px, 1.1fr) minmax(260px, 1.2fr) 140px minmax(190px, .9fr) 130px 42px;
+  gap: 16px;
+  padding: 0 20px;
+}
+
+.team-table-head {
+  min-height: 48px;
+  font-size: 10px;
+}
+
+.team-table-row {
+  min-height: 82px;
+}
+
+.team-table-row strong {
+  font-size: 13px;
+}
+
+.team-table-row small {
+  margin-top: 5px;
+  font-size: 11px;
+}
+
+.team-person {
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.team-person > span {
+  width: 45px;
+  height: 45px;
+  font-size: 10px;
+}
+
+.team-account-status {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+
+.team-table-row > button {
+  width: 38px;
+  height: 38px;
+}
+
+.team-table-row > button svg {
+  width: 17px;
+  height: 17px;
+}
+
+.team-page-empty {
+  font-size: 13px;
+}
+
+.team-page-empty > svg {
+  width: 34px;
+  height: 34px;
+}
+
+.team-page-empty button,
+.team-page-footer button {
+  min-height: 40px;
+  padding: 0 13px;
+  font-size: 11px;
+}
+
+.team-org-chart {
+  padding: 38px;
+}
+
+.org-level,
+.org-groups,
+.org-groups section > div {
+  gap: 20px;
+}
+
+.org-level article,
+.org-groups article {
+  width: 220px;
+  min-height: 96px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 5px 11px;
+  padding: 14px;
+}
+
+.org-level article > span,
+.org-groups article > span {
+  width: 41px;
+  height: 41px;
+  font-size: 10px;
+}
+
+.org-level article strong,
+.org-groups article strong {
+  font-size: 12px;
+}
+
+.org-level article small,
+.org-groups article small,
+.org-groups h2 {
+  font-size: 10px;
+}
+
+.org-groups section {
+  min-width: 250px;
+  padding-top: 20px;
+}
+
+.team-page-footer span {
+  font-size: 11px;
+}
+
+.team-dialog {
+  width: min(720px, 100%);
+}
+
+.team-dialog > header,
+.team-dialog form > footer,
+.invitation-panel > header,
+.invitation-panel > footer {
+  min-height: 72px;
+  padding: 14px 20px;
+}
+
+.team-dialog > header span,
+.invitation-panel > header span {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.team-dialog h2,
+.invitation-panel h2 {
+  font-size: 24px;
+}
+
+.team-invite-note {
+  margin: 20px 20px 0;
+  padding: 11px 13px;
+  font-size: 12px;
+}
+
+.team-form-grid {
+  gap: 15px;
+  padding: 20px;
+}
+
+.team-form-grid label {
+  gap: 7px;
+}
+
+.team-form-grid label > span {
+  font-size: 11px;
+}
+
+.team-form-grid input {
+  height: 45px;
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.team-dialog form > footer button,
+.invitation-panel > footer button {
+  min-height: 42px;
+  padding: 0 14px;
+  font-size: 12px;
+}
+
+.invitation-panel {
+  width: min(490px, calc(100% - 36px));
+}
+
+.invitation-panel p {
+  margin: 18px 20px;
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .team-page-main {
+    grid-template-rows: 66px minmax(0, 1fr);
+  }
+
+  .team-page-topbar {
+    padding: 0 14px;
+  }
+
+  .team-page-workspace {
+    width: calc(100% - 28px);
+    padding: 22px 0 14px;
+  }
+
+  .team-page-heading h1 {
+    font-size: 28px;
+  }
+
+  .team-page-heading p {
+    max-width: 310px;
+    font-size: 12px;
+  }
+
+  .team-view-switch button,
+  .team-invite-button {
+    width: 42px;
+  }
+}

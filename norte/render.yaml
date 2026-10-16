@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: norte-missao
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    # Keep production releases behind the repository quality and security checks.
+    autoDeployTrigger: checksPass
+    buildCommand: npm ci --include=dev --no-audit --no-fund && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 24.20.0
+      - key: NODE_ENV
+        value: production
+      - key: VITE_BASE_PATH
+        value: /
+      - key: LOG_LEVEL
+        value: info
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_THINKING_LEVEL
+        value: high
+      # Login page offers disposable demonstration sandboxes (24 h, capped at 20).
+      - key: NORTE_DEMO_ACCOUNT
+        value: "1"

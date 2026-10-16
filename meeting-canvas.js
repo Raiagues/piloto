@@ -19,6 +19,7 @@
     return {path:Math.abs(a.y-b.y)<1?`M ${start} ${a.y} H ${end}`:`M ${start} ${a.y} H ${middle} V ${b.y} H ${end}`,labelX:middle,labelY:(a.y+b.y)/2,anchor:'middle'};
   }
   function build(sourceRun) {
+    const editor=root.NorteMeetingBlocks || (typeof require==='function' ? require('./meeting-blocks.js') : null);
     const hierarchy=root.NorteMeetingHierarchy || (typeof require==='function' ? require('./meeting-hierarchy.js') : null);
     const evidence=root.NorteMeetingEvidence || (typeof require==='function' ? require('./meeting-evidence.js') : null);
     if(!hierarchy||!evidence)throw Error('A organização dos assuntos ainda não está disponível.');
@@ -26,6 +27,8 @@
     const visit=node=>{
       const issues=(projected.diagnostics?.events?.[node.id]||[]).map(issue=>({...issue,event_ids:[node.id],relation_ids:[]}));
       nodes.set(node.id,{...node,event:{...node.event},parent_id:null,parent_relation_id:null,children:[],links:[],review:issues});
+      const suggestion=sourceRun.block_review?.blocks?.[node.id];
+      if(editor?.valid(suggestion,sourceRun,'block',node.id)){nodes.get(node.id).display_text=suggestion.text;nodes.get(node.id).editorial=suggestion.origin;}
       review.push(...issues);for(const child of node.children)visit(child);
     };
     for(const topic of original.topics)topic.nodes.forEach(visit);
@@ -85,13 +88,14 @@
       const members=(run.meeting_events||[]).filter(event=>(event.thread_id||null)===(topic.id||null)).map(event=>nodes.get(event.event_id)).filter(Boolean);
       const roots=members.filter(node=>!node.parent_id),columns={problems:[],hypotheses:[],tests:[],details:[]};
       for(const node of roots)columns[node.type==='observation'?'problems':node.type==='hypothesis'?'hypotheses':['test_proposal','test_result'].includes(node.type)?'tests':'details'].push(node);
-      const thread=(run.meeting_threads||[]).find(thread=>thread.thread_id===topic.id),title=clean(run.topic_titles?.[topic.id])||clean(thread?.title);
-      return {...topic,title,nodes:roots,columns,edges:edges.filter(edge=>edge.thread_id===topic.id),review:review.filter(item=>item.event_ids.some(id=>members.some(node=>node.id===id)))};
+      const thread=(run.meeting_threads||[]).find(thread=>thread.thread_id===topic.id),manual=clean(run.topic_titles?.[topic.id])||clean(thread?.title),suggestion=sourceRun.block_review?.titles?.[topic.id];
+      const editorial=!manual&&editor?.valid(suggestion,sourceRun,'title',topic.id),title=manual||(editorial?clean(suggestion.text):'');
+      return {...topic,title,editorial:!!editorial,nodes:roots,columns,edges:edges.filter(edge=>edge.thread_id===topic.id),review:review.filter(item=>item.event_ids.some(id=>members.some(node=>node.id===id)))};
     });
     return {topics,edges,review,excluded:projected.excluded||[],state:sharedState||null,metrics:{topics:topics.length,events:nodes.size,nested:[...nodes.values()].filter(node=>node.parent_id).length,edges:edges.length,reviews:review.length}};
   }
 
-  function create({canvas,board,onRename = () => {},onInspect = () => {}} = {}) {
+  function create({canvas,board,onRename = () => {},onInspect = () => {},onReview = null} = {}) {
     if (!canvas || !board || !canvas.contains(board)) throw Error('Informe o canvas e seu quadro de assuntos.');
     const document = canvas.ownerDocument;
     const view = document.defaultView || root;
@@ -240,7 +244,8 @@
         detail.append(content);detail.addEventListener('toggle',() => detail.open ? warnings.add(node.id) : warnings.delete(node.id));header.append(detail);
       }
       card.append(header);
-      const read=element('button','mc-node-text'),copy=element('span','mc-node-copy',node.text),more=element('span','mc-text-toggle','Expandir');
+      if(node.editorial&&onReview){const edit=icon(node.editorial==='human'?'Revisado por você':'Síntese · revisar','Comparar síntese com a fala original','mc-editorial');edit.onclick=()=>onReview('block',node.id);header.append(edit);}
+      const read=element('button','mc-node-text'),copy=element('span','mc-node-copy',node.display_text??node.text),more=element('span','mc-text-toggle','Expandir');
       read.type='button';read.setAttribute('aria-expanded',String(expanded.has(node.id)));
       read.setAttribute('aria-label','Mostrar registro completo: '+node.text);more.setAttribute('aria-hidden','true');
       if(expanded.has(node.id)){read.classList.add('is-expanded');more.textContent='Recolher';}

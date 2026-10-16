@@ -1,0 +1,1033 @@
+{
+  "schemaVersion": 1,
+  "benchmark": "Quetzal-1 EPS + COMMS V0.1",
+  "curation": "Agent-curated evaluation reference from cited design evidence and independent arithmetic; no independent human engineering review claimed.",
+  "humanReview": {
+    "status": "pending",
+    "reviewer": null,
+    "engineeringBackground": null,
+    "reviewedAt": null,
+    "comments": null,
+    "corrections": []
+  },
+  "historicalCutoff": "2020-03-07T04:49:00Z",
+  "historicalSnapshot": "No qualifying public preflight commit established; retrospective design-versus-observation comparison.",
+  "holdoutCanary": "QUETZAL_EVALUATOR_ONLY_8e7027c9_DO_NOT_SEND_TO_MODEL",
+  "sources": {
+    "design": {
+      "url": "https://jossonline.com/storage/2023/05/Final-Aguilar-Nadalini-Design-and-On-Orbit-Performance-of-the-Electrical-Power-System-for-the-Quetzal-1-CubeSat.pdf",
+      "locator": "Section 2, Table 2 p.1208; Table D1 p.1228",
+      "published": "2023-05-31",
+      "license": "A. Deepak Publishing, all rights reserved; facts and citation only"
+    },
+    "hardware": {
+      "url": "https://github.com/Quetzal-1-CubeSat-Team/quetzal1-hardware/blob/d4d1b59de384701a016a6e17353aff3c8ba64853/EPS/README.md",
+      "locator": "EPS overview; schematic sheets 02, 04, 05, 06, 08",
+      "license": "CC-BY-SA-4.0; Quetzal-1 CubeSat Team / Universidad del Valle de Guatemala"
+    },
+    "method": {
+      "url": "benchmark/quetzal1/context/design-context.mjs",
+      "locator": "Norte operating-point analysis definitions; authored method, not mission telemetry",
+      "license": "Norte project source"
+    },
+    "flight": {
+      "url": "https://jossonline.com/storage/2023/05/Final-Aguilar-Nadalini-Design-and-On-Orbit-Performance-of-the-Electrical-Power-System-for-the-Quetzal-1-CubeSat.pdf",
+      "locator": "Section 3.5.1 pp.1214–1215",
+      "license": "A. Deepak Publishing, all rights reserved; facts and citation only"
+    }
+  },
+  "extraction": {
+    "scope": "Curated context pack to structured model; raw artifact ingestion A1 is future work.",
+    "entities": [
+      {
+        "id": "system",
+        "aliases": [
+          "Quetzal-1",
+          "Quetzal-1 EPS + COMMS"
+        ],
+        "kinds": [
+          "system"
+        ],
+        "source": "hardware"
+      },
+      {
+        "id": "eps",
+        "aliases": [
+          "EPS",
+          "Electrical Power System"
+        ],
+        "kinds": [
+          "subsystem"
+        ],
+        "source": "hardware"
+      },
+      {
+        "id": "comms",
+        "aliases": [
+          "Communications",
+          "COMMS",
+          "Communications subsystem"
+        ],
+        "kinds": [
+          "subsystem"
+        ],
+        "source": "design"
+      },
+      {
+        "id": "solar",
+        "aliases": [
+          "Solar generation",
+          "Solar panels",
+          "Solar array"
+        ],
+        "kinds": [
+          "component",
+          "performance"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "generated_power",
+              "available_power",
+              "orbital_average_power"
+            ],
+            "value": 1.58,
+            "unit": "W"
+          }
+        ]
+      },
+      {
+        "id": "chargers",
+        "aliases": [
+          "Battery chargers",
+          "Solar chargers",
+          "MPPT chargers",
+          "Three battery chargers"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "hardware"
+      },
+      {
+        "id": "battery",
+        "aliases": [
+          "Battery pack",
+          "Battery",
+          "Rechargeable battery pack"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "cell_count",
+              "number_of_cells"
+            ],
+            "value": 2
+          },
+          {
+            "keys": [
+              "cell_capacity",
+              "capacity_per_cell"
+            ],
+            "value": 2000,
+            "unit": "mAh"
+          },
+          {
+            "keys": [
+              "nominal_voltage",
+              "cell_nominal_voltage"
+            ],
+            "value": 3.7,
+            "unit": "V"
+          }
+        ]
+      },
+      {
+        "id": "main-bus",
+        "aliases": [
+          "Main battery bus",
+          "Main bus",
+          "Unregulated bus"
+        ],
+        "kinds": [
+          "interface",
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "minimum_voltage",
+              "min_voltage"
+            ],
+            "value": 3.2,
+            "unit": "V"
+          },
+          {
+            "keys": [
+              "maximum_voltage",
+              "max_voltage"
+            ],
+            "value": 4.2,
+            "unit": "V"
+          }
+        ]
+      },
+      {
+        "id": "rail-3v3",
+        "aliases": [
+          "3.3 V rail",
+          "3V3 rail",
+          "Regulated 3.3 V rail"
+        ],
+        "kinds": [
+          "interface",
+          "component"
+        ],
+        "source": "hardware",
+        "properties": [
+          {
+            "keys": [
+              "output_voltage",
+              "voltage"
+            ],
+            "value": 3.3,
+            "unit": "V"
+          }
+        ]
+      },
+      {
+        "id": "radio",
+        "aliases": [
+          "AX100",
+          "NanoCom AX100",
+          "AX100 communications transceiver"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "tx_duty_cycle",
+              "transmit_duty_cycle"
+            ],
+            "value": 3.6,
+            "unit": "%"
+          },
+          {
+            "keys": [
+              "tx_power",
+              "transmit_power"
+            ],
+            "value": 2640,
+            "unit": "mW"
+          },
+          {
+            "keys": [
+              "rx_power",
+              "receive_power"
+            ],
+            "value": 231,
+            "unit": "mW"
+          }
+        ]
+      },
+      {
+        "id": "comms-average",
+        "aliases": [
+          "COMMS average power",
+          "Communications average power",
+          "Radio average power",
+          "AX100 average power"
+        ],
+        "kinds": [
+          "calculation",
+          "performance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "formula"
+            ],
+            "value": "duty_cycle_power"
+          }
+        ]
+      },
+      {
+        "id": "obc",
+        "aliases": [
+          "OBC",
+          "On-board computer",
+          "Onboard computer"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "operating_power",
+              "active_power"
+            ],
+            "value": 264,
+            "unit": "mW"
+          }
+        ]
+      },
+      {
+        "id": "eps-controller",
+        "aliases": [
+          "EPS controller and sensors",
+          "EPS controller",
+          "EPS control",
+          "EPS electronics"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "operating_power",
+              "active_power"
+            ],
+            "value": 20,
+            "unit": "mW"
+          }
+        ]
+      },
+      {
+        "id": "heater",
+        "aliases": [
+          "Battery heater",
+          "Heater"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "operating_power",
+              "active_power"
+            ],
+            "value": 908,
+            "unit": "mW"
+          },
+          {
+            "keys": [
+              "duty_cycle",
+              "heater_duty_cycle"
+            ],
+            "value": 33.33,
+            "unit": "%"
+          }
+        ]
+      },
+      {
+        "id": "heater-average",
+        "aliases": [
+          "Heater average contribution",
+          "Heater average power",
+          "Battery heater average power"
+        ],
+        "kinds": [
+          "calculation",
+          "performance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "formula"
+            ],
+            "value": "duty_cycle_load"
+          }
+        ]
+      },
+      {
+        "id": "housekeeping",
+        "aliases": [
+          "ADCS housekeeping load",
+          "ADCS housekeeping",
+          "ADCS controller and sensors"
+        ],
+        "kinds": [
+          "component"
+        ],
+        "source": "design",
+        "properties": [
+          {
+            "keys": [
+              "operating_power",
+              "active_power"
+            ],
+            "value": 66,
+            "unit": "mW"
+          },
+          {
+            "keys": [
+              "duty_cycle"
+            ],
+            "value": 2.5,
+            "unit": "%"
+          }
+        ]
+      },
+      {
+        "id": "housekeeping-average",
+        "aliases": [
+          "Housekeeping average contribution",
+          "Housekeeping average power",
+          "ADCS average power"
+        ],
+        "kinds": [
+          "calculation",
+          "performance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "formula"
+            ],
+            "value": "duty_cycle_load"
+          }
+        ]
+      },
+      {
+        "id": "power-budget",
+        "aliases": [
+          "Power budget",
+          "Total power budget",
+          "Total power demand"
+        ],
+        "kinds": [
+          "calculation",
+          "performance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "formula"
+            ],
+            "value": "sum_power"
+          },
+          {
+            "keys": [
+              "power_margin_multiplier"
+            ],
+            "value": 1.1,
+            "unit": "1"
+          }
+        ]
+      },
+      {
+        "id": "energy-balance",
+        "aliases": [
+          "Energy balance",
+          "Orbital energy balance",
+          "Power balance"
+        ],
+        "kinds": [
+          "calculation",
+          "performance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "formula"
+            ],
+            "value": "energy_balance"
+          }
+        ]
+      }
+    ],
+    "relations": [
+      [
+        "solar",
+        "powers",
+        "chargers",
+        "hardware"
+      ],
+      [
+        "chargers",
+        "powers",
+        "main-bus",
+        "hardware"
+      ],
+      [
+        "battery",
+        "powers",
+        "main-bus",
+        "hardware"
+      ],
+      [
+        "main-bus",
+        "powers",
+        "rail-3v3",
+        "hardware"
+      ],
+      [
+        "rail-3v3",
+        "powers",
+        "radio",
+        "hardware"
+      ],
+      [
+        "rail-3v3",
+        "powers",
+        "obc",
+        "hardware"
+      ],
+      [
+        "rail-3v3",
+        "powers",
+        "eps-controller",
+        "hardware"
+      ],
+      [
+        "rail-3v3",
+        "powers",
+        "heater",
+        "hardware"
+      ],
+      [
+        "comms-average",
+        "derived_from",
+        "radio",
+        "method"
+      ],
+      [
+        "heater-average",
+        "derived_from",
+        "heater",
+        "method"
+      ],
+      [
+        "housekeeping-average",
+        "derived_from",
+        "housekeeping",
+        "method"
+      ],
+      [
+        "obc",
+        "contributes_to",
+        "power-budget",
+        "method"
+      ],
+      [
+        "eps-controller",
+        "contributes_to",
+        "power-budget",
+        "method"
+      ],
+      [
+        "heater-average",
+        "contributes_to",
+        "power-budget",
+        "method"
+      ],
+      [
+        "housekeeping-average",
+        "contributes_to",
+        "power-budget",
+        "method"
+      ],
+      [
+        "comms-average",
+        "contributes_to",
+        "power-budget",
+        "method"
+      ],
+      [
+        "energy-balance",
+        "derived_from",
+        "solar",
+        "method"
+      ],
+      [
+        "energy-balance",
+        "derived_from",
+        "power-budget",
+        "method"
+      ],
+      [
+        "energy-balance",
+        "affects",
+        "battery",
+        "method",
+        "inferred"
+      ],
+      [
+        "battery",
+        "affects",
+        "eps-controller",
+        "method",
+        "inferred"
+      ]
+    ],
+    "requirements": [
+      {
+        "id": "MI-001",
+        "terms": [
+          [
+            "solar",
+            "generation"
+          ],
+          [
+            "mission",
+            "operation"
+          ]
+        ],
+        "related": [
+          "solar",
+          "energy-balance"
+        ],
+        "source": "design"
+      },
+      {
+        "id": "MI-002",
+        "terms": [
+          [
+            "rechargeable",
+            "batteries"
+          ],
+          [
+            "store",
+            "stored",
+            "storage"
+          ]
+        ],
+        "related": [
+          "battery"
+        ],
+        "source": "design"
+      },
+      {
+        "id": "MI-003",
+        "terms": [
+          [
+            "surplus",
+            "excess"
+          ],
+          [
+            "eclipse",
+            "umbra"
+          ],
+          [
+            "charge",
+            "recharge",
+            "charging"
+          ]
+        ],
+        "related": [
+          "energy-balance",
+          "battery"
+        ],
+        "source": "design"
+      },
+      {
+        "id": "MI-004",
+        "terms": [
+          [
+            "battery",
+            "batteries"
+          ],
+          [
+            "generation",
+            "harvesting"
+          ],
+          [
+            "phase",
+            "phases"
+          ]
+        ],
+        "related": [
+          "energy-balance",
+          "battery",
+          "eps-controller"
+        ],
+        "source": "design"
+      },
+      {
+        "id": "ANALYSIS-01",
+        "terms": [
+          [
+            "norte"
+          ],
+          [
+            "margin",
+            "balance"
+          ]
+        ],
+        "related": [
+          "energy-balance"
+        ],
+        "source": "method",
+        "properties": [
+          {
+            "keys": [
+              "minimum_power_margin"
+            ],
+            "value": 0,
+            "unit": "W"
+          }
+        ]
+      }
+    ],
+    "class": "A0"
+  },
+  "cases": [
+    {
+      "id": "B-duty-10",
+      "class": "B",
+      "label": "TX duty 3.6% → 10%",
+      "txDutyPercent": 10,
+      "expectedAffected": [
+        "comms-average",
+        "power-budget",
+        "energy-balance",
+        "battery",
+        "eps-controller"
+      ],
+      "expectedCritical": [],
+      "expectedRequirements": [
+        "MI-003",
+        "MI-004"
+      ],
+      "expectedStatuses": {
+        "radio": "changed",
+        "battery": "review",
+        "eps-controller": "review",
+        "MI-003": "review",
+        "MI-004": "review",
+        "ANALYSIS-01": "valid"
+      },
+      "expectedCalculations": [
+        {
+          "entityId": "comms-average",
+          "ruleId": "duty_cycle_power",
+          "value": 0.4719,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "0.231 × 0.9 + 2.640 × 0.1"
+        },
+        {
+          "entityId": "power-budget",
+          "ruleId": "sum_power",
+          "value": 1.16620504,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "1.1 × (0.4719 + 0.264 + 0.020 + 0.908 × 0.3333 + 0.066 × 0.025)"
+        },
+        {
+          "entityId": "energy-balance",
+          "ruleId": "energy_balance",
+          "value": 0.41379496,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "1.58 − 1.16620504"
+        }
+      ],
+      "requiredCalculationPath": [
+        "radio",
+        "comms-average",
+        "power-budget",
+        "energy-balance"
+      ],
+      "interpretation": "Positive orbital-average margin under fixed design assumptions. No critical deficit or peak-current incompatibility. Mission requirements remain unverified by a single average."
+    },
+    {
+      "id": "B-boundary-25",
+      "class": "B",
+      "label": "TX duty 3.6% → 25%",
+      "txDutyPercent": 25,
+      "expectedAffected": [
+        "comms-average",
+        "power-budget",
+        "energy-balance",
+        "battery",
+        "eps-controller"
+      ],
+      "expectedCritical": [],
+      "expectedRequirements": [
+        "MI-003",
+        "MI-004"
+      ],
+      "expectedStatuses": {
+        "radio": "changed",
+        "battery": "review",
+        "eps-controller": "review",
+        "MI-003": "review",
+        "MI-004": "review",
+        "ANALYSIS-01": "valid"
+      },
+      "expectedCalculations": [
+        {
+          "entityId": "comms-average",
+          "ruleId": "duty_cycle_power",
+          "value": 0.83325,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 25% and fixed design assumptions."
+        },
+        {
+          "entityId": "power-budget",
+          "ruleId": "sum_power",
+          "value": 1.56369004,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 25% and fixed design assumptions."
+        },
+        {
+          "entityId": "energy-balance",
+          "ruleId": "energy_balance",
+          "value": 0.01630996,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 25% and fixed design assumptions."
+        }
+      ],
+      "requiredCalculationPath": [
+        "radio",
+        "comms-average",
+        "power-budget",
+        "energy-balance"
+      ],
+      "interpretation": "Independent frozen-assumption orbital-balance boundary test; mission requirements remain review."
+    },
+    {
+      "id": "B-boundary-26",
+      "class": "B",
+      "label": "TX duty 3.6% → 26%",
+      "txDutyPercent": 26,
+      "expectedAffected": [
+        "comms-average",
+        "power-budget",
+        "energy-balance",
+        "battery",
+        "eps-controller",
+        "obc"
+      ],
+      "expectedCritical": [
+        "ANALYSIS-01"
+      ],
+      "expectedRequirements": [
+        "MI-003",
+        "MI-004"
+      ],
+      "expectedStatuses": {
+        "radio": "changed",
+        "battery": "review",
+        "eps-controller": "review",
+        "obc": "review",
+        "MI-003": "review",
+        "MI-004": "review",
+        "ANALYSIS-01": "critical"
+      },
+      "expectedCalculations": [
+        {
+          "entityId": "comms-average",
+          "ruleId": "duty_cycle_power",
+          "value": 0.85734,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 26% and fixed design assumptions."
+        },
+        {
+          "entityId": "power-budget",
+          "ruleId": "sum_power",
+          "value": 1.59018904,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 26% and fixed design assumptions."
+        },
+        {
+          "entityId": "energy-balance",
+          "ruleId": "energy_balance",
+          "value": -0.01018904,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 26% and fixed design assumptions."
+        }
+      ],
+      "requiredCalculationPath": [
+        "radio",
+        "comms-average",
+        "power-budget",
+        "energy-balance"
+      ],
+      "interpretation": "Independent frozen-assumption orbital-balance boundary test; mission requirements remain review."
+    },
+    {
+      "id": "B-duty-100",
+      "class": "B",
+      "label": "TX duty 3.6% → 100%",
+      "txDutyPercent": 100,
+      "expectedAffected": [
+        "comms-average",
+        "power-budget",
+        "energy-balance",
+        "battery",
+        "eps-controller",
+        "obc"
+      ],
+      "expectedCritical": [
+        "ANALYSIS-01"
+      ],
+      "expectedRequirements": [
+        "MI-003",
+        "MI-004"
+      ],
+      "expectedStatuses": {
+        "radio": "changed",
+        "battery": "review",
+        "eps-controller": "review",
+        "obc": "review",
+        "MI-003": "review",
+        "MI-004": "review",
+        "ANALYSIS-01": "critical"
+      },
+      "expectedCalculations": [
+        {
+          "entityId": "comms-average",
+          "ruleId": "duty_cycle_power",
+          "value": 2.64,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 100% and fixed design assumptions."
+        },
+        {
+          "entityId": "power-budget",
+          "ruleId": "sum_power",
+          "value": 3.55111504,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 100% and fixed design assumptions."
+        },
+        {
+          "entityId": "energy-balance",
+          "ruleId": "energy_balance",
+          "value": -1.97111504,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "Independent reference-arithmetic.mjs with TX duty 100% and fixed design assumptions."
+        }
+      ],
+      "requiredCalculationPath": [
+        "radio",
+        "comms-average",
+        "power-budget",
+        "energy-balance"
+      ],
+      "interpretation": "Independent frozen-assumption orbital-balance boundary test; mission requirements remain review."
+    },
+    {
+      "id": "C1-continuous-tx",
+      "class": "C1",
+      "label": "Historical causal reconstruction: continuous TX",
+      "txDutyPercent": 100,
+      "expectedAffected": [
+        "comms-average",
+        "power-budget",
+        "energy-balance",
+        "battery",
+        "eps-controller",
+        "obc"
+      ],
+      "expectedCritical": [
+        "ANALYSIS-01"
+      ],
+      "expectedRequirements": [
+        "MI-003",
+        "MI-004"
+      ],
+      "expectedStatuses": {
+        "radio": "changed",
+        "battery": "review",
+        "eps-controller": "review",
+        "obc": "review",
+        "MI-003": "review",
+        "MI-004": "review",
+        "ANALYSIS-01": "critical"
+      },
+      "expectedCalculations": [
+        {
+          "entityId": "comms-average",
+          "ruleId": "duty_cycle_power",
+          "value": 2.64,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "0.231 × 0 + 2.640 × 1"
+        },
+        {
+          "entityId": "power-budget",
+          "ruleId": "sum_power",
+          "value": 3.55111504,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "1.1 × (2.64 + 0.264 + 0.020 + 0.908 × 0.3333 + 0.066 × 0.025)"
+        },
+        {
+          "entityId": "energy-balance",
+          "ruleId": "energy_balance",
+          "value": -1.97111504,
+          "unit": "W",
+          "tolerance": 1e-08,
+          "derivation": "1.58 − 3.55111504"
+        }
+      ],
+      "requiredCalculationPath": [
+        "radio",
+        "comms-average",
+        "power-budget",
+        "energy-balance"
+      ],
+      "interpretation": "Deterministic orbital deficit. Battery discharge and supply continuity need review; no exact depletion time, assured reset or unidentified initiating fault is predicted.",
+      "historicalObservations": {
+        "source": "flight",
+        "recordedTxHangFailures": 24,
+        "observedDemandW": 3.13,
+        "observedGenerationW": 1.32,
+        "observedMarginW": -1.81,
+        "approximateDepletionHours": 6,
+        "externalResets": 4,
+        "watchdogHoursBefore": 24,
+        "watchdogHoursAfter": 2,
+        "comparison": "Qualitative causal coverage only. Different design and observed operating conditions; do not require numerical equality with flight measurements."
+      }
+    }
+  ],
+  "revision": "v0.1-development.1",
+  "terminology": "Evaluation reference; not certified ground truth",
+  "specificationApproval": {
+    "status": "user_approved_document",
+    "document": "docs/VALIDATED.md",
+    "documentSha256": "3dcbe509717a8285a31bef4b49b561996a2ffb8882ca5937589592fced450029",
+    "scope": "Approval of V0.1 specification; independent engineering review remains pending as stated in the approved document."
+  },
+  "evaluatorRevisionNote": "v0.1-development.1 corrects locale and prefixed requirement-ID matching, adds unit accuracy and boundary cases. The old A score is retained; rescoring previously inspected outputs is diagnostic only. Freeze this revision before fresh model runs.",
+  "pretrainingContamination": "Possible prior foundation-model exposure to public Quetzal sources; runtime isolation does not prove unseen-event prediction.",
+  "matchingPolicy": {
+    "revision": "v0.1-development.1",
+    "languages": [
+      "en",
+      "pt"
+    ],
+    "purpose": "Generic token-level locale normalization and recognized requirement-ID prefixes; no reversal of directed relations. Corrections reviewed as evaluator defects after an earlier output; old scores preserved and that re-evaluation diagnostic only."
+  }
+}

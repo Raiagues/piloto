@@ -43,6 +43,13 @@
       <div id="aoNotice" class="ao-notice" role="status" hidden></div>
       <div id="aoProviderNotice" class="ao-notice" data-tone="error" role="status" hidden></div>
       <div class="ao-tabs" role="tablist" aria-label="Observatório"><button id="aoOverviewTab" data-ao-tab="overview" role="tab" aria-controls="aoOverview" aria-selected="true">Visão geral</button><button id="aoArchitectureTab" data-ao-tab="architecture" role="tab" aria-controls="aoArchitecture" aria-selected="false" tabindex="-1">Arquitetura atual</button><button id="aoActivityTab" data-ao-tab="activity" role="tab" aria-controls="aoActivity" aria-selected="false" tabindex="-1">Agentes e histórico</button><button id="aoReplayTab" data-ao-tab="replay" role="tab" aria-controls="aoReplay" aria-selected="false" tabindex="-1">Testar interpretações</button></div>
+      <div id="aoBlocks" data-ao-panel="blocks" role="tabpanel" aria-labelledby="aoBlocksTab" hidden>
+        <div id="aoBlockMetrics" class="ao-metrics"></div>
+        <section class="ao-card"><h2>Blocos e aprendizado</h2><p class="ao-caption">O editor resume e sugere títulos; o avaliador verifica fidelidade e pode pedir uma correção. A fala original permanece disponível. Correções humanas são reaproveitadas em conteúdos iguais, no mesmo contexto e na mesma conta. Isso não retreina o modelo nem garante melhora a cada uso.</p><div id="aoBlockCosts"></div></section>
+        <section class="ao-card"><h2>Avaliações humanas ao longo do tempo</h2><div id="aoBlockTrend"></div></section>
+        <section class="ao-card"><h2>Antes e depois · memória de revisão</h2><p class="ao-caption">Últimas 40 entradas. Desativar impede novos reaproveitamentos; a reunião recebe a mudança na próxima consulta. Títulos já aprovados por pessoas continuam manuais.</p><div id="aoBlockMemory"></div></section>
+        <section class="ao-card"><h2>Avaliações automáticas</h2><p class="ao-caption">Últimas 30 avaliações. O avaliador usa o mesmo modelo em uma chamada separada; sua aprovação não é uma avaliação humana.</p><div id="aoBlockEvaluations"></div></section>
+      </div>
       <div id="aoOverview" data-ao-panel="overview" role="tabpanel" aria-labelledby="aoOverviewTab">
         <div id="aoMetrics" class="ao-metrics"></div>
         <div class="ao-grid"><section class="ao-card"><div class="ao-card-title"><h2>Uso registrado</h2><span>Últimos dias com dados</span></div><div id="aoDaily" class="ao-chart"></div><div class="ao-legend"><i></i> Eventos <i class="ao-legend-error"></i> Erros</div></section><section class="ao-card"><div class="ao-card-title"><h2>Custo e orçamento</h2><span>USD</span></div><div id="aoCosts"></div></section></div>
@@ -63,6 +70,7 @@
         <section class="ao-card"><div class="ao-card-title"><div><h2>Replay de frases</h2><p class="ao-caption">Adaptador de abertura no servidor. Não altera uma reunião nem mede a precisão do Jev ou das edições da viga.</p></div><button id="aoReplayDefault" class="compact-button" type="button">Regressão padrão</button></div><form id="aoReplayForm"><label for="aoReplayCases">Casos e intenção esperada · JSON</label><textarea id="aoReplayCases" rows="12" spellcheck="false" aria-describedby="aoReplayHint"></textarea><p id="aoReplayHint" class="ao-caption">Use expected_intent: "open_simulation" para abrir; null para não abrir. Inclua erros de transcrição e frases negativas. O rótulo esperado pertence ao teste.</p><div class="ao-actions"><button class="compact-button ao-primary" id="aoReplaySubmit" type="submit">Executar meus casos</button><button class="compact-button" id="aoReplayExample" type="button">Carregar exemplos</button></div></form></section>
         <section class="ao-card"><div class="ao-card-title"><h2>Avaliações registradas</h2><span>Acerto automático ≠ validação de usuários</span></div><div id="aoEvaluations"></div></section>
       </div>`;
+    const blocksTab=node('button','','Blocos e aprendizado');blocksTab.id='aoBlocksTab';blocksTab.dataset.aoTab='blocks';blocksTab.setAttribute('role','tab');blocksTab.setAttribute('aria-controls','aoBlocks');blocksTab.setAttribute('aria-selected','false');blocksTab.tabIndex=-1;page.querySelector('.ao-tabs').append(blocksTab);
     for (const b of page.querySelectorAll('[data-ao-tab]')) {
       b.onclick = () => activate(b.dataset.aoTab);
       b.onkeydown = event => { const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End']; if (!keys.includes(event.key)) return; event.preventDefault(); const buttons = [...page.querySelectorAll('[data-ao-tab]')], at = buttons.indexOf(b), index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (at + (event.key === 'ArrowRight' ? 1 : -1) + buttons.length) % buttons.length; activate(buttons[index].dataset.aoTab); buttons[index].focus(); };
@@ -162,6 +170,24 @@
     }, 'Nenhuma regra aprendida está disponível. O interpretador padrão continua funcionando.');
     table('aoEvaluations', ['Avaliação', 'Tipo', 'Acerto no conjunto', 'Data', 'Casos'], state.evaluations || [], e => [String(e.id), names[e.kind] || e.kind, number(e.passed) + ' / ' + number(e.total) + (e.total > 0 ? ' · ' + percent(e.passed / e.total) : ''), stamp(e.created_at), jsonDetail(e.details || {}, 'Ver resultados')], 'Execute a regressão padrão ou envie um conjunto de casos rotulados.');
   }
+  function renderBlocks() {
+    const b=state.blocks||{};
+    $('aoBlockMetrics').replaceChildren(
+      metric('Aprovação humana',percent(b.human_acceptance),number(b.human_labels)+' sugestões avaliadas · amostra voluntária',b.human_acceptance),
+      metric('Correções recebidas',number(b.corrections),number(b.restored)+' retornos ao original'),
+      metric('Itens reaproveitados',number(b.reused_items),number(b.human_reused_items)+' com revisão humana · em outras reuniões'),
+      metric('Redução do texto',percent(b.compression),'Mede concisão dos blocos ativos, não qualidade',b.compression)
+    );
+    $('aoBlockCosts').replaceChildren(row('Custo dos agentes de blocos',money(b.cost_usd)),row('Chamadas de edição e avaliação',number(b.provider_calls)),row('Chamadas com custo desconhecido',number(b.unknown_cost_calls)),row('Versão do fluxo',b.version||'—'),node('p','ao-caption','O primeiro processamento inclui edição e avaliação. O reaproveitamento dispensa esse processamento; itens reaproveitados não equivalem a chamadas nem a dólares economizados. Os agentes compartilham o limite diário já configurado.'));
+    const days=new Map();for(const d of b.daily_feedback||[]){if(!days.has(d.day))days.set(d.day,{day:d.day,accept:0,correct:0,restore:0});days.get(d.day)[d.action]=d.count;}
+    table('aoBlockTrend',['Data','Aprovadas','Corrigidas','Originais restaurados','Aprovação'],[...days.values()],d=>[d.day,d.accept,d.correct,d.restore,percent(d.accept/(d.accept+d.correct+d.restore))],'Ainda não há avaliações humanas. Use “Síntese · revisar” nos blocos.');
+    table('aoBlockMemory',['Conta / versão','Tipo / origem','Original','Exibição','Controle'],b.memory||[],m=>{
+      const button=node('button','compact-button',m.enabled?'Desativar':'Desativada');button.type='button';button.disabled=!m.enabled;
+      button.onclick=async()=>{button.disabled=true;try{await request('blocks/memory',{user_id:m.user_id,key:m.key});notice('Reaproveitamento desativado.');await refresh(false);}catch(error){button.disabled=false;notice(error.message,true);}};
+      return [String(m.user_id)+' · v'+m.version,(m.kind==='title'?'Título':'Bloco')+' · '+({human:'revisão humana',automatic:'avaliação automática',rejected:'rejeitada'})[m.origin],m.source,m.text||'Original mantido',button];
+    },'As primeiras revisões aparecerão aqui após uma reunião salva na conta.');
+    table('aoBlockEvaluations',['Data','Resultado','Tentativa','Itens','Justificativa'],b.evaluations||[],e=>[stamp(e.created_at),({approved:'Aprovada automaticamente',rejected:'Rejeitada',unavailable:'Indisponível'})[e.status]||e.status,e.details.attempt??'—',e.details.items??'—',e.details.reason||'O provedor ou o orçamento não permitiu concluir.'],'Nenhuma avaliação automática registrada.');
+  }
   const flowNodes = [
     { id: 'memory', layer: 1, title: 'Memória do projeto', subtitle: 'API de contexto · evidências', description: 'A API consulta dados do projeto com escopo de conta e reunião. Esta etapa prepara a integração de contexto; o gêmeo digital completo ainda não existe. Contexto recuperado não substitui a fala original nem autoriza inventar valores.' },
     { id: 'speech', layer: 2, title: 'Fala e transcrição', subtitle: 'Finalizar · juntar · completar', description: 'A fala é segmentada antes da classificação. Perguntas de continuidade evitam interpretar um fragmento como uma nova instrução completa.' },
@@ -217,7 +243,7 @@
   async function refresh(manual = false) {
     if (loading) return;
     loading = true; $('aoRefresh').disabled = true;
-    try { state = await request('overview'); renderMetrics(); renderHistory(); $('aoUpdated').textContent = 'Todas as contas · dados retidos no servidor · atualizado ' + new Date().toLocaleTimeString('pt-BR'); if (manual) notice('Dados atualizados.'); else if (connectionFailed) notice(); connectionFailed = false; }
+    try { state = await request('overview'); renderMetrics(); renderHistory(); renderBlocks(); $('aoUpdated').textContent = 'Todas as contas · dados retidos no servidor · atualizado ' + new Date().toLocaleTimeString('pt-BR'); if (manual) notice('Dados atualizados.'); else if (connectionFailed) notice(); connectionFailed = false; }
     catch (error) { connectionFailed = true; notice(error.message, true); $('aoUpdated').textContent = state ? 'Última consulta falhou · dados anteriores' : 'Dados indisponíveis'; if (!state) $('aoMetrics').replaceChildren(node('p', 'ao-empty', 'Sem conexão com os agentes. Nenhuma métrica foi estimada.')); }
     finally { loading = false; $('aoRefresh').disabled = false; }
   }

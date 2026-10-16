@@ -1,0 +1,6 @@
+id,data,area,situacao,impacto,causa,acao_recomendada,status
+LA-001,2026-03-12,Sistemas,"Interfaces foram definidas tarde","Retrabalho na integração elétrica","Requisitos de interface sem responsável","Criar ICD e designar proprietário antes da revisão preliminar",aberta
+LA-002,2026-03-19,Software de voo,"Logs não tinham versão do firmware","Resultados de dois ensaios ficaram ambíguos","Metadados ausentes no quadro de telemetria","Adicionar versão e hash de build a cada arquivo de ensaio",concluida
+LA-003,2026-04-02,Potência,"Consumo do rádio superou o valor de catálogo","Margem energética caiu abaixo de 20%","Medição considerou apenas modo nominal","Medir todos os modos e usar pior caso com margem",em_andamento
+LA-004,2026-04-16,Integração e testes,"Conector se soltou no ensaio de vibração","Perda temporária de telemetria","Alívio de tração insuficiente","Adicionar retenção mecânica e inspeção ao procedimento AIT",concluida
+LA-005,2026-04-28,Equipe,"Conhecimento ficou concentrado em uma pessoa","Correção atrasou durante ausência","Revisões e pareamento pouco frequentes","Exigir revisão cruzada e notas de transição por subsistema",aberta

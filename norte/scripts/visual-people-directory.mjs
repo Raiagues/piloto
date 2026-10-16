@@ -1,0 +1,60 @@
+/* global window, document */
+import assert from 'node:assert/strict';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { chromium } from 'playwright-core';
+import { buildApp } from '../server/app.mjs';
+const directory = await mkdtemp(join(tmpdir(), 'norte-people-browser-'));
+const app = await buildApp({ storeFile: join(directory, 'state.json'), logger: false, ai: { apiKey: '' }, systemAi: { apiKey: '' } });
+const port = 5337, base = `http://127.0.0.1:${port}/norte/`;
+let browser, vite, page;
+try {
+  process.env.NORTE_ALLOWED_ORIGINS = new URL(base).origin;
+  const registration = await app.inject({ method: 'POST', url: '/api/auth/register', payload: { name: 'Directory Captain', email: 'directory@example.test', password: 'isolated directory browser passphrase' } });
+  assert.equal(registration.statusCode, 201, registration.body);
+  await app.missionStore.update(data => { for (let index = 0; index < 205; index++) { const suffix = String(index).padStart(3, '0'); data.users.push({ id: `synthetic-${suffix}`, memberId: `synthetic-member-${suffix}`, name: `Synthetic ${suffix}`, nickname: `synthetic_${suffix}`, active: true, createdAt: new Date().toISOString(), lastLoginAt: new Date().toISOString() }); } });
+  await app.listen({ host: '127.0.0.1', port: 0 });
+  vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { env: { ...process.env, VITE_DEMO_MODE: 'false', VITE_API_PROXY_TARGET: `http://127.0.0.1:${app.server.address().port}` }, stdio: ['ignore', 'pipe', 'pipe'] });
+  await new Promise((resolve, reject) => { const timeout = setTimeout(() => reject(new Error('Vite timeout')), 15000); vite.stdout.on('data', data => { if (String(data).includes('Local:')) { clearTimeout(timeout); resolve(); } }); vite.once('exit', code => { clearTimeout(timeout); reject(new Error(`Vite ${code}`)); }); });
+  browser = await chromium.launch({ executablePath: '/opt/google/chrome/chrome', headless: true, args: ['--no-sandbox'] });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const cookie = registration.headers['set-cookie'].split(';')[0]; await context.addCookies([{ name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), url: new URL(base).origin }]);
+  await context.addInitScript(() => { window.localStorage.setItem('norte-language', 'pt'); const interval = window.setInterval.bind(window); window.setInterval = (callback, delay, ...args) => interval(callback, delay === 30000 ? 1500 : delay, ...args); });
+  page = await context.newPage(); const errors = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto(`${base}#/people`);
+  await page.getByLabel('Buscar pessoas').fill('Synthetic');
+  await page.waitForFunction(() => document.querySelectorAll('.people-directory tbody tr').length === 100);
+  await page.getByRole('button', { name: 'Carregar mais pessoas', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.people-directory tbody tr').length === 200);
+  await page.getByRole('button', { name: 'Carregar mais pessoas', exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.people-directory tbody tr').length === 205);
+  await page.waitForResponse(response => response.url().includes('/platform/people?q=Synthetic&offset=200') && response.status() === 200);
+  await page.waitForTimeout(100);
+  assert.equal(await page.locator('.people-directory tbody tr').count(), 205, 'poll retains every loaded page');
+  assert.equal(new Set(await page.locator('.people-directory tbody tr strong').allTextContents()).size, 205, 'no duplicates');
+  await page.getByLabel('Buscar pessoas').fill('Synthetic 204');
+  await page.waitForFunction(() => document.querySelectorAll('.people-directory tbody tr').length === 1);
+  await page.getByRole('row').filter({ hasText: 'Synthetic 204' }).waitFor();
+  await page.getByLabel('Buscar pessoas').fill('no-such-user');
+  await page.getByText('Nenhuma pessoa encontrada.', { exact: true }).waitFor();
+  // A stale response must not replace a newer search.
+  let release, started; const held = new Promise(resolve => { release = resolve; }), reached = new Promise(resolve => { started = resolve; });
+  await page.route('**/api/platform/people?**', async route => { const url = new URL(route.request().url()); if (url.searchParams.get('q') === 'Synthetic 000') { started(); await held; } await route.continue().catch(() => {}); });
+  await page.getByLabel('Buscar pessoas').fill('Synthetic 000'); await reached;
+  await page.getByLabel('Buscar pessoas').fill('Synthetic 204');
+  await page.getByRole('row').filter({ hasText: 'Synthetic 204' }).waitFor(); release();
+  await page.waitForTimeout(100); assert.equal(await page.locator('.people-directory tbody tr strong').first().innerText(), 'Synthetic 204');
+  await page.screenshot({ path: '/tmp/norte-people-directory-dark.png', fullPage: true });
+  await page.getByRole('button', { name: 'Ativar tema claro', exact: true }).click();
+  await page.screenshot({ path: '/tmp/norte-people-directory-light.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('.account-badge-trigger').click(); await page.locator('.account-menu').waitFor(); await page.waitForTimeout(400);
+  await page.screenshot({ path: '/tmp/norte-people-mobile-account.png', fullPage: true });
+  const menu = await page.locator('.account-menu').boundingBox(); assert.ok(menu.x >= 0 && menu.x + menu.width <= 391 && menu.y >= 0 && menu.y + menu.height <= 844, JSON.stringify(menu));
+  assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
+  assert.deepEqual(errors, []);
+  console.log('PASS: real directory with 205 people, load more, polling all pages, deduplication, search cancellation, loaded mobile account menu, light and dark. Isolated fixture; no model or external calls.');
+} catch (error) { if (page) { await page.screenshot({ path: '/tmp/norte-people-failure.png', fullPage: true }); console.error(await page.locator('body').innerText()); } throw error; }
+finally { await browser?.close(); vite?.kill('SIGTERM'); await app.close(); await rm(directory, { recursive: true, force: true }); }

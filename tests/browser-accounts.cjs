@@ -1,5 +1,5 @@
 // Real server.py + real Chrome: sign-up, roles and meetings saved in the account.
-// No paid calls: the TypeSafe key is blanked and no meeting is started.
+// No paid calls: keys are blanked; reference fixtures use an in-process fake classifier.
 // Optional: TEST_DATABASE_URL=postgresql://… runs it against Postgres instead of a temp SQLite file.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),net=require('node:net');
 const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:timers/promises');
@@ -17,7 +17,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   try{
     for(let i=0;i<100;i++){try{if((await fetch(base+'/healthz')).ok)break;}catch(_){}await sleep(100);}
     assert.equal(await fetch(base+'/healthz').then(r=>r.text()),'ok','server started: '+serverLog);
-    let devtools;for(let i=0;i<100;i++){try{devtools=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(100);}}
+    let devtools;for(let i=0;i<300;i++){try{devtools=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(100);}}
     const tabs=await fetch('http://127.0.0.1:'+devtools+'/json/list').then(r=>r.json());
     socket=new WebSocket(tabs.find(t=>t.type==='page').webSocketDebuggerUrl);await new Promise(r=>socket.addEventListener('open',r,{once:true}));
     let next=0;const pending=new Map(),errors=[];
@@ -25,8 +25,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++next;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));});
     const evaluate=async expression=>{const r=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(r.exceptionDetails)throw Error(JSON.stringify(r.exceptionDetails));return r.result.value;};
     const wait=async(expression,tries=200)=>{for(let i=0;i<tries;i++){try{if(await evaluate(expression))return;}catch(_){}await sleep(50);}throw Error('Timed out: '+expression+'; errors: '+JSON.stringify(errors));};
-    const field=(selector,value)=>evaluate(`(()=>{const n=document.querySelector(${JSON.stringify(selector)});n.value=${JSON.stringify(value)};n.dispatchEvent(new Event('input',{bubbles:true}));})()`);
-    const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+    const field=async(selector,value)=>{await wait(`document.readyState==='complete'&&!!document.querySelector(${JSON.stringify(selector)})`);return evaluate(`(()=>{const n=document.querySelector(${JSON.stringify(selector)});n.value=${JSON.stringify(value)};n.dispatchEvent(new Event('input',{bubbles:true}));})()`);};
+    const click=async selector=>{await wait(`document.readyState==='complete'&&!!document.querySelector(${JSON.stringify(selector)})`);return evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);};
     const visibleNav=()=>evaluate(`[...document.querySelectorAll('#sidebarNav .nav-item')].filter(n=>getComputedStyle(n).display!=='none').map(n=>n.id)`);
     const shot=async name=>{const image=await call('Page.captureScreenshot',{format:'png'});await fs.writeFile(path.join(os.tmpdir(),'norte-accounts-'+name+'.png'),Buffer.from(image.data,'base64'));};
     const go=async url=>{await call('Page.navigate',{url});await sleep(200);};
@@ -108,6 +108,62 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
     await field('#username','ana.teste');await field('#password','senha-da-ana');await click('#authSubmit');
     await wait('document.body.dataset.page==="beam" && document.querySelectorAll("#roomLibraryList tr").length===1');
     assert.equal(await evaluate('document.querySelector("#roomLibraryList .room-open-meeting").textContent'),'Viga da garagem');
+
+    // A real PDF URL survives sign-in and opens only the account's saved evidence.
+    const session=require('../meeting-session.js').create({title:'Referência privada da Ana',send:async request=>({request,provider:'official',latencyMs:1,response:{model:'fixture',answers:Object.fromEntries(Object.entries(request.questions).map(([id,q])=>{
+      if(q.type==='noul')return [id,{type:'noul',noul:.99}];
+      const choice=id==='command_type'?'conversation':id==='event_type'?'test_proposal':Object.keys(q.criteria)[0];
+      return [id,{type:'choice',choice,confidence:.99,probabilities:Object.fromEntries(Object.keys(q.criteria).map(key=>[key,key===choice?.99:.01/(Object.keys(q.criteria).length-1)]))}];
+    }))}})});
+    session.append('Vamos testar a viga sob 12 kN.');const referenceRun=await session.close();referenceRun.room_kind='beam';
+    assert.equal(referenceRun.status,'done',referenceRun.error);assert.equal(referenceRun.meeting_events.length,1);
+    const eventId=referenceRun.meeting_events[0].event_id;
+    const edit=require('../meeting-amendments.js').record(referenceRun,{type:'complete_test',test_id:eventId,performed:'Aplicamos 12 kN.',performed_at:'2026-10-15',result:'O deslocamento medido foi 24 mm.',outcome:'failed'});
+    const saveFixture=run=>evaluate(`fetch('/api/records',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key:'norte.meeting-room.session.v2.'+${JSON.stringify(run.id)},value:${JSON.stringify(JSON.stringify(run))}})}).then(r=>r.status)`);
+    assert.equal(await saveFixture(referenceRun),200);
+    const referenceUrl=base+'/?meeting='+encodeURIComponent(referenceRun.id)+'&event='+eventId+'#simulacao';
+    await click('#accountLogout');await wait('location.pathname==="/login"');
+    await go(referenceUrl);await wait('location.pathname==="/login" && !!new URLSearchParams(location.search).get("next")');
+    await click('#tabSignup');await click('#tabLogin');
+    assert.equal(await evaluate('!!new URLSearchParams(location.search).get("next")'),true,'switching login tabs retains the return path');
+    await field('#username','ana.teste');await field('#password','senha-da-ana');await click('#authSubmit');
+    await wait('document.body.dataset.page==="beam" && !!document.querySelector(".room-diagnostics[open]")');
+    assert.equal(await evaluate('NorteMeetingRoom.snapshot().id'),referenceRun.id);
+    assert.match(await evaluate('document.querySelector(".room-diagnostics").textContent'),/testar a viga sob 12 kN/);
+    assert.equal(await evaluate('document.querySelector(".room-diagnostic-log")'),null,'ordinary accounts have no raw prompts, outputs or jobs in the evidence dialog');
+    await evaluate('document.querySelector(".room-diagnostics").close()');
+    await go(base+'/?meeting='+encodeURIComponent(referenceRun.id)+'&event=PM_RESULT_'+edit.id+'#simulacao');
+    await wait('!!document.querySelector(".room-diagnostics[open]")');
+    assert.match(await evaluate('document.querySelector(".room-diagnostics").textContent'),/24 mm/);
+    assert.match(await evaluate('document.querySelector(".room-diagnostics").textContent'),/revisão humana/);
+    await evaluate('document.querySelector(".room-diagnostics").close()');
+    await go(base+'/?meeting='+encodeURIComponent(referenceRun.id)+'&event=absent#simulacao');
+    await wait('document.querySelector("#roomNotice").textContent.includes("registro indicado não está disponível")');
+    assert.equal(await evaluate('document.querySelector(".room-diagnostics")'),null);
+    const regularRun={...structuredClone(referenceRun),id:'normal-reference',room_kind:'meeting'};
+    assert.equal(await saveFixture(regularRun),200);
+    await go(base+'/?meeting=normal-reference&event='+eventId+'#reuniao');
+    await wait('document.body.dataset.page==="meeting" && !!document.querySelector(".room-diagnostics[open]")');
+    assert.equal(await evaluate('getComputedStyle(document.querySelector(".app-shell")).visibility'),'visible','ordinary meeting references are readable without exposing admin workspaces');
+    await evaluate('document.querySelector(".room-diagnostics").close()');
+
+    await click('#accountLogout');await wait('location.pathname==="/login"');
+    await go(referenceUrl);await wait('location.pathname==="/login" && !!document.querySelector("#authForm")');
+    await field('#username','admin');await field('#password','admin-teste-123');await click('#authSubmit');
+    await wait('document.querySelector("#roomLibraryNotice")?.textContent.includes("não está disponível nesta conta")');
+    assert.equal(await evaluate('NorteMeetingRoom.snapshot()'),null,'even an admin cannot use a PDF URL to read another account');
+    assert.equal(await evaluate('document.querySelector(".room-diagnostics")'),null);
+    assert.equal(await saveFixture(referenceRun),200);
+    await call('Page.reload');await wait('!!document.querySelector(".room-diagnostic-log")');
+    assert.equal(await evaluate('document.querySelector(".room-diagnostic-log").open'),false);
+    assert.match(await evaluate('document.querySelector(".room-diagnostic-log pre").textContent'),/should_store_memory/);
+    await evaluate('document.querySelector(".room-diagnostics").close()');
+    await click('#accountLogout');await wait('location.pathname==="/login"');
+    await go(base+'/login?next='+encodeURIComponent('//attacker.invalid/'));
+    await field('#username','ana.teste');await field('#password','senha-da-ana');await click('#authSubmit');
+    await wait('document.body.dataset.role==="user" && document.body.dataset.page==="beam"');
+    assert.equal(await evaluate('location.origin'),base,'a crafted login destination cannot redirect to another origin');
+    assert.equal(await evaluate('location.search'),'');
     assert.deepEqual(errors,[],'no uncaught page errors');
     console.log('browser-accounts: ok ('+(process.env.TEST_DATABASE_URL?'postgres':'sqlite')+')');
   }finally{

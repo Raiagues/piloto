@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Start Norte locally in the background: database, API and web client.
+# Runs ./setup first when the project was never set up. Stop with ./stop.
+set -Eeo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/local.sh"
+cd "$NORTE_ROOT"
+
+if pid="$(running_pid)"; then
+  ok "Norte is already running (pid $pid)."
+  print_urls
+  exit 0
+fi
+
+if [ ! -f "$NORTE_ENV_FILE" ] || ! use_node || ! dependencies_installed; then
+  step "First run: setting up"
+  ./setup
+  use_node || die "Node.js $NORTE_NODE_VERSION or newer is not available. Run ./setup and check its output."
+fi
+
+if uses_local_postgres; then
+  docker_ready || die "Docker is not running. Start Docker (sudo systemctl start docker) and run ./start again."
+  ensure_postgres
+fi
+
+mkdir -p "$(dirname "$NORTE_PID_FILE")" "$(dirname "$NORTE_LOG_FILE")"
+[ -f "$NORTE_LOG_FILE" ] && mv "$NORTE_LOG_FILE" "$NORTE_LOG_FILE.1"
+
+step "Starting API and web client"
+# A new session lets ./stop signal the launcher and both children together.
+# Without setsid (macOS) the launcher still forwards SIGTERM to its children.
+if command -v setsid >/dev/null 2>&1; then
+  setsid nohup node scripts/dev.mjs > "$NORTE_LOG_FILE" 2>&1 < /dev/null &
+else
+  nohup node scripts/dev.mjs > "$NORTE_LOG_FILE" 2>&1 < /dev/null &
+fi
+pid=$!
+echo "$pid" > "$NORTE_PID_FILE"
+
+responds() {
+  node -e 'fetch(process.argv[1]).then((response) => process.exit(response.ok ? 0 : 1), () => process.exit(1))' "$1"
+}
+
+for attempt in $(seq 1 90); do
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$NORTE_PID_FILE"
+    tail -n 40 "$NORTE_LOG_FILE" >&2
+    die "Norte stopped during startup. Full log: var/log/norte.log"
+  fi
+  web="$(logged_url web)"
+  api="$(logged_url API)"
+  if [ -n "$web" ] && [ -n "$api" ] && responds "${api%/docs}/api/health" && responds "$web"; then
+    ok "Norte is running (pid $pid)."
+    print_urls
+    exit 0
+  fi
+  sleep 1
+done
+
+warn "Norte is still starting after 90 s. Follow the log with: tail -f var/log/norte.log"
+print_urls

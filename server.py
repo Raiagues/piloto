@@ -21,14 +21,37 @@ import zlib
 from http.cookies import CookieError, SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 import auth
 from config import Settings, load_settings
 import gemini_minutes
+import meeting_bridge
 import ai_runtime
 
 ROOT = Path(__file__).resolve().parent
+
+
+def meeting_return_path(value):
+    """Only return to a meeting in this app; never redirect to user-supplied hosts."""
+    if not isinstance(value, str) or len(value) > 1000 or '\\' in value or any(ord(c) < 32 for c in value):
+        return '/'
+    try:
+        target = urlsplit(value)
+        if target.scheme or target.netloc or target.path not in ('/', '/index.html'):
+            return '/'
+        query = parse_qs(target.query)
+        meeting, event = query.get('meeting', [''])[0], query.get('event', [''])[0]
+        if not re.fullmatch(r'[A-Za-z0-9_.:-]{1,160}', meeting): return '/'
+        if event and not re.fullmatch(r'[A-Za-z0-9_.:-]{1,160}', event): return '/'
+        params = {'meeting': meeting}
+        if event: params['event'] = event
+        fragment = '#' + target.fragment if target.fragment in ('reuniao', 'simulacao') else ''
+        return '/?' + urlencode(params) + fragment
+    except ValueError:
+        return '/'
+
+
 ALLOWED = {'index.html', 'styles.css', 'memory-flow.css', 'memory-flow.js', 'memory-page.js', 'relation-worker.js', 'app.js', 'transcription.js', 'speech-windows.js', 'classifier.js', 'workspace.js', 'experiments.js', 'automation.js', 'lab.js', 'classifier-config.json', 'manual-test-example.json'}
 ENGINE_URL = ''
 ALLOWED.update({'memory-v2.js','gemini-minutes.js','gemini-minutes.css','reuniao.html','meeting-room.js','meeting-room.css','meeting-canvas.js','meeting-canvas.css','meeting-session.js','meeting-commands.js','meeting-hierarchy.js','meeting-evidence.js','meeting-state.js','meeting-review.js'})
@@ -36,6 +59,7 @@ ALLOWED.update({'beam-engine.js','beam-commands.js','beam-workspace.js','beam-wo
 ALLOWED.update({'meeting-document.js','meeting-amendments.js'})
 ALLOWED.update({'account.js', 'account.css', 'remote-storage.js'})
 ALLOWED.update({'ai-client.js', 'ai-observatory.js', 'ai-observatory.css'})
+ALLOWED.update({'meeting-blocks.js', 'meeting-blocks.css'})
 ALLOWED.update({'typed-relations.js', 'typed-relations-page.js', 'meeting-minutes.js', 'meeting-minutes.css', 'relation-map.js', 'relation-map.css', 'memory-storage.js',
                 'vendor/minutes/jspdf-4.2.1.umd.min.js', 'vendor/minutes/DejaVuSans-2.37.ttf',
                 'tests/fixtures/typed-relations-curated.json', 'tests/fixtures/typed-relations-holdout.json', 'tests/fixtures/typed-relations-b002.json',
@@ -57,6 +81,7 @@ MAX_RECORD_REQUEST = 32_000_000
 POST_ROUTES = ('/api/classify', '/api/relations', '/api/typed-relations', '/api/minutes', '/api/records',
                '/api/auth/login', '/api/auth/signup', '/api/auth/logout',
                '/api/ai/events', '/api/ai/resolve', '/api/ai/memory/query',
+               '/api/ai/blocks/review', '/api/ai/blocks/feedback', '/api/admin/ai/blocks/memory',
                '/api/admin/ai/replay', '/api/admin/ai/run', '/api/admin/ai/aliases')
 AI_THROTTLE = auth.Throttle(120, 60)
 AI_ADMIN_THROTTLE = auth.Throttle(10, 60)
@@ -235,7 +260,18 @@ class Handler(SimpleHTTPRequestHandler):
         return cookie[COOKIE].value if COOKIE in cookie else None
     def current_user(self):
         if STORE is None: return None
-        try: return STORE.session_user(self.session_token())
+        if hasattr(self, '_bridge_user'): return self._bridge_user
+        try:
+            if meeting_bridge.enabled() or self.headers.get('X-Norte-Bridge-Signature'):
+                self._bridge_user = None
+                length = int(self.headers.get('Content-Length', '0'))
+                if length < 0 or length > MAX_RECORD_REQUEST: return None
+                self._bridge_raw = self.rfile.read(length) if length else b''
+                if len(self._bridge_raw) != length: return None
+                identity = meeting_bridge.verify(self.command, self.path, self.headers, self._bridge_raw, self.client_address[0])
+                if identity: self._bridge_user = meeting_bridge.storage_user(STORE, identity)
+                return self._bridge_user
+            return STORE.session_user(self.session_token())
         except Exception as error:  # Database outage: behave as signed out, never as signed in.
             self.log_error('session lookup failed: %s', type(error).__name__)
             return None
@@ -257,7 +293,7 @@ class Handler(SimpleHTTPRequestHandler):
     def read_json(self, limit, allow_gzip=False):
         length = int(self.headers.get('Content-Length', '0'))
         if not 0 < length <= limit: raise OverflowError('Requisição muito grande ou vazia.')
-        raw = self.rfile.read(length)
+        raw = self._bridge_raw if hasattr(self, '_bridge_raw') else self.rfile.read(length)
         encoding = self.headers.get('Content-Encoding', '').strip().lower()
         if encoding == 'gzip' and allow_gzip:
             inflater = zlib.decompressobj(16 + zlib.MAX_WBITS)
@@ -328,9 +364,13 @@ class Handler(SimpleHTTPRequestHandler):
         name = 'index.html' if route == '/' else 'login.html' if route == '/login' else route[1:]
         if name not in ALLOWED and name not in PUBLIC: return self.send_error(404)
         user = self.current_user()
-        if name == 'login.html' and user: return self.redirect('/')
+        if name == 'login.html' and user:
+            return self.redirect(meeting_return_path(parse_qs(urlsplit(self.path).query).get('next', ['/'])[0]))
         if name not in PUBLIC:
-            if not user: return self.redirect('/login') if name.endswith('.html') else self.send_error(401)
+            if not user:
+                destination = meeting_return_path(self.path)
+                login = '/login' + ('?' + urlencode({'next': destination}) if destination != '/' else '')
+                return self.redirect(login) if name.endswith('.html') else self.send_error(401)
             if name in ADMIN_ONLY and user['role'] != 'admin': return self.send_error(404)
             if name == 'index.html': return self.send_index(user)
         self.path = '/' + name
@@ -341,7 +381,9 @@ class Handler(SimpleHTTPRequestHandler):
         if not self.valid_host(): return self.json_response(403, {'error': 'Host não permitido.'})
         if not self.valid_origin(): return self.json_response(403, {'error': 'Origem não permitida.'})
         if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json': return self.json_response(415, {'error': 'Envie application/json.'})
-        if self.path.startswith('/api/auth/'): return self.account(self.path.rsplit('/', 1)[1])
+        if self.path.startswith('/api/auth/'):
+            if meeting_bridge.enabled(): return self.json_response(403, {'error': 'Entre pela conta do Norte.'})
+            return self.account(self.path.rsplit('/', 1)[1])
         user = self.current_user()
         if not user: return self.json_response(401, AUTH_REQUIRED)
         if self.path == '/api/records': return self.write_record(user)
@@ -393,6 +435,9 @@ class Handler(SimpleHTTPRequestHandler):
             if not isinstance(body, dict): raise ValueError('Requisição inválida.')
             if self.path == '/api/ai/events': result = AI_RUNTIME.ingest(user['id'], body)
             elif self.path == '/api/ai/resolve': result = AI_RUNTIME.resolve(user['id'], body)
+            elif self.path == '/api/ai/blocks/review': result = AI_RUNTIME.blocks.review(user['id'], body)
+            elif self.path == '/api/ai/blocks/feedback': result = AI_RUNTIME.blocks.feedback(user['id'], body)
+            elif self.path == '/api/admin/ai/blocks/memory': result = AI_RUNTIME.blocks.disable(body)
             elif self.path == '/api/ai/memory/query':
                 if set(body) - {'query', 'session_id'}: raise ValueError('Campos da consulta inválidos.')
                 result = AI_RUNTIME.memory.query(user['id'], body.get('query'), body.get('session_id'))
@@ -505,6 +550,8 @@ def main():
     parser.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
     parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', '8000')))
     args = parser.parse_args()
+    if meeting_bridge.enabled() and (args.host not in ('127.0.0.1', 'localhost', '::1') or len(os.environ.get('NORTE_MEETING_BRIDGE_SECRET', '')) < 32):
+        raise SystemExit('A ponte Norte exige endereço local e segredo privado de pelo menos 32 caracteres.')
     try: SETTINGS = load_settings()
     except (OSError, ValueError) as error: raise SystemExit(str(error))
     try: STORE = open_store(SETTINGS)

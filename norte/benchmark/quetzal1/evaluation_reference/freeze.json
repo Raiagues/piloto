@@ -1,0 +1,14 @@
+{
+  "revision": "v0.1-development.1",
+  "frozenAt": "2026-09-08T00:57:54.660975+00:00",
+  "status": "development_freeze; independent engineering review pending",
+  "policy": "New model runs must occur after this freeze. Previously inspected output reassessments are diagnostic and do not replace original reports. Any scoring or reference change requires a new revision.",
+  "files": {
+    "benchmark/quetzal1/context/design-context.mjs": "4a48f4ab8bebd7dd8e10628c7c459729074b070ddc64017cb9830bf011fa1502",
+    "benchmark/quetzal1/evaluation_reference/expectations.json": "ce5655219536591b3f75bdfdd21d286240a84f7b0d4cba25bfb0f8642a1c108d",
+    "benchmark/quetzal1/evaluation_reference/reference-arithmetic.mjs": "0c593c095b43b4b949797937116ff48f1c68d652d73d8412900bfb0e482238f8",
+    "scripts/quetzal-evaluator.mjs": "c2ad2a06865d85d38db58fb6a42fd20c3147bd8b53bc4b0bcf3e11cd49f562d2",
+    "scripts/benchmark-quetzal.mjs": "03e83b5216596414b9e3f7cf442779727a2da8b76294ac3d016821b9df079ae1",
+    "docs/VALIDATED.md": "3dcbe509717a8285a31bef4b49b561996a2ffb8882ca5937589592fced450029"
+  }
+}

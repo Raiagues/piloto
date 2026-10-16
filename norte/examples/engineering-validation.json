@@ -1,0 +1,580 @@
+{
+  "schemaVersion": 1,
+  "id": "validation-system",
+  "name": "Engineering validation rig",
+  "generatedAt": "2026-01-01T00:00:00.000Z",
+  "generatedFromRevision": 0,
+  "entities": [
+    {
+      "id": "system",
+      "name": "Validation rig",
+      "kind": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "power",
+      "name": "Power",
+      "kind": "subsystem",
+      "parentId": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "communication",
+      "name": "Communication",
+      "kind": "subsystem",
+      "parentId": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "payload-system",
+      "name": "Payload",
+      "kind": "subsystem",
+      "parentId": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "thermal",
+      "name": "Thermal enclosure",
+      "kind": "subsystem",
+      "parentId": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "structure-system",
+      "name": "Structure",
+      "kind": "subsystem",
+      "parentId": "system",
+      "description": "",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "radio",
+      "name": "Radio R1",
+      "kind": "component",
+      "parentId": "communication",
+      "description": "",
+      "properties": [
+        {
+          "key": "peak_current",
+          "name": "peak current",
+          "value": 400,
+          "unit": "mA",
+          "source": "documented",
+          "evidenceRefs": [
+            "radio"
+          ]
+        },
+        {
+          "key": "operating_power",
+          "name": "operating power",
+          "value": 1,
+          "unit": "W",
+          "source": "documented",
+          "evidenceRefs": [
+            "radio"
+          ]
+        },
+        {
+          "key": "minimum_voltage",
+          "name": "minimum voltage",
+          "value": 3,
+          "unit": "V",
+          "source": "documented",
+          "evidenceRefs": [
+            "radio"
+          ]
+        },
+        {
+          "key": "maximum_voltage",
+          "name": "maximum voltage",
+          "value": 5,
+          "unit": "V",
+          "source": "documented",
+          "evidenceRefs": [
+            "radio"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "radio"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "regulator",
+      "name": "Regulator",
+      "kind": "component",
+      "parentId": "power",
+      "description": "",
+      "properties": [
+        {
+          "key": "available_current",
+          "name": "available current",
+          "value": 800,
+          "unit": "mA",
+          "source": "documented",
+          "evidenceRefs": [
+            "regulator"
+          ]
+        },
+        {
+          "key": "output_voltage",
+          "name": "output voltage",
+          "value": 3.3,
+          "unit": "V",
+          "source": "documented",
+          "evidenceRefs": [
+            "regulator"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "regulator"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "battery",
+      "name": "Battery",
+      "kind": "component",
+      "parentId": "power",
+      "description": "",
+      "properties": [
+        {
+          "key": "available_energy",
+          "name": "available energy",
+          "value": 8,
+          "unit": "Wh",
+          "source": "documented",
+          "evidenceRefs": [
+            "battery"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "battery"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "base-load",
+      "name": "Base load",
+      "kind": "component",
+      "parentId": "power",
+      "description": "",
+      "properties": [
+        {
+          "key": "operating_power",
+          "name": "operating power",
+          "value": 5,
+          "unit": "W",
+          "source": "documented",
+          "evidenceRefs": [
+            "base-load"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "base-load"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "power-budget",
+      "name": "Power budget",
+      "kind": "calculation",
+      "parentId": "power",
+      "description": "",
+      "properties": [
+        {
+          "key": "formula",
+          "name": "formula",
+          "value": "sum_power",
+          "source": "documented",
+          "evidenceRefs": [
+            "power-formula"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "autonomy",
+      "name": "Autonomy",
+      "kind": "performance",
+      "parentId": "power",
+      "description": "",
+      "properties": [
+        {
+          "key": "formula",
+          "name": "formula",
+          "value": "energy_over_power",
+          "source": "documented",
+          "evidenceRefs": [
+            "power-formula"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "payload",
+      "name": "Payload instrument",
+      "kind": "component",
+      "parentId": "payload-system",
+      "description": "",
+      "properties": [
+        {
+          "key": "mass",
+          "name": "mass",
+          "value": 120,
+          "unit": "g",
+          "source": "documented",
+          "evidenceRefs": [
+            "mass"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "mass"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "structure",
+      "name": "Structure frame",
+      "kind": "component",
+      "parentId": "structure-system",
+      "description": "",
+      "properties": [
+        {
+          "key": "mass",
+          "name": "mass",
+          "value": 100,
+          "unit": "g",
+          "source": "documented",
+          "evidenceRefs": [
+            "mass"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "mass"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "total-mass",
+      "name": "Total mass",
+      "kind": "calculation",
+      "parentId": "structure-system",
+      "description": "",
+      "properties": [
+        {
+          "key": "formula",
+          "name": "formula",
+          "value": "sum_mass",
+          "source": "documented",
+          "evidenceRefs": [
+            "mass"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "mass"
+      ],
+      "confidence": 1
+    }
+  ],
+  "relations": [
+    {
+      "id": "regulator-radio",
+      "from": "regulator",
+      "to": "radio",
+      "kind": "powers",
+      "label": "powers",
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "radio-budget",
+      "from": "radio",
+      "to": "power-budget",
+      "kind": "contributes_to",
+      "label": "contributes to",
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "base-budget",
+      "from": "base-load",
+      "to": "power-budget",
+      "kind": "contributes_to",
+      "label": "contributes to",
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "autonomy-power",
+      "from": "autonomy",
+      "to": "power-budget",
+      "kind": "derived_from",
+      "label": "derived from",
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "autonomy-energy",
+      "from": "autonomy",
+      "to": "battery",
+      "kind": "derived_from",
+      "label": "derived from",
+      "source": "documented",
+      "evidenceRefs": [
+        "power-formula"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "radio-thermal",
+      "from": "radio",
+      "to": "thermal",
+      "kind": "thermal_coupling",
+      "label": "thermal coupling",
+      "source": "documented",
+      "evidenceRefs": [
+        "architecture"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "payload-mass",
+      "from": "payload",
+      "to": "total-mass",
+      "kind": "contributes_to",
+      "label": "contributes to",
+      "source": "documented",
+      "evidenceRefs": [
+        "mass"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "structure-mass",
+      "from": "structure",
+      "to": "total-mass",
+      "kind": "contributes_to",
+      "label": "contributes to",
+      "source": "documented",
+      "evidenceRefs": [
+        "mass"
+      ],
+      "confidence": 1
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-07",
+      "title": "Minimum autonomy",
+      "statement": "Autonomy ≥ 90 min",
+      "originalStatement": "Autonomy ≥ 90 min",
+      "subsystemTags": [
+        "Power"
+      ],
+      "reviewTags": [],
+      "status": "unreviewed",
+      "sourceRefs": [
+        "req-duration"
+      ],
+      "relatedEntityIds": [
+        "autonomy"
+      ],
+      "relatedRelationIds": [],
+      "properties": [
+        {
+          "key": "minimum_autonomy",
+          "name": "minimum autonomy",
+          "value": 90,
+          "unit": "min",
+          "source": "documented",
+          "evidenceRefs": [
+            "req-duration"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "REQ-01",
+      "title": "Maximum mass",
+      "statement": "Total mass ≤ 350 g",
+      "originalStatement": "Total mass ≤ 350 g",
+      "subsystemTags": [
+        "Structure"
+      ],
+      "reviewTags": [],
+      "status": "unreviewed",
+      "sourceRefs": [
+        "req-mass"
+      ],
+      "relatedEntityIds": [
+        "total-mass"
+      ],
+      "relatedRelationIds": [],
+      "properties": [
+        {
+          "key": "maximum_mass",
+          "name": "maximum mass",
+          "value": 350,
+          "unit": "g",
+          "source": "documented",
+          "evidenceRefs": [
+            "req-mass"
+          ]
+        }
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "id": "architecture",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L1",
+      "excerpt": "Validation rig contains Power, Communication, Payload, Thermal and Structure subsystems. Regulator powers Radio. Radio is thermally coupled to the enclosure.",
+      "kind": "fact"
+    },
+    {
+      "id": "radio",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L2",
+      "excerpt": "Radio R1 peak current is 400 mA. Operating power is 1 W. Supported supply voltage is 3 V to 5 V.",
+      "kind": "fact"
+    },
+    {
+      "id": "regulator",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L3",
+      "excerpt": "Regulator continuous output limit is 800 mA. Output voltage is 3.3 V.",
+      "kind": "fact"
+    },
+    {
+      "id": "battery",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L4",
+      "excerpt": "Battery available energy is 8 Wh.",
+      "kind": "fact"
+    },
+    {
+      "id": "base-load",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L5",
+      "excerpt": "Base load operating power is 5 W.",
+      "kind": "fact"
+    },
+    {
+      "id": "power-formula",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L6",
+      "excerpt": "Power budget is the sum of Radio operating power and Base load operating power. Autonomy in minutes is available Battery energy in Wh divided by Power budget in W, multiplied by 60.",
+      "kind": "fact"
+    },
+    {
+      "id": "mass",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L7",
+      "excerpt": "Payload mass is 120 g. Structure mass is 100 g. Total mass is the sum of Payload mass and Structure mass.",
+      "kind": "fact"
+    },
+    {
+      "id": "req-duration",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L8",
+      "excerpt": "REQ-07: Minimum autonomy is 90 min. It is verified using the Autonomy calculation.",
+      "kind": "fact"
+    },
+    {
+      "id": "req-mass",
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "locator": "L9",
+      "excerpt": "REQ-01: Maximum total mass is 350 g. It is verified using the Total mass calculation.",
+      "kind": "fact"
+    }
+  ],
+  "artifactSources": [
+    {
+      "artifactId": "validation-memory",
+      "artifactLabel": "Explicit engineering validation fixture",
+      "status": "parsed"
+    }
+  ]
+}

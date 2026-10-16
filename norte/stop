@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Stop everything ./start launched. Data is kept for the next ./start.
+set -Eeo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/local.sh"
+cd "$NORTE_ROOT"
+
+if pid="$(running_pid)"; then
+  step "Stopping API and web client (pid $pid)"
+  kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+  for attempt in $(seq 1 20); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.5
+  done
+  if kill -0 "$pid" 2>/dev/null; then
+    warn "Still running after 10 s; forcing it to stop."
+    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+  fi
+  ok "API and web client stopped"
+else
+  ok "API and web client were not running"
+fi
+rm -f "$NORTE_PID_FILE"
+
+if docker_ready && [ "$(database_container_state)" = "running" ]; then
+  step "Stopping PostgreSQL ($NORTE_DB_CONTAINER)"
+  docker stop "$NORTE_DB_CONTAINER" >/dev/null
+  ok "PostgreSQL stopped; data stays in the Docker volume $NORTE_DB_VOLUME"
+fi

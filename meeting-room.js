@@ -5,26 +5,27 @@ function openPage(){
  if(boot)return boot;
  boot=(async function(){
  const dependencies=[
-  ['NorteMemoryStorage','memory-storage.js?v=20261009-1'],
-  ['NorteMemoryV2','memory-v2.js?v=20261009-1'],
-  ['NorteTypedRelations','typed-relations.js?v=20261009-1'],
-  ['NorteMeetingCommands','meeting-commands.js?v=20261009-1'],
-  ['NorteMeetingSession','meeting-session.js?v=20261009-1'],
-  ['NorteMeetingSpeech','meeting-speech.js?v=20261009-1'],
-  ['NorteMeetingEvidence','meeting-evidence.js?v=20261009-1'],
-  ['NorteMeetingState','meeting-state.js?v=20261009-1'],
-  ['NorteMeetingReview','meeting-review.js?v=20261009-1'],
-  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261009-1'],
-  ['NorteMeetingCanvas','meeting-canvas.js?v=20261009-1'],
-  ['NorteMinutes','meeting-minutes.js?v=20261009-1'],
-  ['NorteMeetingAmendments','meeting-amendments.js?v=20261009-1'],
-  ['NorteMeetingDocument','meeting-document.js?v=20261009-1'],
-  ['NorteGeminiMinutes','gemini-minutes.js?v=20261009-1']
+  ['NorteMemoryStorage','memory-storage.js?v=20261015-2'],
+  ['NorteMemoryV2','memory-v2.js?v=20261015-2'],
+  ['NorteTypedRelations','typed-relations.js?v=20261015-2'],
+  ['NorteMeetingCommands','meeting-commands.js?v=20261015-2'],
+  ['NorteMeetingSession','meeting-session.js?v=20261015-2'],
+  ['NorteMeetingSpeech','meeting-speech.js?v=20261015-2'],
+  ['NorteMeetingEvidence','meeting-evidence.js?v=20261015-2'],
+  ['NorteMeetingState','meeting-state.js?v=20261015-2'],
+  ['NorteMeetingReview','meeting-review.js?v=20261015-2'],
+  ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261015-2'],
+  ['NorteMeetingBlocks','meeting-blocks.js?v=20261015-2'],
+  ['NorteMeetingCanvas','meeting-canvas.js?v=20261015-2'],
+  ['NorteMinutes','meeting-minutes.js?v=20261015-2'],
+  ['NorteMeetingAmendments','meeting-amendments.js?v=20261015-2'],
+  ['NorteMeetingDocument','meeting-document.js?v=20261015-2'],
+  ['NorteGeminiMinutes','gemini-minutes.js?v=20261015-2']
  ];
  // Signed in: meetings live in the account (server database) instead of this browser.
- if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261009-1'],['NorteAI','ai-client.js?v=20261009-1']);
+ if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261015-2'],['NorteAI','ai-client.js?v=20261015-2']);
  for(const [name,file] of dependencies){if(!window[name])await import('./'+file);if(!window[name])throw Error('Não foi possível carregar a página de reunião.');}
- for(const file of ['meeting-minutes.css?v=20261009-1','gemini-minutes.css?v=20261009-1']){
+ for(const file of ['meeting-minutes.css?v=20261015-2','gemini-minutes.css?v=20261015-2','meeting-blocks.css?v=20261015-2']){
   if(![...document.querySelectorAll('link[rel="stylesheet"]')].some(link=>link.href.endsWith(file))){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file;document.head.append(link);}
  }
  await initialize();
@@ -36,22 +37,26 @@ if(['meeting','beam'].includes(document.body.dataset.page))openPage();
 async function initialize(){
 'use strict';
 const $=id=>document.getElementById(id),Session=NorteMeetingSession;
+const integrated=window.NorteMeetingBridge||null,canWrite=()=>!integrated||integrated.canWrite();
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n;};
 const button=(label,fn,cls='compact-button')=>{const n=el('button',cls,label);n.type='button';n.onclick=fn;return n;};
 let current=null,controller=null,mode=null,ready=false,provider='official',starting=false,closing=false,renaming=null,db=null,saveTimer=null,saveQueue=Promise.resolve(),renderFrame=0,lastTranscript='',history=[],view='library',initialized=false;
 let recognition=null,listening=false,micPaused=false,ledger=null,consumed=new Set(),micEnd=null,restartTimer=null,recognitionErrors=0,micStopping=false,stopPromise=null;
 let recognitionWindow=null,recognitionDeadline=null;
 let beamIntegration=null,beamBoot=null,savesPending=0;
+let pendingContributions=[],pendingTyped=null;
 async function ensureBeam(){
  if(beamIntegration)return beamIntegration;
  if(!beamBoot)beamBoot=(async()=>{
-  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261009-1');
-  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261009-1';document.head.append(link);}
-  beamIntegration=NorteMeetingBeam.create({getRun:()=>current,save:saveSoon,notice,canSubmit:()=>current?.status==='draft'||!!controller?.accepting,submitFacts:async facts=>{
+  for(const file of ['beam-engine.js','beam-commands.js','beam-workspace.js','meeting-beam.js'])await import('./'+file+'?v=20261015-2');
+  for(const file of ['beam-workspace.css','meeting-beam.css']){const link=document.createElement('link');link.rel='stylesheet';link.href='./'+file+'?v=20261015-2';document.head.append(link);}
+  beamIntegration=NorteMeetingBeam.create({getRun:()=>current,save:saveSoon,notice,canSubmit:()=>canWrite()&&(current?.status==='draft'||!!controller?.accepting),submitFacts:async facts=>{
+   if(!canWrite())return false;
    if(current?.status==='draft'&&!await begin('text'))return false;
    if(!controller?.accepting){notice('Esta reunião já foi encerrada. Crie uma nova reunião para registrar outras simulações.');return false;}
    try{return controller.appendFacts(facts);}catch(error){notice(cleanError(error));return false;}
   },submit:async(text,meta={})=>{
+   if(!canWrite())return false;
    if(current?.status==='draft'&&!await begin('text'))return false;
    if(!controller?.accepting){notice('Esta reunião já foi encerrada. Crie uma nova reunião para registrar outras simulações.');return false;}
    appendTurn({text,segmentId:'beam:'+crypto.randomUUID(),...meta},meta.source||'typed');return true;
@@ -61,13 +66,15 @@ async function ensureBeam(){
  return beamBoot;
 }
 const roomKind=()=>document.body.dataset.page==='beam'?'beam':'meeting';
-const finishHome=$('roomFinish').parentElement;
+const finishHome=integrated?document.querySelector('.room-recording-controls'):$('roomFinish').parentElement;
 const INDEX='norte.meeting-room.index.v2',MIGRATED='norte.meeting-room.library-reset.v2';
 const inAccount=document.body.dataset.auth==='on',savedWhere=inAccount?'na sua conta':'no navegador';
 const saveKey=id=>'norte.meeting-room.session.v2.'+id;
 const cleanError=e=>String(e?.message||e||'Não foi possível concluir a operação.').replace(/Gemini(?: Pro)?|TypeSafe|Jev(?: oficial)?/gi,'serviço');
-const canvas=NorteMeetingCanvas.create({canvas:$('roomCanvas'),board:$('roomBoard'),onRename:renameTopic,onInspect:inspectEvidence});
-NorteLayout.bind({id:'#roomTranscriptDivider',host:'#roomWorkspace',property:'--room-canvas-height',initial:()=>roomKind()==='beam'?78:70,axis:()=> 'y',min:25,max:85,pixels:()=>[200,100],gutter:12});
+const canvas=NorteMeetingCanvas.create({canvas:$('roomCanvas'),board:$('roomBoard'),onRename:renameTopic,onInspect:inspectEvidence,onReview:(kind,id)=>{if(canWrite())blockAgents?.edit(kind,id);}});
+const blockStatus=el('small','room-block-status');blockStatus.setAttribute('role','status');$('roomSave').parentElement.append(blockStatus);
+const blockAgents=inAccount&&canWrite()?NorteMeetingBlocks.create({getRun:()=>canWrite()?current:null,onUpdate:()=>render(),onSave:save,onStatus:status=>{blockStatus.textContent=({pending:'Revisando blocos…',waiting:'Próxima revisão em instantes',ready:'Revisão dos blocos concluída',disabled:'Revisão automática desativada',error:'Revisão indisponível; falas preservadas'})[status]||'';}}):null;
+NorteLayout.bind({id:'#roomTranscriptDivider',host:'#roomWorkspace',property:'--room-canvas-height',initial:()=>roomKind()==='beam'?78:integrated?60:70,axis:()=> 'y',min:25,max:85,pixels:()=>[200,100],gutter:12});
 function notice(message=''){for(const id of ['roomNotice','roomLibraryNotice']){const target=$(id);if(target){target.textContent=message;target.hidden=!message;}}}
 async function checkHealth(){try{const r=await fetch('/api/health',{signal:AbortSignal.timeout(5000)});const data=await r.json();ready=!!data.ready;provider=data.provider||'official';if(!ready)notice('A conexão de processamento não está pronta. Confira o serviço antes de começar.');}catch(_){ready=false;notice('Não foi possível conectar. Verifique se o serviço está aberto.');}controls();return ready;}
 async function send(request,requestProvider,lane){
@@ -101,6 +108,7 @@ async function resetLegacyMeetings(){
 function saveSoon(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>save(),250);}
 function save(){
  clearTimeout(saveTimer);
+ if(integrated&&!canWrite())return Promise.resolve(!integrated.host);
  if(!current)return saveQueue.then(()=>true);
  if(!db){notice('Não foi possível salvar '+savedWhere+'. A reunião continuará aberta para você baixar a ata.');return Promise.resolve(false);}
  const snapshot=JSON.stringify(current),item={id:current.id,title:current.title,date:current.createdAt,startedAt:current.startedAt,status:current.status,points:current.meeting_events.length,room_kind:current.room_kind||'meeting'};
@@ -108,7 +116,7 @@ function save(){
  saveQueue=saveQueue.catch(()=>{}).then(async()=>{
   await db.write(saveKey(item.id),snapshot);
   history=await db.change(INDEX,raw=>{let list=raw?JSON.parse(raw):[];list=[item,...list.filter(x=>x.id!==item.id)].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));return {value:JSON.stringify(list),result:list};});
-  renderLibrary();$('roomSave').textContent=inAccount?'Salvo na sua conta':'Salvo neste navegador';return true;
+  renderLibrary();$('roomSave').textContent=inAccount?'Salvo na sua conta':'Salvo neste navegador';if(current?.id===item.id)blockAgents?.saved(current);return true;
  }).catch(error=>{$('roomSave').textContent='Falha ao salvar';notice((inAccount?cleanError(error)+' ':'Não foi possível salvar no navegador. ')+'Baixe a ata antes de fechar a página.');return false;}).finally(()=>{savesPending--;});
  return saveQueue;
 }
@@ -129,7 +137,7 @@ function renderLibrary(){
 }
 function renderView(){
  const finish=$('roomFinish'),finishTarget=roomKind()==='beam'?document.querySelector('.room-recording-controls'):finishHome;
- if(finish.parentElement!==finishTarget){if(finishTarget===finishHome)finishTarget.insertBefore(finish,$('roomStop'));else finishTarget.append(finish);}
+ if(finish.parentElement!==finishTarget){if(finishTarget===finishHome&&$('roomStop').parentElement===finishTarget)finishTarget.insertBefore(finish,$('roomStop'));else finishTarget.append(finish);}
  const visible=['meeting','beam'].includes(document.body.dataset.page),room=visible&&view==='room'&&(current?.room_kind||'meeting')===roomKind();
  $('roomLibraryHeader').querySelector('h1').textContent=roomKind()==='beam'?'Simulação de vigas':'Reuniões';
  $('roomLibrary').querySelector('h2').textContent=roomKind()==='beam'?'Reuniões com simulação':'Todas as reuniões';
@@ -143,6 +151,7 @@ function renderView(){
 }
 function snapshot(){return current?JSON.parse(JSON.stringify(current)):null;}
 function statusText(){
+ if(integrated&&!integrated.host&&current?.status==='running')return 'Acompanhando reunião ao vivo';
  if(!current||current.status==='draft')return 'Ainda não iniciada';
  if(closing||(controller&&!current.finishedAt&&current.status!=='running'))return 'Concluindo os últimos registros…';
  if(current.status==='done')return 'Reunião concluída';
@@ -153,12 +162,13 @@ function statusText(){
  const done=current.transcript.filter(t=>['done','command','error'].includes(t.status)).length;
  return 'Construindo mapa · '+done+' de '+current.transcript.length+' falas';
 }
-let reportedRunning=false;
+let reportedRunning=false,reportedCapture=false;
 const isRunning=()=>starting||closing||micStopping||!!recognition||listening||!!controller&&!current?.finishedAt;
 function controls(){
  const running=isRunning();
  if(running!==reportedRunning){reportedRunning=running;window.dispatchEvent(new CustomEvent('norte:meeting-running',{detail:{running}}));}
- const active=!!controller&&!current?.finishedAt,draft=current?.status==='draft';
+ if(listening!==reportedCapture){reportedCapture=listening;window.dispatchEvent(new CustomEvent('norte:meeting-capture',{detail:{recording:listening}}));}
+ const active=!!controller&&!current?.finishedAt,draft=current?.status==='draft'||integrated?.host&&current?.status==='interrupted';
  $('roomImport').disabled=running||!draft;
  $('roomLive').disabled=!current||starting||closing||micStopping||(!draft&&!active)||active&&!['live','text'].includes(mode);
  $('roomLiveLabel').textContent=micStopping?'Pausando…':listening?'Pausar gravação':active&&mode==='live'?'Retomar gravação':current&&!draft&&!active?'Reunião encerrada':'Iniciar gravação';
@@ -170,9 +180,15 @@ function controls(){
  $('roomMic').hidden=true;
  $('roomFinish').hidden=!active||!['live','text'].includes(mode);$('roomFinish').disabled=closing;
  $('roomStop').hidden=!active||['live','text'].includes(mode);$('roomStop').disabled=closing;
- const canType=!!controller?.accepting||roomKind()==='beam'&&draft&&!starting&&!closing;
+ const canType=integrated?!!current&&!['done','completed','ended','finished','stopped'].includes(current.status)&&!starting&&!closing:!!controller?.accepting||roomKind()==='beam'&&draft&&!starting&&!closing;
  $('roomSend').disabled=!canType;$('roomText').disabled=!canType;
  $('roomLanguage').disabled=listening||closing;
+ if(integrated){
+  $('roomTitle').readOnly=!canWrite();
+  $('roomNew').disabled=true;$('roomCreateInstant').disabled=true;
+  if(!canWrite())for(const id of ['roomImport','roomLive','roomMic','roomFinish','roomStop','roomMinutes'])$(id).disabled=true;
+  const start=$('roomIntegratedStartText');if(start){start.hidden=!canWrite()||active||!current||!['draft','interrupted'].includes(current.status);start.disabled=starting||closing;start.textContent=current?.status==='interrupted'?'Retomar por texto':'Iniciar por texto';}
+ }
  updateTimer();
 }
 function updateTimer(){
@@ -227,7 +243,7 @@ function renderTopics(projection){
  const menu=$('roomTopicsMenu'),expanded=new Set([...menu.querySelectorAll('details[open]')].map(d=>d.dataset.key));menu.replaceChildren();
  for(const [index,topic] of projection.topics.entries()){
   const detail=el('details','room-topic-menu-entry');detail.dataset.key=topic.id||'pending';detail.open=expanded.has(detail.dataset.key);
-  const name=current?.topic_titles?.[topic.id]||current?.meeting_threads.find(t=>t.thread_id===topic.id)?.title||'Assunto '+(index+1)+' · sem título';
+  const name=topic.title||current?.topic_titles?.[topic.id]||current?.meeting_threads.find(t=>t.thread_id===topic.id)?.title||'Assunto '+(index+1)+' · sem título';
   const heading=el('summary','',name);detail.append(heading);detail.addEventListener('mouseenter',()=>detail.open=true);
   for(const [key,label] of [['problems','Problema'],['hypotheses','Hipóteses'],['tests','Testes']]){
    const group=el('details','room-topic-menu-group');group.dataset.key=detail.dataset.key+':'+key;group.open=expanded.has(group.dataset.key);group.append(el('summary','',label));group.addEventListener('mouseenter',()=>group.open=true);
@@ -241,20 +257,41 @@ function renderTopics(projection){
 }
 function inspectEvidence(detail={}){
  const run=detail.run||current;if(!run)return;
- const ids=detail.eventIds||[detail.event_id].filter(Boolean),relationIds=detail.relationIds||[detail.relation_id].filter(Boolean);
- const relations=(run.meeting_relations||[]).filter(r=>relationIds.includes(r.relation_id)),relation=relations[0];
+ const ids=[...(detail.eventIds||[detail.event_id].filter(Boolean))],relationIds=detail.relationIds||[detail.relation_id].filter(Boolean);
+ const state=NorteMeetingAmendments.build(run).state,events=Object.values(state.byId).map(entry=>entry.event);
+ const allRelations=new Map((run.meeting_relations||[]).map(r=>[r.relation_id,r]));
+ for(const entry of Object.values(state.byId))for(const link of entry.relations||[])if(link.relation_id&&!allRelations.has(link.relation_id))allRelations.set(link.relation_id,link.relation);
+ const relations=[...allRelations.values()].filter(r=>relationIds.includes(r.relation_id)),relation=relations[0];
  for(const edge of relations)for(const id of [edge.source_event_id,edge.target_event_id])if(id&&!ids.includes(id))ids.push(id);
- const dialog=el('dialog','room-dialog room-diagnostics');dialog.setAttribute('aria-label','Detalhes da classificação');
- const header=el('header');header.append(el('h2','',relation?'Detalhes da dependência':detail.issues?.length||detail.warning?'Ponto em acompanhamento':'Detalhes do registro'),button('Fechar',()=>dialog.close()));dialog.append(header);
- for(const issue of detail.issues||[detail.warning].filter(Boolean))dialog.append(el('p','',issue.message||String(issue)));
- const records=(run.records||[]).filter(r=>(run.meeting_events||[]).some(e=>ids.includes(e.event_id)&&e.chunk_id===r.id));
- for(const event of (run.meeting_events||[]).filter(e=>ids.includes(e.event_id))){const quote=el('blockquote','',event.text);quote.append(el('small','room-diagnostic-id',event.event_id));dialog.append(quote);}
- const logs={records,thread_jobs:(run.thread_worker?.jobs||[]).filter(j=>ids.includes(j.event_id)),...(relationIds.length?{relations,relation_jobs:(run.typed_relation_worker?.jobs||[]).filter(j=>relations.some(r=>r.source_event_id===j.event_id)||relationIds.some(id=>id.startsWith('MR_'+j.event_id+'_')))}:{})};
- const disclosure=el('details','room-diagnostic-log');disclosure.append(el('summary','','Explorar classificação e respostas'),el('pre','',JSON.stringify(logs,null,2)));dialog.append(disclosure);
+ const title=relation?'Detalhes da dependência':detail.issues?.length||detail.warning?'Ponto em acompanhamento':'Detalhes do registro';
+ const dialog=el('dialog','room-dialog room-diagnostics');dialog.setAttribute('aria-label',title);
+ const header=el('header');header.append(el('h2','',title),button('Fechar',()=>dialog.close()));dialog.append(header);
+ for(const issue of detail.issues||[detail.warning].filter(Boolean))dialog.append(el('p','',issue.kind==='error'?'Não foi possível concluir a organização deste registro. Revise a fala original.':issue.message||String(issue)));
+ const relationLabels={tests:'avalia',result_of:'é resultado de',depends_on:'depende de',affects:'afeta',based_on:'baseia-se em',supports:'sustenta',contradicts:'contradiz',supersedes:'substitui',answers:'responde a',clarifies:'esclarece',resolves:'resolve'};
+ for(const edge of relations){
+  const label=relationLabels[edge.relation_type];if(label)dialog.append(el('p','',edge.source_event_id+' '+label+' '+edge.target_event_id+'.'));
+  const explanation=({mismatch:'As configurações são diferentes; este vínculo não confirma a conclusão.',partial:'As configurações coincidem apenas em parte; revise a conclusão.',ambiguous:'Não foi possível confirmar se as configurações são compatíveis.'})[edge.configuration_match];
+  if(explanation)dialog.append(el('p','',explanation));
+ }
+ for(const event of events.filter(e=>ids.includes(e.event_id))){
+  const quote=el('blockquote','',event.text);quote.append(el('small','room-diagnostic-id','Referência '+event.event_id));dialog.append(quote);
+  if(event.source==='post_meeting'){
+   dialog.append(el('p','','Resultado informado na revisão humana após a reunião.'));
+   if(event.performed)dialog.append(el('p','','Realizado: '+event.performed));
+   if(event.performed_at)dialog.append(el('p','','Data: '+event.performed_at.slice(0,10).split('-').reverse().join('/')));
+  }
+ }
+ // Raw classifier requests/responses are useful to diagnose the system, but
+ // they are not meeting content. Only administrators get this closed section.
+ if(document.body.dataset.role==='admin'){
+  const records=(run.records||[]).filter(r=>events.some(e=>ids.includes(e.event_id)&&e.chunk_id===r.id));
+  const logs={records,thread_jobs:(run.thread_worker?.jobs||[]).filter(j=>ids.includes(j.event_id)),...(relationIds.length?{relations,relation_jobs:(run.typed_relation_worker?.jobs||[]).filter(j=>relations.some(r=>r.source_event_id===j.event_id)||relationIds.some(id=>id.startsWith('MR_'+j.event_id+'_')))}:{})};
+  const disclosure=el('details','room-diagnostic-log');disclosure.append(el('summary','','Diagnóstico técnico · administrador'),el('pre','',JSON.stringify(logs,null,2)));dialog.append(disclosure);
+ }
  dialog.addEventListener('close',()=>dialog.remove());document.body.append(dialog);dialog.showModal();
 }
 function transcriptTurns(){
- const entries=[...(current?.transcript||[]).filter(entry=>entry.source!=='simulation'),...(current?.speech_ledger?.records||[]).filter(r=>r.status==='unconfirmed').map(r=>({id:'UNCONFIRMED-'+r.id,text:r.text,speaker:r.speaker,offsetMs:r.startMs,status:'unconfirmed',error:'Fala não confirmada pelo microfone; não entrou no mapa.'}))].sort((a,b)=>(a.offsetMs??Infinity)-(b.offsetMs??Infinity));
+ const entries=[...(current?.transcript||[]).filter(entry=>entry.source!=='simulation'),...pendingContributions.filter(row=>!(current?.transcript||[]).some(entry=>entry.segmentId==='contribution:'+row.id)).map(row=>({id:'PENDING-'+row.id,text:row.text,speaker:row.name||'Participante',source:'participant',status:'queued',receivedAt:row.createdAt,offsetMs:current?.startedAt?Math.max(0,Date.parse(row.createdAt)-Date.parse(current.startedAt)):0})),...(current?.speech_ledger?.records||[]).filter(r=>r.status==='unconfirmed').map(r=>({id:'UNCONFIRMED-'+r.id,text:r.text,speaker:r.speaker,offsetMs:r.startMs,status:'unconfirmed',error:'Fala não confirmada pelo microfone; não entrou no mapa.'}))].sort((a,b)=>(a.offsetMs??Infinity)-(b.offsetMs??Infinity));
  const turns=[];
  for(const entry of entries){
   const sourceKey=entry.segmentId||entry.id;
@@ -297,6 +334,7 @@ function draft(title='Nova reunião'){
  return {room_kind:roomKind(),schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:2,id,title,provider,threshold:.6,questions:NorteMemoryFlow.validateQuestions(NorteMemoryV2.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:null,status:'draft',batch:{batch_id:id,cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
 }
 async function createInstant(){
+ if(integrated)return;
  if(isRunning()||!initialized)return;
  starting=true;controls();
  try{
@@ -307,19 +345,42 @@ async function createInstant(){
  }finally{starting=false;controls();}
 }
 async function openMeeting(id){
+ if(integrated&&id!==integrated.meeting.id)return false;
  if(isRunning()||!db)return false;
  starting=true;controls();
  try{
   if(current&&!await save())return false;
-  const raw=await db.read(saveKey(id));if(!raw)throw Error('Não foi possível encontrar esta reunião.');
-  const saved=Session.restore(JSON.parse(raw));
-  current=saved;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();
+  const raw=await db.read(saveKey(id));if(!raw&&!integrated)throw Error(inAccount?'Esta reunião não está disponível nesta conta. Entre na conta que criou a ata.':'Esta reunião não está salva neste navegador. Abra o link no navegador em que ela foi criada.');
+  const original=raw?JSON.parse(raw):null,saved=original?(integrated&&!integrated.host?integrated.view(original):Session.restore(original)):draft(integrated.meeting.title);
+  if(integrated){saved.id=id;saved.batch.batch_id=id;saved.room_kind=integrated.meeting.roomKind||'meeting';saved.createdAt=integrated.meeting.createdAt||saved.createdAt;saved.project_id=integrated.meeting.projectId;saved.project_memory_mode=integrated.meeting.memoryMode;saved.integrated_norte=true;if(!integrated.host&&original)saved.status=original.status;}
+  current=saved;if(!integrated)delete current.block_review;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();blockAgents?.saved(current);
   $('roomTitle').value=current.title;view='room';transcriptPanel(transcriptPreference());renderView();
-  notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();return true;
+  notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();if(!raw&&integrated.host)await save();return true;
  }catch(error){notice(cleanError(error));return false;}
  finally{starting=false;controls();}
 }
+let referenceHandled='',referenceOpening=false;
+async function followReference(){
+ if(!initialized||!db||referenceOpening)return false;
+ const params=new URLSearchParams(location.search),id=params.get('meeting'),eventId=params.get('event');
+ if(!id)return false;
+ const signature=JSON.stringify([id,eventId]);if(referenceHandled===signature)return false;
+ if(!/^[A-Za-z0-9_.:-]{1,160}$/.test(id)||eventId&&!/^[A-Za-z0-9_.:-]{1,160}$/.test(eventId)){referenceHandled=signature;notice('A referência da ata é inválida.');return false;}
+ referenceHandled=signature;
+ if(isRunning()&&current?.id!==id){notice('Há uma reunião em andamento. Encerre-a antes de abrir outra referência, ou abra o link em uma nova aba.');return false;}
+ referenceOpening=true;
+ try{
+  if(current?.id!==id&&!await openMeeting(id))return false;
+  if(roomKind()!==(current.room_kind||'meeting'))$(current.room_kind==='beam'?'beamMode':'meetingMode').click();
+  if(!eventId)return true;
+  const entry=NorteMeetingAmendments.build(current).state.byId[eventId];
+  if(!entry){notice('O registro indicado não está disponível nesta reunião. Confira a referência na ata.');return false;}
+  focusEntry(entry.id,entry.topic_id);inspectEvidence({eventIds:[eventId]});return true;
+ }catch(error){notice(cleanError(error));return false;}
+ finally{referenceOpening=false;}
+}
 async function showLibrary(){
+ if(integrated){if(!isRunning())integrated.returnToNorte();return false;}
  if(isRunning())return false;
  starting=true;controls();
  try{
@@ -328,35 +389,43 @@ async function showLibrary(){
  }finally{starting=false;controls();}
 }
 async function begin(nextMode){
- if(isRunning()||current?.status!=='draft')return false;
+ if(!canWrite()||isRunning()||!(current?.status==='draft'||integrated&&current?.status==='interrupted'))return false;
  starting=true;controls();
  if(!await checkHealth()){starting=false;controls();return false;}
  const previous=current;
  try{
   notice('');mode=nextMode;lastTranscript='';canvas.reset();closing=false;
   if(previous.room_kind==='beam')await ensureBeam();
-  controller=Session.create({provider,title:$('roomTitle').value.trim()||'Nova reunião',send,onChange:changed,commandHandler:previous.room_kind==='beam'?beamIntegration.handleCommand:null,continuation:true});
+  controller=Session.create({provider,title:$('roomTitle').value.trim()||'Nova reunião',send,onChange:changed,commandHandler:previous.room_kind==='beam'?beamIntegration.handleCommand:null,continuation:true,...(integrated&&previous.status!=='draft'?{seed:previous}:{})});
   current=controller.run;
   current.room_kind=previous.room_kind||'meeting';for(const key of ['beam_started','beam_open_tabs','beam_previous_view'])if(previous[key]!==undefined)current[key]=previous[key];if(previous.beam_view)current.beam_view=previous.beam_view;if(previous.beam_recorded)current.beam_recorded=previous.beam_recorded;if(previous.beam_lab)current.beam_lab=previous.beam_lab;if(previous.beam_commands)current.beam_commands=previous.beam_commands;
   current.id=previous.id;current.batch.batch_id=previous.id;current.createdAt=previous.createdAt;current.input_mode=nextMode;
+  if(integrated){current.project_id=integrated.meeting.projectId;current.project_memory_mode=integrated.meeting.memoryMode;current.integrated_norte=true;}
   return true;
  }catch(error){controller=null;current=previous;notice(cleanError(error));return false;}
  finally{starting=false;render();saveSoon();}
 }
-function renameTopic(id,title){renaming=id;$('roomRenameValue').value=current?.topic_titles?.[id]||current?.meeting_threads.find(t=>t.thread_id===id)?.title||'';const n=Number(id.replace(/\D/g,''));$('roomRenameHint').textContent='Por voz: “Norte, o assunto '+n+' é [nome do assunto]”.';$('roomRenameDialog').showModal();$('roomRenameValue').focus();}
+function renameTopic(id,title){if(!canWrite())return;if(blockAgents&&NorteMeetingBlocks.valid(current?.block_review?.titles?.[id],current,'title',id)&&!current?.topic_titles?.[id]){blockAgents.edit('title',id);return;}renaming=id;$('roomRenameValue').value=current?.topic_titles?.[id]||current?.meeting_threads.find(t=>t.thread_id===id)?.title||'';const n=Number(id.replace(/\D/g,''));$('roomRenameHint').textContent='Por voz: “Norte, o assunto '+n+' é [nome do assunto]”.';$('roomRenameDialog').showModal();$('roomRenameValue').focus();}
 $('roomRenameForm').onsubmit=e=>{e.preventDefault();const name=$('roomRenameValue').value.trim();if(!name||!current||!renaming)return;current.topic_titles||={};current.topic_titles[renaming]=name;for(const t of current.meeting_threads)if(t.thread_id===renaming)t.title=name;current.title_edits||=[];current.title_edits.push({thread_id:renaming,title:name,source:'manual',at:new Date().toISOString()});$('roomRenameDialog').close();render();saveSoon();};$('roomRenameCancel').onclick=()=>$('roomRenameDialog').close();
 const TRANSCRIPT_PREF='norte.meeting-room.transcript-open.v1';
-function transcriptPreference(){try{return localStorage.getItem(TRANSCRIPT_PREF)==='1';}catch(_){return false;}}
+function transcriptPreference(){try{const stored=localStorage.getItem(TRANSCRIPT_PREF);return stored===null?!!integrated:stored==='1';}catch(_){return !!integrated;}}
 function transcriptPanel(open){$('meetingPage').classList.toggle('has-transcript',open);$('roomTranscriptPanel').hidden=!open;if($('roomTranscriptDivider'))$('roomTranscriptDivider').hidden=!open;$('roomTranscriptToggle').setAttribute('aria-expanded',String(open));window.NorteLayout?.refresh();}
 $('roomTranscriptToggle').onclick=()=>{const open=$('roomTranscriptPanel').hidden;transcriptPanel(open);try{localStorage.setItem(TRANSCRIPT_PREF,open?'1':'0');}catch(_){}};
-$('roomTitle').onchange=()=>{if(current){current.title=$('roomTitle').value.trim()||'Nova reunião';saveSoon();}};
+$('roomTitle').onchange=()=>{if(current&&canWrite()){current.title=$('roomTitle').value.trim()||'Nova reunião';saveSoon();}};
 $('roomMinutes').onclick=()=>{if(current)NorteGeminiMinutes.open(current,{autoGenerate:false,onExplore:inspectEvidence,onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();await save();}});};
 $('roomImport').onclick=()=>{$('roomImportDialog').showModal();$('roomImportText').focus();};$('roomImportClose').onclick=()=>$('roomImportDialog').close();let filename='transcricao.txt';
 async function loadFile(file){if(!file)return;if(file.size>2_000_000){$('roomImportError').textContent='O arquivo é grande demais. Use uma transcrição de até 500 mil caracteres.';return;}try{const text=await file.text();Session.parseTranscriptEntries(text,file.name);filename=file.name;$('roomImportText').value=text;$('roomFileLabel').textContent=file.name;$('roomImportError').textContent='';}catch(e){$('roomImportError').textContent=cleanError(e);}}
 $('roomImportText').oninput=()=>{filename='transcricao.txt';$('roomImportError').textContent='';};
 $('roomFile').onchange=()=>loadFile($('roomFile').files[0]);$('roomDrop').ondragover=e=>{e.preventDefault();};$('roomDrop').ondrop=e=>{e.preventDefault();loadFile(e.dataTransfer.files[0]);};
 $('roomImportForm').onsubmit=async e=>{e.preventDefault();let parts;try{parts=Session.parseTranscriptEntries($('roomImportText').value,filename);}catch(error){$('roomImportError').textContent=cleanError(error);return;}$('roomImportSubmit').disabled=true;try{if(!await begin('import'))return;for(const part of parts)appendTurn(part,'import');current.import_filename=filename;$('roomImportDialog').close();await controller.close();await save();}catch(error){notice(cleanError(error));controller?.stop(error);}finally{$('roomImportSubmit').disabled=false;render();}};
-$('roomTextForm').onsubmit=async e=>{e.preventDefault();const text=$('roomText').value;if(!text.trim())return;if(current?.status==='draft'&&roomKind()==='beam'&&!await begin('text'))return;if(!controller?.accepting)return;try{appendTurn({text,segmentId:'typed:'+crypto.randomUUID()},'typed');$('roomText').value='';}catch(error){notice(cleanError(error));}};
+$('roomTextForm').onsubmit=async e=>{e.preventDefault();const text=$('roomText').value.trim();if(!text)return;
+ if(integrated){
+  if(integrated.host&&['draft','interrupted'].includes(current?.status)&&!await begin('text'))return;
+  if(pendingTyped?.text!==text)pendingTyped={text,clientId:crypto.randomUUID()};
+  $('roomSend').disabled=true;
+  try{await integrated.contribute(text,pendingTyped.clientId);$('roomText').value='';pendingTyped=null;notice('');}catch(error){notice(cleanError(error));}finally{controls();}return;
+ }
+ if(current?.status==='draft'&&roomKind()==='beam'&&!await begin('text'))return;if(!controller?.accepting)return;try{appendTurn({text,segmentId:'typed:'+crypto.randomUUID()},'typed');$('roomText').value='';}catch(error){notice(cleanError(error));}};
 function elapsed(){return Math.max(0,Date.now()-Date.parse(current?.startedAt||new Date().toISOString()));}
 function ingestSpeech(event){if(!ledger||!current)return;ledger.ingest(event.results,event.resultIndex,elapsed(),$('roomLanguage').value);for(const [index,record] of ledger.records.entries()){if(record.status!=='final'||consumed.has(record.id))continue;consumed.add(record.id);try{if(controller?.accepting){const previous=ledger.records[index-1],continues=previous?.status==='final'&&previous.speaker===record.speaker&&record.startMs-previous.endMs<2000;appendTurn({text:record.text,sourceText:record.text,sourceId:record.id,segmentId:'microphone:'+ledger.sessionId+':'+record.id,offsetMs:record.startMs,...(Number.isFinite(record.endMs)?{endOffsetMs:record.endMs}:{}),speaker:record.speaker,...(continues?{speechContext:NorteMeetingSpeech.boundedContext(previous.text)}:{})},'microphone');}else{current.transcript.push({id:'AUDIO-'+record.id,text:record.text,source:'microphone',segmentId:'microphone:'+ledger.sessionId+':'+record.id,speaker:record.speaker,receivedAt:new Date().toISOString(),offsetMs:record.startMs,status:'interrupted',error:'Fala preservada após a interrupção; não foi processada.'});if(!renderFrame)renderFrame=requestAnimationFrame(render);}}catch(error){notice(cleanError(error));stopMic();break;}}
  const interim=ledger.records.filter(r=>r.status==='interim').map(r=>r.text).join(' ');$('roomInterim').textContent=interim.trim().split(/\s+/u).slice(-18).join(' ');
@@ -389,6 +458,7 @@ function stopMic(){
  return stopPromise;
 }
 async function toggleRecording(){
+ if(!canWrite())return;
  if(micStopping||closing||starting)return;
  if(controller?.accepting&&mode==='text'){
   if(!window.SpeechRecognition&&!window.webkitSpeechRecognition){notice('Este navegador não oferece transcrição por voz. Continue por texto ou use um navegador compatível.');return;}
@@ -417,13 +487,26 @@ $('roomCreateInstant').onclick=createInstant;$('roomBack').onclick=showLibrary;
 document.addEventListener('click',event=>{if(!$('roomCreateMenu').hidden&&!$('roomCreateMenu').contains(event.target)&&!$('roomNew').contains(event.target)){$('roomCreateMenu').hidden=true;$('roomNew').setAttribute('aria-expanded','false');}});
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('roomCreateMenu').hidden){$('roomCreateMenu').hidden=true;$('roomNew').setAttribute('aria-expanded','false');$('roomNew').focus();}});
 window.addEventListener('norte:page-changed',renderView);
+window.addEventListener('popstate',followReference);
+window.addEventListener('hashchange',followReference);
 // Account saves travel over the network: closing the page mid-save would drop the end of the meeting.
 window.addEventListener('beforeunload',e=>{if(isRunning()||savesPending){e.preventDefault();e.returnValue='';}save();});
 setInterval(()=>{if(current&&view==='room')controls();},1000);
 window.NorteMeetingRoom={isRunning,snapshot,whenIdle:()=>controller?.done||Promise.resolve(current),flushStorage:save,ready:()=>ready,view:()=>(current?.room_kind||'meeting')===roomKind()?view:'library',openMeeting,showLibrary};
 controls();
 if(inAccount)$('roomSave').textContent='Na sua conta';
-try{db=inAccount?await NorteRemoteStorage.open():await NorteMemoryStorage.open();if(!inAccount)await resetLegacyMeetings();history=JSON.parse(await db.read(INDEX)||'[]');}catch(error){notice(cleanError(error));}
+try{db=integrated?integrated.storage:inAccount?await NorteRemoteStorage.open():await NorteMemoryStorage.open();if(!inAccount)await resetLegacyMeetings();history=JSON.parse(await db.read(INDEX)||'[]');}catch(error){notice(cleanError(error));}
 initialized=true;renderLibrary();transcriptPanel(transcriptPreference());renderView();render();zoomLabel();await checkHealth();
+if(integrated){
+ const transcriptTools=$('roomTranscriptPanel').querySelector('.log-toolbar');
+ transcriptTools.append($('roomImport'));$('roomImport').title='Importar uma transcrição para esta reunião';$('roomImport').querySelector('small')?.remove();
+ const collapse=button('Recolher',()=>{$('roomTranscriptToggle').click();},'text-button');collapse.setAttribute('aria-label','Recolher transcrição');transcriptTools.append(collapse);
+ $('roomTextComposer').open=true;$('roomText').setAttribute('aria-label','Mensagem para a reunião');$('roomText').placeholder='Escreva uma mensagem…';$('roomSend').textContent='Enviar';
+ finishHome.append($('roomFinish'),$('roomStop'));
+ let remoteFingerprint='';
+ integrated.attach({snapshot,save,notice,accepting:()=>canWrite()&&!!controller?.accepting,pending:rows=>{pendingContributions=rows;lastTranscript='';renderTranscript();},title:value=>{if(current){current.title=value;$('roomTitle').value=value;saveSoon();}},audioMute:muted=>{if(muted&&listening)void stopMic();},contribute:async(row,segmentId)=>{if(!canWrite()||!controller?.accepting)return;const participant=integrated.meeting.participants?.find(item=>item.userId===row.userId);appendTurn({text:row.text,segmentId,speaker:row.name||participant?.name||'Participante'},'participant');},remote:run=>{if(integrated.host||run.id!==integrated.meeting.id)return;const fingerprint=JSON.stringify(run);if(fingerprint===remoteFingerprint)return;remoteFingerprint=fingerprint;current=integrated.view(run);controller=null;$('roomTitle').value=current.title;view='room';renderView();render();}});
+ window.addEventListener('norte:meeting-conflict',()=>{controller?.stop(Error('A reunião mudou em outra aba. Recarregue para continuar.'));void stopMic();notice('A reunião mudou em outra aba. O processamento foi interrompido; recarregue a página para continuar com a versão salva.');controls();});
+}
+await followReference();
 }
 })();

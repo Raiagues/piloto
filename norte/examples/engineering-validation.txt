@@ -1,0 +1,9 @@
+Validation rig contains Power, Communication, Payload, Thermal and Structure subsystems. Regulator powers Radio. Radio is thermally coupled to the enclosure.
+Radio R1 peak current is 400 mA. Operating power is 1 W. Supported supply voltage is 3 V to 5 V.
+Regulator continuous output limit is 800 mA. Output voltage is 3.3 V.
+Battery available energy is 8 Wh.
+Base load operating power is 5 W.
+Power budget is the sum of Radio operating power and Base load operating power. Autonomy in minutes is available Battery energy in Wh divided by Power budget in W, multiplied by 60.
+Payload mass is 120 g. Structure mass is 100 g. Total mass is the sum of Payload mass and Structure mass.
+REQ-07: Minimum autonomy is 90 min. It is verified using the Autonomy calculation.
+REQ-01: Maximum total mass is 350 g. It is verified using the Total mass calculation.

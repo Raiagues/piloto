@@ -1,0 +1,148 @@
+.brain-v2 .brain-toolbar > button {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 550;
+  border-radius: 6px;
+}
+
+.brain-v2 .brain-toolbar > button.primary {
+  min-width: 104px;
+}
+
+.brain-v2 .zoom-toolbar {
+  min-height: 40px;
+  padding: 3px;
+  gap: 1px;
+  font-size: 11px;
+}
+
+.brain-v2 .zoom-toolbar button {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
+  font-size: 16px;
+  border-radius: 4px;
+}
+
+.brain-v2 .zoom-toolbar span {
+  min-width: 42px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 540;
+}
+
+.brain-v2 .bucket-guide {
+  display: none;
+}
+
+.brain-v2 .brain-footer {
+  min-height: 68px;
+  justify-content: flex-end;
+}
+
+.brain-v2 .brain-footer > span {
+  display: none;
+}
+
+.brain-v2 .brain-footer button {
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
+.brain-v2 .brain-footer button.primary {
+  min-width: 126px;
+}
+
+.brain-v2 .focus-chip button {
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+.brain-v2 .node-menu-v2 button {
+  min-height: 42px;
+  padding: 0 13px;
+  font-size: 13px;
+}
+
+.brain-v2 .mission-node-head > button {
+  width: 40px;
+  height: 36px;
+  font-size: 21px;
+}
+
+.brain-v2 .brain-nav-item {
+  min-height: 48px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.brain-v2 .mobile-menu {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  font-size: 22px;
+}
+
+.brain-v2 .sidebar-close-mobile {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+}
+
+.brain-v2 .modal-actions button,
+.brain-v2 .technical-button {
+  min-height: 46px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+
+.brain-v2 .modal-close {
+  width: 42px;
+  height: 42px;
+  font-size: 22px;
+}
+
+@media (max-width: 1100px) {
+  .brain-v2 .brain-toolbar > button {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 760px) {
+  .brain-v2 .brain-toolbar {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .brain-v2 .brain-toolbar > button {
+    width: 100%;
+    min-height: 44px;
+    font-size: 12px;
+  }
+
+  .brain-v2 .brain-toolbar > button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .brain-v2 .zoom-toolbar {
+    min-height: 40px;
+  }
+
+  .brain-v2 .zoom-toolbar button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brain-v2 .brain-footer button {
+    min-height: 50px;
+    font-size: 13px;
+  }
+}

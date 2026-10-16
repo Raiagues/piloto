@@ -293,6 +293,18 @@ class RuntimeHttpTests(unittest.TestCase):
         self.assertEqual(self.call('/api/admin/ai/replay', {})[0], 403)
         self.assertEqual(self.call('/api/ai/events', {'events': [event()]}, extra={'Origin': 'https://attacker.example'})[0], 403)
         self.assertEqual(self.call('/api/admin/ai/overview', role='admin')[0], 200)
+        self.assertEqual(self.call('/api/ai/blocks/review', {'session_id': 's1'}, role=None)[0], 401)
+        self.assertEqual(self.call('/api/ai/blocks/feedback', {}, extra={'Origin': 'https://attacker.example'})[0], 403)
+        self.assertEqual(self.call('/api/admin/ai/blocks/memory', {'user_id': 1, 'key': 'x'})[0], 403)
+        self.assertEqual(self.call('/api/ai/blocks/review', {'session_id': 's1', 'user_id': 2})[0], 400)
+
+    def test_blocks_read_only_own_saved_meeting(self):
+        run = {'meeting_events': [{'event_id': 'E1', 'thread_id': 'T1', 'text': 'Um registro.', 'type': 'decision'}], 'meeting_threads': [{'thread_id': 'T1'}]}
+        self.store.put_record(self.users['user']['id'], 'norte.meeting-room.session.v2.s1', json.dumps(run))
+        status, result = self.call('/api/ai/blocks/review', {'session_id': 's1'})
+        self.assertEqual(status, 200); self.assertEqual(result['status'], 'disabled')
+        self.assertEqual(self.call('/api/ai/blocks/review', {'session_id': 's1'}, role='admin')[0], 400)
+        self.assertEqual(self.call('/api/admin/ai/overview', role='admin')[1]['blocks']['human_labels'], 0)
 
     def test_contract_round_trip(self):
         self.assertEqual(self.call('/api/ai/events', {'events': [event()]})[1]['accepted'], 1)

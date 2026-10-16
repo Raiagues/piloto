@@ -103,7 +103,7 @@ body[data-page="observatory"] .app-header { grid-template-columns: 1fr; }
   body[data-page="observatory"] .sidebar,body[data-page="observatory"] .app-header,body[data-page="observatory"] .ao-tabs,body[data-page="observatory"] .ao-actions,body[data-page="observatory"] .account-expired,body[data-page="observatory"] .ao-notice,body[data-page="observatory"] .ao-link,body[data-page="observatory"] .compact-button,body[data-page="observatory"] #aoReplayForm { display: none !important; }
   body[data-page="observatory"] .app-shell { display: block; }
   .ai-observatory #aoOverview[hidden],.ai-observatory #aoArchitecture[hidden] { display: block !important; }
-  .ai-observatory #aoActivity,.ai-observatory #aoReplay,.ai-observatory .ao-contracts,.ai-observatory #aoNodeDetail,.ai-observatory .ao-services { display: none !important; }
+  .ai-observatory #aoActivity,.ai-observatory #aoReplay,.ai-observatory #aoBlocks,.ai-observatory .ao-contracts,.ai-observatory #aoNodeDetail,.ai-observatory .ao-services { display: none !important; }
   #aoArchitecture { break-before: page; }
   .ao-metrics { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; }
   .ao-grid { grid-template-columns: 1fr 1fr; gap: 10px; }

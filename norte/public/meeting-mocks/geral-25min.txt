@@ -1,0 +1,61 @@
+[00:00] Ana: MOCK FICTÍCIO — reunião geral de 25 minutos da equipe Horizonte; os nomes, números e prazos são apenas dados de teste, sem vínculo com projetos reais.
+[00:25] Bruno: Precisamos definir a demonstração de sexta-feira, fechar o custo do protótipo e alinhar a entrega do aplicativo, porque as três frentes dependem da compra dos sensores.
+[00:50] Clara: No aplicativo o requisito APP-04 pede que a tela inicial abra em até dois segundos, mas no teste da versão 12 com rede de 4 Mbps medimos 3,4 segundos.
+[01:15] Diego: Sobre os sensores, o fornecedor Alfa ofereceu dez unidades a R$ 180 cada e entrega em oito dias úteis, enquanto o Beta informou R$ 215 e entrega em três dias úteis.
+[01:40] Ana: Antes de escolher fornecedor precisamos saber se a demonstração depende das dez unidades ou apenas de duas, porque não quero confundir necessidade da apresentação com produção.
+[02:05] Bruno: Para demonstrar basta usar duas unidades; o lote de dez é para os ensaios da semana seguinte e essa separação deve aparecer nas pendências.
+[02:30] Clara: Voltando à tela inicial, a hipótese é que as imagens carregadas sem compressão aumentem o tempo, mas isso ainda não foi medido e não é a conclusão do teste.
+[02:55] Diego: A reserva do laboratório está pendente; João havia comentado quinta-feira, porém o calendário mostra ocupação e eu vou confirmar com a técnica até amanhã às 12 horas.
+[03:20] Ana: Então o laboratório permanece sem data confirmada; não coloquem a sugestão de quinta como compromisso aprovado.
+[03:45] Bruno: Eu acho que podemos antecipar os sensores, ou melhor, podemos comprar duas unidades do Beta agora e negociar as demais depois; ainda é uma proposta.
+[04:10] Clara: A nova medição da versão 13, com imagens comprimidas e a mesma rede, deu 1,8 segundo em cinco execuções; registrei o valor mediano no relatório TEST-APP-13.
+[04:35] Diego: Os cinco testes bastam para a demonstração, mas o requisito de homologação fala em trinta execuções e ainda faltam vinte e cinco.
+[05:00] Ana: A versão 13 atende ao limite de tempo nas cinco medições realizadas; a homologação completa continua pendente, e precisamos separar essas duas conclusões.
+[05:25] Bruno: A conta da compra parcial fica R$ 430 para duas unidades do Beta; o orçamento autorizado para sensores é R$ 1.900, então o lote completo pelo Beta custaria R$ 2.150 e ultrapassaria o limite.
+[05:50] Clara: Podemos voltar ao roteiro da apresentação? Se mostrarmos o cadastro antes do sensor entrar em funcionamento, o público pode não entender qual problema resolvemos.
+[06:15] Diego: A proposta é começar com o problema, demonstrar o sensor e depois abrir o aplicativo; eu preparo três slides até quinta às 17 horas.
+[06:40] Ana: Concordo com essa sequência, mas o ensaio depende da reserva do laboratório; a tarefa dos slides pode começar agora sem esperar a confirmação.
+[07:05] Bruno: Há uma preocupação com a alimentação: no ensaio de ontem a autonomia ficou em quatro horas e quarenta minutos, abaixo das seis horas exigidas pelo requisito EN-02.
+[07:30] Clara: A autonomia não precisa ser resolvida para uma demonstração de quinze minutos, porém não devemos apresentar isso como produto aprovado para seis horas.
+[07:55] Diego: A hipótese é reduzir a frequência de envio de dados de uma vez por segundo para uma vez a cada cinco segundos, desde que a atualização da tela continue útil.
+[08:20] Ana: Precisamos testar essa hipótese; Bruno compara as duas frequências com a mesma bateria até terça, guardando configuração e resultado para evitar números incomparáveis.
+[08:45] Bruno: Só para repetir a pendência de compras: duas unidades urgentes são uma proposta de aquisição, não uma compra já realizada; preciso da aprovação financeira.
+[09:10] Clara: Sobre acessibilidade, o contraste do botão principal foi medido em 3,1 para 1 e o requisito UI-07 exige no mínimo 4,5 para 1; a cor atual não é compatível.
+[09:35] Diego: O time de design sugeriu uma cor mais escura; sem medição não podemos afirmar que resolveu, mesmo que pareça melhor na minha tela.
+[10:00] Ana: Clara fica responsável por medir a nova cor e anexar a referência do teste até amanhã às 16 horas.
+[10:25] Bruno: Recebi agora a confirmação financeira: duas unidades do Beta aprovadas, total de R$ 430; as outras oito ainda não foram autorizadas.
+[10:50] Clara: A alteração do botão teve contraste de 5,2 para 1 na ferramenta registrada em TEST-UI-08, portanto atende ao limite 4,5 para 1 nessa combinação de cores.
+[11:15] Diego: Volto ao laboratório: a técnica confirmou sexta às 9 horas, não quinta; a reserva foi registrada como LAB-19.
+[11:40] Ana: A demonstração será sexta às 10 horas e o ensaio sexta às 9 horas no laboratório; cancela-se a ideia anterior de ensaio na quinta.
+[12:05] Bruno: O prazo de entrega do Beta termina sexta no fim do dia; isso não garante sensores antes da apresentação das 10 horas e temos um conflito com o roteiro.
+[12:30] Clara: Podemos usar as duas unidades antigas no ensaio e reservar as novas para a semana seguinte, mas preciso testar se o aplicativo reconhece o firmware antigo.
+[12:55] Diego: Esse teste rápido deu conexão estável com firmware 2.1 durante vinte minutos; o firmware 2.0 ainda não foi testado.
+[13:20] Ana: Decisão: demonstração com duas unidades antigas de firmware 2.1; unidades novas continuam aprovadas para os ensaios posteriores, sem prometer recebimento antes da apresentação.
+[13:45] Bruno: O custo atualizado aprovado é R$ 430 de sensores mais R$ 120 de cabos, total R$ 550; havia dito R$ 530 no chat, mas aquela soma estava errada.
+[14:10] Clara: Peço que a ata mantenha R$ 550 como valor final e deixe a correção da soma no histórico da reunião, com referência à aprovação.
+[14:35] Diego: Para os cabos, ainda falta confirmar o comprimento de dois metros; o valor de R$ 120 é orçamento e não evidência de que os cabos já foram recebidos.
+[15:00] Ana: Retomando aplicativo: versão 12 levou 3,4 segundos e versão 13 levou 1,8 segundo sob a mesma rede, com limite de dois; isso cabe em uma tabela de comparação.
+[15:25] Bruno: A comparação de autonomia deve ficar separada dessa tabela, porque horas de bateria e segundos de abertura são grandezas diferentes.
+[15:50] Clara: As vinte e cinco execuções restantes serão feitas por mim até quarta; se o resultado variar acima de dois segundos a homologação não será aprovada automaticamente.
+[16:15] Diego: Os slides ainda precisam de uma foto do protótipo; Ana pode fornecer a foto amanhã sem expor dados dos participantes do teste?
+[16:40] Ana: Sim, eu envio uma foto do equipamento sem pessoas identificáveis amanhã às 11 horas.
+[17:05] Bruno: A manutenção do carregador é outra pendência: ele aqueceu a 58 graus no teste e o fabricante informa operação até 45 graus; não é o mesmo problema da autonomia.
+[17:30] Clara: Não temos evidência para culpar a bateria pelo aquecimento do carregador, então mantenhamos duas hipóteses separadas até medir corrente e ventilação.
+[17:55] Diego: O carregador não será usado na demonstração; vamos levar uma fonte certificada já disponível, cuja tensão foi conferida em 12,0 volts.
+[18:20] Ana: A fonte resolve a alimentação da apresentação, mas não encerra o problema de aquecimento; Bruno abre o ensaio de diagnóstico para quinta.
+[18:45] Bruno: Confirmo minhas tarefas: comparação de autonomia até terça e diagnóstico do carregador até quinta; compra das unidades já autorizada, mas pedido ao fornecedor ainda pendente.
+[19:10] Clara: Confirmo minhas tarefas: homologação com trinta execuções até quarta e arquivar o resultado de contraste; o contraste novo já passou, não precisa ficar como hipótese.
+[19:35] Diego: Confirmo slides na quinta às 17 horas e ensaio na sexta às 9 horas; a reserva LAB-19 já está concluída.
+[20:00] Ana: Gostaria de decidir também o canal de suporte da demonstração: usamos o grupo da equipe para incidentes e não criamos um canal novo por enquanto.
+[20:25] Bruno: Concordo; só reforço que o grupo geral pode ver o resumo, mas documentos financeiros privados ficam nas referências com o acesso atual.
+[20:50] Clara: O áudio da apresentação foi testado no notebook, não no projetor; a conexão com o projetor fica para o ensaio e não pode aparecer como resultado confirmado.
+[21:15] Diego: Incluo teste de áudio no roteiro das 9 horas; se falhar, a demonstração visual pode seguir sem vídeo narrado.
+[21:40] Ana: Voltando à compra, não alteramos a aprovação de R$ 430; decidir usar sensores antigos na sexta não cancela a aquisição para os ensaios posteriores.
+[22:05] Bruno: Entendido, não existe nova mudança de valor: o total permanece R$ 550 incluindo os cabos orçados.
+[22:30] Clara: A tela inicial aprovada para demonstração é a versão 13, e a homologação do produto continua pendente de mais vinte e cinco execuções.
+[22:55] Diego: O roteiro final é problema, sensor, aplicativo e próximos passos; vou remover do slide qualquer afirmação de autonomia de seis horas.
+[23:20] Ana: Registrem a incompatibilidade da autonomia com motivo curto: duração abaixo do requisito EN-02; mantenham os detalhes de cálculo disponíveis na referência.
+[23:45] Bruno: Não medimos a autonomia após mudar a frequência, portanto a hipótese de economia continua aberta e não há resultado final novo.
+[24:10] Clara: Nada mais sobre contraste; mantenham o valor 5,2 para 1 como resultado final e 3,1 para 1 como teste anterior.
+[24:35] Diego: Falta somente enviar o pedido de compra e obter confirmação do fornecedor; a aprovação interna já está concluída.
+[25:00] Ana: Encerramos este MOCK de 25 minutos com decisões, medições e responsáveis revisados; não transformar propostas não testadas em resultados.

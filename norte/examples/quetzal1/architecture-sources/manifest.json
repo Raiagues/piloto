@@ -1,0 +1,66 @@
+{
+  "retrievedAt": "2026-09-08",
+  "author": "Quetzal-1 CubeSat Team",
+  "sources": [
+    {
+      "id": "ADCS-hardware",
+      "sourceUrl": "https://raw.githubusercontent.com/Quetzal-1-CubeSat-Team/quetzal1-hardware/d4d1b59de384701a016a6e17353aff3c8ba64853/ADCS/README.md",
+      "sourceRevision": "d4d1b59de384701a016a6e17353aff3c8ba64853",
+      "sourcePath": "ADCS/README.md",
+      "originalBytes": 6715,
+      "originalSha256": "808cdd9dfe0230e533c4606b8f3aa7d39685bdfe2c6fc5e72505c9eb3edb92b4",
+      "file": "ADCS-hardware.txt",
+      "bytes": 5563,
+      "sha256": "b3e1b72adc0556f64e4443ac1d6a8601a03bd2a7281a791be0aabf834f7aef9a",
+      "license": "CC-BY-SA-4.0",
+      "classification": "design-context",
+      "adaptation": "See file attribution header",
+      "status": "live Gemini extraction recorded; schema and source excerpts verified; revalidated before additive import"
+    },
+    {
+      "id": "ADM-hardware",
+      "sourceUrl": "https://raw.githubusercontent.com/Quetzal-1-CubeSat-Team/quetzal1-hardware/d4d1b59de384701a016a6e17353aff3c8ba64853/ADM/README.md",
+      "sourceRevision": "d4d1b59de384701a016a6e17353aff3c8ba64853",
+      "sourcePath": "ADM/README.md",
+      "originalBytes": 4039,
+      "originalSha256": "bb7d2ab54d638aec410ea5ceb8745920073a6152e151d0ad99474f5be7486178",
+      "file": "ADM-hardware.txt",
+      "bytes": 3533,
+      "sha256": "5ffd346942fadb4ce19f3cd17c21615c6953b5031bb65bfcf307c1e673277718",
+      "license": "CC-BY-SA-4.0",
+      "classification": "design-context",
+      "adaptation": "See file attribution header",
+      "status": "live Gemini extraction recorded; schema and source excerpts verified; revalidated before additive import"
+    },
+    {
+      "id": "ADCS-software",
+      "sourceUrl": "https://raw.githubusercontent.com/Quetzal-1-CubeSat-Team/quetzal1-flight-software/dbfb67a2c8a7336f765e320d37a8a02e3ab4c212/ADCS/README.md",
+      "sourceRevision": "dbfb67a2c8a7336f765e320d37a8a02e3ab4c212",
+      "sourcePath": "ADCS/README.md",
+      "originalBytes": 8716,
+      "originalSha256": "92431f1dc4874c67e05024912a7445d5cbfe4c2a184b83d28a76ff2c2c421064",
+      "file": "ADCS-software.txt",
+      "bytes": 7409,
+      "sha256": "a93ef4a6b3ee7619fe7303bb9d2f94058301d74a49746aa6003cbc598f7dc552",
+      "license": "GPL-3.0",
+      "classification": "design-context",
+      "adaptation": "See file attribution header",
+      "status": "live Gemini extraction recorded; schema and source excerpts verified; revalidated before additive import"
+    },
+    {
+      "id": "MISSION-overview",
+      "sourceUrl": "https://hackaday.io/project/191065-open-sourcing-the-design-for-the-quetzal-1-cubesat",
+      "sourceRevision": "retrieved-2026-09-08",
+      "sourcePath": "Details / architecture paragraph",
+      "originalBytes": 81829,
+      "originalSha256": "35fb9aa7284168908df2cfac6b399f00ade4add2b3c3fb4e847003c34a111d31",
+      "file": "MISSION-overview.txt",
+      "bytes": 709,
+      "sha256": "12a47f76475b25a38a3ac7c6ee9e51ebb34218e0f2828a76fbeb516af56ba4a0",
+      "license": "Short attributed excerpts; author retains copyright",
+      "classification": "design-context",
+      "adaptation": "Two excerpts totaling 21 source words; omitted content marked explicitly",
+      "status": "live Gemini extraction recorded; schema and source excerpts verified; revalidated before additive import"
+    }
+  ]
+}

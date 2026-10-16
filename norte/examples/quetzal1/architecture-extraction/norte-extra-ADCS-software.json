@@ -1,0 +1,130 @@
+{
+  "entities": [
+    {
+      "id": "sys-q1",
+      "name": "Quetzal-1",
+      "kind": "system",
+      "description": "Quetzal-1 CubeSat",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "sub-adcs",
+      "name": "ADCS",
+      "kind": "subsystem",
+      "parentId": "sys-q1",
+      "description": "Attitude Determination and Control System",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-bno055",
+      "name": "BNO055 IMU",
+      "kind": "component",
+      "parentId": "sub-adcs",
+      "description": "Adafruit Breakout Board for Bosch BNO055 absolute orientation sensor",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-adc1",
+      "name": "ADC1",
+      "kind": "component",
+      "parentId": "sub-adcs",
+      "description": "Texas Instruments ADC128D818 8-channel, 12-bit Analog-to-Digital Converter",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-3"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-adc2",
+      "name": "ADC2",
+      "kind": "component",
+      "parentId": "sub-adcs",
+      "description": "Texas Instruments ADC128D818 8-channel, 12-bit Analog-to-Digital Converter",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-3"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-tmp100",
+      "name": "TMP100",
+      "kind": "component",
+      "parentId": "sub-adcs",
+      "description": "Texas Instruments TMP100 Temperature Sensor with I2C Interface",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-4"
+      ],
+      "confidence": 1
+    }
+  ],
+  "relations": [],
+  "requirements": [],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "artifactId": "quetzal-source-extension-adcs-software",
+      "artifactLabel": "Quetzal-1 ADCS-software",
+      "excerpt": "# Quetzal-1 — ADCS-software",
+      "kind": "fact",
+      "locator": "L1"
+    },
+    {
+      "id": "ev-2",
+      "artifactId": "quetzal-source-extension-adcs-software",
+      "artifactLabel": "Quetzal-1 ADCS-software",
+      "excerpt": "1X [Adafruit Breakout Board for Bosch, Cat. No. BNO055](https://learn.adafruit.com/adafruit-bno055-absolute-orientation-sensor) - Inertial Measurement Unit (IMU)",
+      "kind": "fact",
+      "locator": "L14"
+    },
+    {
+      "id": "ev-3",
+      "artifactId": "quetzal-source-extension-adcs-software",
+      "artifactLabel": "Quetzal-1 ADCS-software",
+      "excerpt": "2X [Texas Instruments, Cat. No. ADC128D818](https://www.ti.com/product/ADC128D818) - 8-channel, 12-bit Analog-to-Digital Converters (ADC)",
+      "kind": "fact",
+      "locator": "L15"
+    },
+    {
+      "id": "ev-4",
+      "artifactId": "quetzal-source-extension-adcs-software",
+      "artifactLabel": "Quetzal-1 ADCS-software",
+      "excerpt": "1X [Texas Instruments, Cat. No. TMP100](https://www.ti.com/product/TMP100) - Temperature Sensor with I<sup>2</sup>C Interface",
+      "kind": "fact",
+      "locator": "L17"
+    }
+  ],
+  "schemaVersion": 1,
+  "id": "system-quetzal1-eps-comms",
+  "name": "Quetzal-1",
+  "generatedAt": "2026-09-08T23:34:23.714Z",
+  "generatedFromRevision": 1,
+  "artifactSources": [
+    {
+      "artifactId": "quetzal-source-extension-adcs-software",
+      "artifactLabel": "Quetzal-1 ADCS-software",
+      "status": "parsed"
+    }
+  ],
+  "model": "gemini-3.5-flash-lite"
+}

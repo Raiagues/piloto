@@ -1,0 +1,16 @@
+/* User-approved technical satellite drawings on the Norte home screen. */
+.image-stage .image-view img {
+  opacity: .34;
+  mix-blend-mode: screen;
+  filter: grayscale(.72) sepia(.5) saturate(1.55) hue-rotate(165deg) brightness(.82) contrast(1.13);
+}
+
+.image-stage::after {
+  background: radial-gradient(circle at center, rgba(58, 127, 192, .08), rgba(4, 18, 32, .22) 72%, rgba(4, 18, 32, .34));
+}
+
+@media (max-width: 760px) {
+  .image-stage .image-view img {
+    opacity: .28;
+  }
+}

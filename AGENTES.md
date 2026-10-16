@@ -1,5 +1,7 @@
 # Ativar e acompanhar os agentes do Norte
 
+Para a integração atual entre contas, projetos e reuniões, comece pelo [README](README.md). Este guia também descreve o módulo de agentes da reunião preservado do serviço anterior. A instalação local usa Node como autenticação principal e Python como worker privado.
+
 Site: <https://norte-r007.onrender.com>. No admin, abra **Agentes e métricas** (`#agentes`). As contas de teste continuam entrando em **Simulação de vigas**.
 
 ## 1. O que já funciona sem contratar outro serviço
@@ -34,7 +36,7 @@ python3 scripts/check_apis.py --live
 
 O diagnóstico não mostra chaves, não envia reuniões e não escreve no banco de produção. Sucesso em listar modelos não comprova permissão de geração. O teste com `--live` verifica uma classificação Jev, uma ata com evidência e uma intenção, somente quando a consulta autenticada do fornecedor passa. Isso não substitui teste de carga ou avaliação de qualidade de reuniões reais.
 
-No diagnóstico local de 15/10/2026, a listagem TypeSafe autenticou e a listagem Google retornou **HTTP 401**. É necessário corrigir a autenticação Google; não tratar o erro como prova de falta de créditos. Isso não informa o estado de outra chave configurada no Render.
+Na validação posterior da integração em 15/10/2026, chamadas reais ao Jev e ao Gemini funcionaram com as credenciais locais. Isso não informa o estado de outra chave configurada no Render; repita o diagnóstico no ambiente que será publicado.
 
 ### Custos e limites
 
@@ -93,6 +95,34 @@ O Jev classifica texto; a transcrição do áudio continua sendo feita pelo nave
 
 **Auditoria:** procura pedidos não reconhecidos, repetições, recuperação após outro pedido/click e avaliações negativas. **Validação:** reproduz operações localmente e testa candidatos de navegação contra regressões e casos separados. **Métricas:** consolida execução, avaliações, latência e uso dos provedores. A revisão semântica só envia uma frase candidata e sua contagem de recuperações; nunca envia o estado físico, memória completa, conta ou reunião inteira.
 
+## Ata concisa e referências
+
+Em **Ata / PDF**, confira os testes ainda sem conclusão ou sem associação. O primeiro **Baixar PDF** chama o modelo de atas já configurado; **Resumir ata com IA** permite antecipar essa etapa. Não é necessária outra chave. Downloads seguintes reutilizam a síntese salva no navegador; alterações nos registros, correções ou títulos exigem nova síntese. **Organizar novamente** solicita uma nova chamada. A chamada usa o limite `MINUTES_DAILY_CALL_LIMIT`, separado do orçamento dos agentes.
+
+Cada assunto tem numeração fixa: 1.1 Contexto e requisitos, 1.2 Hipóteses, 1.3 Testes realizados, 1.4 Resultados, 1.5 Decisões e 1.6 Pendências; seções vazias ficam ocultas. A IA produz frases de até 180 caracteres, preferencialmente 60–120. Os estados e vínculos continuam vindo dos registros, não da redação. Valores detalhados podem entrar em tabelas genéricas: cada linha cita um único registro, sem converter unidades nem calcular resultados. Incompatibilidades recebem motivo breve e referência.
+
+O PDF exclui o histórico da discussão e contém links para os registros completos no site. É necessário entrar na conta proprietária da reunião; os links não tornam os dados públicos. Cálculos, falas e revisões humanas permanecem disponíveis ali. O usuário comum não vê prompts, JSON de classificação ou respostas internas; o administrador pode abrir uma seção técnica fechada por padrão.
+
+A validação rejeita números/unidades novos, alterações detectadas de negação ou condições e células sem apoio literal na fonte. Isso reduz erros, mas não comprova fidelidade semântica de toda frase; confira atas reais antes de usá-las como documento final. Se a geração falhar, a ata anterior é preservada e **Baixar versão local** permite exportar os registros sem síntese. Não há chamada de correção editorial adicional automática. Essa versão local pode ser mais longa.
+
+## Revisão dos blocos e títulos
+
+Depois de salvar uma reunião na conta, o Norte agenda a revisão em segundo plano. Um editor cria sínteses dos blocos longos e títulos de assuntos; um avaliador faz outra chamada para verificar fidelidade. Uma rejeição permite **uma tentativa de correção**, seguida de nova avaliação. Se não passar ou o serviço estiver indisponível, o original continua aparecendo. Classificações, relações, cálculos, transcrição e atas não são alterados pela revisão.
+
+No bloco, clique em **Síntese · revisar** para comparar com a fala original, aprovar, corrigir ou usar o original. No título sugerido, clique no lápis para revisar. Um título aprovado/corrigido por você passa a ser manual e tem prioridade sobre os agentes. Títulos automáticos podem mudar à medida que o assunto evolui.
+
+A memória reutiliza versões automáticas já avaliadas e correções humanas para **texto e contexto exatamente iguais, dentro da mesma conta**. Essa reutilização dispensa nova edição/avaliação; não generaliza uma correção para conversas diferentes. Alterações de contexto invalidam a versão correspondente. Não há treinamento de pesos nem promessa de melhoria contínua de qualidade ou de redução de toda a fatura: conteúdo novo exige chamadas, e a avaliação também custa.
+
+Em **Agentes e métricas → Blocos e aprendizado**, veja aprovação humana, correções, retornos ao original, reaproveitamento, redução do texto, custo registrado, versões e avaliações. A tabela por dia permite acompanhar as avaliações voluntárias; elas não representam uma amostra imparcial de todas as reuniões. Redução do texto mede concisão, não acerto. Desativar uma memória impede novos reaproveitamentos e remove a síntese na próxima consulta; títulos já assumidos como manuais permanecem.
+
+**Não precisa de outra chave nem de outro provedor.** Usa o modelo leve já configurado em `AI_AGENT_MODEL` (ou o modelo OpenAI se selecionado), a mesma chave e o mesmo orçamento `AI_DAILY_BUDGET_USD` / `AI_DAILY_CALL_LIMIT`. Para revisão automática, mantenha `AI_AGENTS_ENABLED=true`, `AI_EXTERNAL_REVIEW_ENABLED=true`, `AI_AUTO_PUBLISH=true`, chave válida e tarifas configuradas. Não é preciso aumentar os limites para ativar. Cada lote de até quatro itens exige normalmente duas chamadas, até quatro com correção; a revisão compete pelo limite com os outros agentes.
+
+O cliente agenda após salvar, espera inicialmente cerca de 30 segundos e consulta a fila. Novos lotes têm intervalo mínimo de 60 segundos por reunião. Blocos com menos de 120 caracteres não geram paráfrases pagas; acima de 2.000 caracteres, permanecem originais. Títulos usam assuntos com até 6.000 caracteres. Essas fronteiras evitam truncar fatos silenciosamente. O navegador consulta novamente enquanto houver trabalho; o worker processa lotes enfileirados mesmo depois de fechar a página, mas novos lotes dependem de uma consulta da reunião.
+
+Esse fluxo editorial tem uma fronteira de envio própria: trechos classificados do bloco e até dois trechos anteriores do mesmo assunto; títulos usam os trechos do assunto dentro do limite. Não envia áudio, conta, senha, parâmetros de simulação ou a reunião inteira como objeto. Editor e avaliador usam o mesmo modelo em chamadas separadas, portanto podem compartilhar erros. Verificações locais adicionais preservam números, unidades, negações e condições; elas não provam fidelidade semântica completa.
+
+Memória editorial e avaliações seguem `AI_RETENTION_DAYS` (90 dias por padrão). Reuniões originais continuam na persistência da conta; sugestões são uma camada separada. Rotas autenticadas: `POST /api/ai/blocks/review` com `session_id`, `POST /api/ai/blocks/feedback` com referência/versão da sugestão e ação; desativação pelo admin em `POST /api/admin/ai/blocks/memory`.
+
 ## 5. O que aprende sozinho, e o limite atual
 
 Se uma frase de abertura falhar repetidamente e depois houver uma abertura bem-sucedida, o auditor registra a recuperação. Evidências em **duas sessões independentes**, confirmação semântica (ou rótulos humanos suficientes) e testes aprovados permitem ativar um **alias exato de abertura para aquela conta**. O admin pode desativá-lo no histórico. `AI_AUTO_PUBLISH=false` mantém as propostas sem ativação automática.
@@ -113,7 +143,7 @@ O ganho prático imediato está na linguagem natural ampliada, funções visíve
 | Tokens | Uso informado pelos provedores. Ausência de informação não é estimada como token zero de uma chamada conhecida. |
 | Custo estimado | Tokens medidos × tarifas configuradas. Chamadas com preço desconhecido ficam destacadas e fora da soma. |
 
-Os custos exibidos não incluem Render, impostos, câmbio ou serviços externos de transcrição. O orçamento diário limita **revisão semântica dos agentes/resolver**, compartilhado pelas contas; não limita o Jev das reuniões nem a geração de atas. O dia de orçamento usa UTC. Uma tentativa sem resposta conserva a reserva de custo para não tratar uma chamada possivelmente cobrada como gratuita.
+Os custos exibidos não incluem Render, impostos, câmbio ou serviços externos de transcrição. O orçamento diário limita **revisão semântica, resolver e edição/avaliação dos blocos**, compartilhado pelas contas; não limita o Jev das reuniões nem a geração de atas. O dia de orçamento usa UTC. Uma tentativa sem resposta conserva a reserva de custo para não tratar uma chamada possivelmente cobrada como gratuita.
 
 Em **Arquitetura atual**, clique nos blocos para ver as perguntas e opções do Jev carregadas dos mesmos arquivos que a aplicação usa. O flow anterior permanece disponível. Em **Testar interpretações**, execute a bateria local ou forneça casos com resultado esperado. **Exportar PDF** abre a impressão: escolha **Salvar como PDF**.
 

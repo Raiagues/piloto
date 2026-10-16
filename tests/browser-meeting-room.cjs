@@ -19,7 +19,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
  const attentionTypes=['requirement','hypothesis','test_proposal','test_result'];
  let gateRelease,gateHeld=false;const gate=new Promise(resolve=>gateRelease=resolve);
  let cancelRelease,cancelHeld=false;const cancellationGate=new Promise(resolve=>cancelRelease=resolve);
- const assets=new Set(['index.html','reuniao.html','styles.css','memory-flow.css','workspace.js','automation.js','classifier.js','lab.js','app.js','memory-page.js','typed-relations-page.js','relation-map.js','relation-map.css','classifier-config.json','manual-test-example.json','meeting-canvas.js','meeting-canvas.css','meeting-room.css','meeting-room.js','experiments.js','relation-worker.js','memory-flow.js','memory-v2.js','typed-relations.js','memory-storage.js','speech-windows.js','transcription.js','meeting-commands.js','meeting-session.js','meeting-speech.js','meeting-evidence.js','meeting-state.js','meeting-review.js','meeting-hierarchy.js','meeting-minutes.js','meeting-minutes.css','meeting-amendments.js','meeting-document.js','gemini-minutes.js','gemini-minutes.css','vendor/minutes/jspdf-4.2.1.umd.min.js','vendor/minutes/DejaVuSans-2.37.ttf']);
+ const assets=new Set(['meeting-blocks.js','meeting-blocks.css','index.html','reuniao.html','styles.css','memory-flow.css','workspace.js','automation.js','classifier.js','lab.js','app.js','memory-page.js','typed-relations-page.js','relation-map.js','relation-map.css','classifier-config.json','manual-test-example.json','meeting-canvas.js','meeting-canvas.css','meeting-room.css','meeting-room.js','experiments.js','relation-worker.js','memory-flow.js','memory-v2.js','typed-relations.js','memory-storage.js','speech-windows.js','transcription.js','meeting-commands.js','meeting-session.js','meeting-speech.js','meeting-evidence.js','meeting-state.js','meeting-review.js','meeting-hierarchy.js','meeting-minutes.js','meeting-minutes.css','meeting-amendments.js','meeting-document.js','gemini-minutes.js','gemini-minutes.css','vendor/minutes/jspdf-4.2.1.umd.min.js','vendor/minutes/DejaVuSans-2.37.ttf']);
  const subject=text=>/caixa|furos/.test(text||'')?'caixa':'suporte';
  const server=http.createServer(async(req,res)=>{
   try {
@@ -73,7 +73,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
  const chrome=spawn('google-chrome',['--headless','--no-sandbox','--disable-gpu','--remote-debugging-port=0','--no-first-run','--user-data-dir='+profile,'about:blank'],{stdio:['ignore','ignore','pipe']});
  let socket,chromeError='';chrome.stderr.on('data',data=>chromeError=(chromeError+data).slice(-2000));
  try{
-  let port;for(let i=0;i<160;i++){try{port=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(50);}}assert.ok(port,chromeError);
+  let port;for(let i=0;i<600;i++){try{port=(await fs.readFile(path.join(profile,'DevToolsActivePort'),'utf8')).split('\n')[0];break;}catch(_){await sleep(50);}}assert.ok(port,chromeError);
   const tabs=await fetch('http://127.0.0.1:'+port+'/json/list').then(response=>response.json());socket=new WebSocket(tabs.find(tab=>tab.type==='page').webSocketDebuggerUrl);await new Promise(resolve=>socket.addEventListener('open',resolve,{once:true}));
   let next=0;const pending=new Map();
   const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP timeout '+method));},20000);pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value);},reject:error=>{clearTimeout(timer);reject(error);}});socket.send(JSON.stringify({id,method,params}));});
@@ -105,7 +105,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await wait('window.NorteMeetingRoom?.ready() && window.NorteLab && NorteClassifier.isAvailable() && document.body.dataset.page==="meeting"');
   const visible=selector=>evaluate(`!!document.querySelector(${JSON.stringify(selector)})?.getClientRects().length`);
   const openSaved=async id=>{await wait('[...document.querySelectorAll(".room-open-meeting")].some(button=>button.dataset.meetingId==='+JSON.stringify(id)+')');await evaluate(`document.querySelector('.room-open-meeting[data-meeting-id="'+${JSON.stringify(id)}+'"]').click()`);await wait('NorteMeetingRoom.view()==="room" && NorteMeetingRoom.snapshot()?.id==='+JSON.stringify(id));};
-  const createInstant=async()=>{await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');assert.equal(await evaluate('document.querySelector("#roomSchedule").disabled'),true);await click('#roomCreateInstant');await wait('NorteMeetingRoom.view()==="room" && NorteMeetingRoom.snapshot()?.status==="draft"');return snapshot();};
+  const createInstant=async()=>{await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');assert.equal(await evaluate('document.querySelector("#roomSchedule").disabled'),true);await click('#roomCreateInstant');await wait('NorteMeetingRoom.view()==="room" && NorteMeetingRoom.snapshot()?.status==="draft" && !document.querySelector("#roomLive").disabled');return snapshot();};
   assert.equal(await evaluate('document.querySelectorAll("#sidebar").length'),1,'the meeting uses the original application sidebar');
   assert.equal(await evaluate('document.querySelector(".room-nav")'),null,'no standalone navigation is embedded');
   assert.equal(await evaluate('document.querySelector("#meetingMode").getAttribute("aria-current")'),'page');
@@ -240,6 +240,12 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await click('#roomBack');await wait('NorteMeetingRoom.view()==="library"');await createInstant();await click('#roomImport');
   await evaluate('document.querySelector("#roomImportText").value="Cancelar antes da resposta.";document.querySelector("#roomImportForm").requestSubmit()');
   for(let i=0;i<100&&!cancelHeld;i++)await sleep(20);assert.ok(cancelHeld);
+  const activeId=(await snapshot()).id;
+  await evaluate(`history.pushState(null,'','?meeting='+${JSON.stringify(finished.id)}+'&event=E001#reuniao');window.dispatchEvent(new PopStateEvent('popstate'))`);
+  await wait('document.querySelector("#roomNotice").textContent.includes("reunião em andamento")');
+  assert.equal((await snapshot()).id,activeId,'following another PDF reference never replaces an active meeting');
+  assert.equal(await evaluate('NorteMeetingRoom.isRunning()'),true);
+  await evaluate("history.replaceState(null,'','/index.html#reuniao')");
   const cancelStarted=Date.now();await click('#roomStop');await wait('NorteMeetingRoom.snapshot().status==="interrupted" && !NorteMeetingRoom.isRunning()');
   assert.ok(Date.now()-cancelStarted<1500,'cancel button settles without a pending request finishing');assert.equal(await evaluate('document.querySelector("#roomLiveLabel").textContent'),'Reunião encerrada');
   assert.equal(await evaluate('document.querySelector("#roomBack").disabled'),false);cancelRelease();await sleep(100);assert.equal((await snapshot()).meeting_events.length,0,'late responses never create memories after cancellation');
@@ -281,8 +287,13 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const beforeInspect=JSON.stringify((await snapshot()).meeting_events);
   await click('#roomAlerts .room-alert-item[data-kind=conflict]');await wait('!!document.querySelector(".room-diagnostics[open]")');
   assert.match(await evaluate('document.querySelector(".room-diagnostics").textContent'),/contradiz|contrária/i);
-  assert.match(await evaluate('document.querySelector(".room-diagnostic-log pre").textContent'),/contradicts/);
+  assert.equal(await evaluate('document.querySelector(".room-diagnostic-log")'),null,'normal record details never expose backend JSON');
   await evaluate('document.querySelector(".room-diagnostics").close()');
+  await evaluate('document.body.dataset.role="admin"');
+  await click('#roomAlerts .room-alert-item[data-kind=conflict]');await wait('!!document.querySelector(".room-diagnostic-log")');
+  assert.equal(await evaluate('document.querySelector(".room-diagnostic-log").open'),false,'admin diagnostic disclosure starts closed');
+  assert.match(await evaluate('document.querySelector(".room-diagnostic-log pre").textContent'),/contradicts/);
+  await evaluate('document.querySelector(".room-diagnostics").close();delete document.body.dataset.role');
   assert.equal(JSON.stringify((await snapshot()).meeting_events),beforeInspect,'inspection never edits original extracted records');
   await click('#roomPendingCount');await click('#roomFit');await screenshot('attention');
   if(process.env.MEETING_ROOM_LIVE_RUN){
@@ -290,6 +301,31 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    await evaluate(`(async()=>{await NorteMeetingRoom.flushStorage();const db=await NorteMemoryStorage.open();const run=${JSON.stringify(run)};await db.write('norte.meeting-room.session.v2.'+run.id,JSON.stringify(run));await db.change('norte.meeting-room.index.v2',raw=>({value:JSON.stringify([{id:run.id,title:run.title,date:run.createdAt,status:run.status},...JSON.parse(raw||'[]').filter(item=>item.id!==run.id)]),result:true}));db.close();window.__beforeReload=true;})()`);
    await call('Page.reload');await wait('!window.__beforeReload && window.NorteMeetingRoom?.ready() && NorteMeetingRoom.view()==="library"');await openSaved(run.id);await wait('document.querySelectorAll("#roomBoard .room-node").length==='+String(run.meeting_events.length));await screenshot('real');
   }
+  // Editorial UI fixture: the original is readable, correction and rollback
+  // update only the overlay; no external provider is called by this test.
+  await evaluate(`(()=>{
+   const text='Conversamos sobre o suporte por bastante tempo e ficou decidido, depois dessa conversa, que Marina revisará o suporte na sexta-feira.';
+   const event={event_id:'EB1',thread_id:'TB1',type:'decision',text,store_confidence:.99,type_confidence:.99};
+   const entry={text:'Marina revisará o suporte na sexta-feira.',source:text,basis:[{id:event.event_id,text,type:event.type,thread_id:event.thread_id}],key:'fixture',version:1,origin:'automatic'};
+   window.__blockRun={id:'block-ui',meeting_events:[event],meeting_threads:[{thread_id:'TB1'}],meeting_relations:[],block_review:{blocks:{EB1:entry},titles:{}}};
+   window.__blockPosts=[];
+   const host=document.createElement('div');host.id='blockFixture';host.style.cssText='position:fixed;inset:80px;background:white;z-index:2000;overflow:auto';const board=document.createElement('div');host.append(board);document.body.append(host);
+   const client=NorteMeetingBlocks.create({getRun:()=>__blockRun,onUpdate:()=>canvas.render(__blockRun),fetch:async(path,options)=>{const body=JSON.parse(options.body);__blockPosts.push(body);if(body.action==='restore')__blockRun.block_review.blocks={};else {entry.text=body.text||entry.text;entry.version++;entry.origin='human';}return {ok:true,json:async()=>({status:'ready',review:__blockRun.block_review})};}});
+   const canvas=NorteMeetingCanvas.create({canvas:host,board,onReview:(kind,id)=>client.edit(kind,id)});canvas.render(__blockRun);window.__blockTest={client,canvas,host};
+  })()`);
+  await click('#blockFixture .mc-editorial');await wait('!!document.querySelector(".room-block-dialog[open]")');
+  assert.match(await evaluate('document.querySelector(".room-block-dialog blockquote").textContent'),/Conversamos sobre/);
+  await screenshot('block-review');
+  await evaluate('document.querySelector(".room-block-dialog textarea").value="Na sexta-feira, Marina revisará o suporte.";[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Salvar correção").click()');
+  await wait('!document.querySelector(".room-block-dialog")');
+  assert.equal(await evaluate('document.querySelector("#blockFixture .mc-node-copy").textContent'),'Na sexta-feira, Marina revisará o suporte.');
+  assert.match(await evaluate('__blockRun.meeting_events[0].text'),/^Conversamos/);
+  await click('#blockFixture .mc-editorial');
+  await evaluate('[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Usar original").click()');
+  await wait('!document.querySelector(".room-block-dialog")');
+  assert.match(await evaluate('document.querySelector("#blockFixture .mc-node-copy").textContent'),/^Conversamos/);
+  assert.equal(await evaluate('__blockPosts.length'),2);
+  await evaluate('__blockTest.client.stop();__blockTest.canvas.destroy();__blockTest.host.remove()');
   assert.deepEqual(errors,[]);
   console.log('PASS: empty library, scoped legacy migration, draft creation without recording/inference, disabled scheduling, same-session import, visible hierarchical canvas with text disclosure/zoom/pan, transcript toggle/keyboard resize, list/reopen/reload, explicit recording with final speech retained, existing navigation/drafts, local minutes, mobile and concurrent V2 imports.');
  }finally{

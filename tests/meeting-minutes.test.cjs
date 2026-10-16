@@ -93,3 +93,27 @@ test('PDF plan retains intentionally unnamed topic labels and only declares cano
  const plan=M.pdfPlan({threads:[{id:'topic:T9',title:'Assunto 1 · sem título',sections:[{id:'section:T9:current',title:'1.1 Ações',blocks:[{text:'Executar [E9]',event_ids:['E9'],link_to:'event:E9'}]}]}]});
  assert.equal(plan.threads[0].title,'Assunto 1 · sem título');assert.equal(plan.declared.has('event:E9'),false);
 });
+test('legacy source document retains replaced records for review but excludes them from the PDF plan',()=>{
+ const run=make(),doc=M.buildDocument(run,{E001:{event_id:'E001',status:'superseded'}}),before=JSON.stringify(doc),plan=M.pdfPlan(doc);
+ assert.ok(doc.threads[0].sections.some(section=>section.id==='history'));assert.ok(doc.blocks.some(block=>block.id==='event:E001'));
+ assert.equal(plan.threads[0].sections.some(section=>section.id.endsWith(':history')),false);assert.equal(plan.declared.has('event:E001'),false);assert.equal(JSON.stringify(doc),before);
+});
+test('PDF plan declares table row destinations and permits only http(s) external references',()=>{
+ const doc={meeting_url:'https://norte.example/?meeting=meeting-1#reuniao',threads:[{id:'topic:T1',title:'Assunto 1',sections:[{id:'section:T1:results',title:'1.4 Resultados',blocks:[],tables:[{headers:['Valor','Referência'],rows:[{event_id:'E1',anchor_id:'event:E1',cells:['40 mm','Ref. 1']}]}]}]}]};
+ const before=JSON.stringify(doc),plan=M.pdfPlan(doc);assert.equal(JSON.stringify(doc),before);assert.ok(plan.declared.has('event:E1'));assert.equal(plan.external_targets.get('event:E1'),'https://norte.example/?meeting=meeting-1&event=E1#reuniao');
+ for(const value of ['javascript:alert(1)','data:text/html,bad','file:///tmp/private','https://user:password@norte.example/','/relative'])assert.equal(M.safeExternalURL(value),'');
+ assert.equal(M.safeExternalURL('https://norte.example/?meeting=1'),'https://norte.example/?meeting=1');
+});
+test('actual PDF has external meeting links and comparison tables across multiple pages',async()=>{
+ const fs=require('node:fs'),savedFetch=globalThis.fetch,savedPDF=globalThis.jspdf;
+ globalThis.jspdf=require('../vendor/minutes/jspdf-4.2.1.umd.min.js');
+ globalThis.fetch=async()=>{const data=fs.readFileSync(require('node:path').join(__dirname,'../vendor/minutes/DejaVuSans-2.37.ttf'));return {ok:true,arrayBuffer:async()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)};};
+ try{
+   const base='https://norte.example/?meeting=meeting-1#reuniao',rows=Array.from({length:60},(_,i)=>({event_id:'E'+i,anchor_id:'event:E'+i,cells:[String(i)+' mm','Resultado registrado','Ref. '+i],external_url:base.replace('#','&event=E'+i+'#')}));
+   const doc={title:'Ata concisa',meeting_url:base,metrics:{events:61},threads:[{id:'topic:T1',title:'Assunto 1: Medições',sections:[{id:'section:T1:results',title:'1.4 Resultados',blocks:[{text:'Ver medição',reference_label:'Ref. 60',external_url:base.replace('#','&event=E60#'),anchor_id:'event:E60',event_ids:['E60'],marker:'bullet'},{text:'Destino inválido',external_url:'javascript:alert(1)',marker:'bullet'}],tables:[{title:'Valores testados',headers:['Valor','Resultado','Referência'],rows}]}]}]};
+   const pdf=await M.createPDF(doc),raw=pdf.output();assert.ok(pdf.getNumberOfPages()>1);
+   assert.match(raw,/\/Subtype \/Link/);assert.match(raw,/\/URI \(https:\/\/norte\.example\/\?meeting=meeting-1&event=E60#reuniao\)/);
+   assert.match(raw,/event=E59#reuniao/);assert.doesNotMatch(raw,/javascript:alert/);
+   assert.ok((raw.match(/\/URI \(/g)||[]).length>=61,'each row and item has a real external PDF annotation');
+ }finally{globalThis.fetch=savedFetch;globalThis.jspdf=savedPDF;}
+});

@@ -1,0 +1,191 @@
+/* Discovery as a panel, and the project areas it can be opened from.
+   Both borrow the palette and spacing already used by the engineering workspace. */
+
+/* One of the main tools, so it sits in the navigation as one: always visible,
+   never floating over the page it would otherwise cover. */
+.mission-discovery { display: flex; align-items: center; gap: 11px; width: calc(100% - 16px); margin: 4px 8px 2px; padding: 8px; border: 1px solid var(--norte-border-strong); border-radius: 9px; background: linear-gradient(180deg, var(--norte-surface-muted), var(--norte-surface-muted)); color: var(--norte-text); text-align: left; cursor: pointer; }
+.mission-discovery:hover, .mission-discovery.open { border-color: var(--norte-border-strong); }
+.mission-discovery-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; background: var(--norte-surface-muted); color: var(--norte-link); }
+.mission-discovery-icon svg { width: 18px; height: 18px; }
+.mission-discovery-copy { display: grid; gap: 1px; min-width: 0; }
+.mission-discovery-copy strong { font-size: 12.5px; font-weight: 600; }
+.mission-discovery-copy small { color: var(--norte-text-secondary); font-size: 10px; line-height: 1.35; }
+.mission-sidebar.collapsed .mission-discovery { width: 46px; justify-content: center; margin: 4px auto 2px; padding: 4px; }
+.mission-sidebar.collapsed .mission-discovery-copy { display: none; }
+
+.discovery-panel { position: fixed; z-index: 901; top: 0; right: 0; bottom: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--norte-surface); border-left: 1px solid var(--norte-border); box-shadow: -14px 0 40px var(--norte-shadow); }
+.discovery-panel-grip { position: absolute; z-index: 2; top: 0; bottom: 0; left: -3px; width: 9px; cursor: col-resize; background: transparent; touch-action: none; }
+.discovery-panel-grip:hover, .discovery-panel-grip:focus-visible { background: linear-gradient(90deg, transparent, var(--norte-surface-raised) 40%, transparent); outline: none; }
+.discovery-panel-bar { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--norte-border); background: var(--norte-surface); }
+.discovery-panel-title { display: inline-flex; align-items: center; gap: 7px; color: var(--norte-text); font-size: 12px; font-weight: 550; white-space: nowrap; }
+.discovery-panel-title svg { width: 15px; height: 15px; color: var(--norte-link); }
+.discovery-panel-title em { padding: 1px 5px; border: 1px solid var(--norte-border); border-radius: 3px; color: var(--norte-text-secondary); font-size: 8px; font-style: normal; letter-spacing: .08em; }
+.discovery-panel-context { flex: 1; min-width: 0; color: var(--norte-text-muted); font-size: 11px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.discovery-panel-bar button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--norte-text-secondary); cursor: pointer; }
+.discovery-panel-bar button:hover { background: var(--norte-surface-muted); color: var(--norte-text); }
+.discovery-panel-bar svg { width: 16px; height: 16px; }
+.discovery-panel-body { min-height: 0; display: flex; }
+.discovery-panel-body > .brainstorm-lab { flex: 1; min-width: 0; }
+.app-shell.discovery-open .app-page { padding-right: var(--discovery-width, 440px); transition: padding-right 120ms ease; }
+
+/* Areas belong to the same rail as the phases: same chip, same rhythm. They
+   simply carry no step number and no lock, because they are not sequential.
+   The pipeline used to reserve room for the floating user block; the areas nav
+   now sits between them and takes that clearance over. */
+.mission-sidebar .mission-pipeline { flex: 0 1 auto; padding-bottom: 4px; }
+.mission-sidebar .mission-areas { display: grid; gap: 3px; flex-shrink: 0; padding: 0 8px 86px; }
+.mission-sidebar.collapsed .mission-areas { padding: 0 7px 16px; }
+.mission-areas-title { padding: 6px 6px 3px; color: var(--norte-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
+.mission-area { position: relative; width: 100%; min-height: 48px; padding: 4px 7px; display: flex; align-items: center; gap: 13px; text-align: left; color: var(--norte-text-muted); background: transparent; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+.mission-area-icon { flex: 0 0 auto; width: 40px; height: 40px; display: grid; place-items: center; color: var(--norte-text-muted); background: var(--norte-surface); border: 1px solid var(--norte-border); border-radius: 9px; transition: color 140ms ease, background 140ms ease, border-color 140ms ease; }
+.mission-area-icon > svg { width: 21px; height: 21px; }
+.mission-area-label { font-size: 13px; }
+.mission-area:hover:not(:disabled) { color: var(--norte-text); }
+.mission-area:hover:not(:disabled) .mission-area-icon { color: var(--norte-text); border-color: var(--norte-border-strong); }
+.mission-area.active { color: var(--norte-text); }
+.mission-area.active .mission-area-icon { color: var(--norte-text); background: var(--norte-surface-raised); border-color: var(--norte-border-strong); box-shadow: 0 0 20px var(--norte-shadow), inset 0 0 15px var(--norte-shadow); }
+.mission-area:disabled { opacity: .4; cursor: default; }
+.mission-sidebar.collapsed .mission-area { justify-content: center; padding: 2px; }
+.mission-sidebar.collapsed .mission-area-label, .mission-sidebar.collapsed .mission-areas-title { display: none; }
+
+/* One head for every project page: name in caps, the rail's neighbours, the tool. */
+.project-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 16px 26px 14px; border-bottom: 1px solid var(--norte-border); }
+.project-head-titles { display: grid; gap: 5px; min-width: 0; }
+.project-head-breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--norte-text-muted); font-size: 11px; }
+.project-head-breadcrumb strong { color: var(--norte-text-secondary); font-weight: 550; }
+.project-head h1 { margin: 0; font-size: 27px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--norte-text); }
+.project-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.engineering-conception .project-head { padding: 14px 0 16px; border-bottom: 0; }
+
+.phase-step { display: inline-flex; align-items: center; gap: 9px; padding: 7px 13px; border: 1px solid var(--norte-border); border-radius: 8px; background: var(--norte-surface); color: var(--norte-text); font-size: 12px; text-align: left; cursor: pointer; }
+.phase-step:hover:not(:disabled) { border-color: var(--norte-border-strong); }
+.phase-step span { display: grid; gap: 1px; }
+.phase-step small { color: var(--norte-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.phase-step svg { width: 15px; height: 15px; flex-shrink: 0; }
+.phase-step.disabled { border-style: dashed; color: var(--norte-text-muted); cursor: default; }
+.phase-step em { padding: 2px 7px; border-radius: 999px; background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); color: var(--norte-warning); font-size: 9px; font-style: normal; white-space: nowrap; }
+
+.explore-impact-action { display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border: 1px solid var(--norte-border-strong); border-radius: 8px; background: linear-gradient(180deg, var(--norte-surface-raised), var(--norte-surface-muted)); color: var(--norte-text); font-size: 12.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.explore-impact-action:hover, .explore-impact-action.open { border-color: var(--norte-border-strong); }
+.explore-impact-action svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+.project-area { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--norte-surface); color: var(--norte-text); }
+.project-area-counter { color: var(--norte-text-secondary); font-size: 11px; white-space: nowrap; }
+.project-area-preview { padding: 3px 8px; border: 1px solid color-mix(in srgb, var(--norte-warning) 45%, var(--norte-border)); border-radius: 999px; background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); color: var(--norte-warning); font-size: 9px; text-transform: uppercase; letter-spacing: .09em; }
+.project-area-body { flex: 1; min-height: 0; overflow: auto; padding: 20px 26px 34px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-content: start; }
+.project-area-body > * { min-width: 0; }
+
+.area-empty { display: grid; justify-items: center; gap: 12px; padding: 60px 20px; text-align: center; color: var(--norte-text-secondary); }
+.area-empty svg { width: 30px; height: 30px; color: var(--norte-text-muted); }
+.area-empty p { margin: 0; max-width: 44ch; font-size: 13px; line-height: 1.6; }
+.area-empty button { padding: 8px 14px; border: 1px solid var(--norte-border); border-radius: 6px; background: var(--norte-surface); color: var(--norte-link); font-size: 12px; cursor: pointer; }
+
+.area-preview-note { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 13px; border: 1px solid color-mix(in srgb, var(--norte-warning) 45%, var(--norte-border)); border-radius: 7px; background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); color: var(--norte-warning); font-size: 11px; line-height: 1.6; }
+.area-preview-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+.project-area .area-repo-action { display: inline-flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px dashed var(--norte-border); border-radius: 7px; background: var(--norte-surface); color: var(--norte-text-secondary); font-size: 11px; white-space: nowrap; cursor: default; }
+.project-area .area-repo-action small { padding: 2px 6px; border-radius: 999px; background: var(--norte-surface-muted); color: var(--norte-text-secondary); font-size: 9px; }
+.project-area .area-repo-action svg { width: 14px; height: 14px; }
+.area-repo-hint { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--norte-text-muted); font-size: 11px; }
+.area-repo-hint svg { width: 13px; height: 13px; }
+.project-area .area-cross-link { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border: 1px solid var(--norte-border); border-radius: 7px; background: var(--norte-surface); color: var(--norte-link); font-size: 12px; cursor: pointer; }
+.project-area .area-cross-link:hover { border-color: var(--norte-border-strong); }
+.project-area .area-cross-link svg { width: 14px; height: 14px; }
+
+/* Requirements and Verification are one filtered table, read the same way. */
+.requirement-table-wrap { display: grid; gap: 12px; min-width: 0; }
+.requirement-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 11px 13px; border: 1px solid var(--norte-border); border-radius: 8px; background: var(--norte-surface); }
+.requirement-filters label { display: inline-flex; align-items: center; gap: 6px; color: var(--norte-text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .07em; }
+.requirement-filters select { padding: 5px 8px; border: 1px solid var(--norte-border); border-radius: 5px; background: var(--norte-surface); color: var(--norte-text); font-size: 11px; text-transform: none; letter-spacing: 0; }
+.requirement-search { flex: 1 1 200px; min-width: 160px; padding: 0 9px; border: 1px solid var(--norte-border); border-radius: 5px; background: var(--norte-surface); }
+.requirement-search svg { width: 13px; height: 13px; color: var(--norte-text-muted); }
+.requirement-search input { width: 100%; padding: 7px 0; border: 0; background: transparent; color: var(--norte-text); font-size: 12px; }
+.requirement-search input:focus { outline: none; }
+.requirement-count { margin-left: auto; color: var(--norte-text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.requirement-clear { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border: 1px solid var(--norte-border); border-radius: 5px; background: var(--norte-surface); color: var(--norte-link); font-size: 11px; cursor: pointer; }
+.requirement-clear svg { width: 12px; height: 12px; }
+.requirement-empty { margin: 0; padding: 34px; text-align: center; color: var(--norte-text-muted); font-size: 12px; border: 1px dashed var(--norte-border); border-radius: 8px; }
+
+.requirement-scroll { min-width: 0; overflow-x: auto; border: 1px solid var(--norte-border); border-radius: 8px; }
+.requirement-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.requirement-table th { position: sticky; top: 0; z-index: 1; padding: 9px 12px; background: var(--norte-surface); border-bottom: 1px solid var(--norte-border); color: var(--norte-text-muted); font-size: 9px; font-weight: 600; text-align: left; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+.requirement-table td { padding: 10px 12px; border-bottom: 1px solid var(--norte-border); vertical-align: top; color: var(--norte-text-secondary); }
+.requirement-table tbody tr:last-child td { border-bottom: 0; }
+.requirement-table tbody tr:hover td { background: var(--norte-surface); }
+.requirement-table tbody tr.changed td { background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); }
+.requirement-table tbody tr.changed:hover td { background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); }
+.requirement-table .col-id { width: 96px; }
+.requirement-table .col-main { min-width: 240px; }
+.requirement-table .col-origin { max-width: 190px; }
+.requirement-table .col-linked { max-width: 190px; }
+.requirement-table .col-chain { min-width: 190px; }
+.requirement-table .col-why { max-width: 210px; }
+.requirement-table .col-main strong { display: block; color: var(--norte-text); font-size: 12.5px; font-weight: 550; }
+.requirement-table .col-main small { display: block; margin-top: 3px; color: var(--norte-text-secondary); font-size: 11px; line-height: 1.45; }
+.requirement-id { color: var(--norte-text-secondary); font-size: 10px; letter-spacing: .06em; white-space: nowrap; }
+.requirement-tag { display: inline-block; padding: 2px 7px; border: 1px solid var(--norte-border); border-radius: 4px; background: var(--norte-surface); font-size: 10.5px; white-space: nowrap; }
+.requirement-method { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10.5px; white-space: nowrap; border: 1px solid currentColor; }
+.method-test { color: var(--norte-link); }
+.method-analysis { color: var(--norte-success); }
+.method-simulation { color: var(--norte-violet); }
+.method-inspection { color: var(--norte-warning); }
+.requirement-source { font-size: 11px; }
+.requirement-source.source-program { color: var(--norte-warning); }
+.requirement-source.source-system { color: var(--norte-text-secondary); }
+.requirement-links { margin: 0; padding-left: 15px; display: grid; gap: 2px; font-size: 11.5px; }
+.requirement-muted { display: inline-flex; align-items: center; gap: 5px; color: var(--norte-text-muted); font-size: 11px; }
+.requirement-muted svg { width: 12px; height: 12px; }
+.requirement-review { display: inline-block; padding: 2px 7px; border: 1px solid color-mix(in srgb, var(--norte-warning) 45%, var(--norte-border)); border-radius: 4px; background: color-mix(in srgb, var(--norte-warning) 12%, var(--norte-surface)); color: var(--norte-warning); font-size: 10.5px; white-space: nowrap; }
+.verification-ok { color: var(--norte-success); font-size: 11px; }
+.verification-chain { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.verification-chain > svg { width: 12px; height: 12px; color: var(--norte-text-muted); }
+.verification-why { display: inline-flex; align-items: flex-start; gap: 6px; color: var(--norte-warning); font-size: 11px; line-height: 1.45; }
+.verification-why svg { width: 12px; height: 12px; flex-shrink: 0; margin-top: 2px; }
+
+/* Software reads like a flight-software architecture: small named blocks the
+   user can rearrange, a core panel underneath, and details on demand. */
+.project-area .software-edit { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border: 1px solid var(--norte-border); border-radius: 7px; background: var(--norte-surface); color: var(--norte-text); font-size: 11px; cursor: pointer; }
+.project-area .software-edit.editing { border-color: color-mix(in srgb, var(--norte-success) 45%, var(--norte-border)); background: color-mix(in srgb, var(--norte-success) 12%, var(--norte-surface)); color: var(--norte-success); }
+.project-area .software-edit svg { width: 14px; height: 14px; }
+
+.software-canvas { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 230px); grid-template-areas: "apps inspector" "core inspector"; gap: 12px; align-items: start; }
+.software-canvas > .software-panel:first-of-type { grid-area: apps; }
+.software-canvas > .software-panel:nth-of-type(2) { grid-area: core; }
+.software-inspector { grid-area: inspector; }
+.software-panel { min-width: 0; padding: 12px 14px 14px; border: 1px solid var(--norte-border); border-radius: 9px; background: var(--norte-surface); }
+.software-panel > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; color: var(--norte-text-muted); font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .09em; }
+.software-reset { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border: 1px solid var(--norte-border); border-radius: 5px; background: var(--norte-surface); color: var(--norte-link); font-size: 10px; text-transform: none; letter-spacing: 0; cursor: pointer; }
+.software-reset svg { width: 12px; height: 12px; }
+
+.software-apps { position: relative; min-height: 62px; overflow: hidden; }
+.software-app { position: absolute; display: grid; align-content: center; gap: 3px; padding: 8px 11px; border: 1px solid var(--norte-border-strong); border-radius: 7px; background: var(--norte-surface-muted); color: var(--norte-text); text-align: left; cursor: pointer; }
+.software-app:hover { border-color: var(--norte-border-strong); }
+.software-app.selected { z-index: 2; border-color: var(--norte-border-strong); background: var(--norte-surface-muted); box-shadow: 0 0 0 2px var(--norte-shadow); }
+.software-app.editable:active { z-index: 3; }
+.software-app.editable { cursor: grab; touch-action: none; }
+.software-app.editable:active { cursor: grabbing; z-index: 3; }
+.software-app strong { font-size: 14px; font-weight: 650; letter-spacing: .03em; }
+.software-app small { color: var(--norte-text-secondary); font-size: 10px; }
+
+.software-core { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.software-service { display: grid; align-content: center; gap: 3px; min-height: 54px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--norte-violet) 45%, var(--norte-border)); border-radius: 7px; background: color-mix(in srgb, var(--norte-violet) 12%, var(--norte-surface)); color: var(--norte-violet); }
+.software-service.bus { grid-column: 1 / -1; border-color: color-mix(in srgb, var(--norte-violet) 45%, var(--norte-border)); background: color-mix(in srgb, var(--norte-violet) 12%, var(--norte-surface)); text-align: center; }
+.software-service strong { font-size: 12.5px; font-weight: 600; }
+.software-service small { color: var(--norte-violet); font-size: 10px; }
+
+.software-inspector { display: grid; align-content: start; gap: 10px; padding: 12px 14px; border: 1px solid var(--norte-border); border-radius: 9px; background: var(--norte-surface); min-height: 120px; }
+.software-inspector > strong { color: var(--norte-text); font-size: 15px; font-weight: 650; letter-spacing: .03em; }
+.software-inspector > p { margin: 0; color: var(--norte-text-muted); font-size: 11px; line-height: 1.5; }
+.software-inspector div { display: grid; gap: 4px; }
+.software-inspector small { color: var(--norte-text-muted); font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+.software-inspector ul { margin: 0; padding-left: 15px; display: grid; gap: 2px; color: var(--norte-text); font-size: 11.5px; }
+.software-inspector em { color: var(--norte-text-muted); font-style: normal; font-size: 11px; }
+
+.project-area-breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--norte-text-muted); font-size: 11px; }
+.project-area-breadcrumb strong { color: var(--norte-text-secondary); font-weight: 550; }
+
+@media (max-width: 900px) {
+  .project-area-head { flex-direction: column; gap: 12px; padding: 16px; }
+  .project-area-body { padding: 16px; }
+  .app-shell.discovery-open .app-page { padding-right: 0; }
+  .discovery-panel { width: 100% !important; }
+}

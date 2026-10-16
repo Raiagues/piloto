@@ -1,0 +1,109 @@
+{
+  "entities": [
+    {
+      "id": "quetzal1",
+      "name": "Quetzal-1",
+      "kind": "system",
+      "description": "Quetzal-1 CubeSat",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "adcs",
+      "name": "ADCS",
+      "kind": "subsystem",
+      "parentId": "quetzal1",
+      "description": "Attitude Determination and Control System",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "magnet",
+      "name": "Cylindrical Magnet",
+      "kind": "component",
+      "parentId": "adcs",
+      "description": "Cylindrical magnet for passive magnetic attitude control",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "imu",
+      "name": "BNO055 IMU",
+      "kind": "component",
+      "parentId": "adcs",
+      "description": "Inertial Measurement Unit",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-3"
+      ],
+      "confidence": 1
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel-1",
+      "from": "adcs",
+      "to": "magnet",
+      "kind": "mounted_on",
+      "label": "ADCS includes magnet",
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    }
+  ],
+  "requirements": [],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "artifactId": "quetzal-source-extension-adcs-hardware",
+      "artifactLabel": "Quetzal-1 ADCS-hardware",
+      "excerpt": "Author: Quetzal-1 CubeSat Team.",
+      "kind": "fact",
+      "locator": "L3"
+    },
+    {
+      "id": "ev-2",
+      "artifactId": "quetzal-source-extension-adcs-hardware",
+      "artifactLabel": "Quetzal-1 ADCS-hardware",
+      "excerpt": "Quetzal-1’s ADCS used a cylindrical magnet (K&J Magnetics, Cat. No. D84) (with a measured 0.74  $A \\cdot m^2$ magnetic moment) to align the satellite to Earth’s magnetic field and two hysteresis rods, located on mutually orthogonal axes, to stabilize its rotation [[1]](#user-content-references).",
+      "kind": "fact",
+      "locator": "L14"
+    },
+    {
+      "id": "ev-3",
+      "artifactId": "quetzal-source-extension-adcs-hardware",
+      "artifactLabel": "Quetzal-1 ADCS-hardware",
+      "excerpt": "For attitude determination, Quetzal-1's ADCS included an Adafruit Breakout Board for an Inertial Measurement Unit (IMU) (Bosch, Cat. No. BNO055), which includes a 3-axis accelerometer, gyroscope and magnetometer, as well as a temperature sensor.",
+      "kind": "fact",
+      "locator": "L18"
+    }
+  ],
+  "schemaVersion": 1,
+  "id": "system-quetzal1-eps-comms",
+  "name": "Quetzal-1",
+  "generatedAt": "2026-09-08T23:33:01.910Z",
+  "generatedFromRevision": 1,
+  "artifactSources": [
+    {
+      "artifactId": "quetzal-source-extension-adcs-hardware",
+      "artifactLabel": "Quetzal-1 ADCS-hardware",
+      "status": "parsed"
+    }
+  ],
+  "model": "gemini-3.5-flash-lite"
+}

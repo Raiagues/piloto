@@ -1,0 +1,113 @@
+.artifact-source-fields {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.artifact-source-fields > legend,
+.artifact-link-field > span {
+  margin-bottom: 7px;
+  color: #87a8c2;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.artifact-source-modes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(115, 174, 222, .28);
+  border-radius: 6px;
+  background: rgba(1, 12, 23, .38);
+}
+
+.artifact-source-modes button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: #8faac1;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.artifact-source-modes button.active {
+  color: #dff8f1;
+  background: rgba(51, 180, 148, .16);
+  box-shadow: inset 0 0 0 1px rgba(62, 212, 173, .34);
+}
+
+.artifact-source-modes svg { width: 17px; height: 17px; }
+.artifact-link-field { display: grid; }
+.artifact-source-role { display: grid; gap: 7px; }
+.artifact-source-role > span { color: #87a8c2; font-size: 11px; font-weight: 650; }
+.artifact-source-role small { color: #9bb4c8; font-size: 11px; line-height: 1.5; }
+.artifact-file-input { position: fixed; left: -10000px; width: 1px; height: 1px; opacity: 0; }
+
+.artifact-drop-zone {
+  display: grid;
+  min-height: 142px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding: 20px;
+  color: #dceaf5;
+  text-align: left;
+  border: 1px dashed rgba(62, 212, 173, .5);
+  border-radius: 6px;
+  background: rgba(19, 83, 72, .09);
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.artifact-drop-zone:hover,
+.artifact-drop-zone.dragging {
+  border-color: #3ed4ad;
+  background: rgba(19, 112, 91, .18);
+}
+
+.artifact-drop-zone > svg { width: 32px; height: 32px; color: #3ed4ad; stroke-width: 1.45; }
+.artifact-drop-zone > span { display: grid; gap: 4px; }
+.artifact-drop-zone strong { font-size: 14px; font-weight: 620; }
+.artifact-drop-zone small { color: #9bb4c8; font-size: 12px; }
+.artifact-drop-zone em { margin-top: 5px; color: #718fa8; font-size: 10px; font-style: normal; }
+
+.artifact-file-ready {
+  display: grid;
+  min-height: 86px;
+  grid-template-columns: 42px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  border: 1px solid rgba(62, 212, 173, .38);
+  border-radius: 6px;
+  background: rgba(19, 83, 72, .12);
+}
+
+.artifact-file-ready > svg { width: 28px; height: 28px; color: #3ed4ad; }
+.artifact-file-ready > span { display: grid; min-width: 0; gap: 5px; }
+.artifact-file-ready strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.artifact-file-ready small { color: #8eaaC0; font-size: 11px; }
+.artifact-file-ready button { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; color: #d59298; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+.artifact-file-ready button:hover { background: rgba(223, 92, 103, .1); }
+.artifact-file-ready button svg { width: 17px; }
+
+.artifact-source-error {
+  margin: -2px 0 0;
+  color: #f0a4aa;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@media (max-width: 540px) {
+  .artifact-drop-zone { min-height: 122px; grid-template-columns: 34px minmax(0, 1fr); padding: 15px; }
+  .artifact-drop-zone > svg { width: 27px; height: 27px; }
+}

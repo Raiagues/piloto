@@ -1,0 +1,11 @@
+import type { EngineeringSystemModel } from "../../../src/lib/engineeringSystem";
+import type { ConnectedArtifact } from "../../../src/lib/team";
+export const QUETZAL_PROJECT_ID: string;
+export const QUETZAL_PROJECT_NAME: string;
+export const PAPER_URL: string;
+export const HARDWARE_URL: string;
+export const contextFacts: string[][];
+export const methodFacts: string[][];
+export const contextDocuments: { id: string; label: string; fileName: string; text: string }[];
+export function createQuetzalArtifacts(ownerId?: string, timestamp?: string, createdBy?: string | null): ConnectedArtifact[];
+export function createQuetzalDesignModel(): EngineeringSystemModel;

@@ -1,0 +1,14 @@
+# Quetzal-1 — mission architecture excerpts
+
+Author: danalvarez (Quetzal-1 mission team).
+Source: https://hackaday.io/project/191065-open-sourcing-the-design-for-the-quetzal-1-cubesat
+Locator: Details, paragraph beginning "Quetzal-1 was comprised".
+Retrieved: 2026-09-08.
+Use: short attributed excerpts; copyright retained by original author.
+Adaptation: two separate excerpts from the same architecture paragraph. The ellipsis marks omitted words about EPS and ADCS; these are documented separately. No flight results or telemetry included.
+
+"Quetzal-1 was comprised of an On-Board Computer (OBC), Transceiver and Antenna"
+
+[...]
+
+"Payload (PLD), Antenna Deployment Mechanism (ADM) and a Structure (STR)."

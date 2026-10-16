@@ -1,0 +1,102 @@
+name: CD - GitHub Pages Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build verified browser demo
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      CI: "true"
+      VITE_DEMO_MODE: "true"
+      VITE_BASE_PATH: /${{ github.event.repository.name }}/
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify and build demo
+        run: npm run quality
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: ./dist
+
+  deploy:
+    name: Deploy and verify
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+
+      - name: Verify live page and assets
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python - <<'PY'
+          import os
+          import re
+          import time
+          import urllib.parse
+          import urllib.request
+
+          page_url = os.environ["PAGE_URL"]
+          headers = {"User-Agent": "norte-pages-check"}
+          last_error = None
+
+          for _ in range(18):
+              try:
+                  request = urllib.request.Request(page_url, headers=headers)
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      html = response.read().decode("utf-8")
+                  if "<title>Norte</title>" in html and 'id="root"' in html:
+                      break
+              except Exception as error:
+                  last_error = error
+              time.sleep(10)
+          else:
+              raise RuntimeError(f"Norte did not become healthy: {last_error}")
+
+          assets = re.findall(r'(?:src|href)="([^"]+\.(?:js|css))"', html)
+          if not assets:
+              raise RuntimeError("No production JavaScript or CSS assets were found.")
+          for asset in assets:
+              asset_url = urllib.parse.urljoin(page_url, asset)
+              request = urllib.request.Request(asset_url, headers=headers)
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  if response.status != 200:
+                      raise RuntimeError(f"Asset failed with HTTP {response.status}: {asset_url}")
+          print(f"Verified Norte and {len(assets)} assets at {page_url}")
+          PY

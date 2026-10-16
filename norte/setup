@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Install everything Norte needs locally and prepare the database.
+# Safe to run again: each step skips what is already in place.
+#
+#   ./setup              Node.js, npm packages, .env, PostgreSQL, Quetzal-1 documents
+#   ./setup --skip-seed  Same, without downloading the Quetzal-1 documents
+set -Eeo pipefail
+. "$(dirname "${BASH_SOURCE[0]}")/scripts/local.sh"
+cd "$NORTE_ROOT"
+
+step "Node.js $NORTE_NODE_VERSION or newer"
+ensure_node
+
+step "npm packages"
+if dependencies_installed; then
+  ok "Already installed"
+else
+  npm ci --no-audit --no-fund
+  ok "Installed"
+fi
+
+step "Environment file (.env)"
+if [ -f "$NORTE_ENV_FILE" ]; then
+  ok ".env already exists"
+else
+  cp .env.example "$NORTE_ENV_FILE"
+  chmod 600 "$NORTE_ENV_FILE"
+  ok "Created .env from .env.example"
+fi
+if [ -n "$(env_get GEMINI_API_KEY)" ]; then
+  ok "GEMINI_API_KEY is set"
+else
+  gemini_key=""
+  if [ -t 0 ]; then
+    printf 'Paste your GEMINI_API_KEY (https://aistudio.google.com/apikey) or press Enter to skip: '
+    read -rs gemini_key || true
+    echo
+  fi
+  if [ -n "$gemini_key" ]; then
+    env_set GEMINI_API_KEY "$gemini_key"
+    ok "GEMINI_API_KEY saved to .env"
+  else
+    warn "GEMINI_API_KEY is empty: the app runs, but AI extraction and Discovery interpretation stay off."
+    warn "Add the key to .env later and restart with ./stop && ./start."
+  fi
+fi
+
+step "Database"
+if [ -n "$(env_get DATABASE_URL)" ] && ! uses_local_postgres; then
+  ok "Using the DATABASE_URL already in .env"
+elif docker_ready; then
+  if [ -z "$(env_get DATABASE_URL)" ] && [ -f var/mission-dev-data.json ]; then
+    warn "Switching to PostgreSQL. The previous local data in var/mission-dev-data.json is kept but no longer used."
+  fi
+  ensure_postgres
+elif uses_local_postgres; then
+  die "Docker is not running, but .env uses the local PostgreSQL container. Start Docker (sudo systemctl start docker) and run ./setup again."
+else
+  warn "Docker is not available, so data is stored in var/mission-dev-data.json instead of PostgreSQL."
+  warn "To use PostgreSQL, install Docker (https://docs.docker.com/engine/install/) and run ./setup again."
+fi
+node scripts/setup-database.mjs "$@"
+
+echo
+ok "${BOLD}Setup complete.${RESET} Run ./start to open Norte."

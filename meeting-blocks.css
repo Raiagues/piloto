@@ -1,0 +1,12 @@
+.mc-editorial { border:1px solid #35ba903d; border-radius:5px; padding:3px 6px; background:#123c50; color:#94ecd3; font:inherit; font-size:10px; cursor:pointer; }
+.room-node-header:has(.mc-editorial) { flex-wrap:wrap; }
+.room-block-status { display:block; font-size:11px; color:var(--muted); }
+.room-block-dialog { width:min(620px,90vw); max-height:85vh; overflow:auto; border:1px solid var(--line-strong); border-radius:12px; padding:24px; background:var(--panel); color:var(--text); }
+.room-block-dialog::backdrop { background:#04111eb3; }
+.room-block-dialog h2 { margin-top:0; font-size:20px; }
+.room-block-dialog p { font-size:13px; line-height:1.5; }
+.room-block-dialog blockquote { margin:16px 0; padding:12px; background:var(--deep); border-left:3px solid var(--blue); white-space:pre-wrap; max-height:180px; overflow:auto; font-size:13px; line-height:1.6; }
+.room-block-dialog label { display:grid; gap:8px; font-size:13px; }
+.room-block-dialog textarea { box-sizing:border-box; width:100%; padding:10px; font:inherit; line-height:1.6; resize:vertical; border:1px solid var(--line-strong); border-radius:6px; background:var(--deep); color:var(--text); }
+.room-block-dialog form>div { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+.room-block-dialog [role=status] { color:#ffb4ab; }

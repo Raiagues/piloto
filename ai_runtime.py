@@ -170,6 +170,8 @@ class Runtime:
         self.worker = None
         self.provider_slots = threading.BoundedSemaphore(1)
         self.last_maintenance = 0
+        from block_agents import BlockAgents
+        self.blocks = BlockAgents(self)
 
     def start(self):
         if not self.settings.ai_agents_enabled or self.worker: return
@@ -193,7 +195,7 @@ class Runtime:
 
     def enqueue(self, user_id, kind, payload=None, dedup_key=None):
         now, job_id = stamp(), uid()
-        if kind not in ('audit', 'replay', 'metrics'): raise ValueError('Agente inválido.')
+        if kind not in ('audit', 'replay', 'metrics', 'blocks'): raise ValueError('Agente inválido.')
         dedup = dedup_key or uid()
         row = self.store._run("INSERT INTO ai_jobs(id,user_id,kind,status,payload,created_at,updated_at,available_at,dedup_key) VALUES(%s,%s,%s,'queued',%s,%s,%s,%s,%s) ON CONFLICT(dedup_key) DO NOTHING RETURNING id",
                               (job_id, user_id, kind, packed(payload or {}), now, now, now, dedup), 'one')
@@ -278,7 +280,7 @@ class Runtime:
         job_id, user_id, kind, raw, attempt = row
         try:
             payload = json.loads(raw)
-            result = self.audit(user_id) if kind == 'audit' else self.evaluate(user_id, payload.get('cases')) if kind == 'replay' else self.metrics()
+            result = self.blocks.process(user_id, payload) if kind == 'blocks' else self.audit(user_id) if kind == 'audit' else self.evaluate(user_id, payload.get('cases')) if kind == 'replay' else self.metrics()
             self.store._run("UPDATE ai_jobs SET status='done',result=%s,error='',updated_at=%s,lease_until=0 WHERE id=%s AND status='running' AND attempts=%s", (packed(result), stamp(), job_id, attempt))
         except Exception as error:
             self.store._run('UPDATE ai_jobs SET status=%s,error=%s,updated_at=%s,available_at=%s,lease_until=0 WHERE id=%s AND attempts=%s',
@@ -439,7 +441,7 @@ class Runtime:
 
     def provider_status(self):
         provider, model, key, _ = self.provider_config()
-        row = self.store._run("SELECT status,details,created_at FROM ai_usage WHERE provider=%s AND model=%s AND lane='agent' ORDER BY created_at DESC,id DESC LIMIT 1", (provider, model), 'one')
+        row = self.store._run("SELECT status,details,created_at FROM ai_usage WHERE provider=%s AND model=%s AND lane IN ('agent','blocks') ORDER BY created_at DESC,id DESC LIMIT 1", (provider, model), 'one')
         return {'provider': provider, 'model': model, 'configured': bool(key),
                 'verified': bool(row and row[0] == 'success'),
                 'last_status': row[0] if row else 'untested', 'last_check_at': row[2] if row else None,
@@ -581,7 +583,7 @@ class Runtime:
             cost, basis = s.jev_usd_per_request, 'configured_per_request'
         elif inputs is not None:
             if provider == 'gemini' and lane == 'minutes' and model == s.gemini_model: rates = (s.minutes_input_usd_per_million, s.minutes_output_usd_per_million)
-            elif provider == 'gemini' and lane == 'agent' and model == s.ai_agent_model: rates = (s.ai_gemini_input_usd_per_million, s.ai_gemini_output_usd_per_million)
+            elif provider == 'gemini' and lane in ('agent', 'blocks') and model == s.ai_agent_model: rates = (s.ai_gemini_input_usd_per_million, s.ai_gemini_output_usd_per_million)
             elif provider == 'openai' and model == s.ai_openai_model: rates = (s.ai_openai_input_usd_per_million, s.ai_openai_output_usd_per_million)
             elif provider == 'jev': rates = (s.jev_input_usd_per_million, s.jev_output_usd_per_million)
             else: rates = (None, None)
@@ -638,7 +640,7 @@ class Runtime:
             daily[time.strftime('%Y-%m-%d', time.gmtime(ts * 86400))]['cost_usd'] += cost
         budget = self.store._run('SELECT calls,reserved_usd FROM ai_budget WHERE day=%s', (time.strftime('%Y-%m-%d', time.gmtime()),), 'one') or (0, 0)
         minutes_budget = self.store._run('SELECT calls FROM ai_minutes_budget WHERE day=%s', (time.strftime('%Y-%m-%d', time.gmtime()),), 'one') or (0,)
-        return {'version': VERSION, 'metrics': metrics, 'daily': [{'day': k, **daily[k]} for k in sorted(daily)],
+        return {'version': VERSION, 'metrics': metrics, 'blocks': self.blocks.overview(), 'daily': [{'day': k, **daily[k]} for k in sorted(daily)],
                 'jobs': [dict(zip(('id', 'user_id', 'kind', 'status', 'attempts', 'created_at', 'updated_at', 'error', 'result'), (*r[:-1], json.loads(r[-1])))) for r in jobs],
                 'proposals': [{'id': r[0], 'user_id': r[1], 'phrase': r[2], 'intent': r[3], 'status': r[4], 'reason': r[5], 'evidence_count': len(json.loads(r[6])), 'evidence': json.loads(r[6]), 'evaluation': json.loads(r[7]), 'created_at': r[8]} for r in proposals],
                 'aliases': [dict(zip(('id', 'user_id', 'phrase', 'intent', 'status', 'created_at'), r)) for r in aliases],
@@ -659,6 +661,7 @@ class Runtime:
 
     def prune(self):
         cutoff = stamp() - self.settings.ai_retention_days * 86400
+        self.blocks.prune(cutoff)
         # Learned aliases remain versioned; raw transcript evidence has retention.
         for table in ('ai_events', 'ai_usage', 'ai_evaluations'):
             self.store._run('DELETE FROM ' + table + ' WHERE created_at<%s', (cutoff,))

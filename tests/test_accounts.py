@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import auth
 import config
@@ -138,6 +139,20 @@ class AccountHttpTests(unittest.TestCase):
         self.assertEqual(self.call('/login', headers=session)[0], 302)
         self.assertEqual(self.call('/api/auth/logout', {}, session)[0], 200)
         self.assertEqual(self.call('/api/auth/me', headers=session)[0], 401)
+
+    def test_pdf_reference_survives_login_without_open_redirects(self):
+        destination = '/?meeting=meeting-123&event=PM_RESULT_PM000001'
+        status, headers, _ = self.call(destination)
+        self.assertEqual(status, 302)
+        self.assertEqual(urlsplit(headers['Location']).path, '/login')
+        self.assertEqual(parse_qs(urlsplit(headers['Location']).query)['next'], [destination])
+        _, _, session = self.sign('signup', 'referencia', 'uma-senha-boa')
+        status, headers, _ = self.call('/login?' + urlencode({'next': destination + '#simulacao'}), headers=session)
+        self.assertEqual((status, headers['Location']), (302, destination + '#simulacao'))
+        for unsafe in ('https://attacker.example/', '//attacker.example/', '/\\attacker.example/', '/api/auth/logout', '/?meeting=bad/id', '/?meeting=abc\nX-Header:bad', '/%2f%2fattacker.example', 'javascript:alert(1)'):
+            with self.subTest(unsafe=unsafe):
+                status, headers, _ = self.call('/login?' + urlencode({'next': unsafe}), headers=session)
+                self.assertEqual((status, headers['Location']), (302, '/'))
 
     def test_roles_decide_menu_and_admin_files(self):
         _, _, user = self.sign('signup', 'bruno', 'uma-senha-boa')

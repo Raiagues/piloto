@@ -1,0 +1,29 @@
+{
+  "policy": "Evaluation only. Never ingest into project memory or model prompts. Public primary-source articles retained locally; redistribution permission is not assumed.",
+  "sources": [
+    {
+      "id": "joss-quetzal1-eps-heldout",
+      "title": "Design and On-Orbit Performance of the Electrical Power System for the Quetzal-1 CubeSat",
+      "source_url": "https://jossonline.com/storage/2023/05/Final-Aguilar-Nadalini-Design-and-On-Orbit-Performance-of-the-Electrical-Power-System-for-the-Quetzal-1-CubeSat.pdf",
+      "publisher": "Journal of Small Satellites / A. Deepak Publishing",
+      "license": "Copyright A. Deepak Publishing. All rights reserved. Public local reference; no redistribution license assumed.",
+      "revision": "JoSS 12(2), 2023, pp. 1201–1229",
+      "filename": "quetzal1-eps-on-orbit.pdf",
+      "role": "evaluation_heldout",
+      "redistribution": "local-reference-only",
+      "default_ingest": false
+    },
+    {
+      "id": "joss-quetzal1-adcs-heldout",
+      "title": "Design and On-Orbit Performance of the Attitude Determination and Passive Control System for the Quetzal-1 CubeSat",
+      "source_url": "https://jossonline.com/storage/2023/05/Final-Alvarez-Design-and-On-Orbit-Performance-of-the-Attitude-Determination-and-Passive-Control-System-for-the-Quetzal-1-CubeSat.pdf",
+      "publisher": "Journal of Small Satellites / A. Deepak Publishing",
+      "license": "Copyright A. Deepak Publishing. All rights reserved. Public local reference; no redistribution license assumed.",
+      "revision": "JoSS 12(2), 2023, pp. 1231–1247",
+      "filename": "quetzal1-adcs-on-orbit.pdf",
+      "role": "evaluation_heldout",
+      "redistribution": "local-reference-only",
+      "default_ingest": false
+    }
+  ]
+}

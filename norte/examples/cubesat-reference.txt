@@ -1,0 +1,31 @@
+Reference 3U CubeSat architecture. Synthetic teaching fixture; not a real mission.
+The 3U CubeSat contains the Payload, Power, Communication, Attitude control, Avionics, Structure and Thermal subsystems.
+Camera CAM-3U mass is 350 g. Operating power is 4.5 W. Peak current is 1.4 A. Nominal voltage is 3.3 V. Thickness along the stack is 22 mm.
+Optics barrel OB-50 mass is 180 g. Thickness along the stack is 46 mm.
+Payload storage board mass is 60 g. Operating power is 0.8 W.
+Battery pack BP-20 available energy is 20 Wh. Mass is 260 g.
+EPS board continuous output limit is 3 A. Output voltage is 3.3 V. Mass is 95 g.
+Solar array generated power is 11 W. Mass is 300 g.
+UHF transceiver TR-U1 transmit power is 3.2 W. Receive power is 0.6 W. Peak current is 1.1 A. Transmit duty cycle is 12 %. Mass is 85 g.
+Deployable antenna mass is 45 g. Thickness along the stack is 8 mm.
+Reaction wheel RW-3 operating power is 1.6 W. Peak current is 0.6 A. Mass is 140 g.
+Magnetorquer set operating power is 0.4 W. Mass is 60 g.
+On-board computer OBC-A operating power is 1.1 W. Mass is 70 g.
+3U chassis mass is 480 g. Rail wall thickness is 2 mm.
+Radiator panel mass is 90 g.
+Payload allocated mass is the sum of the Camera, Optics barrel and Payload storage board masses.
+Total mass is the sum of the Camera, Optics barrel, Payload storage board, Battery pack, EPS board, Solar array, UHF transceiver, Deployable antenna, Reaction wheel, Magnetorquer set, On-board computer, 3U chassis and Radiator panel masses.
+Payload stack height is the sum of the Camera, Optics barrel and Deployable antenna thicknesses.
+Orbit average power is the sum of the Camera operating power, the UHF transceiver average power, the Reaction wheel operating power, the Magnetorquer set operating power, the On-board computer operating power and the Payload storage board operating power.
+UHF transceiver average power is its transmit power during the transmit duty cycle plus its receive power for the rest of the orbit.
+Power margin is the Solar array generated power minus the Orbit average power.
+Autonomy in minutes is the Battery pack available energy in Wh divided by the Orbit average power in W, multiplied by 60.
+The Camera and the Optics barrel are mounted on the 3U chassis; their mass drives the launch load the chassis must carry and the position of the centre of mass.
+The attitude control authority depends on the mass distribution of the Payload; the Reaction wheel is sized from the moment of inertia and the centre of mass offset.
+The Camera is thermally coupled to the Radiator panel; its dissipated power sets the radiator area.
+The EPS board powers the Camera, the UHF transceiver and the Reaction wheel; each supply line is limited by the EPS continuous output.
+REQ-M01: Maximum launch mass is 4000 g, verified with the Total mass calculation.
+REQ-M02: The Payload mass allocation is 700 g, verified with the Payload allocated mass calculation.
+REQ-S01: Maximum payload stack height is 90 mm, verified with the Payload stack height calculation.
+REQ-P02: Minimum eclipse autonomy is 120 min, verified with the Autonomy calculation.
+REQ-P01: Minimum power margin is 0.5 W, verified with the Power margin calculation.

@@ -1,7 +1,7 @@
 /* Account layer. Regular accounts see only the beam-simulation meetings. */
 body[data-role="user"] .sidebar-nav .nav-item:not(#beamMode) { display: none !important; }
 /* Until navigation reaches the simulation page, do not flash the test bench. */
-body[data-role="user"]:not([data-page="beam"]) .app-shell { visibility: hidden; }
+body[data-role="user"]:not([data-page="beam"]):not([data-page="meeting"]) .app-shell { visibility: hidden; }
 
 .account-rail { margin-top: auto; padding: 8px; border-top: 1px solid #7eb0e61a; }
 .account-rail + .sidebar-footer { margin-top: 0; }

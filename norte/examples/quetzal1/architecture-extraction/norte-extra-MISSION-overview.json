@@ -1,0 +1,128 @@
+{
+  "entities": [
+    {
+      "id": "quetzal-1",
+      "name": "Quetzal-1",
+      "kind": "system",
+      "description": "Quetzal-1 CubeSat mission architecture",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1",
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "obc",
+      "name": "On-Board Computer",
+      "kind": "component",
+      "parentId": "quetzal-1",
+      "description": "On-Board Computer (OBC)",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "transceiver",
+      "name": "Transceiver",
+      "kind": "component",
+      "parentId": "quetzal-1",
+      "description": "Transceiver",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "antenna",
+      "name": "Antenna",
+      "kind": "component",
+      "parentId": "quetzal-1",
+      "description": "Antenna",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "payload",
+      "name": "Payload",
+      "kind": "subsystem",
+      "parentId": "quetzal-1",
+      "description": "Payload (PLD)",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "adm",
+      "name": "Antenna Deployment Mechanism",
+      "kind": "component",
+      "parentId": "quetzal-1",
+      "description": "Antenna Deployment Mechanism (ADM)",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "structure",
+      "name": "Structure",
+      "kind": "subsystem",
+      "parentId": "quetzal-1",
+      "description": "Structure (STR)",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    }
+  ],
+  "relations": [],
+  "requirements": [],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "artifactId": "quetzal-source-extension-mission-overview",
+      "artifactLabel": "Quetzal-1 MISSION-overview",
+      "excerpt": "Quetzal-1 was comprised of an On-Board Computer (OBC), Transceiver and Antenna",
+      "kind": "fact",
+      "locator": "L10"
+    },
+    {
+      "id": "ev-2",
+      "artifactId": "quetzal-source-extension-mission-overview",
+      "artifactLabel": "Quetzal-1 MISSION-overview",
+      "excerpt": "Payload (PLD), Antenna Deployment Mechanism (ADM) and a Structure (STR).",
+      "kind": "fact",
+      "locator": "L14"
+    }
+  ],
+  "schemaVersion": 1,
+  "id": "system-quetzal1-eps-comms",
+  "name": "Quetzal-1",
+  "generatedAt": "2026-09-08T23:35:56.283Z",
+  "generatedFromRevision": 1,
+  "artifactSources": [
+    {
+      "artifactId": "quetzal-source-extension-mission-overview",
+      "artifactLabel": "Quetzal-1 MISSION-overview",
+      "status": "parsed"
+    }
+  ],
+  "model": "gemini-3.5-flash-lite"
+}

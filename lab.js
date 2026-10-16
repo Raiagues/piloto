@@ -232,7 +232,10 @@
   }
   function navigate(next, updateHistory = true) {
     if (typeof next === 'boolean') next = next ? 'manual' : 'live';
-    if (restricted) next = 'beam';
+    // A PDF reference may open a regular meeting owned by this account without
+    // exposing the admin/test workspaces or changing the default navigation.
+    const meetingReference = /^[A-Za-z0-9_.:-]{1,160}$/.test(new URLSearchParams(location.search).get('meeting') || '');
+    if (restricted && !(next === 'meeting' && meetingReference)) next = 'beam';
     if (busy || loadingExample || window.NorteMemoryPage?.isRunning() || window.NorteMeetingRoom?.isRunning() || !C.getConfig()) {
       if (busy || loadingExample || window.NorteMemoryPage?.isRunning() || window.NorteMeetingRoom?.isRunning()) { window.dispatchEvent(new CustomEvent('norte:notice', { detail: 'Aguarde ou interrompa a execução antes de mudar de página.' })); history.replaceState(null, '', page==='observatory'?'#agentes':page==='beam'?'#simulacao':page==='meeting'?'#reuniao':page==='memory'?'#memoria':page==='live'?'#ao-vivo':page==='automated'?'#automatizados':'#manual'); }
       return;

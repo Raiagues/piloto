@@ -1,0 +1,30 @@
+# Quetzal-1 — ADM-hardware
+
+Author: Quetzal-1 CubeSat Team.
+Source: https://github.com/Quetzal-1-CubeSat-Team/quetzal1-hardware/blob/d4d1b59de384701a016a6e17353aff3c8ba64853/ADM/README.md
+Revision: d4d1b59de384701a016a6e17353aff3c8ba64853
+License: CC-BY-SA-4.0. See licenses/ in this source package.
+Retrieved: 2026-09-08.
+Adaptation: design sections only; directory description, images, bibliography and pointers to on-orbit results omitted. Relative links made absolute. Original wording retained. No new engineering claims added.
+
+## Conceptual Design Overview
+
+The following diagram gives an overview of the components mounted on this PCB (and their interconnections). Please note that this PCB houses both the Antenna Deployment Mechanism, as well as the solar panel corresponding to the satellite's `Z-` axis.
+
+
+### Antenna Deployment Mechanism
+
+The mode of operation for this subsystem is, conceptually, quite simple: it is in charge of releasing the satellite's 4 antennas ([GOMspace, Cat. No. NanoCom ANT430](https://gomspace.com/shop/subsystems/communication-systems/nanocom-ant430.aspx)), 30 minutes after deployment from the International Space Station.
+
+While in storage, each antenna is tied to this PCB using general-purpose, 0.3 mm, nylon fishing line (see `media/` for pictures). The line is knot in such a way that it is also tied around a 5.6 Ohm resistor ([Yageo, Cat. No. MFR50SFTE52-5R6](https://www.digikey.com/es/products/detail/yageo/MFR50SFTE52-5R6/9151636)) that is directly connected to the battery via a load switch ([Texas Instruments, Cat. No. TPS22965](https://www.ti.com/product/TPS22965)). The load switches are controlled via I2C by the Electrical Power System (EPS). When the On-Board Computer determines the 30-minute timer after deployment has expired, it commands the EPS to activate each load switch sequentially, dissipating approximately 3.15 W in the resistors (which are rated for 0.5 W) when the battery is fully-charged. This heats the resistors, thereby melting the fishing line which is wrapped around it. When it melts, the antenna (which is spring loaded) releases and an SPST switch ([Panasonic, Cat. No. ESE18L11C](https://na.industrial.panasonic.com/products/electromechanical/switches/lineup/detector-switches/series/28913/model/28919)), which is normally closed when the antenna is stowed, is used to detect the separation. Each of the switches is connected to the EPS via an I2C GPIO Expander ([Texas Instruments, Cat. No. TCA9539QPWRQ1](https://www.ti.com/product/TCA9539-Q1/part-details/TCA9539QPWRQ1)), to inform the system when each antenna has successfully deployed.
+
+The fishing line knot was tested thoroughly on-ground to ensure the highest possible reliability. It was very important that when the fishing line melted, the antennas released completely and would not become stuck with the fishing line. The following diagram describes the knot that was used:
+
+
+Additional pictures of the knot can be found in `media/`.
+
+### Solar Panel
+
+This PCB also houses one (1) [AZUR SPACE 3G30A](http://www.azurspace.com/images/products/0003401-01-01_DB_3G30A.pdf) solar cell and two (2) [Vishay TEMD6010FX01](https://www.vishay.com/en/product/81308/) photodiodes (for energy harvesting and attitude determination, respectively).
+
+It only contains one solar cell, as opposed to two, because the satellite's camera points outwards from behind this PCB, and so half of it is reserved for a hole for the camera to see through (see `media/adm_bottom_view_1.jpg` in this directory).

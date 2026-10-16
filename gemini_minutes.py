@@ -12,7 +12,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parent
-PROMPT_VERSION = 'minutes-2026-10-07-v2'
+PROMPT_VERSION = 'minutes-2026-10-15-v3'
 REQUEST_TIMEOUT_SECONDS = 180
 RETRY_DELAY_SECONDS = 1
 class ProviderSlots:
@@ -42,12 +42,17 @@ class NoRedirect(HTTPRedirectHandler):
 HTTP = build_opener(NoRedirect())
 
 def obj(**props): return {'type':'object','properties':props,'required':list(props),'additionalProperties':False}
-def arr(items): return {'type':'array','items':items}
+def arr(items,**limits): return {'type':'array','items':items,**limits}
 STR={'type':'string'}
 REFS=arr(STR)
 POINT=obj(id=STR,text=STR,event_ids=REFS)
 TASK=obj(id=STR,parent_id=STR,text=STR,result=STR,owner=STR,due=STR,event_ids=REFS)
-SCHEMA=obj(title=STR,topics=arr(obj(thread_id=STR,title=STR,summary=obj(text=STR,event_ids=REFS),points=arr(POINT),tests=arr(TASK),actions=arr(TASK))),warnings=arr(obj(target_id=STR,message=STR,event_ids=REFS)))
+LEGACY_SCHEMA=obj(title=STR,topics=arr(obj(thread_id=STR,title=STR,summary=obj(text=STR,event_ids=REFS),points=arr(POINT),tests=arr(TASK),actions=arr(TASK))),warnings=arr(obj(target_id=STR,message=STR,event_ids=REFS)))
+SHORT={'type':'string','minLength':1,'maxLength':180}
+CELL={'type':'string','maxLength':120}
+LABEL={'type':'string','minLength':1,'maxLength':80}
+TABLE=obj(title=LABEL,columns=arr({'type':'string','minLength':1,'maxLength':60},minItems=2,maxItems=5),rows=arr(obj(event_id=STR,cells=arr(CELL,minItems=2,maxItems=5)),minItems=1,maxItems=16))
+SCHEMA=obj(title=STR,topics=arr(obj(thread_id=STR,title=STR,entries=arr(obj(event_id=STR,text=SHORT),minItems=1,maxItems=3000),tables=arr(TABLE,maxItems=3)),minItems=1,maxItems=3000),warnings=arr(obj(target_id=STR,message=SHORT,event_ids=REFS),maxItems=100))
 
 def validate_source(body):
     if not isinstance(body,dict) or set(body)!={'source'}: raise ValueError('Envie a fonte da reunião.')
@@ -69,9 +74,9 @@ def validate_source(body):
 def check_schema(value,schema):
     typ=schema['type']
     if typ=='string':
-        if not isinstance(value,str) or len(value)>30000: raise ValueError('Texto gerado inválido.')
+        if not isinstance(value,str) or not schema.get('minLength',0)<=len(value)<=schema.get('maxLength',30000): raise ValueError('Texto gerado inválido.')
     elif typ=='array':
-        if not isinstance(value,list) or len(value)>12000: raise ValueError('Lista gerada inválida.')
+        if not isinstance(value,list) or not schema.get('minItems',0)<=len(value)<=schema.get('maxItems',12000): raise ValueError('Lista gerada inválida.')
         for v in value: check_schema(v,schema['items'])
     else:
         if not isinstance(value,dict) or set(value)!=set(schema['properties']): raise ValueError('Estrutura gerada inválida.')
@@ -80,8 +85,9 @@ def check_schema(value,schema):
 def confirmed(r):
     return r.get('review_state')=='confirmed' and all(isinstance(r.get(k),(int,float)) and r[k]>=.8 for k in ('relation_probability','match_probability'))
 
-def finalize(document,source):
-    check_schema(document,SCHEMA)
+def _finalize_legacy(document,source):
+    """Read the previous format while old clients/cached fixtures transition."""
+    check_schema(document,LEGACY_SCHEMA)
     doc=copy.deepcopy(document);doc['title']='Tópicos discutidos'
     events={e['event_id']:e for e in source['events']};relations=source.get('relations',[])
     retired={r['target_event_id'] for r in relations if confirmed(r) and r.get('relation_type')=='supersedes' and (r.get('configuration_applicable') is False or r.get('configuration_match') in ('exact','partial','mismatch'))}
@@ -139,6 +145,156 @@ def finalize(document,source):
     doc['warnings']=[dict(w,id='W'+str(n+1)) for n,w in enumerate(unique.values())]
     doc['prompt_version']=PROMPT_VERSION
     return doc
+
+def _plain(text):
+    return ' '.join(text.split())
+
+NUMBER=re.compile(r'(?<!\w)[+-]?\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?')
+QUANTITY=re.compile(r'(?<!\w)([+-]?\d+(?:[.,]\d+)*(?:[eE][+-]?\d+)?)\s*([a-zA-Zµμ°%][a-zA-Zµμ°%²³]*(?:[·*/][a-zA-Zµμ²³]+)?)')
+NEGATION=re.compile(r'\b(?:não|nunca|jamais|sem|nem|nenhum\w*|incompat[ií]ve[li]s?|reprovad\w*|falh\w*|excede\w*|excedi\w*|insuficiente\w*)\b',re.I)
+NEGATED_CLAUSE=re.compile(r'\b(?:não|nunca|jamais|sem|nem)\s+[^,;.!?]+',re.I)
+UNCERTAINTY=re.compile(r'\b(?:pode|podem|poderia\w*|talvez|poss[ií]ve[li]s?|suspeit\w*|hipótese\w*|prováve[li]s?|aparente\w*|incert\w*|a confirmar)\b',re.I)
+ASSERTION=re.compile(r'\b(?:aprovad\w*|validad\w*|confirmad\w*|comprovad\w*|garantid\w*|conforme|atende\w*|atendid\w*|segur[oa]s?|resolvid\w*|concluíd\w*|finalizad\w*|sucesso|corrigid\w*)\b',re.I)
+CONDITION=re.compile(r'\b(?:somente se|apenas se|desde que|somente|apenas|caso|exceto|quando|se)\s+([^.;!?]+)',re.I)
+
+def _check_entry_text(text,event):
+    """Conservative, deterministic guards; this is not a semantic proof.
+
+    The model only supplies a display overlay. Classification, completion and
+    evidence always come from the meeting state, never from generated prose.
+    Detailed values may be omitted from the short overlay, but not invented or
+    moved to another unit. The complete source remains available by reference.
+    """
+    original=_plain(event['text']);candidate=_plain(text)
+    if not candidate or len(candidate)>180:
+        raise ValueError('Cada registro deve ter uma síntese curta.')
+    if not set(NUMBER.findall(candidate))<=set(NUMBER.findall(original)):
+        raise ValueError('A síntese introduziu um número ausente no registro.')
+    # Preserve units as written; case is meaningful in technical quantities.
+    if not set(QUANTITY.findall(candidate))<=set(QUANTITY.findall(original)):
+        raise ValueError('A síntese alterou uma quantidade ou unidade.')
+    source_negative=bool(NEGATION.search(original));candidate_negative=bool(NEGATION.search(candidate))
+    if source_negative!=candidate_negative:
+        raise ValueError('A síntese alterou uma negação ou resultado negativo.')
+    for clause in NEGATED_CLAUSE.finditer(original):
+        if clause.group(0).casefold() not in candidate.casefold():
+            raise ValueError('A síntese omitiu o alcance de uma negação.')
+    if bool(NEGATED_CLAUSE.search(original))!=bool(NEGATED_CLAUSE.search(candidate)):
+        raise ValueError('A síntese acrescentou uma negação.')
+    if (UNCERTAINTY.search(original) or event.get('type')=='hypothesis') and not UNCERTAINTY.search(candidate):
+        raise ValueError('Uma hipótese ou incerteza virou afirmação na síntese.')
+    original_claims={word.casefold() for word in ASSERTION.findall(original)}
+    if any(word.casefold() not in original_claims for word in ASSERTION.findall(candidate)):
+        raise ValueError('A síntese acrescentou uma aprovação ou certeza.')
+    # A condition is not optional context: keep its exact short clause. This
+    # deliberately prefers the original document over an unsafe abbreviation.
+    folded=candidate.casefold()
+    for condition in CONDITION.finditer(original):
+        if condition.group(0).casefold() not in folded:
+            raise ValueError('A síntese omitiu uma condição do registro.')
+    return candidate
+
+def _quoted_cell(cell,original,quoted_row):
+    if not cell: return True
+    # A cell cannot turn 180 into 80, kN into N, or incompatível into compatível
+    # merely by selecting a substring in the middle of a token.
+    prefix=r'(?<!\w)' if cell[0].isalnum() else ''
+    suffix=r'(?!\w)' if cell[-1].isalnum() else ''
+    protected=[*NEGATED_CLAUSE.finditer(original),*CONDITION.finditer(original)]
+    for match in re.finditer(prefix+re.escape(cell)+suffix,original):
+        if all(not (match.start()<clause.end() and match.end()>clause.start()) or
+               clause.group(0) in quoted_row for clause in protected):
+            return True
+    return False
+
+def _finalize_entries(document,source):
+    check_schema(document,SCHEMA)
+    doc=copy.deepcopy(document);doc['title']='Tópicos discutidos'
+    events={e['event_id']:e for e in source['events']}
+    expected_threads={e.get('thread_id') or '' for e in events.values()}
+    titles={t.get('thread_id') or '':t.get('title') for t in source.get('threads',[]) if isinstance(t,dict)}
+    covered=set();thread_ids=set();targets=set(events)|expected_threads
+    for topic in doc['topics']:
+        tid=topic['thread_id']
+        if tid not in expected_threads or tid in thread_ids:
+            raise ValueError('Assunto ausente ou duplicado na ata.')
+        thread_ids.add(tid)
+        title=titles.get(tid)
+        topic['title']=title.strip() if isinstance(title,str) and title.strip() else 'Assunto sem título'
+        for entry in topic['entries']:
+            eid=entry['event_id'];event=events.get(eid)
+            if not event or (event.get('thread_id') or '')!=tid or eid in covered:
+                raise ValueError('A síntese contém evidência duplicada, ausente ou de outro assunto.')
+            entry['text']=_check_entry_text(entry['text'],event);covered.add(eid)
+        for table in topic['tables']:
+            table['title']=_plain(table['title']);table['columns']=[_plain(c) for c in table['columns']]
+            labels=[table['title'],*table['columns']]
+            if any(not label or NUMBER.search(label) for label in labels):
+                raise ValueError('Use títulos e colunas genéricos, sem valores calculados.')
+            if len(set(c.casefold() for c in table['columns']))!=len(table['columns']):
+                raise ValueError('A tabela tem colunas duplicadas.')
+            if any(ASSERTION.search(label) or NEGATION.search(label) for label in labels):
+                raise ValueError('O cabeçalho da tabela não pode atribuir resultados aos registros.')
+            rows_seen=set()
+            for row in table['rows']:
+                eid=row['event_id'];event=events.get(eid)
+                if not event or (event.get('thread_id') or '')!=tid or len(row['cells'])!=len(table['columns']):
+                    raise ValueError('A tabela contém evidência de outro assunto ou colunas inconsistentes.')
+                original=_plain(event['text'])
+                row['cells']=[_plain(cell) for cell in row['cells']]
+                quoted=' '.join(row['cells'])
+                if not any(row['cells']) or any(not _quoted_cell(cell,original,quoted) for cell in row['cells']):
+                    raise ValueError('Cada célula precisa citar o registro da própria linha.')
+                if not set(NUMBER.findall(quoted))<=set(NUMBER.findall(original)) or not set(QUANTITY.findall(quoted))<=set(QUANTITY.findall(original)):
+                    raise ValueError('A tabela recortou ou alterou uma quantidade.')
+                # A positive fragment such as "aprovado" cannot be cut out of
+                # "não aprovado"; quotations must retain the stated polarity.
+                if NEGATION.search(original) and ASSERTION.search(quoted) and not NEGATION.search(quoted):
+                    raise ValueError('A tabela suprimiu uma negação do resultado.')
+                key=(eid,tuple(row['cells']))
+                if key in rows_seen: raise ValueError('A tabela repetiu a mesma linha.')
+                rows_seen.add(key)
+        # Source order makes long and interleaved meetings deterministic.
+        event_order={eid:n for n,eid in enumerate(events)}
+        topic['entries'].sort(key=lambda entry:event_order[entry['event_id']])
+    if thread_ids!=expected_threads or covered!=set(events):
+        raise ValueError('A ata omitiu registros ou assuntos atuais.')
+    order=list(dict.fromkeys(e.get('thread_id') or '' for e in source['events']))
+    doc['topics'].sort(key=lambda topic:order.index(topic['thread_id']))
+    warnings=doc['warnings']
+    for warning in warnings:
+        ids=warning['event_ids'];target=warning['target_id']
+        if (target and target not in targets) or not ids or any(eid not in events for eid in ids):
+            raise ValueError('Aviso sem evidência ou destino válido.')
+        threads={events[eid].get('thread_id') or '' for eid in ids}
+        target_thread=events[target].get('thread_id') or '' if target in events else target
+        if len(threads)!=1 or target and target_thread not in threads:
+            raise ValueError('O aviso misturou evidências de assuntos diferentes.')
+        if not set(NUMBER.findall(warning['message']))<=set(NUMBER.findall(' '.join(events[eid]['text'] for eid in ids))):
+            raise ValueError('O aviso acrescentou números sem evidência.')
+    # These diagnostics are non-editorial: relation/state rules remain the
+    # authority even if a generated entry sounds confident.
+    for relation in source.get('relations',[]):
+        if not confirmed(relation) or relation.get('configuration_match') in ('mismatch','ambiguous','partial'):
+            ids=[relation['source_event_id'],relation['target_event_id']]
+            warnings.append({'target_id':ids[0],'message':'Conferir compatibilidade entre os registros.','event_ids':ids})
+    for warning in source.get('extraction_warnings',[]):
+        if isinstance(warning,dict) and isinstance(warning.get('text'),str):
+            ids=[eid for eid in warning.get('event_ids',[]) if eid in events]
+            warnings.append({'target_id':ids[0] if ids else '', 'message':warning['text'],'event_ids':ids})
+    if source.get('run_status')!='done' or source.get('relation_status')!='done':
+        warnings.append({'target_id':'','message':'A reunião ainda tem registros em processamento.','event_ids':[]})
+    unique={}
+    for warning in warnings: unique.setdefault(json.dumps(warning,sort_keys=True,ensure_ascii=False),warning)
+    doc['warnings']=[dict(w,id='W'+str(n+1)) for n,w in enumerate(unique.values())]
+    doc['prompt_version']=PROMPT_VERSION
+    return doc
+
+def finalize(document,source):
+    topics=document.get('topics') if isinstance(document,dict) else None
+    if isinstance(topics,list) and topics and all(isinstance(t,dict) and 'entries' in t for t in topics):
+        return _finalize_entries(document,source)
+    return _finalize_legacy(document,source)
 
 def _request(req,timeout):
     """Bound wall-clock waiting even if a socket trickles data without timing out.

@@ -1,0 +1,149 @@
+{
+  "entities": [
+    {
+      "id": "sys-quetzal1",
+      "name": "Quetzal-1",
+      "kind": "system",
+      "description": "Quetzal-1 CubeSat",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-1"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "sub-adm",
+      "name": "Antenna Deployment Mechanism",
+      "kind": "subsystem",
+      "parentId": "sys-quetzal1",
+      "description": "Antenna Deployment Mechanism subsystem",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-2"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "sub-solar-panel",
+      "name": "Solar Panel",
+      "kind": "subsystem",
+      "parentId": "sys-quetzal1",
+      "description": "Z- axis solar panel subsystem",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-3"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-resistor",
+      "name": "Yageo MFR50SFTE52-5R6 Resistor",
+      "kind": "component",
+      "parentId": "sub-adm",
+      "description": "5.6 Ohm resistor used for thermal cutting of fishing line",
+      "properties": [
+        {
+          "key": "operating_power",
+          "name": "Operating Power",
+          "value": 3.15,
+          "unit": "W",
+          "source": "documented",
+          "evidenceRefs": [
+            "ev-4"
+          ]
+        }
+      ],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-4"
+      ],
+      "confidence": 1
+    },
+    {
+      "id": "comp-solar-cell",
+      "name": "AZUR SPACE 3G30A Solar Cell",
+      "kind": "component",
+      "parentId": "sub-solar-panel",
+      "description": "Solar cell for energy harvesting",
+      "properties": [],
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-5"
+      ],
+      "confidence": 1
+    }
+  ],
+  "relations": [
+    {
+      "id": "rel-1",
+      "from": "comp-resistor",
+      "to": "sub-adm",
+      "kind": "mounted_on",
+      "label": "Resistor mounted on PCB",
+      "source": "documented",
+      "evidenceRefs": [
+        "ev-4"
+      ],
+      "confidence": 1
+    }
+  ],
+  "requirements": [],
+  "evidence": [
+    {
+      "id": "ev-1",
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "excerpt": "# Quetzal-1 — ADM-hardware",
+      "kind": "fact",
+      "locator": "L1"
+    },
+    {
+      "id": "ev-2",
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "excerpt": "### Antenna Deployment Mechanism",
+      "kind": "fact",
+      "locator": "L15"
+    },
+    {
+      "id": "ev-3",
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "excerpt": "### Solar Panel",
+      "kind": "fact",
+      "locator": "L26"
+    },
+    {
+      "id": "ev-4",
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "excerpt": "5.6 Ohm resistor ([Yageo, Cat. No. MFR50SFTE52-5R6](https://www.digikey.com/es/products/detail/yageo/MFR50SFTE52-5R6/9151636)) that is directly connected to the battery via a load switch ([Texas Instruments, Cat. No. TPS22965](https://www.ti.com/product/TPS22965)). The load switches are controlled via I2C by the Electrical Power System (EPS). When the On-Board Computer determines the 30-minute timer after deployment has expired, it commands the EPS to activate each load switch sequentially, dissipating approximately 3.15 W in the resistors",
+      "kind": "fact",
+      "locator": "L19"
+    },
+    {
+      "id": "ev-5",
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "excerpt": "This PCB also houses one (1) [AZUR SPACE 3G30A](http://www.azurspace.com/images/products/0003401-01-01_DB_3G30A.pdf) solar cell",
+      "kind": "fact",
+      "locator": "L28"
+    }
+  ],
+  "schemaVersion": 1,
+  "id": "system-quetzal1-eps-comms",
+  "name": "Quetzal-1",
+  "generatedAt": "2026-09-08T23:33:04.872Z",
+  "generatedFromRevision": 1,
+  "artifactSources": [
+    {
+      "artifactId": "quetzal-source-extension-adm-hardware",
+      "artifactLabel": "Quetzal-1 ADM-hardware",
+      "status": "parsed"
+    }
+  ],
+  "model": "gemini-3.5-flash-lite"
+}

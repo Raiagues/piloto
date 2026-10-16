@@ -1,0 +1,149 @@
+.organization-panel, .memory-folders { border: 1px solid var(--line); border-radius: 12px; padding: 20px; background: var(--panel-soft); color: var(--text); }
+.organization-panel h2, .memory-folders h3 { margin: 0 0 12px; }
+.organization-panel p, .folder-hint { font-size: 13px; line-height: 1.6; color: var(--muted); }
+.memory-library { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; align-items: start; }
+.memory-library .pm-artifact-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.memory-folders { padding: 16px; position: sticky; top: 16px; }
+.memory-folders nav { max-height: 440px; overflow: auto; }
+.memory-folders button, .folder-tools button { display: flex; gap: 8px; align-items: center; border: 0; border-radius: 5px; padding: 9px; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.memory-folders nav button { width: 100%; }
+.memory-folders nav button.selected { background: rgba(51, 212, 160, .12); color: var(--green); font-weight: 700; }
+.memory-folders nav small { margin-left: auto; }
+.folder-tools { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.folder-editor, .document-editor { display: grid; gap: 12px; }
+.folder-editor label, .document-editor label { display: grid; gap: 5px; font-size: 13px; }
+.folder-editor input, .folder-editor select, .document-editor textarea { width: 100%; border: 1px solid var(--line-strong); border-radius: 6px; padding: 9px; background: var(--panel-soft); color: var(--text); }
+.document-editor textarea { min-height: 280px; font: 14px/1.6 monospace; resize: vertical; }
+.document-editor p { font-size: 12px; line-height: 1.6; }
+.activity-scroll { overflow-x: auto; }
+.activity-scroll table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.activity-scroll th, .activity-scroll td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.presence-online { color: var(--green); } .presence-offline { color: var(--muted); }
+.admin-page { max-width: 1100px; padding: 40px; margin: auto; }
+.save-error { position: sticky; top: 0; z-index: 100; padding: 12px 24px; background: #fff1df; color: #923c10; }
+.save-error button { margin-left: 16px; }
+.sector-grants { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; }
+.sector-grants label { display: grid; gap: 4px; font-size: 12px; }
+@media (max-width: 850px) { .memory-library { grid-template-columns: 1fr; } .memory-folders { position: static; } .memory-folders nav { max-height: 220px; } .admin-page { padding: 16px; } }
+
+.memory-folders h3 { font-size: 15px; font-weight: 600; }
+.memory-folders button { font-size: 13px; }
+.memory-folders button:hover:not(:disabled) { background: rgba(98,170,255,.10); }
+.memory-folders button:disabled { opacity: .45; cursor: default; }
+.organization-panel { margin-top: 24px; }
+.organization-panel h2 { font-size: 18px; }
+.pm-artifact-actions a { color: var(--blue-soft); font-size: 12px; padding: 8px; text-underline-offset: 3px; }
+.pm-artifact-actions select { max-width: 180px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 6px; }
+.route-newProject .context-column { align-content: start; gap: 20px; }
+.route-newProject .context-column h2 { font-size: 18px; }
+.route-newProject .context-column p { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.route-newProject select, .route-newProject textarea { min-height: 42px; width: 100%; background: var(--bg-deep); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 10px; font: inherit; }
+.route-newProject .context-topbar button, .route-newProject .context-column > button, .admin-page > button, .home-topbar .top-actions > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--blue-soft); cursor: pointer; font-size: 12px; }
+.route-newProject button svg { width: 16px; height: 16px; }
+.admin-page { height: 100dvh; overflow-y: auto; }
+.sector-grants select { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 5px; padding: 7px; }
+
+/* Team and project organization share the same tree in both presentations. */
+.organization-tree { margin: 20px 0; overflow: auto; font-size: 13px; }
+.organization-tree ul { list-style: none; margin: 0; padding: 0 0 0 22px; }
+.organization-tree > ul { padding-left: 0; }
+.organization-tree li { position: relative; border-left: 1px solid var(--line-strong); padding: 8px 0 6px 14px; }
+.organization-tree li::before { content: ''; position: absolute; top: 25px; left: 0; width: 12px; border-top: 1px solid var(--line-strong); }
+.organization-tree summary, .org-leaf { padding: 10px 12px; color: var(--text); border: 1px solid var(--line); border-radius: 7px; background: var(--panel-soft); overflow-wrap: anywhere; }
+.organization-tree summary { cursor: pointer; }
+.organization-tree small { display: block; color: var(--muted); font-size: 11px; margin-top: 5px; }
+.organization-tree .org-team > details > summary, .organization-tree .org-project > details > summary { border-color: #477491; }
+.organization-tree.hierarchy > ul { min-width: 350px; }
+.organization-tree.hierarchy .org-project > details > ul > li > details > ul { display: flex; flex-wrap: wrap; align-items: start; gap: 12px; }
+.organization-tree.hierarchy .org-sector { flex: 1 1 220px; min-width: 190px; }
+.org-project-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 8px 14px; }
+.org-project-actions button, .team-new-project, .organization-panel button, .project-participants button, .memory-workspace button, .teams-member-list button, .invitation-list button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; background: var(--panel); color: var(--blue-soft); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; font: inherit; font-size: 12px; }
+.organization-panel button:disabled, .project-participants button:disabled, .invitation-list button:disabled { cursor: default; opacity: .5; }
+.project-participants { display: grid; gap: 12px; padding: 16px; }
+.project-participants > article { border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.project-participants label, .team-invitations label { display: grid; gap: 7px; font-size: 13px; }
+.project-participants label.participant-select { display: flex; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.project-participants input:not([type='checkbox']), .project-participants select, .team-invitations input, .team-invitations select { background: var(--bg); color: var(--text); border: 1px solid var(--line-strong); border-radius: 6px; padding: 10px; max-width: 100%; font: inherit; }
+.project-participants .sector-grants { padding-left: 0; }
+.project-participants small { color: var(--muted); }
+.ptc-root > .organization-tree { max-height: 480px; padding: 0 16px; }
+.ptc-sector-list article > span { flex: 1; min-width: 0; }
+.ptc-sector-list article { grid-template-columns: minmax(0, 1fr) 30px 30px 30px; }
+.ptc-sector-list article input { width: 100%; }
+.team-invitations form { display: grid; grid-template-columns: minmax(120px, 160px) minmax(150px, 1fr) auto; gap: 12px; align-items: end; }
+.team-invitations form > p, .team-invitations .invite-person { grid-column: 1 / -1; }
+.team-invitations .invite-person { display: grid; gap: 4px; border-left: 3px solid var(--green); padding-left: 14px; }
+.invitation-list { display: grid; gap: 10px; margin: 15px 0; }
+.invitation-list article { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px; border: 1px solid var(--line); border-radius: 8px; }
+.invitation-list article > div { flex: 1; min-width: 180px; display: grid; gap: 7px; }
+.invitation-list small { color: var(--muted); }
+.team-insights .insight-totals { display: flex; gap: 32px; }
+.insight-totals span { display: grid; gap: 7px; font-size: 12px; }
+.insight-totals strong { font-size: 28px; color: var(--blue-soft); }
+.visits-chart { height: 120px; display: flex; align-items: end; gap: 3px; border-bottom: 1px solid var(--line); margin: 20px 0; }
+.visits-chart > div { flex: 1; background: var(--blue-soft); border-radius: 3px 3px 0 0; }
+.activity-notice { color: var(--muted); font-size: 12px; line-height: 1.7; margin: 24px 0; }
+.teams-hub-detail > details { margin-top: 20px; }
+.teams-hub-detail details > summary { cursor: pointer; }
+.public-project-summary { display: flex; gap: 10px; padding: 18px; border-bottom: 1px solid var(--line); }
+.account-badge .invitation-bell { position: relative; padding: 7px; border: 0; background: transparent; color: var(--blue-soft); cursor: pointer; }
+.invitation-bell > span { background: var(--blue-soft); color: var(--bg-deep); border-radius: 20px; padding: 2px 4px; font-size: 10px; position: absolute; top: -3px; right: -3px; }
+.artifact-permission { display: inline-flex !important; align-items: center; gap: 5px; font-size: 11px !important; color: var(--blue-soft) !important; margin: 6px 0; }
+.artifact-permission.readonly { color: var(--muted) !important; }
+.project-public-setting { display: flex; align-items: center; gap: 10px; font-size: 13px; margin-top: 25px; }
+.memory-workspace { position: fixed; inset: 0; z-index: 110; display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+.memory-workspace > header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid var(--line); }
+.memory-workspace > header > div { display: grid; gap: 5px; }
+.memory-workspace > header small { color: var(--muted); font-size: 11px; }
+.memory-workspace-body { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 0; flex: 1; }
+.memory-workspace .memory-folders { position: static; overflow: auto; border-radius: 0; border-top: 0; }
+.memory-workspace .memory-folders nav { max-height: none; }
+.memory-folders .engineering-tree-row { padding-top: 2px; padding-bottom: 2px; min-height: 42px; }
+.memory-folders .engineering-tree-row > button { width: auto; }
+.memory-folders .engineering-tree-toggle { flex: 0 0 24px; padding: 4px; }
+.memory-folders .engineering-tree-row > button:last-child { display: flex; justify-content: start; gap: 7px; min-width: 0; flex: 1; }
+.memory-folders .engineering-tree-row.active { background: rgba(90, 166, 224, .12); box-shadow: inset 3px 0 #74b9f1; }
+.memory-folders .memory-tree-document { min-height: 42px; font-size: 12px; }
+.memory-tree-document > span { display: grid; gap: 3px; min-width: 0; overflow-wrap: anywhere; }
+.memory-tree-document small { font-size: 10px; color: var(--muted); margin-left: 0 !important; }
+.memory-preview { min-width: 0; overflow: auto; display: flex; flex-direction: column; }
+.memory-preview > nav { display: flex; gap: 6px; overflow-x: auto; padding: 12px 20px; flex: 0 0 auto; border-bottom: 1px solid var(--line); }
+.memory-preview > nav > button { white-space: nowrap; flex-shrink: 0; }
+.memory-preview > nav > button.selected { border-color: var(--blue-soft); }
+.memory-preview-heading { padding: 14px 24px; }
+.memory-preview-heading h2 { font-size: 22px; margin: 10px 0; }
+.memory-preview-heading p, .memory-access-note { font-size: 12px; line-height: 1.6; color: var(--muted); }
+.memory-breadcrumb { overflow-wrap: anywhere; }
+.memory-preview-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.memory-preview-actions a { display: inline-flex; align-items: center; gap: 6px; color: var(--blue-soft); font-size: 12px; }
+.memory-preview > iframe { flex: 1; width: 100%; min-height: 450px; border: 0; background: white; }
+.memory-image { max-width: 100%; object-fit: contain; max-height: 70vh; }
+.memory-text-preview { padding: 24px; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.7 monospace; }
+.memory-preview-fallback { padding: 40px; text-align: center; }
+.memory-preview-fallback a { color: var(--blue-soft); }
+.memory-access-note { padding: 0 20px; }
+@media (max-width: 800px) {
+  .team-invitations form { grid-template-columns: 1fr; }
+  .organization-tree ul { padding-left: 10px; }
+  .organization-tree li { padding-left: 8px; }
+  .organization-tree.hierarchy > ul { min-width: 0; }
+  .organization-tree.hierarchy .org-project > details > ul > li > details > ul { display: block; }
+  .memory-workspace > header { padding: 12px; }
+  .memory-workspace-body { grid-template-columns: 1fr; overflow: auto; display: block; }
+  .memory-workspace .memory-folders { max-height: 32vh; }
+  .memory-workspace .folder-tools, .memory-workspace .folder-hint { display: none; }
+  .memory-preview { overflow: visible; }
+  .memory-preview > iframe { height: 65vh; }
+  .memory-preview-heading { padding: 12px; }
+  .teams-hub-section-title { flex-wrap: wrap; gap: 10px; }
+  .project-participants { padding: 8px; }
+}
+.memory-workspace { z-index: 2000; }
+.memory-workspace .memory-folders nav button { border: 0; background: transparent; border-radius: 4px; }
+.memory-workspace .memory-folders nav button.selected { background: rgba(98, 170, 255, .12); }
+.memory-workspace .memory-folders .engineering-tree-row button { padding-left: 4px; padding-right: 4px; }
+.test-environment-banner { padding: 7px 20px; font-size: 12px; text-align: center; color: #eed093; background: #292719; border-bottom: 1px solid #5f5334; }
+.organization-tree.hierarchy .org-team > details > ul > .org-responsibility > details > ul { display: flex; flex-wrap: wrap; align-items: start; gap: 14px; }
+.organization-tree.hierarchy .org-team > details > ul > .org-responsibility > details > ul > .org-project { flex: 1 1 230px; min-width: 0; }
+.organization-tree.hierarchy .org-team > details > summary { text-align: center; }
+@media (max-width: 800px) { .organization-tree.hierarchy .org-team > details > ul > .org-responsibility > details > ul { display: block; } }

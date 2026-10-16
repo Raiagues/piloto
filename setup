@@ -12,5 +12,20 @@ chmod +x "$PROJECT_DIR/start" "$PROJECT_DIR/stop" "$PROJECT_DIR/setup"
 mkdir -p "$PROJECT_DIR/.runtime"
 python3 "$PROJECT_DIR/config.py"
 
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo "Instale Node.js 24.20 ou mais recente para executar o Norte integrado."
+  exit 1
+fi
+node -e 'const [a,b]=process.versions.node.split(".").map(Number);if(a<24||(a===24&&b<20))process.exit(1)' || { echo "Atualize o Node.js para 24.20 ou mais recente."; exit 1; }
+if ! command -v pdftotext >/dev/null 2>&1; then
+  echo "Instale poppler-utils para ler os PDFs: sudo apt install poppler-utils"
+  exit 1
+fi
+cd "$PROJECT_DIR/norte"
+if [[ ! -d node_modules ]] || [[ package-lock.json -nt node_modules/.package-lock.json ]]; then
+  npm ci --no-audit --no-fund
+fi
+VITE_BASE_PATH=/ npm run build
+
 echo "Configuração concluída."
 echo "Use ./start para abrir o site ou ./stop para encerrá-lo."

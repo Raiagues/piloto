@@ -3,6 +3,21 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const USERNAME = /^[a-z0-9][a-z0-9._-]{2,31}$/;
+  // Capture before switching the sign-in/sign-up tab changes the fragment.
+  // The HTTP redirect preserves the PDF's #reuniao or #simulacao fragment.
+  const returnTo = (() => {
+    const value = new URLSearchParams(location.search).get('next');
+    if (!value || value.length > 1000 || /[\\\u0000-\u001f]/.test(value) || !value.startsWith('/') || value.startsWith('//')) return '/';
+    try {
+      const target = new URL(value, location.origin), id = /^[A-Za-z0-9_.:-]{1,160}$/;
+      if (target.origin !== location.origin || !['/', '/index.html'].includes(target.pathname)) return '/';
+      const meeting = target.searchParams.get('meeting'), event = target.searchParams.get('event');
+      if (!id.test(meeting || '') || event && !id.test(event)) return '/';
+      const query = new URLSearchParams({ meeting }); if (event) query.set('event', event);
+      const fragment = ['#reuniao', '#simulacao'].includes(target.hash) ? target.hash : ['#reuniao', '#simulacao'].includes(location.hash) ? location.hash : '#reuniao';
+      return '/?' + query + fragment;
+    } catch (_) { return '/'; }
+  })();
   let mode = 'login', busy = false, codeRequired = false;
 
   function render() {
@@ -19,7 +34,7 @@
   }
   function setMode(next) {
     mode = next; error('');
-    history.replaceState(null, '', next === 'signup' ? '#criar-conta' : location.pathname);
+    history.replaceState(null, '', location.pathname + location.search + (next === 'signup' ? '#criar-conta' : ''));
     render(); $('username').focus();
   }
   function error(message, field) {
@@ -56,7 +71,7 @@
       const response = await fetch('/api/auth/' + mode, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(20000) });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw Object.assign(Error(result.error || 'Não foi possível entrar agora. Tente novamente.'), { field: response.status === 409 ? 'username' : mode === 'signup' && response.status === 403 ? 'code' : 'password' });
-      location.replace('/');
+      location.replace(returnTo);
     } catch (failure) {
       busy = false; render();
       error(failure.name === 'TimeoutError' || failure.name === 'TypeError' ? 'O servidor não respondeu. Confira a conexão e tente novamente.' : failure.message, failure.field || 'password');

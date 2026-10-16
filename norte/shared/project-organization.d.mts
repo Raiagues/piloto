@@ -1,0 +1,13 @@
+import type { MissionProject } from '../src/lib/projectStore';
+import type { SessionUser } from '../src/lib/team';
+export type ProjectType = 'competition' | 'research' | 'product' | 'custom';
+export type ProjectFolder = { id: string; name: string; parentId: string; entityId?: string; technicalKind?: "system" | "subsystem" | "component" };
+export type SectorGrant = { sectorId: string; role: 'manager' | 'member' | 'viewer' };
+export const PROJECT_TYPES: Record<ProjectType, { pt: string; en: string; sectors: string[][] }>;
+export function suggestedSectors(type: ProjectType, language?: string, programId?: string, modalityId?: string): { id: string; name: string }[];
+export function isProjectAdmin(project: MissionProject, user: SessionUser | null, creatorId?: string): boolean;
+export function sectorRole(project: MissionProject, user: SessionUser | null, sectorId: string | null): string;
+export function canEditSector(project: MissionProject, user: SessionUser | null, sectorId: string | null, creatorId?: string): boolean;
+export function folderSector(project: MissionProject, folderId?: string | null): string | null;
+export function folderPath(project: MissionProject, folderId?: string | null): string;
+export function organizationError(project: MissionProject): string | null;
