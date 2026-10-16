@@ -1,5 +1,6 @@
 import pg from "pg";
 import { createInitialData, normalizeStoredData } from "./data-store.mjs";
+import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from "./postgres-state-codec.mjs";
 
 const { Pool } = pg;
 const STATE_ID = "primary";
@@ -8,8 +9,58 @@ function clone(value) {
   return structuredClone(value);
 }
 
+// pg already removes failed idle clients from the pool. The error event still
+// needs a listener: otherwise a temporary database restart terminates Node.
+function handleIdleConnectionError() {}
+
+async function transaction(pool, work) {
+  const client = await pool.connect();
+  let connectionError = null;
+  let discard = false;
+  let fail;
+  const disconnected = new Promise((_, reject) => { fail = reject; });
+  const onError = error => {
+    connectionError ??= error;
+    discard = true;
+    fail(connectionError);
+  };
+  client.on?.("error", onError);
+  // A mutator may be waiting on filesystem/network work between SQL queries.
+  // Reject it on disconnect too, then prevent its continuation from issuing SQL
+  // or publishing its draft. Never retry a transaction or an uncertain COMMIT.
+  const wait = action => Promise.race([
+    Promise.resolve().then(() => {
+      if (connectionError) throw connectionError;
+      return action();
+    }),
+    disconnected
+  ]);
+  const query = (...args) => wait(() => client.query(...args));
+  try {
+    await query("BEGIN");
+    const result = await work({ query, wait });
+    await query("COMMIT");
+    return result;
+  } catch (error) {
+    // An unusable socket cannot roll back. If rollback itself fails, also
+    // destroy the client; it must never re-enter the pool with an open txn.
+    if (!connectionError) {
+      try { await query("ROLLBACK"); }
+      catch { discard = true; }
+    }
+    throw error;
+  } finally {
+    // release first restores pg-pool's idle error listener, avoiding a gap.
+    client.release(discard);
+    client.removeListener?.("error", onError);
+  }
+}
+
 export class PostgresDataStore {
   constructor(connectionString, options = {}) {
+    // Enable writes only after every deployed reader supports this codec.
+    // Once a row is encoded, compatible instances preserve that format.
+    this.compressState = options.compressState ?? process.env.NORTE_POSTGRES_COMPRESSION === "1";
     this.pool = options.pool ?? new Pool({
       connectionString,
       max: 5,
@@ -17,6 +68,10 @@ export class PostgresDataStore {
       connectionTimeoutMillis: 10_000,
       application_name: "norte"
     });
+    // Several store wrappers can share an injected pool in tests/tools.
+    if (!this.pool.listeners?.("error").includes(handleIdleConnectionError)) {
+      this.pool.on?.("error", handleIdleConnectionError);
+    }
     this.data = null;
     this.revision = null;
     this.updatedAtToken = null;
@@ -40,21 +95,22 @@ export class PostgresDataStore {
     );
     // Normalize under the same lock used for ordinary writes; simultaneous
     // starts cannot overwrite a registration or upload with an old snapshot.
-    const client = await this.pool.connect();
-    try {
-      await client.query("BEGIN");
-      const result = await client.query("SELECT data, revision::text AS revision, updated_at::text AS updated_at_token FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
-      this.data = normalizeStoredData(result.rows[0].data);
-      this.revision = result.rows[0].revision;
-      this.updatedAtToken = result.rows[0].updated_at_token;
-      if (result.rows[0].data.schemaVersion !== this.data.schemaVersion) {
-        const updated = await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(this.data)]);
-        this.revision = updated.rows[0].revision;
-        this.updatedAtToken = updated.rows[0].updated_at_token;
+    const snapshot = await transaction(this.pool, async ({ query, wait }) => {
+      const result = await query("SELECT data, revision::text AS revision, updated_at::text AS updated_at_token FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
+      const encoded = isEncodedPostgresState(result.rows[0].data);
+      const decoded = await wait(() => decodePostgresState(result.rows[0].data));
+      const previousSchema = decoded.schemaVersion;
+      const data = normalizeStoredData(decoded, { copy: !encoded });
+      let { revision, updated_at_token: updatedAtToken } = result.rows[0];
+      if (previousSchema !== data.schemaVersion) {
+        const persisted = await wait(() => encodePostgresState(data, { compress: this.compressState || encoded }));
+        const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
+        revision = updated.rows[0].revision;
+        updatedAtToken = updated.rows[0].updated_at_token;
       }
-      await client.query("COMMIT");
-    } catch (error) { await client.query("ROLLBACK"); throw error; }
-    finally { client.release(); }
+      return { data, revision, updatedAtToken };
+    });
+    Object.assign(this, snapshot);
     return this;
   }
 
@@ -73,7 +129,7 @@ export class PostgresDataStore {
       const result = await this.pool.query("SELECT revision::text AS revision, updated_at::text AS updated_at_token, CASE WHEN revision = $2::bigint AND updated_at::text = $3 THEN NULL ELSE data END AS data FROM norte_state WHERE id = $1", [STATE_ID, this.revision, this.updatedAtToken]);
       const row = result.rows[0];
       if (!row) throw new Error("Norte state was not found.");
-      if (row.data !== null) this.data = normalizeStoredData(row.data);
+      if (row.data !== null) this.data = normalizeStoredData(await decodePostgresState(row.data), { copy: !isEncodedPostgresState(row.data) });
       this.revision = row.revision;
       this.updatedAtToken = row.updated_at_token;
     });
@@ -92,25 +148,21 @@ export class PostgresDataStore {
   update(mutator) {
     this.pendingRefresh = null;
     const operation = this.queue.then(async () => {
-      const client = await this.pool.connect();
-      try {
-        await client.query("BEGIN");
-        const current = await client.query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
-        const draft = normalizeStoredData(current.rows[0].data);
-        const result = await mutator(draft);
+      const snapshot = await transaction(this.pool, async ({ query, wait }) => {
+        const current = await query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
+        const encoded = isEncodedPostgresState(current.rows[0].data);
+        const decoded = await wait(() => decodePostgresState(current.rows[0].data));
+        const draft = normalizeStoredData(decoded, { copy: !encoded });
+        const result = await wait(() => mutator(draft));
         draft.updatedAt = new Date().toISOString();
-        const updated = await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(draft)]);
-        await client.query("COMMIT");
-        this.data = draft;
-        this.revision = updated.rows[0].revision;
-        this.updatedAtToken = updated.rows[0].updated_at_token;
-        return clone(result);
-      } catch (error) {
-        await client.query("ROLLBACK").catch(() => undefined);
-        throw error;
-      } finally {
-        client.release();
-      }
+        const persisted = await wait(() => encodePostgresState(draft, { compress: this.compressState || encoded }));
+        const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
+        return { data: draft, revision: updated.rows[0].revision, updatedAtToken: updated.rows[0].updated_at_token, result };
+      });
+      this.data = snapshot.data;
+      this.revision = snapshot.revision;
+      this.updatedAtToken = snapshot.updatedAtToken;
+      return clone(snapshot.result);
     });
     this.queue = operation.catch(() => undefined);
     return operation;

@@ -54,13 +54,16 @@ export function createInitialData() {
   };
 }
 
-export function normalizeStoredData(value) {
+export function normalizeStoredData(value, { copy = true } = {}) {
   if (!value || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(value.schemaVersion) || !Array.isArray(value.users) || !Array.isArray(value.members) || !Array.isArray(value.artifacts)) {
     throw new Error("Unsupported Norte data schema.");
   }
   // Normal startup only normalizes shape. Removing old demo data is an explicit,
   // guarded operation in scripts/reset-validation-data.mjs, never a migration.
-  const data = structuredClone(value);
+  const previousSchema = value.schemaVersion;
+  // A freshly decoded compressed database snapshot is already privately owned.
+  // Other callers retain copy-on-normalize, including JSON stores and tools.
+  const data = copy ? structuredClone(value) : value;
   data.schemaVersion = 10;
   data.invitations ??= [];
   data.emailVerifications ??= [];
@@ -92,7 +95,7 @@ export function normalizeStoredData(value) {
     team.captainMemberId ??= data.users.find(user => user.id === team.createdBy)?.memberId || null;
     team.adminMemberIds ??= [];
     team.memberIds = Array.isArray(team.memberIds) ? team.memberIds : [];
-    if (value.schemaVersion < 10) {
+    if (previousSchema < 10) {
       const awaiting = team.memberIds.filter(id => data.members.some(m => m.id === id && !m.accountId && m.accountStatus === 'invited'));
       team.legacyInvitedMemberIds = [...new Set([...(team.legacyInvitedMemberIds || []), ...awaiting])];
       team.memberIds = team.memberIds.filter(id => !awaiting.includes(id));

@@ -3,6 +3,7 @@ import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { createInitialData, normalizeStoredData } from "../server/data-store.mjs";
+import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from "../server/postgres-state-codec.mjs";
 
 const LEGACY_ARTIFACT_IDS = new Set(["team-aurora-report", "team-aurora-lessons", "norte-aurora-telemetry"]);
 const LEGACY_MEMBER_PATTERN = /^(?:aurora-|team-(?:zenith|sirius|caracara|gauchosat)-member-)/u;
@@ -88,11 +89,13 @@ export async function resetPostgres(databaseUrl, env = process.env, options = {}
     await client.query("BEGIN");
     const result = await client.query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", ["primary"]);
     if (result.rows.length !== 1) throw new Error("Reset refused: no existing Norte state found.");
-    const original = result.rows[0].data;
+    const encoded = isEncodedPostgresState(result.rows[0].data);
+    const original = await decodePostgresState(result.rows[0].data);
     const next = resetValidationData(original);
     const backupPath = resolve(options.backupDirectory ?? "var/backups", `validation-postgres-${Date.now()}-${randomUUID()}.json`);
     await backupSnapshot(backupPath, original);
-    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(next)]);
+    const persisted = await encodePostgresState(next, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1" });
+    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(persisted)]);
     await client.query("COMMIT");
     return { backupPath, ...validationSummary(next) };
   } catch (error) {

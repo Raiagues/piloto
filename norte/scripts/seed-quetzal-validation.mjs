@@ -17,6 +17,7 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { createInitialData, normalizeStoredData, VALIDATION_PROJECT_ID, VALIDATION_TEAM_ID, VALIDATION_TEAM_NAME } from "../server/data-store.mjs";
+import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from "../server/postgres-state-codec.mjs";
 import { classifyArtifactSource } from "../server/artifact-content.mjs";
 import { artifactContentUrl, fetchManifestSource, sourceProvenance } from "../server/source-import.mjs";
 import { projectMemoryStatus } from "../server/system-ai.mjs";
@@ -260,14 +261,16 @@ export async function seedPostgres(databaseUrl, options = {}, env = process.env)
     await client.query("ALTER TABLE norte_state ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 0");
     const result = await client.query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", ["primary"]);
     if (result.rows.length !== 1) throw new Error("Seed refused: no existing Norte state was found in this database.");
-    const original = result.rows[0].data;
+    const encoded = isEncodedPostgresState(result.rows[0].data);
+    const original = await decodePostgresState(result.rows[0].data);
     const { data, audit } = await seedQuetzalValidation(original, options);
     if (options.dryRun) {
       await client.query("ROLLBACK");
       return { dryRun: true, ...audit };
     }
     const backupPath = await backupSnapshot(resolve(options.backupDirectory ?? "var/backups", `quetzal-seed-${Date.now()}-${randomUUID()}.json`), original);
-    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(data)]);
+    const persisted = await encodePostgresState(data, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1" });
+    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(persisted)]);
     await client.query("COMMIT");
     return { backupPath, ...audit };
   } catch (error) {

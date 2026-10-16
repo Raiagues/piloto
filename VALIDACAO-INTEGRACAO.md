@@ -182,3 +182,45 @@ Validações específicas em ambiente isolado:
 - O navegador reproduziu HTTP 502 e 403, recuperação dos cartões, seleção de projeto em ideias, separação de cache público/privado e preservação do rascunho. Com a resposta de equipes retida, editar e salvar o projeto funcionou; com a resposta de pessoas retida, os cartões apareceram. Evidência: `.runtime/validation/project-loading-browser.json`.
 
 Esta rodada não configura áudio, não altera plano do Render, não abre o banco para acesso externo e não executa chamadas de IA.
+
+### Interrupção da conexão e volume do estado PostgreSQL
+
+A primeira verificação pública após o deploy identificou uma segunda falha: o
+Postgres reiniciou durante a criação da demonstração, e um evento `error` sem
+tratamento na conexão encerrou o Node. Os registros de produção comprovam o
+reinício, mas não estabelecem sua causa. Em reprodução local, um parâmetro SQL
+de aproximadamente 80 MiB com dez demonstrações excedeu os 256 MiB do banco.
+
+O servidor agora trata desconexões ociosas e durante transações. A interrupção
+impede gravações tardias e descarta a conexão. O cache só muda após COMMIT
+confirmado; nenhuma gravação de resultado incerto é repetida automaticamente.
+
+O leitor também aceita o armazenamento comprimido descrito em
+[norte/docs/postgres-state-format.md](norte/docs/postgres-state-format.md).
+Registros JSON segmentados evitam construir uma segunda string integral do
+estado. Hash, tamanho, UTF-8, estrutura e limites são verificados antes de
+publicar a leitura. Documentos, sessões, campos desconhecidos e permissões são
+preservados. A ativação exige publicar primeiro todos os leitores compatíveis;
+não se pode reverter para um build anterior ao codec após a conversão.
+
+Validação adicional:
+
+- 424 testes de API aprovados, com os casos de Postgres executados em PostgreSQL
+  17 real descartável. Após a última redução de memória, os 24 testes de codec,
+  compressão, desconexão e atualização passaram novamente. ESLint e varredura
+  de segredos também passaram. Logs: `.runtime/project-recovery-api-final.log`,
+  `project-recovery-postgres-final.log`, `project-recovery-lint-final.log` e
+  `project-recovery-secrets-final.log`.
+- Revisão independente: 160 roundtrips de dados variados equivalentes à
+  serialização JSON nativa e seis estruturas inválidas com hash correto
+  rejeitadas.
+- Node 24 limitado a 512 MiB: leitura e dois ciclos de leitura, mutação,
+  compressão e serialização com dez demonstrações passaram, preservando
+  170 artefatos e 870 elementos. O pico RSS foi de 335.859.712 bytes, cerca de
+  320 MiB, após compartilhar strings imutáveis repetidas durante a leitura.
+  Evidência: `.runtime/validation/quetzal-node-codec-memory-10.json`.
+
+Essa medição isola a persistência e não representa capacidade homologada do
+servidor completo nem tempo de resposta do plano gratuito. O estado ainda é
+global; compressão não substitui separar arquivos e dados por projeto para
+crescimento posterior. O limite de expansão é de 128 MiB de registros.
