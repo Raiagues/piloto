@@ -3,11 +3,11 @@ import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { gzipSync, gunzipSync } from 'node:zlib';
 import { createInitialData } from './data-store.mjs';
-import { decodePostgresState, encodePostgresState, isEncodedPostgresState, POSTGRES_STATE_MAX_BYTES } from './postgres-state-codec.mjs';
+import { decodePostgresState, encodePostgresState, isEncodedPostgresState, POSTGRES_STATE_MAX_BYTES, POSTGRES_STATE_MAX_STRING_BYTES } from './postgres-state-codec.mjs';
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
-function envelope(bytes) {
-  return { format: 'norte-postgres-state', version: 1, encoding: 'gzip+base64+json-records', uncompressedBytes: bytes.length,
+function envelope(bytes, version = 1) {
+  return { format: 'norte-postgres-state', version, encoding: 'gzip+base64+json-records', uncompressedBytes: bytes.length,
     sha256: digest(bytes), payload: gzipSync(bytes).toString('base64') };
 }
 function fixture() {
@@ -55,7 +55,7 @@ test('compressed round-trip preserves every field, document byte hash and sessio
 test('unsupported versions, encodings, malformed base64 and inaccurate size/hash fail closed', async () => {
   const valid = await encodePostgresState(fixture(), { compress: true });
   const bad = [
-    { version: 2 }, { encoding: 'brotli' }, { extra: 'unrecognized envelope field' },
+    { version: 2 }, { version: 3 }, { encoding: 'brotli' }, { extra: 'unrecognized envelope field' },
     { uncompressedBytes: -1 }, { uncompressedBytes: 1.5 }, { uncompressedBytes: '100' },
     { uncompressedBytes: valid.uncompressedBytes + 1 }, { uncompressedBytes: valid.uncompressedBytes - 1 },
     { sha256: '0'.repeat(64) }, { sha256: 'secret-not-a-hash' },
@@ -63,6 +63,68 @@ test('unsupported versions, encodings, malformed base64 and inaccurate size/hash
   ];
   for (const patch of bad) await assert.rejects(decodePostgresState({ ...valid, ...patch }), { code: 'POSTGRES_STATE_CODEC_INVALID' });
   await assert.rejects(encodePostgresState({ ...valid, version: 2 }, { compress: false }), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+});
+
+test('v2 string references are opt-in, byte-preserving and never share mutable objects', async () => {
+  const state = fixture(), original = state.artifacts[0];
+  state.artifacts = Array.from({ length: 5 }, (_, index) => ({ ...original, id: `document-${index}`, ownerId: `project-${index}`, nested: { title: `Independent ${index}` } }));
+  state.extra = { unicode: '界🛰'.repeat(800), sameUnicode: '界🛰'.repeat(800), keys: JSON.parse('{"__proto__":"literal"}') };
+  const before = structuredClone(state), v1 = await encodePostgresState(state, { compress: true });
+  assert.strictEqual(await encodePostgresState(state, { compactStrings: true }), state);
+  assert.equal(v1.version, 1);
+  const v2 = await encodePostgresState(state, { compress: true, compactStrings: true });
+  assert.equal(v2.version, 2);
+  const rows = gunzipSync(Buffer.from(v2.payload, 'base64')).toString('utf8').trim().split('\n').map(JSON.parse);
+  assert.deepEqual(rows[0], ['norte-json-records', 2]);
+  assert(rows.some(row => row[0] === 'ref'));
+  assert.deepEqual(rows.filter(row => row[0] === 'string' && row.length === 3).map(row => row[2]), [0, 1, 2]);
+  assert(v2.uncompressedBytes < v1.uncompressedBytes / 2);
+  assert(Buffer.byteLength(JSON.stringify(v2)) < Buffer.byteLength(JSON.stringify(v1)));
+  const decoded = await decodePostgresState(v2);
+  assert.deepEqual(decoded, before);
+  assert.equal(digest(JSON.stringify(decoded)), digest(JSON.stringify(await decodePostgresState(v1))));
+  assert.notStrictEqual(decoded.artifacts[0], decoded.artifacts[1]);
+  assert.notStrictEqual(decoded.artifacts[0].nested, decoded.artifacts[1].nested);
+  decoded.artifacts[0].nested.title = 'Edited only first document';
+  assert.equal(decoded.artifacts[1].nested.title, 'Independent 1');
+  assert.deepEqual(state, before);
+  assert.strictEqual(await encodePostgresState(v2, { compress: false, compactStrings: false }), v2);
+  assert.strictEqual(await encodePostgresState(v1, { compress: true, compactStrings: true }), v1, 'already encoded values retain their validated format');
+});
+
+test('v2 rejects incomplete, forward, duplicate and invalid string references and mismatched headers', async () => {
+  const prefix = [['norte-json-records', 2], ['object', null], ['value', 'schemaVersion', 10], ['array', 'users'], ['end'], ['array', 'members'], ['end'], ['array', 'artifacts'], ['end']];
+  const registered = [['string', 'first', 0], ['part', 'a'.repeat(1024)], ['end']];
+  const pack = (rows, version = 2) => envelope(Buffer.from(rows.map(row => JSON.stringify(row)).join('\n') + '\n'), version);
+  const invalidRows = [
+    [...prefix, ['ref', 'forward', 0], ...registered, ['end']],
+    [...prefix, ['string', 'first', 0], ['ref', 'self', 0], ['end'], ['end']],
+    [...prefix, ...registered, ['string', 'duplicateId', 0], ['part', 'different'], ['end'], ['end']],
+    [...prefix, ...registered, ['string', 'duplicateValue', 1], ['part', 'a'.repeat(1024)], ['end'], ['end']],
+    [...prefix, ...registered, ['string', 'gap', 2], ['part', 'different'], ['end'], ['end']],
+    [...prefix, ...registered, ['string', 'open', 1], ['ref', 'insideString', 0], ['end'], ['end']],
+    [...prefix, ...registered, ['ref', 'second', 0], ['ref', 'notRegisteredByRef', 1], ['end']],
+    [...prefix, ['string', 'first', 0], ['part', 'incomplete']],
+    [...prefix, ...registered, ['end'], ['ref', null, 0]],
+    ...[-1, '0', 0.5, null, {}, [], 1].map(id => [...prefix, ...registered, ['ref', 'invalid', id], ['end']]),
+    ...[-1, '0', 0.5, null, {}, [], 1].map(id => [...prefix, ['string', 'invalid', id], ['part', 'value'], ['end'], ['end']])
+  ];
+  for (const rows of invalidRows) await assert.rejects(decodePostgresState(pack(rows)), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+  await assert.rejects(decodePostgresState(pack([...prefix, ...registered, ['end']], 1)), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+  const v1Header = [...prefix]; v1Header[0] = ['norte-json-records', 1];
+  await assert.rejects(decodePostgresState(pack([...v1Header, ['end']], 2)), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+  await assert.rejects(decodePostgresState(pack([...v1Header, ...registered, ['end']], 1)), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+  await assert.rejects(decodePostgresState(pack([...v1Header, ['ref', 'missing', 0], ['end']], 1)), { code: 'POSTGRES_STATE_CODEC_INVALID' });
+});
+
+test('v2 bounds UTF-8 expansion even when a small stream repeats one immutable value many times', async () => {
+  const text = '界'.repeat(32768), copies = Math.floor(POSTGRES_STATE_MAX_STRING_BYTES / Buffer.byteLength(text)) + 1;
+  const state = createInitialData(); state.repeated = Array.from({ length: copies }, () => text);
+  await assert.rejects(encodePostgresState(state, { compress: true, compactStrings: true }), { code: 'POSTGRES_STATE_LIMIT_EXCEEDED' });
+  const rows = [['norte-json-records', 2], ['object', null], ['value', 'schemaVersion', 10], ['array', 'users'], ['end'], ['array', 'members'], ['end'], ['array', 'artifacts'], ['end'], ['array', 'repeated'], ['string', 0, 0], ['part', text], ['end'], ...Array.from({ length: copies - 1 }, (_, index) => ['ref', index + 1, 0]), ['end'], ['end']];
+  const bytes = Buffer.from(rows.map(row => JSON.stringify(row)).join('\n') + '\n');
+  assert(bytes.length < POSTGRES_STATE_MAX_BYTES / 100);
+  await assert.rejects(decodePostgresState(envelope(bytes, 2)), { code: 'POSTGRES_STATE_LIMIT_EXCEEDED' });
 });
 
 test('truncated, corrupt and misleading gzip streams are rejected before returning a state', async () => {

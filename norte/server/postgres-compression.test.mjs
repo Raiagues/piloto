@@ -112,3 +112,30 @@ test('guarded local reset decodes its backup and keeps the compressed persistenc
   assert.equal(isEncodedPostgresState(stored), true);
   assert.equal((await decodePostgresState(stored)).schemaVersion, 10);
 });
+
+test('string references activate only on request and remain readable without the writer flag', async t => {
+  const { pool, row } = await fixture(t);
+  const compatible = await new PostgresDataStore('unused', { pool, compressState: true, compactStrings: false }).init();
+  const text = 'Documento público repetido, com conteúdo e acentuação preservados.\n'.repeat(4000);
+  await compatible.update(data => {
+    data.artifacts.push({ id: 'first-copy', documentText: text, metadata: { title: 'First' } }, { id: 'second-copy', documentText: text, metadata: { title: 'Second' } });
+  });
+  const v1 = (await row()).data;
+  assert.equal(v1.version, 1, 'deploying a compatible reader does not enable the new writer');
+  const compact = await new PostgresDataStore('unused', { pool, compressState: true, compactStrings: true }).init();
+  assert.equal((await row()).data.version, 1, 'startup alone does not migrate the row');
+  await compact.update(data => { data.workspace.marker = 'compact enabled'; });
+  const v2 = (await row()).data;
+  assert.equal(v2.version, 2);
+  assert(v2.payload.length < v1.payload.length);
+  await compatible.refresh();
+  assert.deepEqual(compatible.read(data => data.artifacts), compact.read(data => data.artifacts));
+  await compatible.update(data => { data.artifacts[0].metadata.title = 'Edited first'; });
+  assert.equal((await row()).data.version, 2, 'compatible instances preserve references even with their flag disabled');
+  const restarted = await new PostgresDataStore('unused', { pool, compressState: false, compactStrings: false }).init();
+  assert.equal(restarted.read(data => data.artifacts[0].metadata.title), 'Edited first');
+  assert.equal(restarted.read(data => data.artifacts[1].metadata.title), 'Second');
+  assert.equal(restarted.read(data => data.artifacts[0].documentText), text);
+  assert.equal(restarted.read(data => data.artifacts[1].documentText), text);
+  assert.equal((await row()).data.version, 2);
+});

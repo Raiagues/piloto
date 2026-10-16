@@ -61,6 +61,7 @@ export class PostgresDataStore {
     // Enable writes only after every deployed reader supports this codec.
     // Once a row is encoded, compatible instances preserve that format.
     this.compressState = options.compressState ?? process.env.NORTE_POSTGRES_COMPRESSION === "1";
+    this.compactStrings = options.compactStrings ?? process.env.NORTE_POSTGRES_STRING_REFS === "1";
     this.pool = options.pool ?? new Pool({
       connectionString,
       max: 5,
@@ -103,7 +104,7 @@ export class PostgresDataStore {
       const data = normalizeStoredData(decoded, { copy: !encoded });
       let { revision, updated_at_token: updatedAtToken } = result.rows[0];
       if (previousSchema !== data.schemaVersion) {
-        const persisted = await wait(() => encodePostgresState(data, { compress: this.compressState || encoded }));
+        const persisted = await wait(() => encodePostgresState(data, { compress: this.compressState || encoded, compactStrings: this.compactStrings || (encoded && result.rows[0].data.version === 2) }));
         const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
         revision = updated.rows[0].revision;
         updatedAtToken = updated.rows[0].updated_at_token;
@@ -155,7 +156,7 @@ export class PostgresDataStore {
         const draft = normalizeStoredData(decoded, { copy: !encoded });
         const result = await wait(() => mutator(draft));
         draft.updatedAt = new Date().toISOString();
-        const persisted = await wait(() => encodePostgresState(draft, { compress: this.compressState || encoded }));
+        const persisted = await wait(() => encodePostgresState(draft, { compress: this.compressState || encoded, compactStrings: this.compactStrings || (encoded && current.rows[0].data.version === 2) }));
         const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
         return { data: draft, revision: updated.rows[0].revision, updatedAtToken: updated.rows[0].updated_at_token, result };
       });

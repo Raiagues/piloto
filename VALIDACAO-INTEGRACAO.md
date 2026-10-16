@@ -224,3 +224,34 @@ Essa medição isola a persistência e não representa capacidade homologada do
 servidor completo nem tempo de resposta do plano gratuito. O estado ainda é
 global; compressão não substitui separar arquivos e dados por projeto para
 crescimento posterior. O limite de expansão é de 128 MiB de registros.
+
+### Redução da fila de gravações
+
+A publicação anterior eliminou os reinícios durante a demonstração, mas o teste
+público com gravações simultâneas revelou latência remanescente: gravações de
+29–47 segundos e leituras aguardando 13–48 segundos na fila. Todas responderam
+200/201; a navegação ultrapassou o tempo máximo de 45 segundos do teste. Depois
+da fila esvaziar, as listas responderam em poucos milissegundos.
+
+A versão 2 do envelope reduz a repetição de strings no próprio fluxo enviado ao
+Postgres. No corpus de dez demonstrações, o envelope passou de 22.442.273 para
+3.371.381 bytes, redução aproximada de 85%. Os 170 artefatos e 870 elementos
+continuaram iguais na comparação completa. O escritor antigo da versão 1
+permaneceu byte a byte igual ao fixture já publicado. A nova escrita exige
+`NORTE_POSTGRES_STRING_REFS=1` somente após publicar e confirmar todos os
+leitores compatíveis. Instâncias compatíveis preservam a versão 2 mesmo sem a
+flag. Evidência: `.runtime/validation/quetzal-codec-v2-comparison.json`.
+
+Também foram removidas gravações redundantes da presença e da renovação da
+demonstração dentro de 25 segundos. O atalho preserva autenticação, CSRF,
+revogação e a credencial de recuperação. Cookies ausentes ou inválidos continuam
+sendo reparados. O cliente evita chamadas sobrepostas na mesma aba. A cópia
+inicial dos jobs passou a selecionar somente esses registros.
+
+Validação: 175 testes de interface e 436 de servidor aprovados, com os casos
+PostgreSQL executados em banco real local; TypeScript, ESLint, build e varredura
+de segredos aprovados. Logs: `.runtime/project-recovery-ui-final.log`,
+`project-recovery-api-v2.log`, `project-recovery-lint-v2.log`,
+`project-recovery-build-v2.log` e `project-recovery-secrets-v2.log`. O aviso de
+tamanho do pacote de interface permanece. Os tempos de benchmarks locais não
+são uma previsão de latência do Render nem garantia de capacidade concorrente.

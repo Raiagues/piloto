@@ -94,7 +94,7 @@ export async function resetPostgres(databaseUrl, env = process.env, options = {}
     const next = resetValidationData(original);
     const backupPath = resolve(options.backupDirectory ?? "var/backups", `validation-postgres-${Date.now()}-${randomUUID()}.json`);
     await backupSnapshot(backupPath, original);
-    const persisted = await encodePostgresState(next, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1" });
+    const persisted = await encodePostgresState(next, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1", compactStrings: env.NORTE_POSTGRES_STRING_REFS === "1" || (encoded && result.rows[0].data.version === 2) });
     await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(persisted)]);
     await client.query("COMMIT");
     return { backupPath, ...validationSummary(next) };

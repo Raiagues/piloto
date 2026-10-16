@@ -38,6 +38,7 @@ import { createDemoSandbox, demoAccountEnabled, demoExpiresAt, DEMO_TTL_MS, prun
 import { VALIDATION_DOCUMENTS_MISSING_MESSAGE } from "./validation-documents.mjs";
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
+const HEARTBEAT_MIN_INTERVAL_MS = 25_000;
 const PASSWORD_MIN_LENGTH = 15;
 const ACCESS_ROLES = ["owner_admin", "captain", "manager", "member", "advisor"];
 const MEMBER_STATUSES = ["demo", "invited", "active"];
@@ -410,7 +411,7 @@ export async function buildApp(options = {}) {
   const intelligence = options.intelligence || createProjectIntelligence({ store, ...(options.jev ? { jev: options.jev } : {}), canAccessProject, inferencePolicy: geminiConfig(systemAiOptions, 'discovery'),
     canReadArtifact: (data, user, artifact) => visibleArtifacts(data, user).some(item => item.id === artifact.id) });
   const initializingSystems = new Map();
-  const extractionJobs = new Map(Object.entries(store.read().workspace.extractionJobs || {}));
+  const extractionJobs = new Map(Object.entries(store.read(data => data.workspace.extractionJobs || {})));
   const extractionStarts = new Map();
   const logger = options.logger ?? {
     level: process.env.LOG_LEVEL || "info",
@@ -557,6 +558,11 @@ export async function buildApp(options = {}) {
     return token;
   }
 
+  function demoRecoveryRecentlyRetained(user, request, now = Date.now()) {
+    return Boolean(user.demoResumeTokenHash) && demoRecoveryHash(request) === user.demoResumeTokenHash
+      && demoExpiresAt(user) > now + DEMO_TTL_MS - HEARTBEAT_MIN_INTERVAL_MS;
+  }
+
   function setDemoCookie(reply, token) {
     if (token) reply.setCookie(demoCookieName, token, { path: "/", httpOnly: true, secure: production,
       sameSite: "strict", maxAge: Math.floor(DEMO_TTL_MS / 1000) });
@@ -653,12 +659,20 @@ export async function buildApp(options = {}) {
   registerMeetingGateway(app, { store, requireAuth, requireCsrf, access: meetingAccess, ...options.meetingGateway, prepareMeetingRequest: options.prepareMeetingRequest || (input => intelligence.prepareMeetingRequest(input)) });
   app.decorate('projectIntelligence', intelligence);
   app.post("/api/auth/heartbeat", { preHandler: [requireAuth, requireCsrf] }, async (request, reply) => {
+    // onRequest has refreshed the database and both guards have run. A recent
+    // login/heartbeat already proves presence; do not rewrite every document.
+    const now = Date.now(), age = now - Date.parse(request.auth.session.lastSeenAt || "");
+    const user = request.auth.user;
+    const recoveryReady = !user.isDemoAccount || !user.demoSandboxOwner
+      || demoRecoveryRecentlyRetained(user, request, now);
+    if (age >= 0 && age < HEARTBEAT_MIN_INTERVAL_MS && recoveryReady) return { ok: true };
     const recoveryToken = await store.update(data => {
       const session = data.sessions.find(s => s.id === request.auth.session.id && s.expiresAt > Date.now());
-      if (!session) throw httpError(401, "AUTH_REQUIRED", "Session expired.");
+      const currentUser = session && data.users.find(u => u.id === session.userId && u.active);
+      if (!session || !currentUser) throw httpError(401, "AUTH_REQUIRED", "Session expired.");
       const timestamp = new Date().toISOString();
       session.lastSeenAt = timestamp;
-      data.users.find(u => u.id === session.userId).lastSeenAt = timestamp;
+      currentUser.lastSeenAt = timestamp;
       return retainDemo(data, request, session.userId);
     });
     setDemoCookie(reply, recoveryToken);
@@ -731,7 +745,7 @@ export async function buildApp(options = {}) {
       hasOwner: data.users.some((user) => user.accessRole === "owner_admin" && user.active),
       bootstrapRequired: production && !administrationInitialized(data)
     }));
-    if (auth?.user.isDemoAccount) {
+    if (auth?.user.isDemoAccount && !demoRecoveryRecentlyRetained(auth.user, request)) {
       const recoveryToken = await store.update(data => retainDemo(data, request, auth.user.id));
       setDemoCookie(reply, recoveryToken);
     }

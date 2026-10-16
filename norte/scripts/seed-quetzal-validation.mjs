@@ -269,7 +269,7 @@ export async function seedPostgres(databaseUrl, options = {}, env = process.env)
       return { dryRun: true, ...audit };
     }
     const backupPath = await backupSnapshot(resolve(options.backupDirectory ?? "var/backups", `quetzal-seed-${Date.now()}-${randomUUID()}.json`), original);
-    const persisted = await encodePostgresState(data, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1" });
+    const persisted = await encodePostgresState(data, { compress: encoded || env.NORTE_POSTGRES_COMPRESSION === "1", compactStrings: env.NORTE_POSTGRES_STRING_REFS === "1" || (encoded && result.rows[0].data.version === 2) });
     await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(persisted)]);
     await client.query("COMMIT");
     return { backupPath, ...audit };

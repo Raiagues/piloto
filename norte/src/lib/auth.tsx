@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { DEMO_USER, demoApi } from "./demoApi";
 import type { SessionUser } from "./team";
 import { requestJson } from "./apiClient";
+import { createHeartbeatSender } from "./presenceHeartbeat";
 export { ApiError } from "./apiClient";
 
 const STATIC_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
@@ -100,10 +101,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status !== "authenticated" || STATIC_DEMO) return;
     let lastInteraction = Date.now();
+    const sendHeartbeat = createHeartbeatSender(() => api("/auth/heartbeat", { method: "POST" }));
     const active = () => { lastInteraction = Date.now(); };
     const heartbeat = () => {
       if (document.visibilityState === "visible" && Date.now() - lastInteraction < 120_000) {
-        void api("/auth/heartbeat", { method: "POST" }).catch(() => undefined);
+        void sendHeartbeat().catch(() => undefined);
       }
     };
     const visible = () => { if (document.visibilityState === "visible") { active(); heartbeat(); } };
