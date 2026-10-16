@@ -230,8 +230,10 @@ crescimento posterior. O limite de expansão é de 128 MiB de registros.
 A publicação anterior eliminou os reinícios durante a demonstração, mas o teste
 público com gravações simultâneas revelou latência remanescente: gravações de
 29–47 segundos e leituras aguardando 13–48 segundos na fila. Todas responderam
-200/201; a navegação ultrapassou o tempo máximo de 45 segundos do teste. Depois
-da fila esvaziar, as listas responderam em poucos milissegundos.
+200/201. Esses tempos vieram dos logs do servidor. O teste de navegador
+também precisou corrigir sua expectativa de rota: a demonstração retoma a
+Concepção, não necessariamente a Memória. Depois da fila esvaziar, as listas
+responderam em poucos milissegundos.
 
 A versão 2 do envelope reduz a repetição de strings no próprio fluxo enviado ao
 Postgres. No corpus de dez demonstrações, o envelope passou de 22.442.273 para
@@ -255,3 +257,43 @@ de segredos aprovados. Logs: `.runtime/project-recovery-ui-final.log`,
 `project-recovery-build-v2.log` e `project-recovery-secrets-v2.log`. O aviso de
 tamanho do pacote de interface permanece. Os tempos de benchmarks locais não
 são uma previsão de latência do Render nem garantia de capacidade concorrente.
+
+### Confirmação no site publicado
+
+O commit `c333f6c` entrou em produção com a escrita versão 2 às 17:41:34 UTC
+de 16/10/2026. Cada ativação ocorreu após publicar os leitores compatíveis,
+confirmar a saída da instância anterior e aguardar a janela de encerramento.
+Banco, credenciais e plano foram preservados; o acesso externo do Postgres
+permaneceu fechado.
+
+O teste de navegador entre 17:45:52 e 17:46:39 UTC reutilizou uma conta de
+demonstração isolada e confirmou:
+
+- Quetzal-1 presente nas listas de projetos e da equipe, no organograma e no
+  seletor da barra lateral; o cartão abre o projeto correspondente.
+- Entrada “Testar ideias” clicável, área de exploração visível, campo editável,
+  exemplo animado e botão “Abrir ideia” habilitado ao digitar.
+- Sessões de ideias, mudanças em revisão, escopos de conversa e sugestões
+  carregados com HTTP 200. Nenhuma ideia foi enviada nem chamada de IA iniciada.
+- Nenhum erro JavaScript, resposta 5xx ou alteração inesperada bloqueada pelo
+  teste. A verificação de saúde respondeu durante as consultas paralelas.
+
+Evidências privadas: `.runtime/validation/projects-production-smoke.json`,
+`projects-production-teams.png`, `projects-production-chart.png` e
+`projects-production-ideas.png`. Cookies de teste ficam em arquivo separado
+com permissão 0600 e não integram o repositório.
+
+A observação de logs não encontrou reinício ou falha de saúde nessa janela.
+Nas amostras de produção anteriores ao último teste, a aplicação usou até
+196 MiB de 512 MiB e o banco até 128 MiB de 256 MiB. A CPU da aplicação atingiu
+o limite do plano gratuito. A navegação está funcional, mas gravações ainda
+levaram cerca de 6–14 segundos e algumas consultas aguardaram até 15 segundos
+durante gravações simultâneas. Esta validação não declara eliminação de toda
+latência nem capacidade homologada para muitas equipes concorrentes.
+
+Em teste local isolado com dez demonstrações, a versão 2 reduziu o pico RSS do
+processo Node para aproximadamente 144 MiB e o pico do Postgres para 105 MiB.
+As medições estão em `.runtime/validation/quetzal-node-codec-v2-10.json` e
+`quetzal-pg-v2-probe.json`; não devem ser confundidas com os tempos do Render.
+
+O áudio permanece fora desta rodada, conforme a orientação mais recente.
