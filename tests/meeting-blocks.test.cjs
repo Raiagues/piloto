@@ -39,3 +39,20 @@ test('failed feedback preserves the visible suggestion and original',async()=>{
  const client=Blocks.create({getRun:()=>current,fetch:async()=>({ok:false,json:async()=>({error:'A sugestão mudou.'})})});
  await assert.rejects(client.feedback('block','E1','correct','Novo texto'),/mudou/);client.stop();assert.equal(JSON.stringify(current),before);
 });
+
+test('human display summaries need no model, preserve source and survive later AI overlays',()=>{
+ const r=run();r.block_edits={E1:{text:'Marina revisará o suporte na sexta-feira.',source}};r.block_review=overlay(r);
+ assert.equal(Blocks.manual(r,'E1').text,r.block_edits.E1.text);
+ const node=Canvas.build(r).topics[0].columns.details[0];assert.equal(node.display_text,r.block_edits.E1.text);assert.equal(node.text,source);assert.equal(node.editorial,'human');
+ r.meeting_events[0].text='Fonte alterada';assert.equal(Blocks.manual(r,'E1'),null);assert.equal(Canvas.build(r).topics[0].columns.details[0].display_text,undefined);
+});
+
+test('restore original explicitly overrides a previous automatic summary',()=>{
+ const r=run();r.block_review=overlay(r);r.block_edits={E1:{restore:true,source}};
+ assert.equal(Canvas.build(r).topics[0].columns.details[0].display_text,source);
+});
+
+test('local manual editing never enables automatic provider calls',async()=>{
+ const current=run();let requests=0;const client=Blocks.create({getRun:()=>current,automatic:false,fetch:async()=>{requests++;throw Error('unexpected');},delay:0});
+ client.saved(current);await client.refresh();client.stop();assert.equal(requests,0);
+});

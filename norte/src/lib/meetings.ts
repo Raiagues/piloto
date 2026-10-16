@@ -6,7 +6,7 @@ export type MeetingSummary = {
   memoryMode: "none" | "project"; roomKind: "meeting" | "beam"; revision: number;
   status: string; createdAt?: string; updatedAt?: string; participants: MeetingParticipant[];
   myRole?: "host" | "participant";
-  example?: boolean; scope?: MeetingScope; teamId?: string | null; sectorId?: string | null; teamName?: string | null; sectorName?: string | null;
+  example?: boolean; copiedFromExample?: boolean; projectName?: string | null; scope?: MeetingScope; teamId?: string | null; sectorId?: string | null; teamName?: string | null; sectorName?: string | null;
 };
 export type MeetingInvitation = { id: string; meetingId: string; meetingTitle?: string; title?: string; hostName?: string; status: string };
 export type MeetingContribution = { id: string; sequence: number; userId: string; text: string; createdAt: string };

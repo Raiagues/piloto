@@ -81,7 +81,7 @@ try {
   await page.locator(".architecture-interface-row").first().click(); await page.getByRole("dialog").waitFor(); assert.match(await page.getByRole("dialog").innerText(), /Fontes|evidências/);
   await page.getByRole("dialog").getByRole("button", { name: "Fechar" }).click();
   await page.screenshot({ path: "/tmp/norte-architecture-interfaces.png", fullPage: true });
-  await page.getByRole("tab", { name: "Arquitetura", exact: true }).click();
+  await page.getByRole("tab", { name: "Blocos", exact: true }).click();
   await page.getByRole("button", { name: `Abrir subsistema ${powerSubsystem.name}`, exact: true }).click();
   assert((await page.locator(".architecture-breadcrumbs").innerText()).includes(powerSubsystem.name));
   await page.getByRole("searchbox", { name: "Buscar na arquitetura" }).fill(searchComponent.name); assert(await page.locator(".architecture-inventory tbody tr").count() > 0);

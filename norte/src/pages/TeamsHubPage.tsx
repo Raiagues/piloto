@@ -15,6 +15,7 @@ export function TeamsHubPage({ language, initialTeamId = '', onTeamsChanged, onO
   const { api } = useAuth(), pt = language === 'pt';
   const [teams, setTeams] = useState<TeamRecord[]>([]), [members, setMembers] = useState<TeamMember[]>([]), [projects, setProjects] = useState<TeamProjectSummary[]>([]);
   const [selectedId, setSelectedId] = useState(initialTeamId), [view, setView] = useState<'mine' | 'community'>('mine'), [projectView, setProjectView] = useState<'list' | 'hierarchy'>('list');
+  useEffect(() => { const navigate = () => { const id = new URLSearchParams(window.location.hash.split('?')[1] || '').get('team'); if (id) setSelectedId(id); }; navigate(); window.addEventListener('hashchange', navigate); return () => window.removeEventListener('hashchange', navigate); }, []);
   const [teamArea, setTeamArea] = useState<'projects' | 'people' | 'invitations'>('projects'), [teamQuery, setTeamQuery] = useState('');
   const [dialog, setDialog] = useState<'create-team' | 'edit-team' | null>(null), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [feedback, setFeedback] = useState('');
   const load = useCallback(async () => {

@@ -812,12 +812,13 @@ export const LIFE_LANES = ['Missão e conceito','Requisitos','Definição do pro
 export const LIFE_DURATIONS = { nasa:[8,12,16,22,22,52,8], ecss:[8,12,16,22,18,56,8], custom:[4,4,8,4,2], none:[] };
 export const shiftDate = (date, days) => new Date(Date.parse(date+'T12:00:00Z') + days * 86400000).toISOString().slice(0,10);
 export function lifecycleRanges(lifecycle) {
+ if (Array.isArray(lifecycle.phases)) return lifecycle.phases.map((phase,index)=>({...phase,index}));
  let cursor = lifecycle.startDate;
- return (LIFE_PHASES[lifecycle.profile] || []).map(([code,name], index) => { const end = shiftDate(cursor, lifecycle.durations[index] * 7); const row={code,name,index,start:cursor,end}; cursor=end; return row; });
+ return (LIFE_PHASES[lifecycle.profile] || []).map(([code,name], index) => { const end = shiftDate(cursor, lifecycle.durations[index] * 7); const row={id:`${lifecycle.profile}-${code}`,templateCode:code,code,name,index,start:cursor,end}; cursor=end; return row; });
 }
 export function lifecycleMilestones(lifecycle) {
  const ranges=lifecycleRanges(lifecycle), definitions = REVIEW_PROFILES[lifecycle.profile] || (lifecycle.profile==='custom' ? [{id:'KICKOFF',title:'Abertura do projeto',phase:0,position:0,lane:0,active:true,focus:'Definir escopo e responsabilidades.'},{id:'DELIVERY',title:'Entrega do projeto',phase:4,position:1,lane:4,active:true,focus:'Revisar entregas e pendências.'}] : []);
- return definitions.map(r=>({...r,date:shiftDate(ranges[r.phase].start,Math.round(lifecycle.durations[r.phase]*7*r.position))}));
+ return definitions.flatMap(r=>{const templateCode=LIFE_PHASES[lifecycle.profile]?.[r.phase]?.[0],range=ranges.find(p=>p.templateCode===templateCode);return range?[{...r,phaseId:range.id,phaseName:range.name,date:shiftDate(range.start,Math.round((Date.parse(range.end)-Date.parse(range.start))/86400000*r.position))}]:[];});
 }
 export function reviewDocuments(profile, code) {
  if (!['nasa','ecss','custom'].includes(profile)) return [];

@@ -175,7 +175,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok(await evaluate(`(()=>{const columns=[...document.querySelectorAll('.room-topic:first-child .mc-column')].map(node=>node.getBoundingClientRect());return columns.length===3&&columns.every(node=>Math.abs(node.top-columns[0].top)<1)&&columns[0].right<columns[1].left&&columns[1].right<columns[2].left;})()`),'problems, hypotheses and tests remain side by side');
   assert.ok(await evaluate(`(()=>{const svg=document.querySelector('#roomBoard .mc-edges'),r=svg.getBoundingClientRect();return [...svg.querySelectorAll('path[marker-end]')].every(path=>{const p=path.getBoundingClientRect();return path.getTotalLength()>0&&p.left>=r.left&&p.right<=r.right&&p.top>=r.top&&p.bottom<=r.bottom;});})()`),'edge paths fit the actual rendered SVG viewport, unaffected by icon sizing rules');
   const beforeCanvas=JSON.stringify((await snapshot()).meeting_events);
-  await click('.mc-node-text');assert.equal(await evaluate('document.querySelector(".mc-node-text").getAttribute("aria-expanded")'),'false','short text has no needless expand/collapse');
+  await click('.mc-node-text');assert.equal(await visible('.room-diagnostics'),true,'card opens its full source in a detail dialog');await evaluate('document.querySelector(".room-diagnostics").close()');
   assert.equal(await visible('.room-pan-hint'),false);
   assert.equal(await evaluate('document.querySelector("#roomCounts").textContent'),'2 assuntos');
   assert.ok(await evaluate(`(()=>{const topics=[...document.querySelectorAll('.room-topic')].map(n=>n.getBoundingClientRect());return topics[1].left>topics[0].right&&Math.abs(topics[1].top-topics[0].top)<1;})()`),'topics sit side by side');
@@ -199,7 +199,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    await call('Input.dispatchMouseEvent',{type:'mouseReleased',x:start.x-70,y:start.y-45,button:'left',buttons:0,clickCount:1});
    if(space)await call('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32});
    assert.ok(await evaluate(`document.querySelector('#roomCanvas').scrollLeft>${start.left} && document.querySelector('#roomCanvas').scrollTop>${start.top}`),space?'Space+drag pans even when starting on card text':'dragging a card header pans the canvas');
-   assert.equal(await evaluate('document.querySelector(".mc-node-text").getAttribute("aria-expanded")'),'false','panning never opens a card');
+   assert.equal(await evaluate('!!document.querySelector(".room-diagnostics[open]")'),false,'panning never opens a card');
    await click('#roomFit');await evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
   }
   assert.ok(await evaluate(`(()=>{const r=document.querySelector('.room-canvas-stage').getBoundingClientRect();return [...document.querySelectorAll('#roomBoard .room-node')].some(node=>{const n=node.getBoundingClientRect();return n.width>0&&n.height>0&&n.right>r.left&&n.left<r.right&&n.bottom>r.top&&n.top<r.bottom;});})()`),'fit keeps the nodes visible inside the clipped panel');
@@ -218,7 +218,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   if(await evaluate('NorteMeetingRoom.view()==="library"'))await openSaved(finished.id);
   assert.equal((await snapshot()).id,finished.id);
   await click('#roomMinutes');await wait('document.querySelector("#gmDialog")?.open');assert.equal(requests.filter(item=>item.url==='/api/minutes').length,0);
-  assert.match(await evaluate('document.querySelector(".gm-paper").textContent'),/Deformação do suporte/);assert.ok(await evaluate('document.querySelector(".gm-node-test_proposal .gm-node-test_result")'));assert.doesNotMatch(await evaluate('document.querySelector("#gmDialog").textContent'),/Gemini|gerad[oa] por IA/);
+  assert.match(await evaluate('document.querySelector(".gm-paper").textContent'),/Deformação do suporte/);assert.ok(await evaluate('document.querySelector(".gm-node-test_proposal") && document.querySelector(".gm-node-test_result")'),'tests and results remain present in their own concise sections');assert.doesNotMatch(await evaluate('document.querySelector("#gmDialog").textContent'),/Gemini|gerad[oa] por IA/);
   assert.equal(await evaluate('document.querySelectorAll(".gm-source-id,.gm-history").length'),0,'event IDs and discussion-history controls are absent from the document');
   await click('.gm-contents a');
   assert.equal(await evaluate('location.hash'),'#reuniao','source references keep the application route unchanged');
@@ -247,7 +247,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(await evaluate('NorteMeetingRoom.isRunning()'),true);
   await evaluate("history.replaceState(null,'','/index.html#reuniao')");
   const cancelStarted=Date.now();await click('#roomStop');await wait('NorteMeetingRoom.snapshot().status==="interrupted" && !NorteMeetingRoom.isRunning()');
-  assert.ok(Date.now()-cancelStarted<1500,'cancel button settles without a pending request finishing');assert.equal(await evaluate('document.querySelector("#roomLiveLabel").textContent'),'Reunião encerrada');
+  assert.ok(Date.now()-cancelStarted<1500,'cancel button settles without a pending request finishing');assert.equal(await evaluate('document.querySelector("#roomLiveLabel").textContent'),'Interrompida');
   assert.equal(await evaluate('document.querySelector("#roomBack").disabled'),false);cancelRelease();await sleep(100);assert.equal((await snapshot()).meeting_events.length,0,'late responses never create memories after cancellation');
   const callsBeforeSpeech=requests.length;
   // Speech starts only on its explicit button, and the last final after stop is retained.
@@ -285,6 +285,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(await evaluate('document.querySelectorAll(".mc-node-info").length'),4,'every record has an information icon');
   await click('#roomPendingCount');assert.equal(await visible('#roomPendingList'),true);
   const beforeInspect=JSON.stringify((await snapshot()).meeting_events);
+  await click('#roomAlerts .room-alert-heading');
   await click('#roomAlerts .room-alert-item[data-kind=conflict]');await wait('!!document.querySelector(".room-diagnostics[open]")');
   assert.match(await evaluate('document.querySelector(".room-diagnostics").textContent'),/contradiz|contrária/i);
   assert.equal(await evaluate('document.querySelector(".room-diagnostic-log")'),null,'normal record details never expose backend JSON');
@@ -315,6 +316,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   })()`);
   await click('#blockFixture .mc-editorial');await wait('!!document.querySelector(".room-block-dialog[open]")');
   assert.match(await evaluate('document.querySelector(".room-block-dialog blockquote").textContent'),/Conversamos sobre/);
+  await evaluate('[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Avaliar sugestão da IA").click()');
   await screenshot('block-review');
   await evaluate('document.querySelector(".room-block-dialog textarea").value="Na sexta-feira, Marina revisará o suporte.";[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Salvar correção").click()');
   await wait('!document.querySelector(".room-block-dialog")');
@@ -324,7 +326,8 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await evaluate('[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Usar original").click()');
   await wait('!document.querySelector(".room-block-dialog")');
   assert.match(await evaluate('document.querySelector("#blockFixture .mc-node-copy").textContent'),/^Conversamos/);
-  assert.equal(await evaluate('__blockPosts.length'),2);
+  assert.equal(await evaluate('__blockPosts.length'),1,'manual display restore needs no provider or feedback call');
+  assert.equal(await evaluate('__blockRun.block_edits.EB1.restore'),true);
   await evaluate('__blockTest.client.stop();__blockTest.canvas.destroy();__blockTest.host.remove()');
   assert.deepEqual(errors,[]);
   console.log('PASS: empty library, scoped legacy migration, draft creation without recording/inference, disabled scheduling, same-session import, visible hierarchical canvas with text disclosure/zoom/pan, transcript toggle/keyboard resize, list/reopen/reload, explicit recording with final speech retained, existing navigation/drafts, local minutes, mobile and concurrent V2 imports.');

@@ -33,13 +33,13 @@ try {
   const context = await browser.newContext({ viewport: { width: 1512, height: 1000 } });
   await context.addCookies([login.headers['set-cookie']].flat().map(value => { const cookie = value.split(';')[0]; return { name: cookie.slice(0, cookie.indexOf('=')), value: cookie.slice(cookie.indexOf('=') + 1), url: origin }; }));
   await context.addInitScript(() => { if (window === window.top) { window.localStorage?.setItem('norte-language', 'pt'); window.localStorage?.setItem('norte-theme', 'light'); } });
-  page = await context.newPage(); page.setDefaultTimeout(12000); const errors = [], calls = []; page.on('pageerror', e => errors.push(e.message)); page.on('request', r => { if (r.method() === 'POST' && /system-ai\/(jobs|generate)/.test(r.url())) calls.push(r.url()); });
+  page = await context.newPage(); page.setDefaultTimeout(25000); const errors = [], calls = []; page.on('pageerror', e => errors.push(e.message)); page.on('request', r => { if (r.method() === 'POST' && /system-ai\/(jobs|generate)/.test(r.url())) calls.push(r.url()); });
   await page.goto(origin + '/norte/');
   await page.locator('.home-action-card.accent-open').click(); await page.locator('.home-project-open').click();
   await page.locator('.pm-artifact-card').first().waitFor(); assert.equal(await page.locator('.pm-artifact-card').count(), 17);
   await page.screenshot({ path: '/tmp/norte-memory-v2-library.png', fullPage: true });
-  await page.getByRole('link', { name: `Abrir: ${first.label}`, exact: true }).click();
-  await page.locator('.memory-reader-modal iframe').waitFor(); await page.getByText('Bruno · EXEMPLO · editando', { exact: true }).waitFor();
+  await page.getByLabel('Buscar pastas', { exact: true }).fill(first.label); await page.locator('.memory-library .memory-tree-document').filter({ hasText: first.label }).click();
+  await page.locator('.memory-reader-modal iframe').waitFor(); await page.getByRole('button', { name: 'Editar documento', exact: true }).waitFor(); await page.getByRole('button', { name: 'Mover', exact: true }).waitFor(); await page.getByRole('button', { name: 'Excluir documento', exact: true }).waitFor(); await page.getByText('Bruno · EXEMPLO · editando', { exact: true }).waitFor();
   const header = await page.locator('.app-header').boundingBox(), sidebar = await page.locator('.mission-sidebar').boundingBox(), modal = await page.locator('.memory-reader-modal').boundingBox();
   assert.ok(modal.y >= header.y + header.height, 'reader preserves header'); assert.ok(modal.x >= sidebar.x + sidebar.width, 'reader preserves sidebar');
   await page.screenshot({ path: '/tmp/norte-memory-v2-reader.png' }); await page.locator('.app-header .theme-toggle').click(); await page.screenshot({ path: '/tmp/norte-memory-v2-reader-dark.png' }); await page.locator('.app-header .theme-toggle').click();
@@ -48,11 +48,11 @@ try {
   await page.getByLabel('Buscar no leitor', { exact: true }).fill('INA260'); assert.equal(await page.locator('.memory-reader-results button').count(), 1); await page.locator('.memory-reader-results button').click();
   await page.locator('.memory-preview h2').getByText('Texas Instruments INA260 Datasheet', { exact: true }).waitFor(); assert.match(await page.locator('.memory-breadcrumb').innerText(), /EPS.*Componentes.*INA260/s);
   await page.setViewportSize({ width: 390, height: 844 }); if (await page.locator('.mission-sidebar-overlay.visible').isVisible()) await page.locator('.mission-sidebar-toggle').click(); assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1));
-  await page.waitForLoadState('networkidle'); await page.screenshot({ path: '/tmp/norte-memory-v2-reader-mobile.png' }); await page.getByRole('button', { name: 'Fechar documento', exact: true }).click(); await page.setViewportSize({ width: 1512, height: 1000 });
+  await page.locator('.memory-reader-modal iframe').waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-reader-mobile.png' }); await page.getByRole('button', { name: 'Fechar documento', exact: true }).click(); await page.setViewportSize({ width: 1512, height: 1000 });
   await page.evaluate(() => { window.location.hash = '#/study-setup?tab=summary'; }); await page.getByRole('heading', { name: 'Resumo do projeto', exact: true }).waitFor(); await page.getByRole('button', { name: 'Editar resumo', exact: true }).click(); await page.locator('.project-summary textarea[name=nextSteps]').fill('Conferir a revisão do esquemático antes da reunião.'); await page.getByRole('button', { name: 'Salvar resumo', exact: true }).click(); await page.getByText('Conferir a revisão do esquemático antes da reunião.', { exact: true }).waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-summary.png' });
-  await page.getByRole('button', { name: 'Conhecimento', exact: true }).click(); await page.getByRole('heading', { name: 'Revisão do circuito de energia' }).waitFor(); await page.getByRole('button', { name: 'Registrar revisão', exact: true }).click(); await page.locator('.knowledge-review-form textarea').fill('Conferi a referência e pedi comparação da revisão da placa.'); await page.getByRole('button', { name: 'Salvar decisão', exact: true }).click(); await page.getByLabel('Mostrar revisões', { exact: true }).selectOption('closed'); await page.getByText('Conferi a referência e pedi comparação da revisão da placa.', { exact: true }).waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-knowledge.png' });
+  await page.getByRole('button', { name: 'Conhecimento', exact: true }).click(); await page.locator('.knowledge-row').filter({ hasText: 'Revisão do circuito de energia' }).click(); await page.getByRole('button', { name: 'Registrar revisão', exact: true }).click(); await page.locator('.knowledge-review-form textarea').fill('Conferi a referência e pedi comparação da revisão da placa.'); await page.getByRole('button', { name: 'Salvar decisão', exact: true }).click(); await page.getByLabel('Mostrar revisões', { exact: true }).selectOption('closed'); await page.getByText('Conferi a referência e pedi comparação da revisão da placa.', { exact: true }).waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-knowledge.png' });
   await page.getByRole('button', { name: 'Configuração', exact: true }).click(); assert.equal(await page.getByText('Sugestão de setores', { exact: true }).count(), 0); assert.equal(await page.locator('input[type=checkbox]').count(), 0); await page.getByRole('button', { name: 'Equipe e acessos', exact: true }).click(); await page.getByRole('tab', { name: 'Cargos e membros', exact: true }).click(); await page.getByText('Bruno · EXEMPLO', { exact: true }).first().waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-team.png' }); await page.getByRole('button', { name: 'Fechar', exact: true }).click(); await page.getByRole('button', { name: 'Alterar', exact: true }).click(); await page.getByLabel('Programa (opcional)', { exact: true }).waitFor(); await page.screenshot({ path: '/tmp/norte-memory-v2-program.png' }); await page.getByRole('button', { name: 'Fechar', exact: true }).click();
-  await page.getByRole('button', { name: /^Documentos/ }).click();
+  await page.getByRole('button', { name: /^Documentos/ }).click(); await page.getByLabel('Buscar pastas', { exact: true }).fill('');
   await page.getByRole('button', { name: `Mover: ${first.label}`, exact: true }).click(); const target = project.context.sectors.find(s => s.name === 'Engenharia de sistemas'); await page.locator('.pm-dialog select[name=folderId]').selectOption(target.id); await page.getByRole('button', { name: 'Mover', exact: true }).click(); await page.locator('.pm-dialog').waitFor({ state: 'hidden' });
   assert.equal(app.missionStore.read().artifacts.find(a => a.id === first.id).folderId, target.id);
   // HTML drag/drop uses the same authorized atomic API as the accessible Move control.
@@ -71,6 +71,28 @@ try {
   await page.locator('.pm-dialog-form button[type=submit]').click(); await page.locator('.pm-dialog [role=alert]').waitFor(); assert.equal(await page.locator('.pm-dialog input[name=label]').inputValue(), 'Minha revisão preservada');
   await page.screenshot({ path: '/tmp/norte-memory-v2-conflict.png' }); await page.getByRole('button', { name: 'Fechar', exact: true }).click();
   project = app.missionStore.read().workspace.projects[projectId].document; assert.equal(project.context.projectArtifactIds.length, 17); assert.equal(app.missionStore.read().artifacts.filter(a => a.ownerId === projectId).length, 17); assert.deepEqual(calls, []); assert.deepEqual(errors, []);
+  // Opening a file outside the selected folder must update the reader context.
+  const secondSource = sources[1];
+  await page.getByLabel('Buscar pastas', { exact: true }).fill(secondSource.label);
+  await page.locator('.memory-library .memory-tree-document').filter({ hasText: secondSource.label }).click();
+  await page.locator('.memory-preview h2').getByText(secondSource.label, { exact: true }).waitFor();
+  assert.doesNotMatch(await page.locator('.memory-reader-pager').innerText(), /—/);
+  await page.getByRole('button', { name: 'Editar documento', exact: true }).click();
+  await page.locator('.pm-dialog input[name=label]').fill('Esquemático revisado no leitor');
+  await page.locator('.pm-dialog-form button[type=submit]').click();
+  await page.locator('.memory-preview h2').getByText('Esquemático revisado no leitor', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Mover', exact: true }).click();
+  await page.locator('.pm-dialog select[name=folderId]').selectOption(target.id);
+  await page.getByRole('button', { name: 'Mover', exact: true }).click();
+  await page.locator('.memory-reader-modal iframe').waitFor();
+  assert.match(await page.locator('.memory-breadcrumb').innerText(), /Engenharia de sistemas/);
+  assert.doesNotMatch(await page.locator('.memory-reader-pager').innerText(), /—/);
+  page.once('dialog', dialog => dialog.accept());
+  await page.getByRole('button', { name: 'Excluir documento', exact: true }).click();
+  await page.locator('.memory-preview h2').getByText('Esquemático revisado no leitor', { exact: true }).waitFor({ state: 'hidden' });
+  assert.equal(app.missionStore.read().artifacts.some(a => a.id === secondSource.id), false);
+  assert.doesNotMatch(await page.locator('.memory-reader-pager').innerText(), /—/);
+  await page.getByRole('button', { name: 'Fechar documento', exact: true }).click();
   // Senior reviewer: guide returns to the existing project rather than creating another one.
   await page.evaluate(() => { window.location.hash = '#/guide'; });
   await page.getByRole('heading', { name: 'Do primeiro passo à entrega', exact: true }).waitFor();

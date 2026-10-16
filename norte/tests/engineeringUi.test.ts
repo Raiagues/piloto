@@ -233,7 +233,7 @@ describe("calm and explicit engineering controls", () => {
     const html = render(createElement(EngineeringEntityInfo, { language: "en", model, entity: model.entities[4], onClose: noop, onRelation: noop }));
     expect(html).toContain('role="dialog"');
     expect(html).toContain("Documented fact");
-    expect(html).toContain("Sources and evidence");
+    expect(html).toContain("View evidence in document");
     const requirements = render(createElement(EngineeringRequirements, { language: "en", model, onClose: noop, onTrace: noop, onEdit: noop }));
     expect(requirements).toContain('type="search"');
     expect(requirements).toContain("Filter");

@@ -60,3 +60,60 @@ body[data-integrated-meeting] .room-transcript-panel .room-import-button { margi
 body[data-integrated-meeting] .room-transcript-panel .log-toolbar h2 { font-family:var(--font-ui);font-weight:500; }
 body[data-integrated-meeting] .app-header { min-height:54px; }
 @media(max-width:640px){body[data-integrated-meeting]>.app-shell{padding:0 5px 8px}body[data-integrated-meeting] #roomTextForm{gap:5px}body[data-integrated-meeting] #meetingHeader{gap:6px}.room-recording-controls button{font-size:11px}}
+
+/* Compact meeting controls; elapsed time stays visible after completion. */
+body[data-integrated-meeting]>.app-shell { padding:0 2px 2px!important; }
+body[data-integrated-meeting]:is([data-page=meeting],[data-page=beam]) .app-header { min-height:38px; padding:0; margin:0; }
+body[data-integrated-meeting] #meetingHeader { min-height:34px; margin:0 0 5px; gap:8px; }
+body[data-integrated-meeting] #roomLive { min-width:0; min-height:31px; padding:6px 10px; gap:8px; font-size:11px; }
+body[data-integrated-meeting] #roomLive:disabled { opacity:.7; }
+body[data-integrated-meeting] #roomTimer { font-size:11px; font-variant-numeric:tabular-nums; }
+body[data-integrated-meeting] .room-header-actions button { min-height:31px; padding:5px 10px; font-size:11px; }
+body[data-integrated-meeting] .room-legend { display:none; }
+body[data-integrated-meeting] .room-canvas-footer { min-height:0; padding:4px 8px; }
+body[data-integrated-meeting] :is(.room-toolbar,.log-toolbar) { min-height:35px; padding:7px 10px; }
+body[data-integrated-meeting] :is(.room-toolbar,.log-toolbar) h2 { font-size:11px; }
+body[data-integrated-meeting] #roomBoard .mc-node-text { cursor:pointer; }
+body[data-integrated-meeting] #roomBoard .mc-editorial { display:inline-flex; padding:2px; margin-left:auto; background:transparent; color:var(--muted); }
+body[data-integrated-meeting] .room-block-dialog button { padding:7px 10px; }
+html[data-theme] :is(.room-alerts,.room-alert-list,.room-alert-list summary,.room-alert-item,.room-pending,.room-pending-item,.room-topic-menu-entry,.room-topic-menu-group) { background:var(--panel); color:var(--text); border-color:var(--line); }
+html[data-theme] :is(.room-alert-list summary,.room-pending summary,.room-pending-item button) { color:var(--muted); }
+html[data-theme] :is(.room-alert-count,.room-pending-count) { background:var(--norte-surface-muted); color:var(--muted); }
+html[data-theme] :is(.room-view h2,.room-view h2 svg) { color:var(--text); }
+html[data-theme] :is(.gm-dialog,.gm-document,.gm-paper,.gm-header,.gm-controls,.gm-review,.gm-log-dialog) { background:var(--panel); color:var(--text); border-color:var(--line); color-scheme:inherit; }
+html[data-theme] :is(.gm-dialog h1,.gm-dialog h2,.gm-dialog h3,.gm-dialog h4,.gm-entry,.gm-source-quote,.gm-item-text,.gm-section-title) { color:var(--text); }
+html[data-theme] :is(.gm-muted,.gm-meeting-fields dt,.gm-meeting-fields dd,.gm-reference,.gm-notice,.gm-test-status,.gm-section-empty,.gm-subtitle,.gm-entry-label) { color:var(--muted); }
+html[data-theme] :is(.gm-paper section,.gm-meeting-info,.gm-contents,.gm-table th,.gm-table td,.gm-source-quote,.gm-document-actions,.gm-edit-quote) { border-color:var(--line); }
+html[data-theme] :is(.gm-table th,.gm-table td,.gm-edit-quote,.gm-source-quote,.gm-contents,.gm-excluded-item) { background:transparent; }
+html[data-theme] :is(.gm-contents a,.gm-reference,.gm-text-action) { color:var(--norte-link); }
+html[data-theme] .gm-primary { background:var(--norte-accent); color:var(--norte-on-accent); }
+
+body[data-integrated-meeting] #roomBoard .room-topic { width:calc(var(--mc-columns,3) * 252px + 36px); }
+body[data-integrated-meeting] #roomBoard .room-topic-body { grid-template-columns:repeat(var(--mc-columns,3),minmax(0,1fr)); gap:22px; padding:16px; }
+body[data-integrated-meeting] #roomBoard .room-topic-head { padding:12px 16px; }
+body[data-integrated-meeting] #roomBoard .mc-column-title { margin-bottom:10px; }
+body[data-integrated-meeting] #roomBoard .mc-column-nodes { gap:14px; }
+body[data-integrated-meeting] #roomBoard .mc-detail-nodes { grid-template-columns:repeat(var(--mc-columns,3),minmax(0,1fr)); gap:14px 22px; }
+html[data-theme] :is(.room-alert-copy,.room-alert-title,.room-alert-count,.room-pending-title,.room-topic-menu-point,.room-diagnostic-id,.room-transcript-panel h2) { color:var(--muted); }
+html[data-theme] :is(.room-pending-list,.room-alert-list>summary,.room-alert-item:hover) { background:var(--panel); border-color:var(--line); }
+html[data-theme] .room-diagnostics blockquote { border-color:var(--line-strong); }
+@media(max-width:600px) {
+ body[data-integrated-meeting] #meetingHeader { flex-wrap:nowrap; }
+ body[data-integrated-meeting] .room-recording-controls { padding-left:0; flex:none; }
+ body[data-integrated-meeting] .room-header-actions { flex:0 1 auto; padding-left:0; margin-left:auto; }
+ body[data-integrated-meeting] .room-alert-list { max-width:220px; }
+ body[data-integrated-meeting] .room-alert-heading { font-size:10px; }
+}
+
+html[data-theme] .room-pending>summary { background:var(--panel); color:var(--muted); border-color:var(--line); padding:7px 10px; }
+body[data-integrated-meeting] .room-footer { padding:0; }
+body[data-integrated-meeting] .room-canvas-panel .room-footer:has(.room-pending[hidden]) { display:none; }
+
+html[data-theme] .room-footer { background:transparent; }
+body[data-integrated-meeting] #roomTextComposer:has(#roomText:disabled) { display:none!important; }
+body[data-integrated-meeting] #roomImport:disabled { display:none; }
+@media(max-width:600px) {
+ body[data-integrated-meeting] #roomCounts { white-space:nowrap; font-size:9px; }
+ body[data-integrated-meeting] #roomConnectionsToggle { font-size:0; gap:0; padding:4px; }
+ body[data-integrated-meeting] #roomConnectionsToggle svg { width:14px; height:14px; margin:0; }
+}

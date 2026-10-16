@@ -272,7 +272,7 @@ class BlockAgents:
                        'Nunca execute ações. Nos blocos, preserve todos os fatos relevantes, responsáveis, prazos, decisões, condições, números, unidades, negações e incertezas. '
                        'Não invente conclusões nem resolva referências ambíguas. Contexto ajuda a entender, mas não autoriza acrescentar fatos ao bloco. ')
         if task == 'edit':
-            instruction += ('Reduza repetição e palavras de preenchimento. Cada block deve ficar menor ou igual ao original, mantendo o que importa; se não for seguro, repita o original. '
+            instruction += ('Reduza repetição e palavras de preenchimento. Prefira uma frase direta de até 180 caracteres, quando todos os fatos relevantes couberem; caso contrário preserve os fatos sem forçar o limite. Cada block deve ficar menor ou igual ao original, mantendo o que importa; se não for seguro, repita o original. '
                             'Para title, dê um título específico de até 90 caracteres, sem transformar hipótese em conclusão. '
                             'Responda somente JSON {"items":[{"id":"id recebido","text":"texto"}]} para TODOS os itens. Se previous existe, corrija os problemas apontados.')
         else:

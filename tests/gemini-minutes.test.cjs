@@ -103,3 +103,12 @@ test('retired events and ungrounded or cross-topic table cells never enter the c
  const doc=M.organizedDocument(r,{topics:[{thread_id:'T1',entries:[{event_id:'E4',text:'Valor antigo 20 N.'},{event_id:'E7',text:'Valor 30 N.'}],tables:[{title:'Inventado',columns:['Carga','Resultado'],rows:[{event_id:'E1',cells:['99 N','aprovado']}]},{title:'Outro assunto',columns:['Carga','Resultado'],rows:[{event_id:'E7',cells:['30 N','']}]},{title:'Antigo',columns:['Carga','Resultado'],rows:[{event_id:'E4',cells:['20 N',''] }]}]}]});
  assert.deepEqual(doc.topics[0].tables,[]);assert.doesNotMatch(printed(M.pdfDocument(doc)),/Valor antigo|Inventado|Outro assunto/);
 });
+test('prepared example summaries and human corrections are presentation only, including PDF', async()=>{
+ const {exampleSnapshot}=await import('../norte/scripts/seed-meeting-examples.mjs');
+ const r=exampleSnapshot('geral',{id:'mock-summary',title:'Exemplo',projectId:'p'}),before=JSON.stringify(r),doc=M.localDocument(r),text=printed(M.pdfDocument(doc,{}));
+ assert.match(text,/Hipótese: imagens sem compressão/);assert.doesNotMatch(text,/Voltando à tela inicial/);assert.equal(JSON.stringify(r),before);
+ const e=r.meeting_events.find(e=>e.event_id==='E007');assert.match(M.sourceFor(r).events.find(event=>event.event_id===e.event_id).text,/Voltando à tela inicial/);
+ r.block_edits={[e.event_id]:{source:e.text,text:'Hipótese revisada por uma pessoa.'}};
+ assert.match(printed(M.pdfDocument(M.organizedDocument(r,{topics:[{thread_id:e.thread_id,entries:[{event_id:e.event_id,text:'Hipótese alterada por IA.'}]}]}),{})),/Hipótese revisada por uma pessoa/);
+ e.text='A fonte mudou e não corresponde ao resumo.';assert.doesNotMatch(printed(M.pdfDocument(M.localDocument(r),{})),/Hipótese revisada por uma pessoa|Hipótese: imagens sem compressão/);
+});

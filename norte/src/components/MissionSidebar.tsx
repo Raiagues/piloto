@@ -66,7 +66,7 @@ export function MissionSidebar({ language, currentStep, expanded, homeLabel, tea
           <span className="mission-sidebar-home-label">{language === "pt" ? "Reuniões" : "Meetings"}</span>
         </button>}
 
-        {onIdeas && <button data-meeting-safe type="button" className={`mission-sidebar-home${ideasActive ? " active" : ""}`} onClick={onIdeas} disabled={!activeProjectId} title={language === "pt" ? "Testar ideias" : "Test ideas"}><span className="mission-sidebar-home-icon"><Lightbulb /></span><span className="mission-sidebar-home-label">{language === "pt" ? "Testar ideias" : "Test ideas"}</span></button>}
+        {onIdeas && <button data-meeting-safe type="button" className={`mission-sidebar-home mission-sidebar-ideas${ideasActive ? " active" : ""}`} onClick={onIdeas} disabled={!activeProjectId} title={language === "pt" ? "Testar ideias" : "Test ideas"}><span className="mission-sidebar-home-icon"><Lightbulb /></span><span className="mission-sidebar-home-label">{language === "pt" ? "Testar ideias" : "Test ideas"}</span></button>}
         {expanded ? <section className="mission-context-switcher" aria-label={contextWords.switcher}>
           <label><span>{contextWords.project}</span><select value={activeProjectId} onChange={(event) => event.target.value && onProjectSelect(event.target.value)}><option value="">{contextWords.noneProject}</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>
           <div className="mission-project-team"><span>{contextWords.team}</span><strong>{projectTeamName || contextWords.noneTeam}</strong></div>

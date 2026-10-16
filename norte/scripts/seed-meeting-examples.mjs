@@ -1,5 +1,6 @@
 /** Explicit fictional fixtures: no inference, provider calls, filesystem writes or startup hook. */
 import { readFileSync } from 'node:fs';
+import { withPreparedExampleSummaries } from './meeting-example-summaries.mjs';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { isProjectAdmin } from '../shared/project-organization.mjs';
@@ -25,14 +26,14 @@ export function exampleSnapshot(kind, { id, title, projectId, startedAt = '2026-
   const meeting_events = definition.points.map(([index, topic, type]) => ({ event_id: eventId(index), chunk_id: chunkId(index), thread_id: `TOPIC-${topic + 1}`, type, text: entries[index].text, store_confidence: 1, type_confidence: 1, source: 'fictional_curated_example' }));
   const meeting_threads = definition.topics.map((title, topic) => ({ thread_id: `TOPIC-${topic + 1}`, title, anchor_event_ids: meeting_events.filter(event => event.thread_id === `TOPIC-${topic + 1}`).map(event => event.event_id) }));
   const meeting_relations = definition.relations.map(([source, target, relation_type], index) => ({ relation_id: `FIXTURE-R${index + 1}`, source_event_id: eventId(source), target_event_id: eventId(target), relation_type, configuration_match: 'match', relation_probability: 1, match_probability: 1, review_state: 'confirmed', source: 'fictional_curated_example' }));
-  return { id, title, schemaVersion: 1, liveSchemaVersion: 1, memorySchemaVersion: 2, room_kind: 'meeting', input_mode: 'import', provider: 'official', status: 'done', calls: 0, threshold: .6,
+  return withPreparedExampleSummaries({ id, title, schemaVersion: 1, liveSchemaVersion: 1, memorySchemaVersion: 2, room_kind: 'meeting', input_mode: 'import', provider: 'official', status: 'done', calls: 0, threshold: .6,
     createdAt: startedAt, startedAt, finishedAt: new Date(Date.parse(startedAt) + 25 * 60_000).toISOString(), project_id: projectId, project_memory_mode: 'none', integrated_norte: true,
     meeting_metadata: { example: true, provenance: 'MOCK FICTÍCIO. Transcrição e categorias ilustrativas preparadas manualmente; não são resultados de JEV, Gemini ou fatos do projeto.' },
     batch: { batch_id: id, cases: definition.points.map(([index]) => ({ id: chunkId(index), current_utterance: entries[index].text, source_entry_id: sourceId(index) })) },
     records: definition.points.map(([index, , type]) => ({ id: chunkId(index), status: 'done', result: { store: true, type, storeProbability: 1, typeProbability: 1, destination: type } })),
     transcript: entries.map((entry, index) => ({ ...entry, id: sourceId(index), source: 'import', status: 'done', receivedAt: new Date(Date.parse(startedAt) + entry.offsetMs).toISOString(), ...(selected.has(index) ? { chunk_id: chunkId(index) } : {}) })),
     meeting_events, meeting_threads, meeting_relations, raw_window: [], topic_titles: Object.fromEntries(meeting_threads.map(topic => [topic.thread_id, topic.title])), meeting_commands: []
-  };
+  });
 }
 export function seedMeetingExamples(value, { projectId, actorId, allowLocalTest = false } = {}) {
   const data = structuredClone(value), record = data.workspace?.projects?.[projectId], project = record?.document, actor = data.users.find(user => user.id === actorId && user.active), team = data.teams.find(item => item.id === project?.context?.teamId);

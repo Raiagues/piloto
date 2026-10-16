@@ -617,3 +617,28 @@ test('fictional meeting examples are idempotent, preserve sources and open read-
   }
   assert.equal(f.calls.length, 0, 'no paid service or private engine needed to display curated examples');
 });
+
+
+test('editing a fictional example creates a private copy; source and other accounts stay isolated with CAS', async t => {
+  const { seedMeetingExamples } = await import('../scripts/seed-meeting-examples.mjs');
+  const f = await fixture(t), own = await f.project();
+  await f.app.missionStore.update(data => { data.environment = 'quetzal-workspace-test'; data.workspace.projects[own.project.id].document.context.sectors = [{ id: 'systems', name: 'Sistemas' }]; });
+  const seeded = seedMeetingExamples(f.app.missionStore.read(), { projectId: own.project.id, actorId: f.host.id, allowLocalTest: true });
+  await f.app.missionStore.update(data => { data.meetings = seeded.data.meetings; });
+  const sourceId = seeded.audit.meetingIds[0], original = JSON.stringify(f.app.missionStore.read().meetings[sourceId]);
+  assert.equal((await f.request(f.outsider, 'POST', `/meetings/${sourceId}/copy`, {})).statusCode, 404);
+  const noCsrf = await f.app.inject({ method: 'POST', url: `/api/meetings/${sourceId}/copy`, headers: { cookie: f.host.headers.cookie }, payload: {} });assert.equal(noCsrf.statusCode, 403);
+  const copied = await f.request(f.host, 'POST', `/meetings/${sourceId}/copy`, {});assert.equal(copied.statusCode, 201, copied.body);
+  const copy = copied.json().meeting;assert.equal(copy.example, false);assert.equal(copy.copiedFromExample, true);assert.equal(copy.scope, 'private');assert.equal(copy.ownerId, f.host.id);
+  assert.equal((await f.request(f.outsider, 'GET', `/meetings/${copy.id}`)).statusCode, 404);
+  const key = `norte.meeting-room.session.v2.${copy.id}`, path = `/meetings/${copy.id}/legacy/records`;
+  const loaded = (await f.request(f.host, 'GET', `${path}?key=${key}`)).json();assert.equal(loaded.version, 0);
+  const run = JSON.parse(loaded.value);assert.equal(run.id, copy.id);assert.equal(run.batch.batch_id, copy.id);assert.equal(run.transcript.length, 61);
+  const event = run.meeting_events[0];run.block_edits = { [event.event_id]: { source: event.text, text: 'Resumo confirmado por uma pessoa.' } };
+  const writes = await Promise.all([1,2].map(() => f.request(f.host, 'POST', path, { key, value: JSON.stringify(run), expected_version: 0 })));
+  assert.deepEqual(writes.map(response => response.statusCode).sort(), [200,409]);
+  assert.equal(f.app.missionStore.read().meetings[copy.id].initialSnapshot, undefined);
+  const latest = JSON.parse((await f.request(f.host, 'GET', `${path}?key=${key}`)).json().value);assert.deepEqual(latest.block_edits, run.block_edits);
+  assert.equal(latest.meeting_events[0].text, event.text);assert.equal(JSON.stringify(f.app.missionStore.read().meetings[sourceId]), original);
+  assert.equal((await f.request(f.host, 'POST', `/meetings/${copy.id}/copy`, {})).statusCode, 409);
+});

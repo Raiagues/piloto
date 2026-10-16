@@ -249,3 +249,15 @@ test('the information control receives semantic conflict explanations and their 
   const node=find(Canvas.build(source),'E6');assert.equal(node.canvas_status,'conflict');assert.equal(node.review.length,0);assert.ok(node.inspection.issues.some(issue=>issue.message.includes('contradiz')));assert.ok(node.inspection.eventIds.includes('E6'));assert.ok(node.inspection.relationIds.includes(contradiction.relation_id));
   const completed=find(Canvas.build(run()),'E3');assert.equal(completed.canvas_status,'completed');assert.ok(completed.inspection.issues.some(issue=>issue.message.includes('Execução relatada')));assert.ok(completed.inspection.relationIds.some(id=>id.endsWith('result_of')));
 });
+test('prepared fictional summaries survive old fixture loading and never replace source or human edits',async()=>{
+ const {exampleSnapshot}=await import('../norte/scripts/seed-meeting-examples.mjs');
+ const {withPreparedExampleSummaries}=await import('../norte/scripts/meeting-example-summaries.mjs');
+ for(const kind of ['geral','setor']){
+  const r=exampleSnapshot(kind,{id:'mock',title:'Exemplo',projectId:'p'});assert.ok(r.meeting_events.every(e=>e.summary&&e.summary.length<=180));
+  for(const e of r.meeting_events){delete e.summary;delete e.summary_source;delete e.summary_origin;}
+  const before=JSON.stringify(r),prepared=withPreparedExampleSummaries(r);assert.equal(JSON.stringify(r),before);
+  const e=prepared.meeting_events[0],nodes=allNodes(Canvas.build(prepared));assert.equal(nodes.find(n=>n.id===e.event_id).display_text,e.summary);
+  prepared.block_edits={[e.event_id]:{source:e.text,text:'Revisão humana preservada.'}};assert.equal(allNodes(Canvas.build(prepared)).find(n=>n.id===e.event_id).display_text,'Revisão humana preservada.');
+  e.text='Fonte corrigida.';const invalid=allNodes(Canvas.build(prepared)).find(n=>n.id===e.event_id);assert.equal(invalid.display_text,undefined);
+ }
+});

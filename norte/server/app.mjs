@@ -717,7 +717,7 @@ export async function buildApp(options = {}) {
     // `engineering` reports only whether a key is present, never the key itself,
     // so a deployment can be verified with one unauthenticated request.
     const engineering = systemAi.status();
-    return { status: "ok", version: "1.0.0", pid: process.pid, supervisorPid: process.ppid, storage: databaseUrl ? "postgresql" : "local", engineering: { configured: engineering.configured, model: engineering.model } };
+    return { status: "ok", version: "1.0.0", revision: /^[a-f0-9]{40}$/.test(process.env.RENDER_GIT_COMMIT || "") ? process.env.RENDER_GIT_COMMIT : null, pid: process.pid, supervisorPid: process.ppid, storage: databaseUrl ? "postgresql" : "local", engineering: { configured: engineering.configured, model: engineering.model } };
   });
 
   app.get("/api/auth/session", {

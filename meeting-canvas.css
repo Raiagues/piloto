@@ -80,7 +80,7 @@
 #roomBoard .mc-node-text { display: block; position: relative; width: 100%; padding: 0; margin: 0; color: inherit; background: transparent; border: 0; border-radius: 2px; text-align: left; font: inherit; cursor: grab; }
 #roomBoard .mc-node-text.has-overflow { cursor: pointer; }
 #roomBoard .mc-node-text::after { content: ''; position: absolute; inset: 4px 3px 0 0; pointer-events: none; opacity: 0; background: repeating-linear-gradient(to bottom,#7395ac70 0 4px,transparent 4px 18px); mask-image: linear-gradient(to right,#000 70%,transparent 98%); transition: opacity .22s ease; }
-#roomBoard .mc-node-copy { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: normal; font-size: 11px; line-height: 1.65; font-weight: 400; }
+#roomBoard .mc-node-copy { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; white-space: normal; font-size: 12px; line-height: 1.55; font-weight: 400; }
 #roomBoard .mc-node-text.is-expanded .mc-node-copy { display: block; overflow: visible; -webkit-line-clamp: unset; white-space: pre-wrap; }
 #roomBoard .mc-node-text:hover .mc-node-copy { color: #f0f7fc; }
 #roomBoard .mc-text-toggle { display: none; color: #739bb8; font-size: 8px; line-height: 1.5; padding-top: 5px; }

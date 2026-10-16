@@ -109,7 +109,9 @@ test('the 29 source references are optional, individually selectable and never s
   for (const option of before.standardOptions) { assert.equal(new URL(option.url).protocol, 'https:'); assert.ok(option.edition); }
   assert.equal((await f.action(f.reviewer, 'standards.set', { standards: ['ecss-req'] })).statusCode, 403);
   let response = await f.action(f.captain, 'standards.set', { standards: ['ecss-req', 'nasa-hb', 'iso-29148'] }); assert.equal(response.statusCode, 200, response.body); assert.deepEqual(response.json().standards, ['ecss-req', 'nasa-hb', 'iso-29148']); assert.equal(response.json().requirements.length, 0);
-  response = await f.action(f.captain, 'standards.set', { standards: [] }); assert.equal(response.statusCode, 200); assert.deepEqual(response.json().standards, []); assert.equal(response.json().tasks.length, 0);
+  response = await f.action(f.captain, 'standards.set', { standards: [] }); assert.equal(response.statusCode, 409); assert.equal(response.json().error,'STANDARDS_REVIEW_REQUIRED');
+  response=await f.action(f.captain,'standards.propose',{standards:[],reason:'The project uses its own criteria.',reviewers:[f.reviewer.id]});assert.equal(response.statusCode,200,response.body);const proposal=response.json().standardsProposals[0];
+  assert.equal((await f.action(f.reviewer,'standards.review',{id:proposal.id,decision:'approve'})).statusCode,200);response=await f.action(f.captain,'standards.merge',{id:proposal.id});assert.equal(response.statusCode,200,response.body);assert.deepEqual(response.json().standards,[]);assert.equal(response.json().tasks.length,0);
   assert.equal((await f.action(f.captain, 'standards.set', { standards: ['invented-standard'] })).statusCode, 400);
 });
 
@@ -150,7 +152,7 @@ test('lifecycle switches document packages, preserves manual dates and exports s
  const f=await fixture(t);await f.saveReq();
  const configure=profile=>f.action(f.captain,'lifecycle.configure',{profile,startDate:'2026-11-02'});
  assert.equal((await f.action(f.member,'lifecycle.configure',{profile:'nasa',startDate:'2026-11-02'})).statusCode,403);
- let response=await configure('nasa');assert.equal(response.statusCode,200,response.body);const initial=response.json(),srr=initial.tasks.find(t=>t.reviewCode==='SRR');assert.equal(initial.lifecycleRanges.length,7);assert(initial.standards.includes('nasa-hb'));assert(srr.documentOptions.some(d=>d.id==='REQ'));
+ let response=await configure('nasa');assert.equal(response.statusCode,200,response.body);const initial=response.json(),srr=initial.tasks.find(t=>t.reviewCode==='SRR');assert.equal(initial.lifecycleRanges.length,7);assert.deepEqual(initial.standards,[],'planning template must not silently change the reviewed standards baseline');assert(srr.documentOptions.some(d=>d.id==='REQ'));
  response=await f.action(f.captain,'document.prepare',{taskId:srr.id,templateId:'REQ'});assert.equal(response.statusCode,200,response.body);const doc=response.json().documents[0];assert.match(doc.body,/RASCUNHO/);assert.match(doc.body,/2 W/);assert.match(doc.reference.url,/nasa/);
  assert.equal((await f.action(f.member,'document.prepare',{taskId:srr.id,templateId:'REQ'})).statusCode,403);
  assert.equal((await f.req(f.outsider,'GET',`${f.route}/documents/${doc.id}/export?format=pdf`)).statusCode,404);
@@ -158,7 +160,7 @@ test('lifecycle switches document packages, preserves manual dates and exports s
  response=await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:doc.body+'\nTeam correction.'}});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().documents[0].version,2);
  assert.equal((await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:'stale text'}})).statusCode,409);
  await f.action(f.captain,'task.save',{id:srr.id,item:{...srr,startDate:'2027-04-01',dueDate:'2027-04-02'}});
- response=await configure('ecss');assert.equal(response.json().lifecycle.profile,'ecss');assert(response.json().standards.includes('ecss-req'));assert(!response.json().standards.includes('nasa-hb'));assert(response.json().tasks.every(t=>t.lifecycleProfile==='ecss'));assert(response.json().tasks.some(t=>t.documentOptions.some(d=>d.reference?.url.includes('ecss.nl'))));
+ response=await configure('ecss');assert.equal(response.json().lifecycle.profile,'ecss');assert.deepEqual(response.json().standards,[]);assert(response.json().tasks.every(t=>t.lifecycleProfile==='ecss'));assert(response.json().tasks.some(t=>t.documentOptions.some(d=>d.reference?.url.includes('ecss.nl'))));
  response=await configure('nasa');assert.equal(response.json().tasks.find(t=>t.id===srr.id).dueDate,'2027-04-02');assert.equal(response.json().documents[0].version,2);
  response=await configure('none');assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks.length,0);assert.equal(response.json().standards.length,0);assert.equal(response.json().requirements.length,1);assert.equal(response.json().documents.length,1);
 });
@@ -202,4 +204,43 @@ test('configuration change invalidates test evidence even if requirement wording
  await f.action(f.captain,'test.result',{id,item:{outcome:'passed',result:'1.8 W',evidenceUrl:'https://example.test/report'}});assert.equal((await f.read()).tests[0].status,'passed');
  await f.app.missionStore.update(data=>{data.workspace.projects[f.projectId].document.engineeringSystem={entities:[{id:'changed-component',name:'New radio',properties:[{key:'power',value:4,unit:'W'}]}],relations:[],evidence:[],requirements:[]};});
  const state=await f.read();assert.equal(state.tests[0].status,'stale');assert.equal(state.requirements[0].verificationStatus,'pending');assert.equal(state.tests[0].runs.length,1);
+});
+
+
+test('editable lifecycle phases preserve removed phase work and dates, reject stale drag, and enforce leadership and sector ACL',async t=>{
+ const f=await fixture(t);let response=await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2026-11-02'});assert.equal(response.statusCode,200,response.body);
+ const initial=response.json(),review=initial.tasks.find(t=>t.reviewCode==='SRR'),removedPhase=initial.lifecycleRanges.find(p=>p.id===review.phaseId);
+ response=await f.action(f.captain,'document.prepare',{taskId:review.id,templateId:'REQ'});assert.equal(response.statusCode,200,response.body);const document=response.json().documents[0];
+ assert.equal((await f.action(f.member,'task.reschedule',{id:review.id,dueDate:'2027-03-15'})).statusCode,403);
+ const stale=await f.read();response=await f.action(f.captain,'task.reschedule',{id:review.id,dueDate:'2027-03-15'});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');
+ assert.equal((await f.action(f.captain,'task.reschedule',{id:review.id,dueDate:'2027-03-20'},stale)).statusCode,409);
+ response=await f.action(f.captain,'task.save',{item:{title:'Manual phase activity',phaseId:removedPhase.id,phase:removedPhase.name,startDate:'2027-02-01',dueDate:'2027-02-02',sectorId:'avionics'}});assert.equal(response.statusCode,200,response.body);const manualId=response.json().tasks.find(t=>t.title==='Manual phase activity').id;
+ const phases=initial.lifecycleRanges.filter(p=>p.id!==removedPhase.id).concat({id:'custom-integration',code:'X',name:'Additional integration',start:'2027-02-01',end:'2027-02-20'});
+ const config={profile:'nasa',startDate:'2026-11-02',phases,expectedLifecycleVersion:initial.lifecycle.version};response=await f.action(f.captain,'lifecycle.configure',config);assert.equal(response.statusCode,200,response.body);let state=response.json();assert.equal(state.lifecycleRanges.length,7);assert(state.lifecycleRanges.some(p=>p.id==='custom-integration'));assert.equal(state.tasks.find(t=>t.id===review.id).phaseId,'');assert.equal(state.tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');assert.deepEqual(state.documents[0],document);assert.equal(state.tasks.find(t=>t.id===manualId).phaseId,'');assert.equal(state.tasks.find(t=>t.id===manualId).dueDate,'2027-02-02');
+ assert.equal((await f.action(f.captain,'lifecycle.configure',config)).json().error,'LIFECYCLE_CHANGED','old editor draft must not overwrite newer phases even with refreshed delivery CAS');
+ config.expectedLifecycleVersion=state.lifecycle.version;
+ response=await f.action(f.captain,'lifecycle.configure',config);assert.equal(response.statusCode,200,response.body);state=response.json();assert.equal(state.tasks.find(t=>t.id===review.id).phaseId,'','unassigned tasks must not migrate into a different phase on the next edit');config.expectedLifecycleVersion=state.lifecycle.version;
+ assert.equal((await f.action(f.member,'lifecycle.configure',config)).statusCode,403);
+ assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[...phases,phases[0]]})).statusCode,400);
+ assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[{...phases[0],end:'2020-01-01'}]})).statusCode,400);
+ assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[null]})).statusCode,400);
+ await f.restart();state=await f.read();assert.equal(state.tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');assert.equal(state.documents[0].id,document.id);
+});
+
+test('standards changes require independent current reviewers, invalidate wording reviews and reject stale proposals',async t=>{
+ const f=await fixture(t),r=await f.saveReq();await f.action(f.captain,'standards.set',{standards:[]});
+ await f.action(f.captain,'requirement.request_review',{id:r.id,reviewers:[f.reviewer.id]});await f.action(f.reviewer,'requirement.review',{id:r.id,decision:'approve'});assert.equal((await f.read()).requirements[0].status,'approved');
+ const payload={standards:['ecss-req'],reason:'Adopt a tailored ECSS requirements baseline.',reviewers:[f.reviewer.id]};
+ assert.equal((await f.action(f.member,'standards.propose',payload)).statusCode,403);assert.equal((await f.action(f.captain,'standards.propose',{...payload,reviewers:[f.captain.id]})).statusCode,400);assert.equal((await f.action(f.captain,'standards.propose',{...payload,reviewers:[f.outsider.id]})).statusCode,400);
+ let response=await f.action(f.captain,'standards.propose',payload);assert.equal(response.statusCode,200,response.body);const id=response.json().standardsProposals[0].id;
+ response=await f.action(f.captain,'standards.propose',{...payload,standards:['nasa-hb']});const competing=response.json().standardsProposals[1].id;
+ assert.equal((await f.action(f.captain,'standards.review',{id,decision:'approve'})).statusCode,403);assert.equal((await f.action(f.member,'standards.review',{id,decision:'approve'})).statusCode,403);assert.equal((await f.action(f.captain,'standards.merge',{id})).statusCode,409);
+ response=await f.action(f.reviewer,'standards.review',{id,decision:'approve'});assert.equal(response.statusCode,200,response.body);
+ await f.app.missionStore.update(data=>{data.teams.find(team=>team.memberIds.includes(f.reviewer.memberId)).memberIds=data.teams.find(team=>team.memberIds.includes(f.reviewer.memberId)).memberIds.filter(id=>id!==f.reviewer.memberId);data.workspace.projects[f.projectId].document.context.assignments=data.workspace.projects[f.projectId].document.context.assignments.filter(a=>a.memberId!==f.reviewer.memberId);});
+ assert.equal((await f.action(f.captain,'standards.merge',{id})).statusCode,409,'a revoked reviewer cannot approve a merge');
+ await f.app.missionStore.update(data=>{data.teams.find(team=>team.memberIds.includes(f.captain.memberId)).memberIds.push(f.reviewer.memberId);});
+ response=await f.action(f.captain,'standards.merge',{id});assert.equal(response.statusCode,200,response.body);assert.deepEqual(response.json().standards,['ecss-req']);assert.equal(response.json().requirements[0].status,'draft');
+ assert.equal((await f.action(f.reviewer,'standards.review',{id:competing,decision:'approve'})).json().error,'PROPOSAL_STALE');
+ assert.equal((await f.action(f.captain,'standards.set',{standards:[]})).json().error,'STANDARDS_REVIEW_REQUIRED');
+ await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2027-01-01'});assert.deepEqual((await f.read()).standards,['ecss-req']);await f.restart();assert.deepEqual((await f.read()).standards,['ecss-req']);
 });

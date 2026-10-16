@@ -1,15 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, Check, Download, ExternalLink, FileText, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
-import { useAuth } from "../lib/auth";
+import { ArrowRight, Check, Download, FileText, Pencil, Plus, SlidersHorizontal, Trash2, X } from "lucide-react";
 import { ENGINEERING_RELATION_KINDS } from "../lib/engineeringSystem";
 import type { EngineeringCorrection, EngineeringCorrectionProjectContext, EngineeringCorrectionSnapshot, EngineeringEntity, EngineeringImpact, EngineeringProperty, EngineeringRelation, EngineeringRequirement, EngineeringSystemModel } from "../lib/engineeringSystem";
 import { correctEngineeringEntity, correctEngineeringRelation, correctEngineeringRequirement, engineeringLabel, engineeringParentCandidates, filterEngineeringRequirements, formatEngineeringValue, removeEngineeringRelation } from "../lib/engineeringUi";
 import { downloadEngineeringCorrections } from "../lib/engineeringCorrections";
 import type { RequirementFilters } from "../lib/engineeringUi";
-import type { ConnectedArtifact } from "../lib/team";
-import { artifactHref, artifactIsStoredFile } from "../lib/artifacts";
+import { DocumentEvidenceViewer } from "./DocumentEvidenceViewer";
 import type { Language } from "../lib/types";
 
 export function EngineeringDialog({ title, eyebrow, language, onClose, children, wide = false }: { title: string; eyebrow?: string; language: Language; onClose: () => void; children: ReactNode; wide?: boolean }) {
@@ -44,28 +42,14 @@ export function EngineeringDialog({ title, eyebrow, language, onClose, children,
 }
 
 export function EngineeringEvidenceList({ language, model, refs }: { language: Language; model: EngineeringSystemModel; refs: string[] }) {
-  const { api } = useAuth();
-  const [artifacts, setArtifacts] = useState<ConnectedArtifact[]>([]);
   const [opened, setOpened] = useState(false);
-  const [error, setError] = useState("");
   const unique = [...new Set(refs)];
-  const evidence = model.evidence.filter((item) => unique.includes(item.id));
-  useEffect(() => {
-    if (!opened) return;
-    let active = true;
-    void api<{ artifacts: ConnectedArtifact[] }>("/artifacts").then((result) => { if (active) setArtifacts(result.artifacts); }).catch(() => { if (active) setError(language === "pt" ? "Arquivo indisponível; o trecho preservado está abaixo." : "File unavailable; the preserved excerpt is below."); });
-    return () => { active = false; };
-  }, [api, opened, language]);
+  const evidence = model.evidence.filter(item => unique.includes(item.id));
   if (!unique.length) return <p className="engineering-muted">{language === "pt" ? "Sem evidência documental vinculada." : "No documented evidence linked."}</p>;
-  return <details className="engineering-evidence" onToggle={(event) => setOpened(event.currentTarget.open)}>
-    <summary><FileText aria-hidden="true" />{language === "pt" ? "Fontes e evidências" : "Sources and evidence"}<span>{evidence.length}</span></summary>
-    {opened && <div>{error && <p className="engineering-muted">{error}</p>}{evidence.map((item) => {
-      const artifact = artifacts.find((source) => source.id === item.artifactId);
-      const stored = artifact ? artifactIsStoredFile(artifact) : false;
-      const url = artifact ? artifactHref(artifact) : "";
-      const safeUrl = stored || /^https?:\/\//iu.test(url);
-      return <article key={item.id} className="engineering-source"><small>{engineeringLabel(item.kind, language)}</small><strong>{item.artifactLabel}</strong>{item.locator && <span>{item.locator}</span>}{item.excerpt && <blockquote><mark>{item.excerpt}</mark></blockquote>}{safeUrl && <a href={url} target="_blank" rel="noopener noreferrer" download={stored ? artifact?.fileName || artifact?.label : undefined}>{language === "pt" ? "Abrir fonte" : "Open source"}<ExternalLink aria-hidden="true" /></a>}</article>;
-    })}{unique.some((id) => !evidence.some((item) => item.id === id)) && <p className="engineering-muted">{language === "pt" ? "Há referências ainda não disponíveis neste modelo." : "Some references are not available in this model yet."}</p>}</div>}
+  return <details className="engineering-evidence" onToggle={event => setOpened(event.currentTarget.open)}>
+    <summary><FileText aria-hidden="true" />{language === "pt" ? "Ver evidências no documento" : "View evidence in document"}<span>{evidence.length}</span></summary>
+    {opened && evidence.length > 0 && <DocumentEvidenceViewer language={language} evidence={evidence} />}
+    {opened && evidence.length < unique.length && <p className="engineering-muted">{language === "pt" ? "Algumas referências não estão disponíveis neste modelo." : "Some references are unavailable in this model."}</p>}
   </details>;
 }
 

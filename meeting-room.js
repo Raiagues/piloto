@@ -15,12 +15,12 @@ function openPage(){
   ['NorteMeetingState','meeting-state.js?v=20261015-2'],
   ['NorteMeetingReview','meeting-review.js?v=20261015-2'],
   ['NorteMeetingHierarchy','meeting-hierarchy.js?v=20261015-2'],
-  ['NorteMeetingBlocks','meeting-blocks.js?v=20261015-2'],
-  ['NorteMeetingCanvas','meeting-canvas.js?v=20261015-2'],
+  ['NorteMeetingBlocks','meeting-blocks.js?v=20261016-ux1'],
+  ['NorteMeetingCanvas','meeting-canvas.js?v=20261016-ux1'],
   ['NorteMinutes','meeting-minutes.js?v=20261015-2'],
   ['NorteMeetingAmendments','meeting-amendments.js?v=20261015-2'],
   ['NorteMeetingDocument','meeting-document.js?v=20261015-2'],
-  ['NorteGeminiMinutes','gemini-minutes.js?v=20261015-2']
+  ['NorteGeminiMinutes','gemini-minutes.js?v=20261016-ux1']
  ];
  // Signed in: meetings live in the account (server database) instead of this browser.
  if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261015-2'],['NorteAI','ai-client.js?v=20261015-2']);
@@ -71,9 +71,9 @@ const INDEX='norte.meeting-room.index.v2',MIGRATED='norte.meeting-room.library-r
 const inAccount=document.body.dataset.auth==='on',savedWhere=inAccount?'na sua conta':'no navegador';
 const saveKey=id=>'norte.meeting-room.session.v2.'+id;
 const cleanError=e=>String(e?.message||e||'Não foi possível concluir a operação.').replace(/Gemini(?: Pro)?|TypeSafe|Jev(?: oficial)?/gi,'serviço');
-const canvas=NorteMeetingCanvas.create({canvas:$('roomCanvas'),board:$('roomBoard'),onRename:renameTopic,onInspect:inspectEvidence,onReview:(kind,id)=>{if(canWrite())blockAgents?.edit(kind,id);}});
+const canvas=NorteMeetingCanvas.create({canvas:$('roomCanvas'),board:$('roomBoard'),onRename:renameTopic,onInspect:inspectEvidence,canEdit:canWrite,onReview:(kind,id)=>{if(canWrite())blockAgents?.edit(kind,id);}});
 const blockStatus=el('small','room-block-status');blockStatus.setAttribute('role','status');$('roomSave').parentElement.append(blockStatus);
-const blockAgents=inAccount&&canWrite()?NorteMeetingBlocks.create({getRun:()=>canWrite()?current:null,onUpdate:()=>render(),onSave:save,onStatus:status=>{blockStatus.textContent=({pending:'Revisando blocos…',waiting:'Próxima revisão em instantes',ready:'Revisão dos blocos concluída',disabled:'Revisão automática desativada',error:'Revisão indisponível; falas preservadas'})[status]||'';}}):null;
+const blockAgents=canWrite()?NorteMeetingBlocks.create({automatic:inAccount,getRun:()=>canWrite()?current:null,onUpdate:()=>render(),onSave:save,onStatus:status=>{blockStatus.textContent=({pending:'Revisando blocos…',waiting:'Próxima revisão em instantes',ready:'Revisão dos blocos concluída',disabled:'Revisão automática desativada',error:'Revisão indisponível; falas preservadas'})[status]||'';}}):null;
 NorteLayout.bind({id:'#roomTranscriptDivider',host:'#roomWorkspace',property:'--room-canvas-height',initial:()=>roomKind()==='beam'?78:integrated?60:70,axis:()=> 'y',min:25,max:85,pixels:()=>[200,100],gutter:12});
 function notice(message=''){for(const id of ['roomNotice','roomLibraryNotice']){const target=$(id);if(target){target.textContent=message;target.hidden=!message;}}}
 async function checkHealth(){try{const r=await fetch('/api/health',{signal:AbortSignal.timeout(5000)});const data=await r.json();ready=!!data.ready;provider=data.provider||'official';if(!ready)notice('A conexão de processamento não está pronta. Confira o serviço antes de começar.');}catch(_){ready=false;notice('Não foi possível conectar. Verifique se o serviço está aberto.');}controls();return ready;}
@@ -171,9 +171,9 @@ function controls(){
  const active=!!controller&&!current?.finishedAt,draft=current?.status==='draft'||integrated?.host&&current?.status==='interrupted';
  $('roomImport').disabled=running||!draft;
  $('roomLive').disabled=!current||starting||closing||micStopping||(!draft&&!active)||active&&!['live','text'].includes(mode);
- $('roomLiveLabel').textContent=micStopping?'Pausando…':listening?'Pausar gravação':active&&mode==='live'?'Retomar gravação':current&&!draft&&!active?'Reunião encerrada':'Iniciar gravação';
+ $('roomLiveLabel').textContent=micStopping?'Pausando…':listening?'Pausar':active&&mode==='live'?'Retomar':current&&!draft&&!active?(['interrupted','stopped'].includes(current.status)?'Interrompida':'Concluída'):'Gravar';
  $('roomLive').classList.toggle('is-recording',listening);$('roomLive').setAttribute('aria-pressed',String(listening));
- $('roomMinutes').disabled=!current?.meeting_events.length||active||closing;
+ $('roomMinutes').disabled=!current?.meeting_events.length||active||closing||['running','finishing'].includes(current?.status);
  $('roomNew').disabled=running||!initialized;$('roomCreateInstant').disabled=running||!initialized;$('roomBack').disabled=running;
  $('roomStarted').textContent=!current?.startedAt?'Ainda não iniciada':(current.finishedAt?'Realizada em ':'Iniciada às ')+new Date(current.startedAt).toLocaleString('pt-BR',current.finishedAt?{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}:{hour:'2-digit',minute:'2-digit'});
  $('roomSessionBar').hidden=!current||roomKind()==='beam'&&(!active||['live','text'].includes(mode));$('roomStatus').textContent=statusText();$('roomPulse').classList.toggle('listening',listening);
@@ -186,7 +186,7 @@ function controls(){
  if(integrated){
   $('roomTitle').readOnly=!canWrite();
   $('roomNew').disabled=true;$('roomCreateInstant').disabled=true;
-  if(!canWrite())for(const id of ['roomImport','roomLive','roomMic','roomFinish','roomStop','roomMinutes'])$(id).disabled=true;
+  if(!canWrite())for(const id of ['roomImport','roomLive','roomMic','roomFinish','roomStop'])$(id).disabled=true;
   const start=$('roomIntegratedStartText');if(start){start.hidden=!canWrite()||active||!current||!['draft','interrupted'].includes(current.status);start.disabled=starting||closing;start.textContent=current?.status==='interrupted'?'Retomar por texto':'Iniciar por texto';}
  }
  updateTimer();
@@ -219,7 +219,7 @@ function renderAttention(state){
  const topicName=id=>state?.topics.find(t=>t.id===id)?.title||'Assunto sem título';
  const explain=(entry,issues)=>{if(entry)focusEntry(entry.id,entry.topic_id);inspectEvidence({eventIds:[...new Set([entry?.id,...issues.flatMap(i=>i.event_ids||[])].filter(Boolean))],relationIds:[...new Set(issues.flatMap(i=>i.relation_ids||[]))],issues});};
  if(alerts.length){
-  const list=el('details','room-alert-list');list.open=true;
+  const list=el('details','room-alert-list');list.open=false;
   list.append(el('summary','room-alert-heading',alerts.length+(alerts.length===1?' atenção necessária':' atenções necessárias')));
   const items=el('div','room-alert-items');
   for(const alert of alerts){
@@ -275,6 +275,7 @@ function inspectEvidence(detail={}){
  }
  for(const event of events.filter(e=>ids.includes(e.event_id))){
   const quote=el('blockquote','',event.text);quote.append(el('small','room-diagnostic-id','Referência '+event.event_id));dialog.append(quote);
+  if(event.summary_origin==='prepared_example'&&event.summary_source===event.text)dialog.append(el('p','','Resumo preparado para este exemplo fictício. A fala original está preservada acima.'));
   if(event.source==='post_meeting'){
    dialog.append(el('p','','Resultado informado na revisão humana após a reunião.'));
    if(event.performed)dialog.append(el('p','','Realizado: '+event.performed));
@@ -351,11 +352,11 @@ async function openMeeting(id){
  try{
   if(current&&!await save())return false;
   const raw=await db.read(saveKey(id));if(!raw&&!integrated)throw Error(inAccount?'Esta reunião não está disponível nesta conta. Entre na conta que criou a ata.':'Esta reunião não está salva neste navegador. Abra o link no navegador em que ela foi criada.');
-  const original=raw?JSON.parse(raw):null,saved=original?(integrated&&!integrated.host?integrated.view(original):Session.restore(original)):draft(integrated.meeting.title);
+  const original=raw?JSON.parse(raw):null,saved=original?(integrated?.meeting.copiedFromExample?integrated.view({...original,readonly_projection:'norte.meeting-view.v1'}):integrated&&!integrated.host?integrated.view(original):Session.restore(original)):draft(integrated.meeting.title);
   if(integrated){saved.id=id;saved.batch.batch_id=id;saved.room_kind=integrated.meeting.roomKind||'meeting';saved.createdAt=integrated.meeting.createdAt||saved.createdAt;saved.project_id=integrated.meeting.projectId;saved.project_memory_mode=integrated.meeting.memoryMode;saved.integrated_norte=true;if(!integrated.host&&original)saved.status=original.status;}
   current=saved;if(!integrated)delete current.block_review;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();blockAgents?.saved(current);
   $('roomTitle').value=current.title;view='room';transcriptPanel(transcriptPreference());renderView();
-  notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();if(!raw&&integrated.host)await save();return true;
+  notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();if(integrated?.host&&(!raw||integrated.meeting.copiedFromExample))await save();return true;
  }catch(error){notice(cleanError(error));return false;}
  finally{starting=false;controls();}
 }
@@ -412,7 +413,7 @@ function transcriptPreference(){try{const stored=localStorage.getItem(TRANSCRIPT
 function transcriptPanel(open){$('meetingPage').classList.toggle('has-transcript',open);$('roomTranscriptPanel').hidden=!open;if($('roomTranscriptDivider'))$('roomTranscriptDivider').hidden=!open;$('roomTranscriptToggle').setAttribute('aria-expanded',String(open));window.NorteLayout?.refresh();}
 $('roomTranscriptToggle').onclick=()=>{const open=$('roomTranscriptPanel').hidden;transcriptPanel(open);try{localStorage.setItem(TRANSCRIPT_PREF,open?'1':'0');}catch(_){}};
 $('roomTitle').onchange=()=>{if(current&&canWrite()){current.title=$('roomTitle').value.trim()||'Nova reunião';saveSoon();}};
-$('roomMinutes').onclick=()=>{if(current)NorteGeminiMinutes.open(current,{autoGenerate:false,onExplore:inspectEvidence,onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();await save();}});};
+$('roomMinutes').onclick=()=>{if(current)NorteGeminiMinutes.open(current,{autoGenerate:false,readOnly:!canWrite(),onExplore:inspectEvidence,onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();await save();}});};
 $('roomImport').onclick=()=>{$('roomImportDialog').showModal();$('roomImportText').focus();};$('roomImportClose').onclick=()=>$('roomImportDialog').close();let filename='transcricao.txt';
 async function loadFile(file){if(!file)return;if(file.size>2_000_000){$('roomImportError').textContent='O arquivo é grande demais. Use uma transcrição de até 500 mil caracteres.';return;}try{const text=await file.text();Session.parseTranscriptEntries(text,file.name);filename=file.name;$('roomImportText').value=text;$('roomFileLabel').textContent=file.name;$('roomImportError').textContent='';}catch(e){$('roomImportError').textContent=cleanError(e);}}
 $('roomImportText').oninput=()=>{filename='transcricao.txt';$('roomImportError').textContent='';};

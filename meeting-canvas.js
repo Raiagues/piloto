@@ -27,8 +27,10 @@
     const visit=node=>{
       const issues=(projected.diagnostics?.events?.[node.id]||[]).map(issue=>({...issue,event_ids:[node.id],relation_ids:[]}));
       nodes.set(node.id,{...node,event:{...node.event},parent_id:null,parent_relation_id:null,children:[],links:[],review:issues});
+      const prepared=node.event?.summary;if(prepared&&node.event.summary_source===node.event.text&&node.event.summary_origin==='prepared_example'){nodes.get(node.id).display_text=prepared;nodes.get(node.id).editorial='prepared_example';}
       const suggestion=sourceRun.block_review?.blocks?.[node.id];
       if(editor?.valid(suggestion,sourceRun,'block',node.id)){nodes.get(node.id).display_text=suggestion.text;nodes.get(node.id).editorial=suggestion.origin;}
+      const manual=editor?.manual(sourceRun,node.id);if(manual){nodes.get(node.id).display_text=manual.text;nodes.get(node.id).editorial='human';}
       review.push(...issues);for(const child of node.children)visit(child);
     };
     for(const topic of original.topics)topic.nodes.forEach(visit);
@@ -95,7 +97,7 @@
     return {topics,edges,review,excluded:projected.excluded||[],state:sharedState||null,metrics:{topics:topics.length,events:nodes.size,nested:[...nodes.values()].filter(node=>node.parent_id).length,edges:edges.length,reviews:review.length}};
   }
 
-  function create({canvas,board,onRename = () => {},onInspect = () => {},onReview = null} = {}) {
+  function create({canvas,board,onRename = () => {},onInspect = () => {},onReview = null,canEdit = () => !!onReview} = {}) {
     if (!canvas || !board || !canvas.contains(board)) throw Error('Informe o canvas e seu quadro de assuntos.');
     const document = canvas.ownerDocument;
     const view = document.defaultView || root;
@@ -140,11 +142,11 @@
       if (!clusters || !canvas.clientWidth || !canvas.clientHeight || destroyed) return zoom;
       // Measure content rather than the extra surface reserved for panning.
       const focus=clusters.querySelector('.room-topic')||clusters,bounds=focus.getBoundingClientRect(),width=bounds.width/zoom,height=bounds.height/zoom;
-      const minimum=canvas.clientWidth>=900?.85:.45;
+      const minimum=.85;
       const next=Math.max(minimum,Math.min(1,(canvas.clientWidth-64)/Math.max(1,width),(canvas.clientHeight-64)/Math.max(1,height)));
       const boardBounds=board.getBoundingClientRect(),left=(bounds.left-boardBounds.left)/zoom,top=(bounds.top-boardBounds.top)/zoom;
       zoom=next;board.style.zoom=String(zoom);
-      canvas.scrollLeft=left*zoom-Math.max(24,(canvas.clientWidth-width*zoom)/2);
+      canvas.scrollLeft=left*zoom-24;
       canvas.scrollTop=top*zoom-32;
       updateGrid();announceZoom();drawEdges();return zoom;
     }
@@ -155,9 +157,9 @@
         // Measure the collapsed copy even when open: short text must never gain
         // a redundant “Recolher” control after a click or a room resize.
         const lineHeight=parseFloat(view.getComputedStyle(copy).lineHeight)||18;
-        const overflowing=isExpanded?copy.scrollHeight>lineHeight*4+1:copy.scrollHeight>copy.clientHeight+1;
+        const overflowing=isExpanded?copy.scrollHeight>lineHeight*2+1:copy.scrollHeight>copy.clientHeight+1;
         button.classList.toggle('has-overflow',overflowing);
-        button.tabIndex=overflowing?0:-1;
+        button.tabIndex=0;
         if(!overflowing){expanded.delete(button.closest('[data-event-id]').dataset.eventId);button.classList.remove('is-expanded');button.setAttribute('aria-expanded','false');}
       }
     }
@@ -226,7 +228,7 @@
       const header=element('header','room-node-header');
       header.append(element('span','room-node-label',node.type==='observation'?'Problema':node.label));
       header.append(element('span','room-node-state',node.status_label));
-      const info=icon('', 'Ver informações e diagnóstico deste registro','mc-node-info');
+      const info=icon('', 'Ver detalhes deste registro','mc-node-info');
       const infoSymbol=document.createElementNS('http://www.w3.org/2000/svg','svg');infoSymbol.setAttribute('viewBox','0 0 16 16');infoSymbol.setAttribute('aria-hidden','true');
       infoSymbol.innerHTML='<circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.15"/><path d="M8 7v4M8 4.5v1" fill="none" stroke="currentColor" stroke-width="1.3"/>';info.append(infoSymbol);
       info.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.inspection.issues,eventIds:[...node.inspection.eventIds],relationIds:[...node.inspection.relationIds]}));header.append(info);
@@ -240,21 +242,14 @@
         const content=element('div','mc-warning-content');
         content.append(element('strong','','Revisar classificação'));
         for (const message of new Set(node.review.map(item=>item.message))) content.append(element('p','',message));
-        const explore=icon('Explorar diagnóstico','Abrir diagnóstico da classificação','mc-inspect');explore.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.review}));content.append(explore);
+        const explore=icon('Ver detalhes','Abrir detalhes da classificação','mc-inspect');explore.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.review}));content.append(explore);
         detail.append(content);detail.addEventListener('toggle',() => detail.open ? warnings.add(node.id) : warnings.delete(node.id));header.append(detail);
       }
       card.append(header);
-      if(node.editorial&&onReview){const edit=icon(node.editorial==='human'?'Revisado por você':'Síntese · revisar','Comparar síntese com a fala original','mc-editorial');edit.onclick=()=>onReview('block',node.id);header.append(edit);}
-      const read=element('button','mc-node-text'),copy=element('span','mc-node-copy',node.display_text??node.text),more=element('span','mc-text-toggle','Expandir');
-      read.type='button';read.setAttribute('aria-expanded',String(expanded.has(node.id)));
-      read.setAttribute('aria-label','Mostrar registro completo: '+node.text);more.setAttribute('aria-hidden','true');
-      if(expanded.has(node.id)){read.classList.add('is-expanded');more.textContent='Recolher';}
-      read.append(copy,more);read.addEventListener('click',() => {
-        if(!read.classList.contains('has-overflow'))return;
-        const open=!expanded.has(node.id);open?expanded.add(node.id):expanded.delete(node.id);
-        read.classList.toggle('is-expanded',open);read.setAttribute('aria-expanded',String(open));more.textContent=open?'Recolher':'Expandir';
-        read.setAttribute('aria-label',(open?'Recolher registro: ':'Mostrar registro completo: ')+node.text);schedule();
-      });
+      if(onReview&&canEdit()){const edit=icon('', 'Editar resumo do bloco','mc-editorial');edit.innerHTML='<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="m10.5 2.5 3 3-8 8-3.5.5.5-3.5zM9 4l3 3" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';edit.onclick=()=>onReview('block',node.id);header.append(edit);}
+      const read=element('button','mc-node-text'),copy=element('span','mc-node-copy',node.display_text??node.text),more=element('span','mc-text-toggle','Ver detalhes');
+      read.type='button';read.setAttribute('aria-label','Mostrar registro completo: '+node.text);more.setAttribute('aria-hidden','true');
+      read.append(copy,more);read.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.inspection.issues,eventIds:[...node.inspection.eventIds],relationIds:[...node.inspection.relationIds]}));
       card.append(read);
       if (node.children.length) {
         const children=element('div','room-node-children');children.hidden=collapsed.has(node.id);
@@ -288,18 +283,20 @@
         const placeholder=topic.id?'Diga “Norte, o assunto '+(index+1)+' é [nome do assunto]”':'Aguardando definição do assunto';
         const title=element('h2',topic.title?'':'mc-title-placeholder',topic.title||placeholder);title.title=topic.title||placeholder;name.append(title);header.append(name);
         header.addEventListener('click',event=>{if(zoom<.28&&!event.target.closest('button'))focusTopic(topic.id);});
-        if (topic.id) {
+        if (topic.id&&canEdit()) {
           const edit=icon('✎',topic.title?'Renomear '+topic.title:'Definir nome do assunto','room-edit-title');edit.addEventListener('click',()=>onRename(topic.id,topic.title||''));header.append(edit);
         }
-        const body=element('div','room-topic-body');
+        const body=element('div','room-topic-body'),columnCount=['problems','hypotheses','tests'].filter(key=>topic.columns[key].length).length;
+        cluster.style.setProperty('--mc-columns',String(Math.max(1,columnCount)));body.hidden=!columnCount;
         for(const [key,label] of [['problems','Problema'],['hypotheses','Hipóteses'],['tests','Testes']]){
+          if(!topic.columns[key].length)continue;
           const column=element('section','mc-column');column.dataset.column=key;
           const heading=element('h3','mc-column-title',label);heading.append(element('span','',String(topic.columns[key].length)));column.append(heading);
           const list=element('div','mc-column-nodes');for(const node of topic.columns[key])list.append(nodeCard(node));column.append(list);body.append(column);
         }
         cluster.append(header,body);
         if(topic.columns.details.length){
-          const detail=element('details','mc-topic-details');detail.open=extraOpen.has(topic.id);
+          const detail=element('details','mc-topic-details');detail.open=extraOpen.has(topic.id)||!columnCount;
           detail.append(element('summary','','Decisões, critérios e outros registros · '+topic.columns.details.length));
           const list=element('div','mc-detail-nodes');for(const node of topic.columns.details)list.append(nodeCard(node));detail.append(list);
           detail.addEventListener('toggle',()=>{detail.open?extraOpen.add(topic.id):extraOpen.delete(topic.id);schedule();});cluster.append(detail);

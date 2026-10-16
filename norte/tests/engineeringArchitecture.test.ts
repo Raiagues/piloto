@@ -62,7 +62,7 @@ describe("engineering views preserve semantic direction", () => {
   it("keeps one composition level and exposes all descendants through inventory", () => {
     const scope = architectureScope(fixture(), "root"); expect(scope.children.map(item => item.id)).toEqual(["eps", "alias", "radio"]); expect(scope.descendants).toHaveLength(5);
     const html = renderToStaticMarkup(createElement(EngineeringArchitectureView, { model: fixture(), language: "en", scopeId: "root", onScope() {}, onInfo() {}, onRelation() {} }));
-    expect(html).toContain("PRODUCT ARCHITECTURE"); expect(html).toContain("Open subsystem Communications"); expect(html).toContain('role="tablist"'); expect(html).not.toContain('data-entity-id="reg"'); expect(html).not.toContain("scale(");
+    expect(html).not.toContain("PRODUCT ARCHITECTURE"); expect(html).toContain("Diagram"); expect(html).toContain("Folders"); expect(html).toContain("Open subsystem Communications"); expect(html).toContain('role="tablist"'); expect(html).not.toContain('data-entity-id="reg"'); expect(html).not.toContain("scale(");
   });
   it("flags suspicious subsystem classification without silently changing it", () => {
     const model = fixture(); model.entities.push(entity("panel", "Z- Solar Panel", "subsystem", "root"), entity("orphan", "Orphan component", "component", "root")); const before = JSON.stringify(model);

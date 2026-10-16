@@ -1,3 +1,4 @@
+import { withPreparedExampleSummaries } from '../scripts/meeting-example-summaries.mjs';
 /** Same-origin facade for the private Python meeting engine. No browser identity is forwarded. */
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ const ASSETS = new Set(('styles.css memory-flow.css memory-flow.js memory-page.j
 const mime = name => name.endsWith('.css') ? 'text/css; charset=utf-8' : name.endsWith('.js') ? 'text/javascript; charset=utf-8' : name.endsWith('.json') ? 'application/json' : 'font/ttf';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-const viewFields = new Set(('id title createdAt startedAt finishedAt status schemaVersion liveSchemaVersion memorySchemaVersion presentationVersion room_kind input_mode provider threshold calls batch records meeting_events meeting_threads meeting_relations raw_window transcript topic_titles title_edits meeting_commands post_meeting_edits block_review speech_ledger beam_started beam_open_tabs beam_previous_view beam_view beam_recorded beam_lab beam_commands meeting_metadata project_id project_memory_mode integrated_norte').split(' '));
+const viewFields = new Set(('id title createdAt startedAt finishedAt status schemaVersion liveSchemaVersion memorySchemaVersion presentationVersion room_kind input_mode provider threshold calls batch records meeting_events meeting_threads meeting_relations raw_window transcript topic_titles title_edits meeting_commands post_meeting_edits block_edits block_review speech_ledger beam_started beam_open_tabs beam_previous_view beam_view beam_recorded beam_lab beam_commands meeting_metadata project_id project_memory_mode integrated_norte').split(' '));
 const diagnosticFields = new Set(['request', 'response', 'output', 'storeOutput', 'typeOutput', 'jobs', 'questions', 'config', 'headers', 'authorization', 'project_memory', 'engineFingerprint', 'debug', 'trace', 'stack']);
 function withoutDiagnostics(value) {
   if (Array.isArray(value)) return value.map(withoutDiagnostics);
@@ -98,7 +99,7 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     if (body?.session_id !== undefined && body.session_id !== meeting.id || suffix === 'ai/events' && body?.events?.some(row => row.session_id !== meeting.id)) fail(403, 'RECORD_SCOPE', 'Os eventos não pertencem a esta reunião.');
     if (meeting.example === 'curated_mock_v1' && meeting.exampleSnapshot) {
       if (request.method !== 'GET') fail(403, 'READONLY_EXAMPLE', 'Este exemplo fictício é somente leitura. Crie uma reunião para usar sua própria transcrição.');
-      if (suffix === 'records') return reply.header('cache-control', 'no-store').send({ value: JSON.stringify(publicMeetingSnapshot({ ...meeting.exampleSnapshot, title: meeting.title })), version: 1 });
+      if (suffix === 'records') return reply.header('cache-control', 'no-store').send({ value: JSON.stringify(publicMeetingSnapshot(withPreparedExampleSummaries({ ...meeting.exampleSnapshot, title: meeting.title }))), version: 1 });
       if (suffix === 'health') return { ready: true, provider: 'official', example: true };
       if (suffix === 'ai/aliases') return { aliases: [] };
     }
@@ -115,15 +116,25 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     if (run && response.ok) await store.update(current => {
       const latest = access.requireMeeting(current, request.auth.user, meeting.id, true);
       if (!Number.isSafeInteger(output.version) || output.version <= (latest.runVersion || 0)) return;
-      latest.runVersion = output.version;
+      latest.runVersion = output.version; delete latest.initialSnapshot;
       if (['draft', 'running', 'completed', 'interrupted', 'ended', 'finished', 'stopped', 'done'].includes(run.status)) latest.status = run.status;
       latest.revision++; latest.updatedAt = new Date().toISOString();
     });
     if (response.ok && originalRequest) output = classificationResponse(output, originalRequest);
+    // A copy has a durable seed until its first engine save. Read the engine
+    // first so a lost metadata acknowledgement never reopens version zero.
+    if (response.ok && suffix === 'records' && request.method === 'GET' && output.value === null && output.version === 0 && meeting.initialSnapshot) {
+      output = { value: JSON.stringify(withPreparedExampleSummaries(meeting.initialSnapshot)), version: 0 };
+    }
     if (response.ok && suffix === 'records' && request.method === 'GET' && typeof output.value === 'string') {
       let snapshot;
       try { snapshot = JSON.parse(output.value); } catch { fail(502, 'MEETING_RECORD_INVALID', 'Não foi possível abrir o registro desta reunião.'); }
       if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot) || snapshot.id !== meeting.id) fail(502, 'MEETING_RECORD_INVALID', 'O registro recebido não pertence a esta reunião.');
+      if (meeting.initialSnapshot && Number.isSafeInteger(output.version) && output.version > 0) await store.update(current => {
+        const latest = access.requireMeeting(current, request.auth.user, meeting.id);
+        if (latest.initialSnapshot && output.version > (latest.runVersion || 0)) { latest.runVersion = output.version; delete latest.initialSnapshot; }
+      });
+      if (meeting.copiedFromExample) snapshot = withPreparedExampleSummaries(snapshot);
       snapshot.title = store.read().meetings[meeting.id].title;
       output = { value: JSON.stringify(meeting.ownerId !== request.auth.user.id ? publicMeetingSnapshot(snapshot) : snapshot), version: output.version };
     }

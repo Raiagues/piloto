@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
+import { createServer } from 'vite';
 import { chromium } from 'playwright-core';
 import { buildApp } from '../server/app.mjs';
 
@@ -46,8 +46,8 @@ try {
     actors.push({ ...response.json(), cookie: response.headers['set-cookie'].split(';')[0] });
   }
   await app.listen({ host: '127.0.0.1', port: 0 });
-  vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], { env: { ...process.env, VITE_DEMO_MODE: 'false', VITE_API_PROXY_TARGET: `http://127.0.0.1:${app.server.address().port}` }, stdio: ['ignore', 'pipe', 'pipe'] });
-  await new Promise((resolve, reject) => { const timer = setTimeout(() => reject(new Error('Vite startup timeout')), 25_000); vite.stdout.on('data', chunk => { if (String(chunk).includes('Local:')) { clearTimeout(timer); resolve(); } }); vite.once('exit', code => { clearTimeout(timer); reject(new Error('Vite exited ' + code)); }); });
+  process.env.VITE_DEMO_MODE = 'false'; process.env.VITE_BASE_PATH = '/norte/'; process.env.VITE_API_PROXY_TARGET = `http://127.0.0.1:${app.server.address().port}`;
+  vite = await createServer({ server: { host: '127.0.0.1', port, strictPort: true, hmr: false } }); await vite.listen();
   browser = await chromium.launch({ executablePath: process.env.NORTE_CHROME || '/opt/google/chrome/chrome', headless: true, args: ['--no-sandbox', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', '--autoplay-policy=no-user-gesture-required'] });
   const account = async actor => {
     const context = await browser.newContext({ viewport: { width: 1512, height: 1000 }, permissions: ['microphone'] });
@@ -73,6 +73,14 @@ try {
   assert.equal(await frame.locator('#roomTitle').isVisible(), false);
   assert.equal(await frame.locator('#roomSessionBar').isVisible(), false);
   assert.equal(await frame.locator('#roomTranscriptPanel').isVisible(), true);
+  let forcedMetadataRace = false;
+  await host.page.route('**/api/meetings/*', async route => {
+    if (route.request().method() === 'PATCH' && !forcedMetadataRace) {
+      forcedMetadataRace = true;
+      await app.missionStore.update(data => { const id = new URL(route.request().url()).pathname.split('/').at(-1); data.meetings[id].revision++; });
+    }
+    await route.continue();
+  });
   await host.page.getByRole('button', { name: 'Editar título da reunião' }).click();
   await host.page.getByLabel('Título da reunião', { exact: true }).fill('Revisão colaborativa editada');
   await host.page.getByRole('button', { name: 'Salvar título' }).click();
@@ -89,7 +97,8 @@ try {
   const guestFrame = guest.page.frameLocator('.meetings-frame');
   await guestFrame.locator('#roomText').waitFor({ timeout: 30_000 });
   assert.equal(await guestFrame.locator('#roomTitle').getAttribute('readonly'), '');
-  assert.equal(await guestFrame.locator('#roomLive').isVisible(), false);
+  assert.equal(await guestFrame.locator('#roomLive').isVisible(), true);
+  assert.equal(await guestFrame.locator('#roomLive').isDisabled(), true);
   await guestFrame.locator('#roomText').fill('A estrutura do satélite usa alumínio.');
   await guestFrame.locator('#roomSend').click();
   await frame.locator('#roomText').fill('Precisamos revisar a estrutura e a alimentação.');
@@ -129,6 +138,9 @@ try {
   assert.equal(calls.some(call => call.input?.state?.project_memory), false, 'memory-off sends no project context');
   const outsider = await app.inject({ method: 'GET', url: '/api/meetings/' + meeting.id, headers: { cookie: actors[2].cookie } }); assert.equal(outsider.statusCode, 404);
   const denied = await app.inject({ method: 'POST', url: '/api/meetings/' + meeting.id + '/legacy/records', headers: { cookie: actors[1].cookie, 'x-csrf-token': actors[1].csrfToken }, payload: { key, value: JSON.stringify(saved), expected_version: records.get(key).version } }); assert.equal(denied.statusCode, 403);
+  assert.equal(await frame.locator('#roomLive').isDisabled(), true);
+  assert.equal(await frame.locator('#roomTimer').isVisible(), true);
+  assert.equal(await frame.locator('#roomMinutes').isEnabled(), true);
   await host.page.screenshot({ path: '/tmp/norte-integrated-meeting.png', fullPage: true });
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
@@ -136,5 +148,8 @@ try {
   console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation and mobile layout.');
 } catch (error) {
   if (hostPage) await hostPage.screenshot({ path: '/tmp/norte-integrated-meeting-failure.png', fullPage: true }).catch(() => {});
+  for (const [index, context] of (browser?.contexts() || []).entries()) for (const page of context.pages()) {
+    console.error('Audio state', index, await page.evaluate(() => ({ row: document.querySelector('.meeting-audio-controls')?.outerHTML, peers: (window.__audioPeers || []).map(peer => ({ connection: peer.connectionState, ice: peer.iceConnectionState, signaling: peer.signalingState })) })).catch(() => null));
+  }
   console.error('Browser errors:', errors); throw error;
-} finally { await browser?.close(); vite?.kill('SIGTERM'); await app.close(); await rm(directory, { recursive: true, force: true }); }
+} finally { await browser?.close(); await vite?.close(); await app.close(); await rm(directory, { recursive: true, force: true }); }

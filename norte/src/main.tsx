@@ -21,6 +21,7 @@ import "./project-areas.css";
 import "./auth.css";
 import "./workspace-ui.css";
 import "./theme.css";
+import "./compact-workspace.css";
 
 applyTheme(getStoredTheme());
 

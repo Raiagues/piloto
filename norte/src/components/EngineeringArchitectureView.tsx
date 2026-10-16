@@ -1,16 +1,19 @@
-import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowRight, ChevronRight, FileText, Layers, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, ChevronRight, FileText, Folder, Layers, Search } from "lucide-react";
 import type { EngineeringEntity, EngineeringRelation, EngineeringSystemModel } from "../lib/engineeringSystem";
 import { architectureBoundaryInterfaces, architectureInterfaces, architectureScope, type ArchitectureInterface } from "../lib/engineeringArchitecture";
 import { engineeringAncestors, engineeringLabel, formatEngineeringValue } from "../lib/engineeringUi";
+import { SystemGraph } from "./SystemGraph";
 import type { Language } from "../lib/types";
 
-export function EngineeringArchitectureView({ model, language, scopeId, onScope, onInfo, onRelation }: {
+export function EngineeringArchitectureView({ model, language, scopeId, onScope, onInfo, onRelation, focusId }: {
   model: EngineeringSystemModel; language: Language; scopeId: string | null; onScope: (id: string | null) => void;
-  onInfo: (entity: EngineeringEntity) => void; onRelation: (relation: EngineeringRelation) => void;
+  focusId?: string | null; onInfo: (entity: EngineeringEntity) => void; onRelation: (relation: EngineeringRelation) => void;
 }) {
   const pt = language === "pt";
-  const [view, setView] = useState<"architecture" | "interfaces" | "inventory">("architecture");
+  const [view, setView] = useState<"architecture" | "diagram" | "folders" | "interfaces" | "inventory">(focusId ? "diagram" : "architecture");
+  useEffect(()=>{if(focusId)setView("diagram");},[focusId]);
+  const [graphSelected, setGraphSelected] = useState<string|null>(focusId || null);
   const [query, setQuery] = useState("");
   const [activeInterface, setActiveInterface] = useState<ArchitectureInterface | null>(null);
   const scope = useMemo(() => architectureScope(model, scopeId), [model, scopeId]);
@@ -24,6 +27,9 @@ export function EngineeringArchitectureView({ model, language, scopeId, onScope,
   const visibleIds = new Set(matrixEntities.map(entity => entity.id));
   const visibleInterfaces = interfaces.filter(item => visibleIds.has(item.from) && visibleIds.has(item.to));
   const roots = scope.root ? engineeringAncestors(model, scope.root.id) : [];
+  const diagramEntities = [ ...(scope.root ? [scope.root] : []), ...scope.children.filter(matching) ];
+  const diagramRelations = interfaces.map(group => ({ ...group.relations[0], id: `architecture:${group.from}:${group.to}`, from: group.from, to: group.to, label: `${group.relations.length} ${pt ? "interface(s)" : "interface(s)"}`, evidenceRefs: [...new Set(group.relations.flatMap(relation => relation.evidenceRefs))] }));
+  const diagramModel = { ...model, relations: [...model.relations.filter(relation=>relation.kind === "contains"), ...diagramRelations] };
   const name = (id: string) => model.entities.find(entity => entity.id === id)?.name ?? id;
   const evidenceCount = (entity: EngineeringEntity) => new Set([...entity.evidenceRefs, ...entity.properties.flatMap(property => property.evidenceRefs)]).size;
   const count = (id: string) => architectureScope(model, id).descendants.length;
@@ -36,17 +42,20 @@ export function EngineeringArchitectureView({ model, language, scopeId, onScope,
   }
   return <div className="architecture-content">
     <nav className="architecture-breadcrumbs" aria-label={pt ? "Caminho na arquitetura" : "Architecture path"}>{roots.map((entity, index) => <span key={entity.id}>{index > 0 && <ChevronRight />}<button type="button" aria-current={index === roots.length - 1 ? "location" : undefined} onClick={() => openScope(entity.id)}>{index === 0 ? model.name : entity.name}</button></span>)}</nav>
-    <header className="architecture-scope-heading"><div><small>{pt ? "ARQUITETURA DO PRODUTO" : "PRODUCT ARCHITECTURE"}</small><h2>{scope.root?.name ?? model.name}</h2><p>{scope.root?.description || (pt ? "Explore a composição e as interfaces do sistema, um nível por vez." : "Explore the system's composition and interfaces, one level at a time.")}</p></div>{scope.root && <button type="button" onClick={() => onInfo(scope.root!)}><FileText />{pt ? "Dados e fontes" : "Data and sources"}</button>}</header>
-    <div className="architecture-view-toolbar"><div className="architecture-tabs" role="tablist" aria-label={pt ? "Visualização técnica" : "Technical view"}>{(["architecture", "interfaces", "inventory"] as const).map(tab => <button key={tab} type="button" role="tab" aria-selected={view === tab} onClick={() => { setView(tab); setActiveInterface(null); }}>{tab === "architecture" ? pt ? "Arquitetura" : "Architecture" : tab === "interfaces" ? "Interfaces" : pt ? "Inventário" : "Inventory"}{tab === "interfaces" && <span>{interfaces.reduce((total, item) => total + item.relations.length, 0) + boundaryInterfaces.length}</span>}</button>)}</div><label className="architecture-search"><Search /><input type="search" aria-label={pt ? "Buscar na arquitetura" : "Search architecture"} placeholder={pt ? "Buscar elemento ou parâmetro" : "Find element or parameter"} value={query} onChange={event => setQuery(event.target.value)} /></label></div>
+
+    <div className="architecture-view-toolbar"><div className="architecture-tabs" role="tablist" aria-label={pt ? "Visualização técnica" : "Technical view"}>{(["architecture", "diagram", "folders", "inventory", "interfaces"] as const).map(tab => <button key={tab} type="button" role="tab" aria-selected={view === tab} onClick={() => { setView(tab); setActiveInterface(null); }}>{tab === "architecture" ? pt ? "Blocos" : "Blocks" : tab === "diagram" ? pt ? "Diagrama" : "Diagram" : tab === "folders" ? pt ? "Pastas" : "Folders" : tab === "interfaces" ? "Interfaces" : pt ? "Lista" : "List"}{tab === "interfaces" && <span>{interfaces.reduce((total, item) => total + item.relations.length, 0) + boundaryInterfaces.length}</span>}</button>)}</div><label className="architecture-search"><Search /><input type="search" aria-label={pt ? "Buscar na arquitetura" : "Search architecture"} placeholder={pt ? "Buscar elemento ou parâmetro" : "Find element or parameter"} value={query} onChange={event => setQuery(event.target.value)} /></label></div>
     <div className="architecture-view-body" role="tabpanel">
+      {view === "diagram" && <div className="architecture-diagram"><SystemGraph language={language} model={diagramModel} entities={diagramEntities} selectedId={focusId || graphSelected} highlightIds={focusId ? new Set([focusId]) : undefined} onSelect={entity=>setGraphSelected(entity.id)} onInfo={onInfo} onToggleChildren={entity=>openScope(entity.id)} expandedIds={new Set(scope.root ? [scope.root.id] : [])} onRelation={relation=>{ const group=interfaces.find(item=>`architecture:${item.from}:${item.to}`===relation.id);if(group){setActiveInterface(group);setView("interfaces");}else onRelation(relation); }} /></div>}
+      {view === "folders" && <div className="architecture-folder-list">{scope.children.filter(matching).map(entity=><section key={entity.id} className="architecture-folder"><header><button type="button" onClick={()=>openScope(entity.id)}><Folder size={16}/><strong>{entity.name}</strong><small>{count(entity.id)}</small></button><button type="button" aria-label={`${pt?'Editar ou consultar':'Edit or inspect'} ${entity.name}`} onClick={()=>onInfo(entity)}><FileText size={14}/></button></header><ul>{architectureScope(model,entity.id).children.map(child=><li key={child.id}><button type="button" onClick={()=>onInfo(child)}><Layers size={13}/>{child.name}</button></li>)}</ul></section>)}</div>}
+
       {view === "architecture" && <>
         <div className="architecture-boundary"><div className="architecture-section-label"><span>{pt ? "COMPOSIÇÃO" : "COMPOSITION"}</span><small>{scope.children.length} {pt ? "elementos neste nível" : "elements at this level"}</small></div>
-          {subsystems.length > 0 && <div className="architecture-block-grid">{subsystems.map(entity => <article className="architecture-block" key={entity.id} data-entity-id={entity.id}><button className="architecture-block-main" type="button" onClick={() => openScope(entity.id)} aria-label={`${pt ? "Abrir subsistema" : "Open subsystem"} ${entity.name}`}><small>{engineeringLabel(entity.kind, language)}</small><strong>{entity.name}</strong><p>{entity.description || (pt ? "Função ainda não descrita." : "Function not yet described.")}</p><span><Layers />{count(entity.id)} {pt ? "elementos" : "elements"}<ArrowRight /></span></button><button className="architecture-block-source" type="button" onClick={() => onInfo(entity)} aria-label={`${pt ? "Informações de" : "Information about"} ${entity.name}`}><FileText />{evidenceCount(entity)} {pt ? "referências" : "references"}{entity.source === "inferred" && <em>{pt ? "Inferido · revisar" : "Inferred · review"}</em>}</button></article>)}</div>}
+          {subsystems.length > 0 && <div className="architecture-block-grid">{subsystems.map(entity => <article className="architecture-block" key={entity.id} data-entity-id={entity.id}><button className="architecture-block-main" type="button" onClick={() => openScope(entity.id)} aria-label={`${pt ? "Abrir subsistema" : "Open subsystem"} ${entity.name}`}><small>{engineeringLabel(entity.kind, language)}</small><strong>{entity.name}</strong><p>{entity.description || (pt ? "Adicionar descrição" : "Add description")}</p><span><Layers />{count(entity.id)} {pt ? "elementos" : "elements"}<ArrowRight /></span></button><button className="architecture-block-source" type="button" onClick={() => onInfo(entity)} aria-label={`${pt ? "Informações de" : "Information about"} ${entity.name}`}><FileText />{evidenceCount(entity)} {pt ? "referências" : "references"}{entity.source === "inferred" && <em>{pt ? "Inferido · revisar" : "Inferred · review"}</em>}</button></article>)}</div>}
           {others.length > 0 && rows(others)}
           {!scope.children.length && <p className="architecture-empty-note">{pt ? "Nenhum elemento interno definido. Adicione subsistemas ou componentes para detalhar esta arquitetura." : "No internal elements defined. Add subsystems or components to detail this architecture."}</p>}
-          {scope.children.length > 0 && !subsystems.length && !others.length && <p className="architecture-empty-note">{pt ? "Nenhum resultado neste nível. Use Inventário para buscar em toda a estrutura abaixo." : "No match at this level. Use Inventory to search all descendants."}</p>}
+          {scope.children.length > 0 && !subsystems.length && !others.length && <p className="architecture-empty-note">{pt ? "Nenhum resultado neste nível. Use Lista para buscar em toda a estrutura abaixo." : "No match at this level. Use List to search all descendants."}</p>}
         </div>
-        <section className="architecture-flow-summary"><div><ArrowDownRight /><strong>{interfaces.length} {pt ? "conexões entre elementos deste nível" : "connections between elements at this level"}</strong></div><p>{pt ? "Veja origem, destino e evidência de cada relação. Conexões internas são detalhadas dentro do subsistema." : "See the origin, destination and evidence of each relationship. Internal connections are detailed inside each subsystem."}</p><button type="button" onClick={() => setView("interfaces")}>{pt ? "Inspecionar interfaces" : "Inspect interfaces"}<ArrowRight /></button></section>
+
       </>}
       {view === "inventory" && <><p className="architecture-view-description">{inventory.length} {pt ? "elementos nesta parte do projeto. Valores e fontes permanecem ligados ao registro original." : "elements in this part of the project. Values and sources remain linked to the original record."}</p>{rows(inventory)}{!inventory.length && <p className="architecture-empty-note">{pt ? "Nenhum elemento encontrado." : "No elements found."}</p>}</>}
       {view === "interfaces" && <>

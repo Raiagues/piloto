@@ -39,7 +39,7 @@ export function registerIdeaAnalysisRoutes(app,{store,requireAuth,requireCsrf,in
    await assertAnalysisConsent();
    const result=await systemAi.interpret(p.baseline,p.idea.text,p.payload.language,{project:p.project,actorId:p.actor.id,authorizedModel:p.analysis.model,projectFeedback:p.feedback,assertAnalysisConsent});
    return await store.update(data=>{
-    const current=check(request,data,p.digest);data.workspace.ideaAnalysisCache||={};data.workspace.ideaAnalysisCache[p.digest]={result,projectId:p.project.id,actorId:p.actor.id,sessionId:p.session.id,ideaId:p.idea.id,createdAt:new Date().toISOString()};const keys=Object.keys(data.workspace.ideaAnalysisCache);for(const key of keys.slice(0,Math.max(0,keys.length-100)))delete data.workspace.ideaAnalysisCache[key];return resultView(result,current,false);
+    const current=check(request,data,p.digest);data.workspace.ideaAnalysisCache||={};data.workspace.ideaAnalysisCache[p.digest]={result,projectId:p.project.id,actorId:p.actor.id,sessionId:p.session.id,ideaId:p.idea.id,ideaText:p.idea.text,baselineHash:createHash('sha256').update(JSON.stringify(p.baseline)).digest('hex'),deliveryRevision:p.analysis.deliveryRevision,createdAt:new Date().toISOString()};const keys=Object.keys(data.workspace.ideaAnalysisCache);for(const key of keys.slice(0,Math.max(0,keys.length-100)))delete data.workspace.ideaAnalysisCache[key];return resultView(result,current,false);
    });
   }finally{inFlight.delete(p.digest);}
  });

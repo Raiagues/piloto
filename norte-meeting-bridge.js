@@ -83,7 +83,7 @@
     const target = new URL(root.location.href); target.searchParams.set('meeting', config.meeting.id); target.hash = config.meeting.roomKind === 'beam' ? '#simulacao' : '#reuniao'; root.history.replaceState(null, '', target);
     document.body.dataset.page = config.meeting.roomKind === 'beam' ? 'beam' : 'meeting';
     const style = document.createElement('style');
-    style.textContent = 'body[data-integrated-meeting]{--sidebar-width:0px}body[data-integrated-meeting]>.sidebar,body[data-integrated-meeting]>#sidebarOverlay,body[data-integrated-meeting] #roomBack,body[data-integrated-meeting] #roomNew,body[data-integrated-meeting] .account-menu{display:none!important}body[data-integrated-meeting]>.app-shell{width:100%;margin-left:0;padding:0 14px 14px}body[data-meeting-role="participant"] #roomImport,body[data-meeting-role="participant"] #roomLive,body[data-meeting-role="participant"] #roomFinish,body[data-meeting-role="participant"] #roomStop,body[data-meeting-role="participant"] #roomMinutes,body[data-meeting-role="participant"] .room-node-review,body[data-meeting-role="participant"] .room-topic-rename{display:none!important}';
+    style.textContent = 'body[data-integrated-meeting]{--sidebar-width:0px}body[data-integrated-meeting]>.sidebar,body[data-integrated-meeting]>#sidebarOverlay,body[data-integrated-meeting] #roomBack,body[data-integrated-meeting] #roomNew,body[data-integrated-meeting] .account-menu{display:none!important}body[data-integrated-meeting]>.app-shell{width:100%;margin-left:0;padding:0 14px 14px}body[data-meeting-role="participant"] #roomImport,body[data-meeting-role="participant"] #roomFinish,body[data-meeting-role="participant"] #roomStop,body[data-meeting-role="participant"] .room-node-review,body[data-meeting-role="participant"] .room-topic-rename{display:none!important}';
     document.head.append(style);
     // The embedded room follows the parent theme without reloading or stopping
     // a recording. Only known CSS tokens are copied; no account data is shared.
@@ -155,7 +155,7 @@
       displayed.set(result.contribution.id, result.contribution); hooks?.pending?.([...displayed.values()]); void poll(); return result.contribution;
     }
     root.addEventListener('pagehide', () => { stopped = true; root.clearInterval(timer); if (config.host && captureActive) void request('/api/meetings/' + encodeURIComponent(config.meeting.id) + '/audio/capture', { method: 'POST', body: '{"active":false}', keepalive: true }).catch(() => {}); });
-    return { ...config, storage, attach, contribute, view: run => { if (config.host) throw Error('O anfitrião deve usar seu estado completo de retomada.'); return readView(run, config.meeting.id); }, canWrite: () => config.host && !conflict, returnToNorte: () => { root.top.location.assign(config.returnUrl); } };
+    return { ...config, storage, attach, contribute, view: run => { if (config.host && !config.meeting.copiedFromExample) throw Error('O anfitrião deve usar seu estado completo de retomada.'); return readView(run, config.meeting.id); }, canWrite: () => config.host && !conflict, returnToNorte: () => { root.top.location.assign(config.returnUrl); } };
   }
   return { configuration, legacyURL, contributionId, wasContributed, readView, create };
 });

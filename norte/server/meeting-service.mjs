@@ -1,3 +1,4 @@
+import { withPreparedExampleSummaries } from '../scripts/meeting-example-summaries.mjs';
 /** Shared meetings. Accounts, consent and project access remain authoritative here. */
 import { randomUUID } from 'node:crypto';
 import { sameDemoScope } from './demo-account.mjs';
@@ -47,7 +48,7 @@ export function createMeetingAccess({ canAccessProject }) {
       const member = data.members?.find(item => item.id === person.memberId);
       return { userId: id, name: person.name, nickname: person.nickname, avatarUrl: member?.avatarUrl || null, role: id === meeting.ownerId ? 'host' : 'participant', lastSeenAt, online: Boolean(lastSeenAt && Date.now() - Date.parse(lastSeenAt) < 90_000) };
     }).filter(Boolean);
-    return { id: meeting.id, title: meeting.title, example: meeting.example === 'curated_mock_v1', ownerId: meeting.ownerId, hostUserId: meeting.ownerId, projectId: meeting.projectId, scope: meeting.scope || 'private', teamId: meeting.teamId || null, sectorId: meeting.sectorId || null, teamName: data.teams.find(team => team.id === meeting.teamId)?.name || null, sectorName: data.workspace.projects?.[meeting.projectId]?.document?.context?.sectors?.find(sector => sector.id === meeting.sectorId)?.name || null, memoryMode: meeting.memoryMode, memoryRevision: meeting.memoryRevision, roomKind: meeting.roomKind, status: meeting.status, revision: meeting.revision, createdAt: meeting.createdAt, updatedAt: meeting.updatedAt, participants, myRole: meeting.ownerId === user.id ? 'host' : 'participant' };
+    return { id: meeting.id, title: meeting.title, example: meeting.example === 'curated_mock_v1', copiedFromExample: Boolean(meeting.copiedFromExample), projectName: data.workspace.projects?.[meeting.projectId]?.document?.name || null, ownerId: meeting.ownerId, hostUserId: meeting.ownerId, projectId: meeting.projectId, scope: meeting.scope || 'private', teamId: meeting.teamId || null, sectorId: meeting.sectorId || null, teamName: data.teams.find(team => team.id === meeting.teamId)?.name || null, sectorName: data.workspace.projects?.[meeting.projectId]?.document?.context?.sectors?.find(sector => sector.id === meeting.sectorId)?.name || null, memoryMode: meeting.memoryMode, memoryRevision: meeting.memoryRevision, roomKind: meeting.roomKind, status: meeting.status, revision: meeting.revision, createdAt: meeting.createdAt, updatedAt: meeting.updatedAt, participants, myRole: meeting.ownerId === user.id ? 'host' : 'participant' };
   }
   return { accessible, requireMeeting, publicMeeting, scopeEligible };
 }
@@ -83,6 +84,21 @@ export function registerMeetings(app, { store, requireAuth, requireCsrf, canAcce
       if (!meeting.title) fail(400, 'TITLE_REQUIRED', 'Informe o título da reunião.');
       data.meetings[id] = meeting;
       return publicMeeting(data, meeting, user);
+    });
+    reply.code(201); return { meeting: result };
+  });
+  // Examples stay immutable. Edits belong to an account-owned private copy.
+  app.post('/api/meetings/:id/copy', { preHandler: write, config: { rateLimit: { max: 20, timeWindow: '1 hour' } }, schema: { params, body: shape({}) } }, async (request, reply) => {
+    const result = await store.update(data => {
+      const source = requireMeeting(data, request.auth.user, request.params.id);
+      if (source.example !== 'curated_mock_v1' || !source.exampleSnapshot) fail(409, 'EXAMPLE_REQUIRED', 'Somente exemplos possuem este atalho de cópia.');
+      const user = activeUser(data, request.auth.user.id), now = timestamp(), id = randomUUID();
+      const snapshot = withPreparedExampleSummaries(source.exampleSnapshot);
+      snapshot.id = id; snapshot.title = ('Cópia · ' + source.title).slice(0, 160); snapshot.batch ||= {}; snapshot.batch.batch_id = id;
+      snapshot.integrated_norte = true; snapshot.project_memory_mode = 'none';
+      const copy = { id, title: snapshot.title, ownerId: user.id, participantIds: [], projectId: source.projectId, scope: 'private', teamId: source.teamId || null, sectorId: source.sectorId || null, memoryMode: 'none', memoryRevision: null, roomKind: source.roomKind, status: snapshot.status || 'done', revision: 1, runVersion: 0, createdAt: now, updatedAt: now, presence: { [user.id]: now }, contributions: [], nextSequence: 1, copiedFromExample: source.id, initialSnapshot: snapshot, ...(user.demoSandboxId ? { demoSandboxId: user.demoSandboxId } : {}) };
+      data.meetings[id] = copy;
+      return publicMeeting(data, copy, user);
     });
     reply.code(201); return { meeting: result };
   });

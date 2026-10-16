@@ -1,7 +1,7 @@
 import { draftDeliveryDocument, deliveryPdf } from './delivery-documents.mjs';
 import { canReviewAccount, isFictionalProfile } from './reviewer-eligibility.mjs';
 import { inspectRequirement } from '../shared/requirement-quality.mjs';
-import { LIFE_DURATIONS, LIFE_PHASES, lifecycleRanges, lifecycleMilestones, reviewDocuments } from '../shared/delivery-lifecycle.mjs';
+import { LIFE_DURATIONS, LIFE_PHASES, lifecycleRanges, lifecycleMilestones, reviewDocuments, shiftDate } from '../shared/delivery-lifecycle.mjs';
 import { createRequirementAnalyzer } from './requirement-analysis.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { DELIVERY_STANDARDS, DELIVERY_STANDARD_GROUPS } from '../shared/delivery-standards.mjs';
@@ -103,6 +103,8 @@ function view(data, record, state, actor, access) {
   const today = now().slice(0, 10);
   return {
     proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: canEditSector(project, actor, requirements.find(r=>r.id===p.requirementId)?.sectorId, record.createdBy)})), documents: state.documents || [], lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
+    standardsConfigured: Boolean(state.standardsConfigured || state.standards.length),
+    standardsProposals: (state.standardsProposals || []).map(p=>({...p, stale:p.baseHash!==hash(state.standards), canReview:p.reviewers.includes(actor.id)&&p.authorId!==actor.id&&canReviewAccount(actor), status:['merged','cancelled'].includes(p.status)?p.status:p.reviewers.every(id=>visibleMembers(data,record,access).some(m=>m.id===id&&m.canReview)&&p.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':p.decisions.some(d=>d.decision==='request_changes')?'changes_requested':'open'})),
     revision: state.revision, baselineHash: deliveryBaselineHash(record), standards: state.standards, standardOptions: DELIVERY_STANDARDS, standardGroups: DELIVERY_STANDARD_GROUPS,
     requirements: requirements.map(r => ({ ...r, analysis: {...inspectRequirement(r,state.standards), ...(state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {})}, canEdit: canEditSector(project, actor, r.sectorId, record.createdBy), canReview: canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
     tests, tasks: state.tasks.filter(task => !task.lifecycleProfile || (task.lifecycleProfile === state.lifecycle?.profile && !task.excluded)).map(task => ({ ...task, status:effectiveTaskStatus(task,requirements,tests), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: canEditSector(project, actor, task.sectorId, record.createdBy) })),
@@ -151,7 +153,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     const body = request.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, 'INVALID_DELIVERY', 'Ação inválida.');
     const state = data.workspace.delivery?.[project.id] || empty();
-    state.proposals ||= []; state.documents ||= []; state.analyses ||= {};
+    state.proposals ||= []; state.documents ||= []; state.analyses ||= {}; state.standardsProposals ||= [];
     if (body.expectedRevision !== state.revision || body.expectedBaselineHash !== deliveryBaselineHash(record)) throw fail(409, 'DELIVERY_CHANGED', 'O projeto mudou em outra aba. Atualize antes de salvar.');
     const members = visibleMembers(data, record, canAccessProject), memberIds = new Set(members.map(m => m.id)), reviewerIds = new Set(members.filter(m => m.canReview).map(m => m.id));
     const current = view(data, record, state, actor, canAccessProject), action = text(body.action, 'ação', 80, true), item = body.item || {};
@@ -162,7 +164,34 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     const timestamp = now(), actorName = actor.name;
     let eventId = body.id || '', before = null, after = null;
     if (action === 'standards.set') {
-      admin(); state.standards = references(body.standards, DELIVERY_STANDARDS, 'normas');
+      admin(); const selected=references(body.standards, DELIVERY_STANDARDS, 'normas');
+      if((state.standardsConfigured||state.standards.length)&&hash(selected)!==hash(state.standards))throw fail(409,'STANDARDS_REVIEW_REQUIRED','Proponha esta mudança normativa para revisão independente.');
+      before=state.standards;state.standards=selected;state.standardsConfigured=true;after=selected;
+    } else if(action==='standards.propose') {
+      admin();const selected=references(body.standards,DELIVERY_STANDARDS,'normas'),reviewers=list(body.reviewers,'revisores');
+      if(!reviewers.length||reviewers.includes(actor.id)||reviewers.some(id=>!reviewerIds.has(id)))throw fail(400,'INVALID_REVIEWERS','Escolha revisores independentes deste projeto.');
+      if(hash(selected)===hash(state.standards))throw fail(400,'NO_CHANGE','Selecione a alteração da base normativa.');
+      const proposal={id:`STD-${randomUUID().slice(0,8).toUpperCase()}`,before:[...state.standards],standards:selected,baseHash:hash(state.standards),reason:text(body.reason,'justificativa',2000,true),authorId:actor.id,authorName:actorName,reviewers,decisions:[],status:'open',createdAt:timestamp};
+      state.standardsProposals.push(proposal);eventId=proposal.id;after=proposal;
+    } else if(['standards.review','standards.merge','standards.cancel'].includes(action)) {
+      const proposal=state.standardsProposals.find(p=>p.id===body.id);if(!proposal)throw fail(404,'PROPOSAL_NOT_FOUND','Proposta não encontrada.');
+      if(['merged','cancelled'].includes(proposal.status))throw fail(409,'PROPOSAL_CLOSED','Proposta encerrada.');
+      if(action==='standards.cancel'){admin();proposal.status='cancelled';}
+      else {
+        if(proposal.baseHash!==hash(state.standards))throw fail(409,'PROPOSAL_STALE','A base normativa mudou; crie uma proposta sobre a versão atual.');
+        if(action==='standards.review') {
+          if(actor.id===proposal.authorId||!proposal.reviewers.includes(actor.id)||!reviewerIds.has(actor.id))throw fail(403,'FORBIDDEN','Apenas revisores independentes atribuídos podem revisar.');
+          if(!['approve','request_changes'].includes(body.decision))throw fail(400,'INVALID_REVIEW','Decisão inválida.');
+          const comment=text(body.comment||'','comentário',2000,body.decision==='request_changes');
+          proposal.decisions=proposal.decisions.filter(d=>d.userId!==actor.id).concat({userId:actor.id,authorName:actorName,decision:body.decision,comment,createdAt:timestamp});
+        } else {
+          admin();if(!proposal.reviewers.every(id=>reviewerIds.has(id)&&proposal.decisions.some(d=>d.userId===id&&d.decision==='approve')))throw fail(409,'REVIEW_PENDING','Todos os revisores atribuídos precisam aprovar.');
+          before=[...state.standards];state.standards=[...proposal.standards];state.standardsConfigured=true;proposal.status='merged';proposal.mergedAt=timestamp;
+          for(const requirement of state.requirements){requirement.reviewHash=null;requirement.decisions=[];}
+          after=state.standards;
+        }
+      }
+      eventId=proposal.id;
     } else if (action === 'requirement.save') {
       const old = body.id ? current.requirements.find(r => r.id === body.id) : null;
       if (body.id && !old) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito não encontrado.');
@@ -282,10 +311,16 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       if (status === 'done' && dependencyIds.some(id => effectiveTaskStatus(state.tasks.find(t => t.id === id),current.requirements,current.tests) !== 'done')) throw fail(409, 'DEPENDENCIES_OPEN', 'Conclua as dependências antes desta atividade.');
       const prepDays = Number(item.prepDays ?? 0), closeDays = Number(item.closeDays ?? 0);
       if (![prepDays, closeDays].every(n => Number.isInteger(n) && n >= 0 && n <= 365)) throw fail(400, 'INVALID_DURATION', 'Use um período de 0 a 365 dias.');
-      const updated = { ...(old || {}), id: eventId, title: text(item.title, 'título', 200, true), description: text(item.description || '', 'descrição', 8000), phase: text(item.phase || '', 'fase', 100), kind: item.kind === 'review' ? 'review' : 'task', startDate, dueDate, prepDays, closeDays, status, sectorId, ownerId: member(item.ownerId), dependencyIds, requirementIds: references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos'), testIds: references(item.testIds, state.tests.filter(t => !t.archived), 'verificações'), inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'), outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'), archived: old?.archived || false, updatedAt: timestamp, manual: true };
+      const phaseId=text(item.phaseId||'', 'fase',100);if(phaseId&&!current.lifecycleRanges.some(p=>p.id===phaseId))throw fail(400,'INVALID_PHASE','Fase não encontrada.');
+      const updated = { ...(old || {}), phaseId, id: eventId, title: text(item.title, 'título', 200, true), description: text(item.description || '', 'descrição', 8000), phase: text(item.phase || '', 'fase', 100), kind: item.kind === 'review' ? 'review' : 'task', startDate, dueDate, prepDays, closeDays, status, sectorId, ownerId: member(item.ownerId), dependencyIds, requirementIds: references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos'), testIds: references(item.testIds, state.tests.filter(t => !t.archived), 'verificações'), inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'), outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'), archived: old?.archived || false, updatedAt: timestamp, manual: true };
       if(updated.kind==='review'&&updated.status==='done'&&(updated.requirementIds.some(id=>current.requirements.find(r=>r.id===id)?.status!=='approved')||updated.testIds.some(id=>current.tests.find(t=>t.id===id)?.status!=='passed'))) throw fail(409,'REVIEW_EVIDENCE_PENDING','Para concluir esta revisão, aprove as versões dos requisitos vinculados e registre evidência atual de atendimento nas verificações vinculadas.');
       state.tasks = state.tasks.filter(t => t.id !== eventId).concat(updated); graphAcyclic(state.tasks.filter(t => !t.archived), 'dependencyIds'); before = old; after = updated;
-    } else if (action === 'task.archive' || action === 'task.restore') {
+    } else if(action==='task.reschedule') {
+      const target=state.tasks.find(t=>t.id===body.id);if(!target||target.archived)throw fail(404,'TASK_NOT_FOUND','Atividade não disponível.');editor(target.sectorId);
+      const dueDate=date(body.dueDate);if(!dueDate)throw fail(400,'INVALID_DATE','Informe a nova data.');
+      const previous=target.dueDate||target.startDate||dueDate,delta=Math.round((Date.parse(dueDate)-Date.parse(previous))/86400000);before={startDate:target.startDate,dueDate:target.dueDate};
+      target.startDate=target.startDate?shiftDate(target.startDate,delta):dueDate;target.dueDate=dueDate;target.manual=true;target.updatedAt=timestamp;after={startDate:target.startDate,dueDate};
+    } else if (action === 'task.archive'  || action === 'task.restore') {
       const target = state.tasks.find(t => t.id === body.id); if (!target) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.'); editor(target.sectorId);
       if (action === 'task.archive' && state.tasks.some(t => !t.archived && t.dependencyIds.includes(target.id))) throw fail(409, 'TASK_IN_USE', 'Remova as dependências antes de arquivar.');
       target.archived = action === 'task.archive'; graphAcyclic(state.tasks.filter(t => !t.archived), 'dependencyIds');
@@ -294,13 +329,27 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       if(!Object.hasOwn(LIFE_PHASES,profile)) throw fail(400,'INVALID_PROFILE','Perfil inválido.');
       const startDate=date(body.startDate), durations=body.durations||LIFE_DURATIONS[profile];
       if(!startDate || !Array.isArray(durations) || durations.length!==LIFE_PHASES[profile].length || durations.some(v=>!Number.isInteger(v)||v<1||v>520)) throw fail(400,'INVALID_DURATION','Informe início e duração de cada fase entre 1 e 520 semanas.');
-      const lifecycle={profile,startDate,durations,updatedAt:timestamp};const definitions=lifecycleMilestones(lifecycle);
+      const lifecycle={profile,startDate,durations,updatedAt:timestamp,version:(state.lifecycle?.version||0)+1};
+      if(body.phases!==undefined){
+        if(body.expectedLifecycleVersion!==(state.lifecycle?.version||0))throw fail(409,'LIFECYCLE_CHANGED','As fases mudaram durante a edição. Feche a configuração e abra a versão atual.');
+        if(!Array.isArray(body.phases)||body.phases.length>30)throw fail(400,'INVALID_PHASES','Use até 30 fases.');
+        lifecycle.phases=body.phases.map(p=>{if(!p||typeof p!=='object'||Array.isArray(p))throw fail(400,'INVALID_PHASE','Fase inválida.');const start=date(p.start),end=date(p.end);if(!start||!end||end<start)throw fail(400,'INVALID_PHASE_DATES','O fim de cada fase deve ser igual ou posterior ao início.');return {id:text(p.id,'identificador da fase',100,true),code:text(p.code,'código da fase',30,true),name:text(p.name,'nome da fase',100,true),start,end,...(p.templateCode?{templateCode:text(p.templateCode,'referência da fase',30)}:{})};});
+        if(new Set(lifecycle.phases.map(p=>p.id)).size!==lifecycle.phases.length||new Set(lifecycle.phases.filter(p=>p.templateCode).map(p=>p.templateCode)).size!==lifecycle.phases.filter(p=>p.templateCode).length)throw fail(400,'DUPLICATE_PHASE','Cada fase deve ter um identificador e uma referência únicos.');
+        if(lifecycle.phases.some(p=>p.templateCode&&!LIFE_PHASES[profile].some(([code])=>code===p.templateCode)))throw fail(400,'INVALID_PHASE','Referência de fase inválida para este modelo.');
+      }
+      const previousRanges=state.lifecycle?lifecycleRanges(state.lifecycle):[];
+      for(const task of state.tasks.filter(t=>t.lifecycleProfile===profile&&!Object.hasOwn(t,'phaseId'))){task.phaseId=previousRanges[task.phaseIndex]?.id||'';}
+      const definitions=lifecycleMilestones(lifecycle),ranges=lifecycleRanges(lifecycle),phaseIds=new Set(ranges.map(p=>p.id));
       const selected=body.selectedReviews===undefined?definitions.filter(r=>r.active).map(r=>r.id):references(body.selectedReviews,definitions,'revisões');
-      lifecycle.selectedReviews=selected;state.lifecycle=lifecycle;state.standards=state.standards.filter(id=>!id.startsWith('nasa')&&!id.startsWith('ecss')).concat(profile==='nasa'?['nasa-hb','nasa-npr']:profile==='ecss'?['ecss-req','ecss-se','ecss-ver','ecss-reviews']:[]);
+      lifecycle.selectedReviews=selected;before=state.lifecycle||null;state.lifecycle=lifecycle;
+      for(const task of state.tasks.filter(t=>!t.lifecycleProfile||t.lifecycleProfile===profile)){
+        if(task.phaseId&&!phaseIds.has(task.phaseId)){task.phaseId='';task.phase='';task.manual=true;}
+        else if(task.phaseId){task.phase=ranges.find(p=>p.id===task.phaseId).name;}
+      }
       for(const definition of definitions) {
         const old=state.tasks.find(t=>t.lifecycleProfile===profile&&t.reviewCode===definition.id);
-        if(old){old.excluded=!selected.includes(definition.id);if(!old.manual){old.startDate=definition.date;old.dueDate=definition.date;}continue;}
-        state.tasks.push({id:`TASK-${randomUUID().slice(0,8).toUpperCase()}`,reviewCode:definition.id,lifecycleProfile:profile,lane:definition.lane,phaseIndex:definition.phase,excluded:!selected.includes(definition.id),title:`${definition.id} · ${definition.title}`,phase:LIFE_PHASES[profile][definition.phase][1],description:definition.focus,kind:'review',startDate:definition.date,dueDate:definition.date,prepDays:10,closeDays:7,status:'planned',sectorId:'',ownerId:'',dependencyIds:[],requirementIds:[],testIds:[],inputArtifactIds:[],outputArtifactIds:[],archived:false,updatedAt:timestamp,manual:false});
+        if(old){old.excluded=!selected.includes(definition.id);old.phaseId=definition.phaseId;old.phase=definition.phaseName;if(!old.manual){old.startDate=definition.date;old.dueDate=definition.date;}continue;}
+        state.tasks.push({id:`TASK-${randomUUID().slice(0,8).toUpperCase()}`,reviewCode:definition.id,lifecycleProfile:profile,lane:definition.lane,phaseIndex:definition.phase,phaseId:definition.phaseId,excluded:!selected.includes(definition.id),title:`${definition.id} · ${definition.title}`,phase:definition.phaseName,description:definition.focus,kind:'review',startDate:definition.date,dueDate:definition.date,prepDays:10,closeDays:7,status:'planned',sectorId:'',ownerId:'',dependencyIds:[],requirementIds:[],testIds:[],inputArtifactIds:[],outputArtifactIds:[],archived:false,updatedAt:timestamp,manual:false});
       }
       after=lifecycle;
     } else if(action==='document.prepare') {
@@ -322,7 +371,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       const created = definitions.map(([code, title, phase, offset]) => { const dueDate = new Date(Date.parse(start) + offset * 86400000).toISOString().slice(0, 10); return { id: `TASK-${randomUUID().slice(0, 8).toUpperCase()}`, title: `${code} · ${title}`, phase, description: 'Modelo de planejamento adaptável. Revise critérios, entregas e datas com a equipe; esta seleção não declara conformidade normativa.', kind: 'review', startDate: dueDate, dueDate, prepDays: 7, closeDays: 7, status: 'planned', sectorId: '', ownerId: '', dependencyIds: [], requirementIds: [], testIds: [], inputArtifactIds: [], outputArtifactIds: [], archived: false, updatedAt: timestamp, manual: false }; });
       created.forEach((task, index) => { if (index) task.dependencyIds = [created[index - 1].id]; }); state.tasks.push(...created);
     } else throw fail(400, 'INVALID_ACTION', 'Ação desconhecida.');
-    if (state.proposals.length > 3000 || state.documents.length > 3000 || state.requirements.length > 3000 || state.tests.length > 3000 || state.tasks.length > 3000) throw fail(400, 'DELIVERY_LIMIT', 'Limite de registros atingido.');
+    if (state.standardsProposals.length > 3000 || state.proposals.length > 3000 || state.documents.length > 3000 || state.requirements.length > 3000 || state.tests.length > 3000 || state.tasks.length > 3000) throw fail(400, 'DELIVERY_LIMIT', 'Limite de registros atingido.');
     state.revision++;
     state.history.push({ id: randomUUID(), revision: state.revision, action, subjectId: eventId, actorId: actor.id, actorName, createdAt: timestamp, ...(action.startsWith('proposal.')?{requirementId:state.proposals.find(p=>p.id===eventId)?.requirementId}:{}), before, after });
     data.workspace.delivery ||= {}; data.workspace.delivery[project.id] = state;

@@ -142,3 +142,25 @@ Essa chamada herdou `GEMINI_MODEL` no processo de teste; o launcher de produçã
 O destino confirmado é `Raiagues/piloto`, branch `main`. O serviço público ainda respondia como Python legado na verificação anterior à publicação. A nova versão requer Docker da raiz e Postgres; um push não transforma o runtime do serviço existente. TURN externo precisa ser configurado e validado entre redes distintas para áudio confiável; a chamada tem limite de 12 participantes. O tutorial aceita vídeo HTTPS configurado pelo responsável, mas a gravação pessoal solicitada ainda precisa ser fornecida pelo usuário. Consulte [DEPLOY.md](DEPLOY.md).
 
 O guia de dúvidas é uma ajuda de navegação, não um atendente humano ou um LLM. Capturas e desenhos são enviados ao canal escolhido; somente feedback explicitamente marcado entra como exemplo de interpretação. Melhorias de custo e precisão não são garantidas: cache, roteamento, uso e correções são observáveis, mas não há treinamento automático dos pesos. As evidências normativas são específicas das fontes cadastradas; o sistema não conhece automaticamente toda legislação aplicável a qualquer projeto.
+
+
+## Navegação visual e edição direta — 16/10/2026
+
+Esta rodada mantém o cabeçalho e a navegação do Norte, compacta as áreas de trabalho e move os avisos de orientação para controles expansíveis. Os caminhos de equipe e projeto são clicáveis. A concepção oferece blocos, diagrama, pastas, lista e interfaces; a lista de conhecimento abre o objeto correspondente com destaque.
+
+A árvore principal da memória agora inclui os arquivos. O leitor mantém a pasta do arquivo ativo e oferece edição, movimentação e exclusão conforme as permissões. Foram exercitados edição e exclusão no leitor, mudança de pasta, navegação entre arquivos, presença, conflito de edição e preservação da hierarquia.
+
+As evidências de engenharia abrem o PDF autorizado no mesmo diálogo. O leitor usa PDF.js carregado sob demanda, localiza citações por correspondência textual normalizada e marca sua posição na página. Permite alternar entre evidências e páginas. Texto ausente, PDF sem texto pesquisável e formatos não suportados não recebem um destaque inventado. O teste usa um PDF real de duas páginas com CSP de produção, incluindo uma citação divergente que deve permanecer sem marcação.
+
+Testar ideias passou a usar canvas e abas por hipótese. Elementos, relações e posições são editáveis em uma cópia persistente; propostas conservam revisão independente, histórico, controle de versão e invalidação de aprovações após edição. As fontes acrescentadas pelo usuário não são promovidas a comprovação documental. O cronograma reúne Gantt editável, painel de fases, base normativa sob revisão e árvore de documentos por revisão, com cobertura derivada dos registros atuais.
+
+Validação desta rodada:
+
+- `ux2-quality.log`: 168 testes de interface e 400 de servidor aprovados, TypeScript, ESLint e compilação de produção concluídos. Ajustes posteriores tiveram verificações focais e novo build.
+- `ux2-root-final.log`: 522 testes JavaScript aprovados. `ux2-server-final.log`: repetição final dos 400 testes de servidor aprovada após os resumos dos exemplos.
+- `ux2-python-final.log`: 112 testes executados, 110 aprovados e dois casos dependentes de Postgres ignorados nesta rodada. A divergência inicial de versão dos assets foi corrigida antes desta execução final.
+- `ux2-audit.log`: nenhuma vulnerabilidade conhecida encontrada pelo npm audit. `ux2-secrets-root.log`: varredura de segredos do repositório aprovada.
+- Navegador: memória, documentos, evidências em PDF, arquitetura, ideias e entregas em contas isoladas. O teste `project-navigation-browser.json` reproduz gravação atrasada e falha de gravação ao clicar no breadcrumb, comprovando preservação do rascunho e retorno à página anterior. Ideias e propostas normativas foram revisadas com duas contas diferentes. A análise de ideias utilizou transporte simulado; não houve chamadas pagas nesta rodada.
+- Reuniões: PDF real do exemplo, cópia privada editável, revisão humana, recarga, áudio WebRTC local nos dois sentidos e mute. A operação entre redes externas continua dependente da infraestrutura TURN configurada no serviço.
+
+As evidências detalhadas e capturas ficam em `.runtime/validation/` e nos logs locais citados; dados privados e arquivos de ambiente não integram o commit. O build ainda informa um pacote principal acima de 500 kB. O leitor PDF e seu worker ficam em arquivos separados.
