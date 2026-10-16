@@ -1,34 +1,146 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
-import { LIFE_DURATIONS, LIFE_LANES, lifecycleRanges, lifecycleMilestones, shiftDate } from '../../../shared/delivery-lifecycle.mjs';
-import type { LifecyclePhase } from '../../../shared/delivery-lifecycle.mjs';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, ArrowRight, CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleHelp, Diamond, ListChecks, Pencil, Search, X } from 'lucide-react';
+import { lifecycleRanges, shiftDate } from '../../../shared/delivery-lifecycle.mjs';
 import type { DeliveryLifecycle, DeliveryState, DeliveryTask } from '../../lib/projectDelivery';
 import { deliveryStatus } from '../../lib/projectDelivery';
+import { buildScheduleGroups, previewScheduleTasks, timelineWindow } from '../../lib/schedulePlanning';
 import '../../styles/delivery-planning.css';
-const day=86400000;
-export function LifecycleSettings({data,busy,mutate,onClose,pt,error,onPreview,focusPhase}:{data:DeliveryState;busy:boolean;mutate:(action:string,payload:Record<string,unknown>)=>Promise<boolean>;onClose:()=>void;pt:boolean;error:string;onPreview?:(draft:DeliveryLifecycle)=>void;focusPhase?:string}) {
- const initial=data.lifecycle||{profile:'nasa',startDate:new Date().toISOString().slice(0,10),durations:LIFE_DURATIONS.nasa,selectedReviews:[]};
- const [draft,setDraft]=useState<DeliveryLifecycle>(()=>({...initial,phases:lifecycleRanges(initial),selectedReviews:data.lifecycle?.selectedReviews||lifecycleMilestones(initial).filter(r=>r.active).map(r=>r.id)}));
- const phases=draft.phases||[], definitions=useMemo(()=>lifecycleMilestones(draft),[draft]);
- useEffect(()=>{onPreview?.(draft);},[draft,onPreview]);
- useEffect(()=>{if(focusPhase)document.getElementById(`phase-name-${focusPhase}`)?.focus();},[focusPhase]);
- const patchPhase=(id:string,patch:Partial<LifecyclePhase>)=>setDraft(value=>({...value,phases:value.phases?.map(p=>p.id===id?{...p,...patch}:p)}));
- const choose=(profile:string)=>{const next={version:draft.version||0,profile,startDate:draft.startDate,durations:LIFE_DURATIONS[profile],selectedReviews:[] as string[]};setDraft({...next,phases:lifecycleRanges(next),selectedReviews:lifecycleMilestones(next).filter(r=>r.active).map(r=>r.id)});};
- return <aside className="planning-settings" aria-label={pt?'Modelo de ciclo de vida':'Lifecycle template'}><header><strong>{pt?'Modelo de ciclo de vida':'Lifecycle template'}</strong><button type="button" disabled={busy} onClick={onClose} aria-label={pt?'Fechar configuração':'Close configuration'}><X size={17}/></button></header><form onSubmit={async e=>{e.preventDefault();if(await mutate('lifecycle.configure',{...draft,expectedLifecycleVersion:draft.version||0,selectedReviews:draft.selectedReviews.filter(id=>definitions.some(r=>r.id===id))}))onClose();}}><fieldset className="planning-form-fields" disabled={busy}><label>{pt?'Referência de planejamento':'Planning reference'}<select value={draft.profile} onChange={e=>choose(e.target.value)}><option value="nasa">NASA</option><option value="ecss">ECSS</option><option value="custom">{pt?'Personalizado':'Custom'}</option><option value="none">{pt?'Sem modelo':'No template'}</option></select></label><label>{pt?'Início do projeto':'Project start'}<input required type="date" value={draft.startDate} onChange={e=>{const start=e.target.value;if(!start)return;const delta=Math.round((Date.parse(start)-Date.parse(draft.startDate))/day);setDraft({...draft,startDate:start,phases:phases.map(p=>({...p,start:shiftDate(p.start,delta),end:shiftDate(p.end,delta)}))});}}/></label><div className="planning-section-label"><strong>{pt?'Fases':'Phases'}</strong><span>{pt?'Prévia ao lado':'Live preview'}</span></div>{phases.map(p=><fieldset className="planning-phase-editor" key={p.id}><legend>{p.code}</legend><div className="planning-phase-title"><input aria-label={`${pt?'Código da fase':'Phase code'} ${p.code}`} required maxLength={30} value={p.code} onChange={e=>patchPhase(p.id,{code:e.target.value})}/><input id={`phase-name-${p.id}`} aria-label={`${pt?'Nome da fase':'Phase name'} ${p.code}`} required maxLength={100} value={p.name} onChange={e=>patchPhase(p.id,{name:e.target.value})}/><button type="button" aria-label={`${pt?'Remover fase':'Remove phase'} ${p.code}`} onClick={()=>setDraft({...draft,phases:phases.filter(v=>v.id!==p.id)})}><Trash2 size={14}/></button></div><div className="planning-date-fields"><label>{pt?'Início':'Start'}<input required type="date" value={p.start} onChange={e=>e.target.value&&patchPhase(p.id,{start:e.target.value})}/></label><label>{pt?'Fim':'End'}<input required type="date" min={p.start} value={p.end} onChange={e=>e.target.value&&patchPhase(p.id,{end:e.target.value})}/></label></div></fieldset>)}<button className="planning-add-phase" type="button" disabled={phases.length>=30} onClick={()=>{const start=phases.at(-1)?.end||draft.startDate;setDraft({...draft,phases:[...phases,{id:crypto.randomUUID(),code:`P${phases.length+1}`,name:pt?'Nova fase':'New phase',start,end:shiftDate(start,28)}]});}}><Plus size={14}/>{pt?'Adicionar fase':'Add phase'}</button><small>{pt?'Ao remover uma fase, suas atividades e documentos permanecem.':'Removing a phase preserves its activities and documents.'}</small>{definitions.length>0&&<details className="planning-review-options"><summary>{pt?'Revisões incluídas':'Included reviews'} · {draft.selectedReviews.filter(id=>definitions.some(r=>r.id===id)).length}</summary>{definitions.map(r=><label key={r.id}><input type="checkbox" checked={draft.selectedReviews.includes(r.id)} onChange={e=>setDraft({...draft,selectedReviews:e.target.checked?[...draft.selectedReviews,r.id]:draft.selectedReviews.filter(id=>id!==r.id)})}/><span><strong>{r.id}</strong> {r.title}</span></label>)}</details>}<small>{pt?'Datas ajustáveis de planejamento; a base normativa é configurada separadamente.':'Adaptable planning dates. Standards are configured separately.'}</small>{error&&<p role="alert" className="delivery-inline-error">{error}</p>}<footer><button type="button" onClick={onClose}>{pt?'Cancelar':'Cancel'}</button><button className="primary" disabled={busy}>{pt?'Salvar ciclo de vida':'Save lifecycle'}</button></footer></fieldset></form></aside>;
-}
-type DragState={id:string;startX:number;days:number;width:number;date:string;moved:boolean};
-export function LifecycleBoard({data,onSelect,pt,onConfigure,onMove,busy=false,preview,onEditPhase}:{data:DeliveryState;onSelect:(id:string)=>void;pt:boolean;onConfigure?:()=>void;onMove?:(id:string,date:string)=>Promise<unknown>;busy?:boolean;preview?:DeliveryLifecycle|null;onEditPhase?:(id:string)=>void}) {
- const lifecycle=preview||data.lifecycle,ranges=lifecycle?lifecycleRanges(lifecycle):[],drag=useRef<DragState|null>(null),suppressClick=useRef(false),[dragDate,setDragDate]=useState<{id:string;date:string}|null>(null),board=useRef<HTMLElement>(null),[trackWidth,setTrackWidth]=useState(800);
- useEffect(()=>{const element=board.current;if(!element)return;const observer=new ResizeObserver(()=>setTrackWidth(element.querySelector('.planning-track')?.getBoundingClientRect().width||800));observer.observe(element);return()=>observer.disconnect();},[data.tasks.length,ranges.length]);
- const definitions=preview?lifecycleMilestones(preview).filter(r=>preview.selectedReviews.includes(r.id)):[];
- const tasks=preview?[...data.tasks.filter(t=>!t.lifecycleProfile||(t.lifecycleProfile===preview.profile&&!definitions.some(r=>r.id===t.reviewCode))),...definitions.map(r=>{const current=data.tasks.find(t=>t.reviewCode===r.id&&t.lifecycleProfile===preview.profile);return {...current,id:current?.id||`preview-${r.id}`,title:`${r.id} · ${r.title}`,reviewCode:r.id,lane:r.lane,phase:r.phaseName,kind:'review',startDate:r.date,dueDate:r.date,status:current?.status||'planned',canEdit:false} as DeliveryTask;})].filter(t=>!t.archived):data.tasks.filter(t=>!t.archived);
- const dates=[...ranges.flatMap(p=>[p.start,p.end]),...tasks.flatMap(t=>[t.startDate,t.dueDate])].filter(Boolean).map(Date.parse),first=dates.length?Math.min(...dates):Date.now(),last=dates.length?Math.max(...dates):first+day*28,span=Math.max(day*7,last-first);
- const tickCount=trackWidth>420?5:trackWidth>230?3:2;
- const pos=(date:string)=>(Date.parse(date)-first)/span*100;
- const format=(value:string)=>new Date(value+'T12:00:00').toLocaleDateString(pt?'pt-BR':'en',{day:'2-digit',month:'short'});
- const lanes=LIFE_LANES.map((name,index)=>({name,rows:tasks.filter(t=>t.kind==='review'&&(t.lane??0)===index)})).filter(l=>l.rows.length);
- const activities=tasks.filter(t=>t.kind!=='review');
- const marker=(task:DeliveryTask,stack:number)=>{const value=dragDate?.id===task.id?dragDate.date:task.dueDate||task.startDate,canMove=task.canEdit&&!busy&&!preview&&Boolean(onMove)&&Boolean(value);if(!value)return <button key={task.id} className="planning-undated" aria-label={`${pt?'Definir data de':'Set date for'} ${task.title}`} onClick={()=>onSelect(task.id)}>{pt?'Sem data':'Undated'}</button>;return <button key={task.id} className={`planning-marker ${task.kind==='review'?'review':'activity'} ${task.status}`} aria-label={task.kind==='review'?task.title:`${pt?'Alterar data de':'Change date for'} ${task.title}`} aria-description={canMove?(pt?'Arraste para alterar a data; setas movem um dia, Shift move sete. Enter abre os detalhes.':'Drag to change date; arrows move one day, Shift moves seven. Enter opens details.'):undefined} title={`${task.title} · ${value?format(value):pt?'Sem data':'Undated'} · ${deliveryStatus(task.status,pt)}`} style={{left:`${value?Math.max(1,Math.min(97,pos(value))):2}%`,top:`${stack*27+5}px`}} disabled={Boolean(preview)} onPointerDown={e=>{suppressClick.current=false;if(!canMove||e.button!==0)return;const width=e.currentTarget.parentElement!.getBoundingClientRect().width;drag.current={id:task.id,startX:e.clientX,days:0,width,date:value,moved:false};e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{const state=drag.current;if(!state||state.id!==task.id)return;const dx=e.clientX-state.startX;state.moved ||= Math.abs(dx)>4;if(!state.moved)return;state.days=Math.round(dx/state.width*span/day);setDragDate({id:task.id,date:shiftDate(state.date,state.days)});}} onPointerUp={()=>{const state=drag.current;drag.current=null;setDragDate(null);if(state?.moved){suppressClick.current=true;if(state.days)void onMove?.(task.id,shiftDate(state.date,state.days));}}} onPointerCancel={()=>{drag.current=null;setDragDate(null);suppressClick.current=true;}} onKeyDown={e=>{if(canMove&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();void onMove?.(task.id,shiftDate(value,(e.key==='ArrowLeft'?-1:1)*(e.shiftKey?7:1)));}}} onClick={()=>{if(!suppressClick.current)onSelect(task.id);suppressClick.current=false;}}><i aria-hidden="true"/>{task.kind==='review'?<span>{task.reviewCode||task.title}</span>:<span>{task.title}</span>}{dragDate?.id===task.id&&<em>{format(dragDate.date)}</em>}</button>;};
- if(!tasks.length&&!ranges.length)return <div className="delivery-empty"><h2>{pt?'Planeje as etapas do projeto':'Plan the project stages'}</h2><p>{pt?'Escolha um modelo de fases ou adicione sua primeira atividade.':'Choose a phase template or add your first activity.'}</p>{onConfigure&&<button className="primary" onClick={onConfigure}>{pt?'Escolher modelo':'Choose template'}</button>}</div>;
- return <section ref={board} className="planning-gantt" aria-label={pt?'Cronograma do projeto':'Project schedule'}>{preview&&<div className="planning-gantt-caption">{pt?'Prévia não salva':'Unsaved preview'}</div>}<div className="planning-gantt-body"><div className="planning-axis"><div>{new Date(first).getUTCFullYear()} — {new Date(last).getUTCFullYear()}</div><div>{Array.from({length:tickCount},(_,i)=><span key={i} style={{left:`${i/(tickCount-1)*100}%`}}>{format(new Date(first+span*i/(tickCount-1)).toISOString().slice(0,10))}</span>)}</div></div>{ranges.length>0&&<div className="planning-phase-row"><div>{pt?'Fases':'Phases'}{onConfigure&&<button onClick={onConfigure} aria-label={pt?'Editar fases':'Edit phases'}>＋</button>}</div><div className="planning-track phases">{ranges.map(p=><button key={p.id} style={{left:`${pos(p.start)}%`,width:`${Math.max(1,pos(p.end)-pos(p.start))}%`}} onClick={()=>onEditPhase?.(p.id)} disabled={!onEditPhase} title={`${p.name} · ${format(p.start)} — ${format(p.end)}`}><strong>{p.code}</strong><span>{p.name}</span></button>)}</div></div>}{lanes.map(l=>{const placed:{task:DeliveryTask;level:number}[]=[],ends:number[]=[];for(const task of [...l.rows].sort((a,b)=>a.dueDate.localeCompare(b.dueDate))){const position=pos(task.dueDate||task.startDate);let level=ends.findIndex(end=>position-end>Math.min(85,55/trackWidth*100));if(level<0)level=ends.length;ends[level]=position;placed.push({task,level});}return <div className="planning-gantt-row" key={l.name} style={{minHeight:`${Math.max(44,ends.length*27+10)}px`}}><div>{l.name}</div><div className="planning-track">{placed.map(({task,level})=>marker(task,level))}</div></div>;})}{activities.map(t=><div className="planning-gantt-row" key={t.id}><div><button onClick={()=>onSelect(t.id)}>{t.title}</button></div><div className="planning-track">{t.startDate&&t.dueDate&&<div className={`planning-duration ${t.status}`} style={{left:`${pos(dragDate?.id===t.id?shiftDate(t.startDate,Math.round((Date.parse(dragDate.date)-Date.parse(t.dueDate))/day)):t.startDate)}%`,width:`${Math.max(0.5,pos(t.dueDate)-pos(t.startDate))}%`}}/>}{marker(t,0)}</div></div>)}</div><footer>{dragDate?format(dragDate.date):pt?'Clique para revisar. Arraste os marcos para ajustar as datas.':'Select to review. Drag milestones to adjust dates.'}</footer></section>;
+import '../../styles/schedule-canvas.css';
+export { LifecycleSettings } from './LifecycleSettings';
+
+const DAY = 86400000;
+type Drag = { id: string; startX: number; width: number; date: string; days: number; moved: boolean };
+type Props = {
+  data: DeliveryState; pt: boolean; onSelect: (id: string) => void; selectedId?: string;
+  onConfigure?: () => void; onEditPhase?: (id: string) => void; onCreate?: (phaseId?: string) => void;
+  onMove?: (id: string, date: string) => Promise<unknown>; busy?: boolean; preview?: DeliveryLifecycle | null;
+};
+const iso = (date: number) => new Date(date).toISOString().slice(0, 10);
+const attention = (task: DeliveryTask) => task.status !== 'done' && (task.overdue || task.status === 'blocked' || task.blockedBy.length > 0 || task.dateConflicts.length > 0);
+
+export function LifecycleBoard({ data, pt, onSelect, selectedId, onConfigure, onEditPhase, onCreate, onMove, busy = false, preview }: Props) {
+  const board = useRef<HTMLElement>(null), drag = useRef<Drag | null>(null), suppressClick = useRef(false);
+  const [trackWidth, setTrackWidth] = useState(700), [availableHeight, setAvailableHeight] = useState(700), [dragDate, setDragDate] = useState<{ id: string; date: string } | null>(null);
+  const [expanded, setExpanded] = useState<string[]>([]), [query, setQuery] = useState(''), [onlyAttention, setOnlyAttention] = useState(false);
+  const [scale, setScale] = useState('all'), [cursor, setCursor] = useState<number | null>(null), [help, setHelp] = useState(false);
+  const today = new Date().toISOString().slice(0, 10), todayTime = Date.parse(today);
+  const lifecycle = preview || data.lifecycle;
+  const ranges = useMemo(() => lifecycle ? lifecycleRanges(lifecycle) : [], [lifecycle]);
+  const tasks = useMemo(() => preview ? previewScheduleTasks(data, preview) : data.tasks.filter(task => !task.archived), [data, preview]);
+  const groups = useMemo(() => buildScheduleGroups(tasks, ranges), [tasks, ranges]);
+  const fullWindow = timelineWindow(tasks, ranges, today);
+  const zoomSpan = (scale === 'quarter' ? 90 : 365) * DAY;
+  const start = scale === 'all' ? fullWindow.start : cursor ?? (todayTime >= fullWindow.start && todayTime <= fullWindow.end ? todayTime - 14 * DAY : fullWindow.start);
+  const span = scale === 'all' ? fullWindow.span : zoomSpan, end = start + span;
+  const ticks = Math.max(2, Math.min(7, Math.floor(trackWidth / 125) + 1));
+  const position = (date: string) => (Date.parse(date) - start) / span * 100;
+  const dateLabel = (date: string, year = false) => date ? new Date(`${date}T12:00:00`).toLocaleDateString(pt ? 'pt-BR' : 'en', { day: '2-digit', month: 'short', ...(year ? { year: 'numeric' } : {}) }) : pt ? 'Sem data' : 'Undated';
+  const period = new Intl.DateTimeFormat(pt ? 'pt-BR' : 'en', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  const nextReview = [...tasks].filter(task => task.kind === 'review' && task.status !== 'done' && task.dueDate).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const next = nextReview.find(task => task.dueDate >= today) || nextReview[0];
+  const needsAttention = (task: DeliveryTask) => !preview && attention(task);
+  const attentionCount = tasks.filter(needsAttention).length;
+  const search = query.toLocaleLowerCase().trim();
+  const shown = groups.map(group => ({ ...group, tasks: group.tasks.filter(task => (!onlyAttention || Boolean(preview) || needsAttention(task)) && (!search || `${group.title} ${group.phase?.code || ''} ${task.title} ${data.members.find(member => member.id === task.ownerId)?.name || ''}`.toLocaleLowerCase().includes(search))) }))
+    .filter(group => group.tasks.length || ((!onlyAttention || preview) && !search && group.phase));
+  const allExpanded = shown.every(group => expanded.includes(group.id));
+  const toggle = (id: string) => setExpanded(value => value.includes(id) ? value.filter(item => item !== id) : [...value, id]);
+
+  useEffect(() => {
+    const element = board.current;
+    if (!element) return;
+    const measure = () => { setTrackWidth(element.querySelector('.schedule-track')?.getBoundingClientRect().width || 700); setAvailableHeight(Math.max(300, window.innerHeight - element.getBoundingClientRect().top - 70)); };
+    measure(); const observer = new ResizeObserver(measure); observer.observe(element); window.addEventListener('resize', measure);
+    return () => { observer.disconnect(); window.removeEventListener('resize', measure); };
+  }, [groups.length]);
+
+  const grid = () => <><div className="schedule-grid-lines" aria-hidden="true">{Array.from({ length: ticks }, (_, index) => <i key={index} style={{ left: `${index / (ticks - 1) * 100}%` }} />)}</div>{todayTime >= start && todayTime <= end && <i className="schedule-today-line" style={{ left: `${position(today)}%` }} aria-hidden="true" />}</>;
+  const marker = (task: DeliveryTask, level = 0, summary = false) => {
+    const date = dragDate?.id === task.id ? dragDate.date : task.dueDate || task.startDate;
+    if (!date) return null;
+    const point = position(date), outside = point < 0 || point > 100;
+    const isReview = task.kind === 'review';
+    const movingStart = task.startDate && dragDate?.id === task.id ? shiftDate(task.startDate, Math.round((Date.parse(date) - Date.parse(task.dueDate || task.startDate)) / DAY)) : task.startDate;
+    const crossesWindow = !isReview && movingStart && Date.parse(movingStart) <= end && Date.parse(date) >= start;
+    if (outside && !crossesWindow && dragDate?.id !== task.id) return null;
+    const canMove = task.canEdit && !busy && !preview && Boolean(onMove);
+    const left = !isReview && movingStart ? Math.max(0, position(movingStart)) : Math.max(0, Math.min(100, point));
+    const width = !isReview && movingStart ? Math.max(0, Math.min(100, point) - left) : 0;
+    const owner = data.members.find(member => member.id === task.ownerId)?.name;
+    const shortCode = task.reviewCode || task.title.split(/[·:]/)[0].trim();
+    return <button key={task.id} type="button" className={`schedule-marker planning-marker ${isReview ? 'review' : 'activity'} ${task.status}${selectedId === task.id ? ' is-selected' : ''}${needsAttention(task) ? ' needs-attention' : ''}${summary ? ' in-summary' : ''}${canMove ? ' is-movable' : ''}`}
+      style={{ left: `${left}%`, top: `${summary ? 24 + level * 28 : 11}px`, ...(!isReview ? { width: `max(28px, ${width}%)` } : {}) }}
+      aria-label={task.title} aria-description={canMove ? (pt ? 'Clique para editar. Arraste para mover a data; setas movem um dia, Shift move sete.' : 'Click to edit. Drag to move the date; arrows move one day, Shift moves seven.') : undefined}
+      title={`${task.title}\n${dateLabel(date, true)} · ${deliveryStatus(task.status, pt)}${owner ? `\n${owner}` : ''}`}
+      disabled={Boolean(preview)}
+      onPointerDown={event => {
+        suppressClick.current = false;
+        if (!canMove || event.button !== 0) return;
+        const width = event.currentTarget.parentElement!.getBoundingClientRect().width;
+        drag.current = { id: task.id, startX: event.clientX, width, date, days: 0, moved: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const state = drag.current; if (!state || state.id !== task.id) return;
+        const distance = event.clientX - state.startX;
+        state.moved ||= Math.abs(distance) > 5; if (!state.moved) return;
+        state.days = Math.round(distance / state.width * span / DAY);
+        setDragDate({ id: task.id, date: shiftDate(state.date, state.days) });
+      }}
+      onPointerUp={() => {
+        const state = drag.current; drag.current = null; setDragDate(null);
+        if (state?.moved) { suppressClick.current = true; if (state.days) void onMove?.(task.id, shiftDate(state.date, state.days)); }
+      }}
+      onPointerCancel={() => { drag.current = null; setDragDate(null); suppressClick.current = true; }}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && drag.current) { drag.current = null; setDragDate(null); suppressClick.current = true; }
+        if (canMove && ['ArrowLeft', 'ArrowRight'].includes(event.key)) { event.preventDefault(); void onMove?.(task.id, shiftDate(date, (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 7 : 1))); }
+      }}
+      onClick={() => { if (!suppressClick.current) onSelect(task.id); suppressClick.current = false; }}>
+      {isReview && <Diamond size={11} fill="currentColor" aria-hidden="true" />}<span>{isReview ? shortCode : ''}</span>
+      {dragDate?.id === task.id && <em>{dateLabel(dragDate.date, true)}</em>}
+    </button>;
+  };
+
+  if (!tasks.length && !ranges.length) return <div className="schedule-empty-start"><CalendarDays size={30}/><h2>{pt ? 'Dê uma sequência ao projeto' : 'Give your project a sequence'}</h2><p>{pt ? 'Comece com as fases e revisões de um modelo, ou planeje uma atividade.' : 'Start with the phases and reviews of a template, or plan an activity.'}</p><div>{onConfigure && <button className="primary" onClick={onConfigure}>{pt ? 'Escolher fases do projeto' : 'Choose project phases'}</button>}{onCreate && <button onClick={() => onCreate()}>{pt ? 'Adicionar uma atividade' : 'Add an activity'}</button>}</div></div>;
+
+  return <section ref={board} className="schedule-board" style={{ maxHeight: `${availableHeight}px` }} aria-label={pt ? 'Cronograma do projeto' : 'Project schedule'}>
+    <header className="schedule-board-heading"><div><span className="schedule-eyebrow">{pt ? 'Ciclo de vida' : 'Lifecycle'}{lifecycle && !['none', 'custom'].includes(lifecycle.profile) ? ` · ${lifecycle.profile.toUpperCase()}` : ''}</span><h2>{period.format(fullWindow.start)} <span>—</span> {period.format(fullWindow.end)}</h2></div>
+      {preview ? <span className="schedule-preview-label">{pt ? 'Prévia · alterações não salvas' : 'Preview · unsaved changes'}</span> : next && <button className="schedule-next-review" onClick={() => onSelect(next.id)}><span><small>{next.dueDate < today ? (pt ? 'Revisão pendente' : 'Pending review') : (pt ? 'Próxima revisão' : 'Next review')} <b>{dateLabel(next.dueDate)}</b></small><strong>{next.title}</strong></span><ArrowRight size={17}/></button>}
+    </header>
+    <div className="schedule-board-tools"><label className="schedule-search"><Search size={15}/><input type="search" aria-label={pt ? 'Buscar no cronograma' : 'Search schedule'} placeholder={pt ? 'Buscar atividade ou revisão' : 'Find activity or review'} value={query} onChange={event => setQuery(event.target.value)}/></label>
+      {attentionCount > 0 && <button className={`schedule-attention-toggle${onlyAttention ? ' active' : ''}`} aria-pressed={onlyAttention} onClick={() => setOnlyAttention(value => !value)}><AlertCircle size={14}/>{attentionCount}<span>{pt ? 'pendências' : 'need attention'}</span></button>}
+      <div className="schedule-scale-controls">{scale !== 'all' && <button aria-label={pt ? 'Período anterior' : 'Previous period'} onClick={() => setCursor(start - span)}><ChevronLeft size={15}/></button>}<select aria-label={pt ? 'Escala do cronograma' : 'Schedule scale'} value={scale} onChange={event => { setScale(event.target.value); setCursor(null); }}><option value="all">{pt ? 'Projeto inteiro' : 'Whole project'}</option><option value="year">{pt ? '12 meses' : '12 months'}</option><option value="quarter">{pt ? '3 meses' : '3 months'}</option></select>{scale !== 'all' && <button aria-label={pt ? 'Próximo período' : 'Next period'} onClick={() => setCursor(start + span)}><ChevronRight size={15}/></button>}<button onClick={() => { setScale('quarter'); setCursor(todayTime - 14 * DAY); }}>{pt ? 'Hoje' : 'Today'}</button></div>
+    </div>
+    <div className="schedule-gantt-scroll">
+      <div className="schedule-axis"><div className="schedule-axis-label"><span>{pt ? 'Fases e entregas' : 'Phases and deliverables'}</span><button onClick={() => setExpanded(allExpanded ? [] : shown.map(group => group.id))} aria-label={allExpanded ? (pt ? 'Recolher fases' : 'Collapse phases') : (pt ? 'Expandir fases' : 'Expand phases')}>{allExpanded ? <ChevronsDownUp size={15}/> : <ChevronsUpDown size={15}/>}</button></div><div className="schedule-track"><div className="schedule-axis-ticks">{Array.from({ length: ticks }, (_, index) => { const time = start + span * index / (ticks - 1); return <span key={index} style={{ left: `${index / (ticks - 1) * 100}%` }}>{span > 200 * DAY ? period.format(time) : dateLabel(iso(time))}</span>; })}</div>{todayTime >= start && todayTime <= end && <span className="schedule-today-label" style={{ left: `${position(today)}%` }}>{pt ? 'Hoje' : 'Today'}</span>}</div></div>
+      {shown.map(group => {
+        const open = Boolean(query) || onlyAttention || expanded.includes(group.id), phase = group.phase;
+        const dated = group.tasks.filter(task => task.dueDate || task.startDate).sort((a, b) => (a.dueDate || a.startDate).localeCompare(b.dueDate || b.startDate));
+        const levels: number[] = [];
+        const markers = dated.map(task => {
+          const x = position(task.dueDate || task.startDate) / 100 * trackWidth;
+          const code = task.reviewCode || task.title.split(/[·:]/)[0].trim();
+          const width = task.kind === 'review' ? Math.max(40, Math.min(94, code.length * 6 + 24)) : Math.max(28, (Date.parse(task.dueDate || task.startDate) - Date.parse(task.startDate || task.dueDate)) / span * trackWidth);
+          const left = task.kind === 'review' ? x - width / 2 : x - width;
+          let level = levels.findIndex(right => left - right > 5);
+          if (level < 0) level = levels.length;
+          levels[level] = task.kind === 'review' ? x + width / 2 : x;
+          return { task, level };
+        });
+        const completed = group.tasks.filter(task => task.status === 'done').length;
+        const undated = group.tasks.filter(task => !task.dueDate && !task.startDate).length;
+        const phaseLeft = phase ? Math.max(0, position(phase.start)) : 0, phaseRight = phase ? Math.min(100, position(phase.end)) : 0;
+        return <Fragment key={group.id}><div className={`schedule-phase-row${open ? ' is-open' : ''}${phase && phase.start <= today && phase.end >= today ? ' is-current' : ''}`} style={{ minHeight: `${open ? 56 : Math.max(52, levels.length * 28 + 22)}px` }}>
+          <div className="schedule-phase-label"><button className="schedule-phase-toggle" aria-expanded={open} onClick={() => toggle(group.id)}><span className="schedule-chevron">{open ? <ChevronDown size={15}/> : <ChevronRight size={15}/>}</span><span className="schedule-phase-copy"><strong>{phase && <b>{phase.code}</b>}{phase ? group.title : pt ? 'Sem fase' : 'Unassigned'}</strong><small>{group.tasks.length ? `${group.tasks.length} ${pt ? group.tasks.length === 1 ? 'entrega' : 'entregas' : group.tasks.length === 1 ? 'item' : 'items'}${completed ? ` · ${completed} ${pt ? 'concluídas' : 'done'}` : ''}${undated ? ` · ${undated} ${pt ? 'sem data' : 'undated'}` : ''}` : pt ? 'Nenhuma atividade' : 'No activities'}</small></span></button>{phase && onEditPhase && <button className="schedule-phase-edit" disabled={busy} aria-label={`${pt ? 'Editar fase' : 'Edit phase'} ${phase.code}`} onClick={() => onEditPhase(phase.id)}><Pencil size={13}/></button>}</div>
+          <div className="schedule-track">{grid()}{phase && phaseRight >= phaseLeft && <button className="schedule-phase-band" style={{ left: `${phaseLeft}%`, width: `${Math.max(.4, phaseRight - phaseLeft)}%` }} disabled={!onEditPhase || busy} onClick={() => onEditPhase?.(phase.id)} aria-label={`${pt ? 'Datas da fase' : 'Phase dates'} ${phase.code}: ${dateLabel(phase.start, true)} — ${dateLabel(phase.end, true)}`} title={`${phase.name}: ${dateLabel(phase.start, true)} — ${dateLabel(phase.end, true)}`}><span>{phase.code}</span></button>}{!open && markers.map(({ task, level }) => marker(task, level, true))}{open && phase && <span className="schedule-phase-period">{dateLabel(phase.start)} — {dateLabel(phase.end, true)}</span>}{!phase && !dated.length && <span className="schedule-no-date">{pt ? 'Defina as datas para posicionar as entregas' : 'Set dates to place deliverables'}</span>}</div>
+        </div>
+        {open && group.tasks.map(task => { const owner = data.members.find(member => member.id === task.ownerId), due = task.dueDate || task.startDate, outside = due && (position(due) < 0 || position(due) > 100) && !(task.kind !== 'review' && task.startDate && Date.parse(task.startDate) <= end && Date.parse(due) >= start); return <div className={`schedule-task-row${selectedId === task.id ? ' is-selected' : ''}`} key={task.id}><button className="schedule-task-label" disabled={Boolean(preview)} onClick={() => onSelect(task.id)}><span className={`schedule-status-dot ${task.status}${needsAttention(task) ? ' attention' : ''}`} title={deliveryStatus(task.status, pt)}/><span><strong>{task.title}</strong><small>{owner?.name || (pt ? 'Sem responsável' : 'Unassigned')} <span>· {dateLabel(due)}</span>{needsAttention(task) && <b>{task.overdue ? (pt ? 'Em atraso' : 'Overdue') : (pt ? 'Requer atenção' : 'Needs attention')}</b>}</small></span></button><div className="schedule-track">{grid()}{marker(task)}{!due && <button className="schedule-set-date" disabled={Boolean(preview)} onClick={() => onSelect(task.id)}><CalendarDays size={13}/>{pt ? 'Definir data' : 'Set date'}</button>}{outside && <button className="schedule-outside" disabled={Boolean(preview)} onClick={() => { setScale('quarter'); setCursor(Date.parse(due) - 30 * DAY); }}>{dateLabel(due)} <ArrowRight size={12}/></button>}</div></div>; })}
+        {open && onCreate && !preview && <div className="schedule-add-row"><button onClick={() => onCreate(phase?.id)}><span>+</span>{pt ? 'Adicionar atividade' : 'Add activity'}</button></div>}
+        </Fragment>;
+      })}
+      {!shown.length && <div className="schedule-no-results"><Search size={20}/><p>{pt ? 'Nenhuma atividade encontrada.' : 'No matching activities.'}</p><button onClick={() => { setQuery(''); setOnlyAttention(false); }}>{pt ? 'Limpar filtros' : 'Clear filters'}</button></div>}
+    </div>
+    <footer className="schedule-board-footer"><div className="schedule-legend"><span><Diamond size={11}/>{pt ? 'Revisão' : 'Review'}</span><span><i className="schedule-legend-bar"/>{pt ? 'Atividade' : 'Activity'}</span><span><i className="schedule-status-dot done"/>{pt ? 'Concluído' : 'Done'}</span></div><button aria-expanded={help} onClick={() => setHelp(value => !value)}><CircleHelp size={15}/>{pt ? 'Como editar' : 'How to edit'}</button>{help && <div className="schedule-help"><button aria-label={pt ? 'Fechar ajuda' : 'Close help'} onClick={() => setHelp(false)}><X size={15}/></button><strong>{pt ? 'Planeje direto no cronograma' : 'Plan on the schedule'}</strong><p><ListChecks size={15}/>{pt ? 'Expanda uma fase para ver as atividades.' : 'Expand a phase to see its activities.'}</p><p><Pencil size={15}/>{pt ? 'Clique em uma entrega para editar datas e responsável.' : 'Click an item to edit its dates and owner.'}</p><p><CalendarDays size={15}/>{pt ? 'Arraste um marco para mover a data. As setas do teclado também funcionam.' : 'Drag a milestone to move its date. Keyboard arrows work too.'}</p></div>}</footer>
+  </section>;
 }

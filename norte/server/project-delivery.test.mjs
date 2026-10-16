@@ -165,6 +165,77 @@ test('lifecycle switches document packages, preserves manual dates and exports s
  response=await configure('none');assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks.length,0);assert.equal(response.json().standards.length,0);assert.equal(response.json().requirements.length,1);assert.equal(response.json().documents.length,1);
 });
 
+test('lifecycle preview metadata preserves hidden manual reviews, current evidence status and project permissions', async t => {
+  const f = await fixture(t), requirement = await f.saveReq();
+  assert.equal((await f.action(f.captain, 'requirement.request_review', { id: requirement.id, reviewers: [f.reviewer.id] })).statusCode, 200);
+  assert.equal((await f.action(f.reviewer, 'requirement.review', { id: requirement.id, decision: 'approve' })).statusCode, 200);
+  const configure = (profile, selectedReviews) => f.action(f.captain, 'lifecycle.configure', {
+    profile, startDate: '2026-11-02', ...(selectedReviews ? { selectedReviews } : {}),
+  });
+  let response = await configure('nasa', ['MCR', 'SRR']);
+  assert.equal(response.statusCode, 200, response.body);
+  const initial = response.json(), srr = initial.tasks.find(task => task.reviewCode === 'SRR'), mcr = initial.tasks.find(task => task.reviewCode === 'MCR');
+  response = await f.action(f.captain, 'task.save', { id: srr.id, item: {
+    ...srr, title: 'Private reviewed avionics milestone', sectorId: 'avionics', ownerId: f.reviewer.id,
+    startDate: '2027-04-01', dueDate: '2027-04-03', status: 'done', requirementIds: [requirement.id],
+  } });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'document.prepare', { taskId: srr.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  const document = response.json().documents[0];
+  assert.equal((await f.action(f.captain, 'task.archive', { id: mcr.id })).statusCode, 200);
+
+  response = await configure('nasa', []);
+  assert.equal(response.statusCode, 200, response.body);
+  const excluded = response.json();
+  assert(!excluded.tasks.some(task => task.id === srr.id));
+  const metadata = excluded.lifecycleTasks.find(task => task.id === srr.id);
+  assert.equal(metadata.manual, true);
+  assert.equal(metadata.excluded, true);
+  assert.equal(metadata.startDate, '2027-04-01');
+  assert.equal(metadata.dueDate, '2027-04-03');
+  assert.equal(metadata.status, 'done');
+  assert.equal(metadata.canEdit, true);
+  assert.deepEqual(metadata.requirementIds, [requirement.id]);
+  assert.equal(metadata.ownerId, f.reviewer.id);
+  assert.deepEqual(excluded.documents[0], document);
+  assert.equal(excluded.lifecycleTasks.find(task => task.id === mcr.id).archived, true);
+
+  response = await configure('ecss');
+  assert.equal(response.statusCode, 200, response.body);
+  const switched = response.json();
+  assert(switched.tasks.every(task => task.lifecycleProfile === 'ecss'));
+  assert.deepEqual(switched.lifecycleTasks.find(task => task.id === srr.id), metadata);
+  assert.equal((await f.read(f.member)).lifecycleTasks.find(task => task.id === srr.id).canEdit, false);
+  assert.equal((await f.read(f.reviewer)).lifecycleTasks.find(task => task.id === srr.id).canEdit, true);
+  for (const actor of [f.outsider, f.globalAdmin]) {
+    const denied = await f.req(actor, 'GET', f.route);
+    assert.equal(denied.statusCode, 404);
+    assert(!denied.body.includes(srr.id));
+    assert(!denied.body.includes(metadata.title));
+  }
+
+  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, requirement.id);
+  const stale = (await f.read()).lifecycleTasks.find(task => task.id === srr.id);
+  assert.equal(stale.status, 'blocked', 'a hidden completed review must expose the same current evidence status as a visible review');
+  assert.equal(stale.reviewNeedsRevalidation, true);
+  response = await configure('nasa', ['SRR']);
+  assert.equal(response.statusCode, 200, response.body);
+  const restored = response.json(), visible = restored.tasks.find(task => task.id === srr.id);
+  assert.equal(visible.excluded, false);
+  assert.equal(visible.dueDate, '2027-04-03');
+  assert.equal(visible.title, metadata.title);
+  assert.equal(visible.status, 'blocked');
+  assert.equal(visible.reviewNeedsRevalidation, true);
+  assert.deepEqual(visible, restored.lifecycleTasks.find(task => task.id === srr.id));
+  assert.equal(restored.lifecycleTasks.filter(task => task.id === srr.id).length, 1);
+  assert.deepEqual(restored.documents[0], document);
+  await f.restart();
+  const restarted = await f.read();
+  assert.deepEqual(restarted.lifecycleTasks, restored.lifecycleTasks);
+  assert.deepEqual(restarted.documents, restored.documents);
+});
+
 test('demo lifecycle seeding is idempotent, preserves documentary requirements and never fabricates execution', async t=>{
  const {seedDeliveryDemo}=await import('./delivery-demo.mjs');const f=await fixture(t);await f.saveReq();
  const data=f.app.missionStore.read(),source=structuredClone(data.workspace.projects[f.projectId].document),before=structuredClone(data.workspace.delivery[f.projectId].requirements);

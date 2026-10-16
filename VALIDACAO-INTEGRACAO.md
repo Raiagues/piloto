@@ -297,3 +297,51 @@ As medições estão em `.runtime/validation/quetzal-node-codec-v2-10.json` e
 `quetzal-pg-v2-probe.json`; não devem ser confundidas com os tempos do Render.
 
 O áudio permanece fora desta rodada, conforme a orientação mais recente.
+
+
+## Cronograma: planejamento por fases e edição no contexto — 16/10/2026
+
+O cronograma passou a agrupar as entregas por fase. Cada fase pode ser expandida
+para mostrar as atividades, responsáveis e datas. Os marcos de revisão possuem
+alvos maiores, seleção visível e distribuição que evita sobreposição. Busca,
+pendências, próxima revisão, posição de hoje e escalas de projeto inteiro,
+12 meses e 3 meses ajudam a localizar o trabalho.
+
+A edição rápida abre ao lado do gráfico, com início, prazo, responsável e
+situação. O formulário completo continua disponível. Rascunhos permanecem ao
+fechar ou trocar de atividade durante a sessão; apenas campos alterados são
+aplicados sobre os dados atuais. Mudanças concorrentes no mesmo campo pedem
+resolução. Arraste e teclado alteram datas, e Desfazer restaura início e prazo
+exatos sem reverter outras edições. Arquivar mantém a opção de restaurar no
+painel aberto.
+
+“Planejar fases” apresenta configuração e prévia lado a lado. Fases e revisões
+ficam em abas; cada fase tem seu próprio editor recolhível. Cancelar descarta a
+prévia. A troca de referência preserva rascunhos por perfil e as datas manuais
+já salvas. A API passou a fornecer metadados dos perfis inativos sob a mesma
+permissão de acesso ao projeto, evitando divergência entre prévia e salvamento.
+
+A aba Revisões agrupa os encontros por fase e separa critérios atendidos de
+rascunhos de documentos preparados. Preparar um documento não aprova uma
+revisão. Vínculos, evidências, revalidação e edição de documentos permanecem
+integrados ao fluxo de requisitos e verificação.
+
+A área do gráfico se ajusta à janela; conteúdo extenso rola dentro dela. O
+rodapé de ajuda permanece acessível. Painéis menores preservam o cabeçalho e a
+barra lateral da aplicação, inclusive no celular. Cores seguem os temas claro
+e escuro da plataforma.
+
+Validação local: 198 testes de interface e 18 testes da API de entregas
+aprovados, TypeScript, ESLint, build e varredura de segredos aprovados. Os testes
+incluem agrupamento por fase, prévias, permissões, preservação de datas manuais,
+revalidação de revisão, rascunhos concorrentes e restauração exata de datas.
+O aviso preexistente de tamanho do pacote de interface permanece.
+
+O teste integrado de entregas também passou com revisão por duas contas,
+propostas, evidências, documentos de revisão, edição de fases e datas. O teste
+específico do cronograma cobre salvamento e recarga, arraste, teclado, Desfazer,
+prévia/cancelamento, troca de referência, documentos e dispositivos menores.
+As rotinas usam dados isolados e não chamam serviços de IA. Evidências privadas:
+`.runtime/validation/delivery-browser.json`,
+`.runtime/validation/schedule-redesign-browser.json` e capturas
+`schedule-redesign-*.png`. Logs de qualidade: `.runtime/schedule-final-*.log`.
