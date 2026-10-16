@@ -1,39 +1,64 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search, ArrowRight, Check, FolderKanban, Globe2, LayoutGrid, LoaderCircle, Network, Pencil, Plus, ShieldCheck, Trash2, UsersRound, X } from 'lucide-react';
 import { OrganizationTree, PersonAvatar } from '../components/OrganizationTree';
 import { InfoTip } from '../components/InfoTip';
 import { TeamInvitations } from '../components/TeamInvitations';
 import { teamOrganization } from '../../shared/organization-tree.mjs';
 import { useAuth } from '../lib/auth';
+import { canRetainReadCache, teamProjectCacheKey } from '../lib/projectLoading';
 import { memberColor, memberInitials, projectTypeLabel } from '../lib/team';
 import type { TeamMember, TeamProjectSummary, TeamRecord } from '../lib/team';
 import type { Language } from '../lib/types';
 import '../teams-hub.css';
 import '../collaboration-workspace.css';
+import '../project-access.css';
 type Props = { language: Language; t: (path: string) => string; onLanguageChange: (language: Language) => void; onBack: () => void; initialTeamId?: string; onTeamsChanged?: () => void; onOpenProject: (id: string) => void };
 export function TeamsHubPage({ language, initialTeamId = '', onTeamsChanged, onOpenProject }: Props) {
   const { api } = useAuth(), pt = language === 'pt';
-  const [teams, setTeams] = useState<TeamRecord[]>([]), [members, setMembers] = useState<TeamMember[]>([]), [projects, setProjects] = useState<TeamProjectSummary[]>([]);
+  const [teams, setTeams] = useState<TeamRecord[]>([]), [members, setMembers] = useState<TeamMember[]>([]);
+  const [projectCache, setProjectCache] = useState<Record<string, TeamProjectSummary[]>>({});
+  const [projectLoad, setProjectLoad] = useState<{ teamId: string; status: 'loading' | 'ready' | 'error' | 'denied' }>({ teamId: '', status: 'loading' });
+  const [projectRetry, setProjectRetry] = useState(0), [directoryError, setDirectoryError] = useState(false), [membersError, setMembersError] = useState(false), [membersLoading, setMembersLoading] = useState(true);
+  const directoryController = useRef<AbortController | null>(null);
   const [selectedId, setSelectedId] = useState(initialTeamId), [view, setView] = useState<'mine' | 'community'>('mine'), [projectView, setProjectView] = useState<'list' | 'hierarchy'>('list');
   useEffect(() => { const navigate = () => { const id = new URLSearchParams(window.location.hash.split('?')[1] || '').get('team'); if (id) setSelectedId(id); }; navigate(); window.addEventListener('hashchange', navigate); return () => window.removeEventListener('hashchange', navigate); }, []);
   const [teamArea, setTeamArea] = useState<'projects' | 'people' | 'invitations'>('projects'), [teamQuery, setTeamQuery] = useState('');
   const [dialog, setDialog] = useState<'create-team' | 'edit-team' | null>(null), [busy, setBusy] = useState(false), [loading, setLoading] = useState(true), [feedback, setFeedback] = useState('');
   const load = useCallback(async () => {
-    try { const [ts, ms] = await Promise.all([api<{ teams: TeamRecord[] }>('/teams'), api<{ members: TeamMember[] }>('/team/members')]); setTeams(ts.teams); setMembers(ms.members); }
-    catch (e) { setFeedback(e instanceof Error ? e.message : 'Falha ao carregar.'); } finally { setLoading(false); }
+    directoryController.current?.abort(); const controller = new AbortController(); directoryController.current = controller;
+    setLoading(true); setMembersLoading(true); setDirectoryError(false); setMembersError(false);
+    // A slow people directory must not delay teams or their project cards.
+    void api<{ members: TeamMember[] }>('/team/members', { signal: controller.signal }).then(result => {
+      if (!controller.signal.aborted) setMembers(result.members);
+    }).catch(reason => {
+      if (!controller.signal.aborted) { setMembersError(true); if (!canRetainReadCache(reason)) setMembers([]); }
+    }).finally(() => { if (!controller.signal.aborted) setMembersLoading(false); });
+    try {
+      const result = await api<{ teams: TeamRecord[] }>('/teams', { signal: controller.signal });
+      if (!controller.signal.aborted) setTeams(result.teams);
+    } catch (reason) {
+      if (!controller.signal.aborted) { setDirectoryError(true); if (!canRetainReadCache(reason)) { setTeams([]); setProjectCache({}); } }
+    } finally { if (!controller.signal.aborted) setLoading(false); }
   }, [api]);
-  useEffect(() => { document.body.classList.add('teams-window-scroll'); void load(); return () => document.body.classList.remove('teams-window-scroll'); }, [load]);
+  useEffect(() => { document.body.classList.add('teams-window-scroll'); void load(); return () => { directoryController.current?.abort(); document.body.classList.remove('teams-window-scroll'); }; }, [load]);
+  useEffect(() => { const refresh = () => { void load(); setProjectRetry(value => value + 1); }; window.addEventListener('norte-membership-changed', refresh); return () => window.removeEventListener('norte-membership-changed', refresh); }, [load]);
   const teamList = teams.filter(team => (view === 'mine' ? team.membership === 'member' || team.canManage : team.membership !== 'member' && !team.canManage) && team.name.toLocaleLowerCase().includes(teamQuery.trim().toLocaleLowerCase()));
   const selected = teamList.find(team => team.id === selectedId) || teamList[0] || null;
   const selectedTeamId = selected?.id, internal = selected?.membership === 'member' || selected?.canManage;
+  const projects = selectedTeamId ? projectCache[teamProjectCacheKey(selectedTeamId, Boolean(internal))] || [] : [];
+  const projectsLoading = Boolean(selectedTeamId && (projectLoad.teamId !== selectedTeamId || projectLoad.status === 'loading'));
+  const projectsFailed = Boolean(selectedTeamId && projectLoad.teamId === selectedTeamId && ['error', 'denied'].includes(projectLoad.status));
   const selectedMembers = members.filter(m => selected?.memberIds.includes(m.id));
   useEffect(() => {
-    if (!selectedTeamId) { setProjects([]); return; }
-    let active = true; setProjects([]);
-    void api<{ projects: TeamProjectSummary[] }>(`/teams/${selectedTeamId}/projects`).then(r => { if (active) setProjects(r.projects); }).catch(e => { if (active) setFeedback(e.message); });
+    if (!selectedTeamId) return;
+    const controller = new AbortController(), cacheKey = teamProjectCacheKey(selectedTeamId, Boolean(internal)); setProjectLoad({ teamId: selectedTeamId, status: 'loading' });
+    void api<{ projects: TeamProjectSummary[] }>(`/teams/${selectedTeamId}/projects`, { signal: controller.signal }).then(r => {
+      if (controller.signal.aborted) return;
+      setProjectCache(cache => ({ ...cache, [cacheKey]: r.projects })); setProjectLoad({ teamId: selectedTeamId, status: 'ready' });
+    }).catch(reason => { if (!controller.signal.aborted) { setProjectLoad({ teamId: selectedTeamId, status: canRetainReadCache(reason) ? 'error' : 'denied' }); if (!canRetainReadCache(reason)) setProjectCache(cache => { const next = { ...cache }; delete next[cacheKey]; return next; }); } });
     if (!internal) void api(`/teams/${selectedTeamId}/visit`, { method: 'POST' }).catch(() => undefined);
-    return () => { active = false; };
-  }, [api, selectedTeamId, internal]);
+    return () => controller.abort();
+  }, [api, selectedTeamId, internal, projectRetry]);
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); const data = new FormData(event.currentTarget); setBusy(true); setFeedback('');
     try {
@@ -51,18 +76,23 @@ export function TeamsHubPage({ language, initialTeamId = '', onTeamsChanged, onO
   const projectsOf = (memberId: string) => projects.filter(p => p.participants.some(x => x.memberId === memberId));
   async function removeMember(m: TeamMember) {
     if (!selected || !window.confirm(`${pt ? 'Remover' : 'Remove'} ${m.displayName}?`)) return;
-    try { await api(`/teams/${selected.id}/members/${m.id}`, { method: 'DELETE' }); await load(); setProjects((await api<{ projects: TeamProjectSummary[] }>(`/teams/${selected.id}/projects`)).projects); }
+    try { await api(`/teams/${selected.id}/members/${m.id}`, { method: 'DELETE' }); await load(); setProjectRetry(value => value + 1); }
     catch (e) { setFeedback(e instanceof Error ? e.message : 'Falha ao remover.'); }
   }
   return <div className="teams-hub-shell">
     <main className="teams-hub-main"><header className="teams-hub-heading"><div><span className="workspace-eyebrow">{pt ? 'COLABORAÇÃO' : 'COLLABORATION'}</span><h1>{pt ? 'Equipes' : 'Teams'}</h1><p>{pt ? 'Projetos, pessoas e responsabilidades em um só lugar.' : 'Projects, people and responsibilities in one place.'}</p></div><button type="button" onClick={() => setDialog('create-team')}><Plus />{pt ? 'Criar equipe' : 'Create team'}</button></header>
       <nav className="teams-hub-tabs"><button type="button" className={view === 'mine' ? 'active mine' : 'mine'} onClick={() => { setView('mine'); setTeamQuery(''); }}><ShieldCheck />{pt ? 'Minhas equipes' : 'My teams'}</button><button type="button" className={view === 'community' ? 'active community' : 'community'} onClick={() => { setView('community'); setTeamQuery(''); }}><Globe2 />{pt ? 'Comunidade' : 'Community'}</button></nav>
       {feedback && <p className="teams-hub-feedback" role="status">{feedback}<button type="button" onClick={() => setFeedback('')} aria-label={pt ? 'Fechar' : 'Close'}><X /></button></p>}
-      <div className="teams-hub-layout"><aside className="teams-hub-list"><header>{pt ? 'Equipes' : 'Teams'}</header><label className="teams-directory-search"><Search size={15} /><input type="search" aria-label={pt ? 'Buscar equipes' : 'Find teams'} value={teamQuery} onChange={event => setTeamQuery(event.target.value)} placeholder={pt ? 'Buscar equipe' : 'Find a team'} /></label>{loading ? <LoaderCircle /> : <section>{teamList.map(team => <button type="button" key={team.id} className={team.id === selected?.id ? 'active' : ''} onClick={() => { setSelectedId(team.id); setTeamArea('projects'); }}><span className="team-mark" style={{ '--accent': memberColor(team.id) } as React.CSSProperties}>{memberInitials(team.name)}</span><span><strong>{team.name}</strong><small>{team.memberCount ?? team.memberIds.length} {pt ? 'pessoas' : 'people'} · {team.projectCount || 0} {pt ? 'projetos' : 'projects'}</small></span><ArrowRight /></button>)}</section>}</aside>
-        <section className="teams-hub-detail">{!selected ? <p>{pt ? 'Nenhuma equipe por aqui ainda.' : 'No teams here yet.'}</p> : <><header className="team-overview-head"><span className="team-mark large" style={{ '--accent': memberColor(selected.id) } as React.CSSProperties}>{memberInitials(selected.name)}</span><div><h2>{selected.name}</h2><div className="team-meta"><span><UsersRound size={14} />{selected.memberCount ?? selected.memberIds.length} {pt ? 'pessoas' : 'people'}</span><span><FolderKanban size={14} />{projects.length || selected.projectCount || 0} {pt ? 'projetos' : 'projects'}</span>{captain && <span className="team-meta-captain"><PersonAvatar name={captain.displayName} id={captain.id} size={20} />{captain.displayName} · {pt ? 'capitão' : 'captain'}</span>}</div>{selected.description && <p>{selected.description}</p>}</div>{selected.canManage && <div className="teams-detail-actions"><button className="icon-only" type="button" aria-label={pt ? 'Editar equipe' : 'Edit team'} onClick={() => setDialog('edit-team')}><Pencil /></button><button className="icon-only danger" type="button" aria-label={pt ? 'Excluir equipe' : 'Delete team'} disabled={busy} onClick={() => void deleteTeam()}><Trash2 /></button></div>}</header>
+      {(directoryError || membersError) && <div className="team-project-load" role="alert"><p>{directoryError ? pt ? 'Não foi possível atualizar as equipes agora.' : 'Teams could not be refreshed right now.' : pt ? 'A lista de pessoas não carregou. Os projetos continuam disponíveis.' : 'People could not be loaded. Projects remain available.'}</p><button type="button" disabled={loading} onClick={() => void load()}>{pt ? 'Recarregar equipes e pessoas' : 'Reload teams and people'}</button></div>}
+      <div className="teams-hub-layout"><aside className="teams-hub-list"><header>{pt ? 'Equipes' : 'Teams'}</header><label className="teams-directory-search"><Search size={15} /><input type="search" aria-label={pt ? 'Buscar equipes' : 'Find teams'} value={teamQuery} onChange={event => setTeamQuery(event.target.value)} placeholder={pt ? 'Buscar equipe' : 'Find a team'} /></label>{loading && !teams.length ? <LoaderCircle aria-label={pt ? "Carregando equipes" : "Loading teams"}/> : <section>{teamList.map(team => <button type="button" key={team.id} className={team.id === selected?.id ? 'active' : ''} onClick={() => { setSelectedId(team.id); setTeamArea('projects'); }}><span className="team-mark" style={{ '--accent': memberColor(team.id) } as React.CSSProperties}>{memberInitials(team.name)}</span><span><strong>{team.name}</strong><small>{team.memberCount ?? team.memberIds.length} {pt ? 'pessoas' : 'people'} · {team.projectCount || 0} {pt ? 'projetos' : 'projects'}</small></span><ArrowRight /></button>)}</section>}</aside>
+        <section className="teams-hub-detail">{!selected ? <p>{loading ? pt ? 'Carregando equipes…' : 'Loading teams…' : directoryError ? pt ? 'A lista de equipes está indisponível. Tente carregar novamente.' : 'The team list is unavailable. Try loading again.' : pt ? 'Nenhuma equipe por aqui ainda.' : 'No teams here yet.'}</p> : <><header className="team-overview-head"><span className="team-mark large" style={{ '--accent': memberColor(selected.id) } as React.CSSProperties}>{memberInitials(selected.name)}</span><div><h2>{selected.name}</h2><div className="team-meta"><span><UsersRound size={14} />{selected.memberCount ?? selected.memberIds.length} {pt ? 'pessoas' : 'people'}</span><span><FolderKanban size={14} />{projects.length || selected.projectCount || 0} {pt ? 'projetos' : 'projects'}</span>{captain && <span className="team-meta-captain"><PersonAvatar name={captain.displayName} id={captain.id} size={20} />{captain.displayName} · {pt ? 'capitão' : 'captain'}</span>}</div>{selected.description && <p>{selected.description}</p>}</div>{selected.canManage && <div className="teams-detail-actions"><button className="icon-only" type="button" aria-label={pt ? 'Editar equipe' : 'Edit team'} onClick={() => setDialog('edit-team')}><Pencil /></button><button className="icon-only danger" type="button" aria-label={pt ? 'Excluir equipe' : 'Delete team'} disabled={busy} onClick={() => void deleteTeam()}><Trash2 /></button></div>}</header>
           {internal ? <>
             <nav className="workspace-section-tabs" aria-label={pt ? 'Áreas da equipe' : 'Team areas'}><button type="button" aria-current={teamArea === 'projects' ? 'page' : undefined} onClick={() => setTeamArea('projects')}>{pt ? 'Projetos' : 'Projects'}</button><button type="button" aria-current={teamArea === 'people' ? 'page' : undefined} onClick={() => setTeamArea('people')}>{pt ? 'Pessoas' : 'People'}</button>{selected.canManage && <button type="button" aria-current={teamArea === 'invitations' ? 'page' : undefined} onClick={() => setTeamArea('invitations')}>{pt ? 'Convites' : 'Invitations'}</button>}</nav>
             {teamArea === 'projects' && <section className="teams-projects-section"><div className="teams-hub-section-title"><h3>{pt ? 'Projetos' : 'Projects'}</h3><div className="teams-view-toggle"><button type="button" className={projectView === 'list' ? 'active' : ''} onClick={() => setProjectView('list')}><LayoutGrid />{pt ? 'Lista' : 'List'}</button><button type="button" className={projectView === 'hierarchy' ? 'active' : ''} onClick={() => setProjectView('hierarchy')}><Network />{pt ? 'Organograma' : 'Chart'}</button></div></div>
+              {projectsLoading && <div className="team-project-load" role="status"><LoaderCircle size={16}/>{pt ? 'Carregando projetos da equipe…' : 'Loading team projects…'}</div>}
+              {projectsFailed && <div className="team-project-load" role="alert"><p>{projectLoad.status === 'denied' ? pt ? 'Os projetos não estão disponíveis para seu acesso atual. Confira sua participação na equipe.' : 'Projects are unavailable with your current access. Check your team membership.' : pt ? 'Não foi possível carregar os projetos desta equipe. Tente novamente; eles não foram removidos por esta falha de conexão.' : 'Team projects could not be loaded. Retry; this connection failure did not remove them.'}</p><button type="button" onClick={() => setProjectRetry(value => value + 1)}>{pt ? 'Recarregar projetos' : 'Reload projects'}</button></div>}
+              {!projectsLoading && !projectsFailed && !projects.length && <p>{pt ? 'Nenhum projeto disponível para sua participação nesta equipe.' : 'No project is available for your membership in this team.'}</p>}
+              {!projectsLoading && !projectsFailed && <button type="button" onClick={() => setProjectRetry(value => value + 1)}>{pt ? 'Atualizar projetos' : 'Refresh projects'}</button>}
               {projectView === 'hierarchy' ? <OrganizationTree tree={teamOrganization(selected, selectedMembers, projects)} view="hierarchy" language={language} onOpenProject={onOpenProject} projectTypes={projectTypes} collapseSectors />
                 : <div className="project-card-grid">{projects.map(p => {
                   const lead = p.participants.find(x => x.roleId === 'captain');
@@ -76,6 +106,7 @@ export function TeamsHubPage({ language, initialTeamId = '', onTeamsChanged, onO
                 })}<button type="button" className="project-card new" onClick={() => { window.localStorage.setItem('norte-default-team-v1', selected.id); window.location.hash = '#/new-project'; }}><Plus size={22} /><span>{pt ? 'Novo projeto' : 'New project'}</span></button></div>}
             </section>}
             {teamArea === 'people' && <section className="teams-people-section"><div className="teams-hub-section-title"><h3>{pt ? 'Pessoas' : 'People'}<InfoTip label={pt ? 'Sobre a atividade' : 'About activity'}>{pt ? 'Responsáveis autorizados veem último acesso e resumos de participação nos projetos por 30 dias. Não são registrados cliques, documentos abertos nem horas de produtividade.' : 'Authorized leaders see last access and 30-day participation summaries. Clicks, opened documents and productivity hours are not recorded.'}</InfoTip></h3></div>
+              {membersLoading && <p role="status">{pt ? 'Carregando pessoas…' : 'Loading people…'}</p>}
               <div className="people-grid">{selectedMembers.map(m => { const mine = projectsOf(m.id); const isCaptain = m.id === selected.captainMemberId; return <article key={m.id} className="person-card">
                 <PersonAvatar name={m.displayName} id={m.id} size={44} />
                 <div><strong>{m.displayName}</strong><span>{m.nickname ? `@${m.nickname}` : (pt ? 'perfil preservado' : 'preserved profile')}</span><span className="person-card-chips">{isCaptain && <em className="chip captain">{pt ? 'Capitão' : 'Captain'}</em>}{mine.length > 0 && <em className="chip">{mine.length} {pt ? (mine.length === 1 ? 'projeto' : 'projetos') : (mine.length === 1 ? 'project' : 'projects')}</em>}</span></div>
@@ -83,7 +114,7 @@ export function TeamsHubPage({ language, initialTeamId = '', onTeamsChanged, onO
               </article>; })}</div>
             </section>}
             {teamArea === 'invitations' && selected.canManage && <TeamInvitations key={selected.id} teamId={selected.id} language={language} />}
-          </> : <><p>{pt ? 'A participação acontece por convite. Compartilhe seu nickname com a equipe para que ela possa encontrar seu perfil.' : 'Membership is by invitation. Share your nickname so the team can find your profile.'}</p><h3>{pt ? 'Projetos públicos' : 'Public projects'}</h3>{projects.map(p => <article className="public-project-summary" key={p.id}><Network size={18} /><strong>{p.name}</strong></article>)}{!projects.length && <p>{pt ? 'Esta equipe ainda não publicou resumos de projetos.' : 'This team has not published project summaries yet.'}</p>}<p>{pt ? 'Pessoas, documentos e estatísticas internas têm acesso restrito.' : 'People, files and internal insights have restricted access.'}</p></>}
+          </> : <><p>{pt ? 'A participação acontece por convite. Compartilhe seu nickname com a equipe para que ela possa encontrar seu perfil.' : 'Membership is by invitation. Share your nickname so the team can find your profile.'}</p><h3>{pt ? 'Projetos públicos' : 'Public projects'}</h3>{projectsLoading && <p role="status">{pt ? 'Carregando resumos públicos…' : 'Loading public summaries…'}</p>}{projectsFailed && <div className="team-project-load" role="alert"><p>{pt ? 'Os resumos públicos não estão disponíveis agora.' : 'Public summaries are unavailable right now.'}</p><button type="button" onClick={() => setProjectRetry(value => value + 1)}>{pt ? 'Recarregar projetos' : 'Reload projects'}</button></div>}{projects.map(p => <article className="public-project-summary" key={p.id}><Network size={18} /><strong>{p.name}</strong></article>)}{!projectsLoading && !projectsFailed && !projects.length && <p>{pt ? 'Esta equipe ainda não publicou resumos de projetos.' : 'This team has not published project summaries yet.'}</p>}<p>{pt ? 'Pessoas, documentos e estatísticas internas têm acesso restrito.' : 'People, files and internal insights have restricted access.'}</p></>}
         </>}</section>
       </div>
     </main>

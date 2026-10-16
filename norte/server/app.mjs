@@ -525,12 +525,12 @@ export async function buildApp(options = {}) {
   function getSessionUser(request) {
     const token = request.cookies[cookieName];
     if (!token) return null;
-    const data = store.read();
-    const session = data.sessions.find((item) => item.tokenHash === hashToken(token) && item.expiresAt > Date.now());
-    if (!session) return null;
-    const user = data.users.find((item) => item.id === session.userId && item.active);
-    if (!user) return null;
-    return { session, user };
+    return store.read(data => {
+      const session = data.sessions.find((item) => item.tokenHash === hashToken(token) && item.expiresAt > Date.now());
+      if (!session) return null;
+      const user = data.users.find((item) => item.id === session.userId && item.active);
+      return user ? { session, user } : null;
+    });
   }
 
   function demoRecoveryHash(request) {
@@ -694,7 +694,9 @@ export async function buildApp(options = {}) {
   }
 
   app.addHook("onRequest", async (request) => {
-    if (request.url.startsWith("/api/")) await store.refresh?.();
+    // Health already checks PostgreSQL with SELECT 1. It must not wait behind
+    // document writes or download the complete state to prove connectivity.
+    if (request.url.startsWith("/api/") && request.url.split("?", 1)[0] !== "/api/health") await store.refresh?.();
     if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) return;
     const origin = request.headers.origin;
     if (!origin) return;
@@ -725,16 +727,17 @@ export async function buildApp(options = {}) {
   }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const auth = getSessionUser(request);
-    const currentData = store.read();
-    const hasOwner = currentData.users.some((user) => user.accessRole === "owner_admin" && user.active);
-    const bootstrapRequired = production && !administrationInitialized(currentData);
+    const { hasOwner, bootstrapRequired } = store.read(data => ({
+      hasOwner: data.users.some((user) => user.accessRole === "owner_admin" && user.active),
+      bootstrapRequired: production && !administrationInitialized(data)
+    }));
     if (auth?.user.isDemoAccount) {
       const recoveryToken = await store.update(data => retainDemo(data, request, auth.user.id));
       setDemoCookie(reply, recoveryToken);
     }
-    const demoResumeAvailable = demoAccount && Boolean(resumableDemo(store.read(), request) || auth?.user.demoSandboxOwner);
+    const demoResumeAvailable = demoAccount && store.read(data => Boolean(resumableDemo(data, request) || auth?.user.demoSandboxOwner));
     if (!auth) return { authenticated: false, hasOwner, bootstrapRequired, demoAvailable: demoAccount, demoResumeAvailable };
-    return { authenticated: true, hasOwner, bootstrapRequired, demoAvailable: demoAccount, demoResumeAvailable, user: publicUser(auth.user, store.read().environment), csrfToken: auth.session.csrfToken };
+    return { authenticated: true, hasOwner, bootstrapRequired, demoAvailable: demoAccount, demoResumeAvailable, user: store.read(data => publicUser(auth.user, data.environment)), csrfToken: auth.session.csrfToken };
   });
 
   app.post("/api/auth/demo", {
@@ -959,8 +962,7 @@ export async function buildApp(options = {}) {
   app.get("/api/teams", {
     preHandler: [requireAuth],
     schema: { tags: ["Team"], summary: "List available and associated teams", security: [{ sessionCookie: [] }] }
-  }, async (request) => {
-    const data = store.read();
+  }, async (request) => store.read(data => {
     return {
       teams: data.teams.filter((team) => sameDemoScope(request.auth.user, team)).map((team) => {
         const membership = team.memberIds.includes(request.auth.user.memberId) ? "member" : "available";
@@ -981,7 +983,7 @@ export async function buildApp(options = {}) {
         };
       })
     };
-  });
+  }));
 
   app.get("/api/teams/:id/projects", {
     preHandler: [requireAuth],
@@ -989,8 +991,7 @@ export async function buildApp(options = {}) {
       tags: ["Team"], summary: "List a team's projects and project participants", security: [{ sessionCookie: [] }],
       params: { type: "object", additionalProperties: false, required: ["id"], properties: { id: string(100, 1) } }
     }
-  }, async (request) => {
-    const data = store.read();
+  }, async (request) => store.read(data => {
     const team = data.teams.find((item) => item.id === request.params.id);
     if (!team) throw httpError(404, "TEAM_NOT_FOUND", "Team was not found.");
     if (!team.memberIds.includes(request.auth.user.memberId) && !canManageNamedTeam(data, request.auth.user, team)) {
@@ -1023,7 +1024,7 @@ export async function buildApp(options = {}) {
         };
       });
     return { projects, validationResetId: data.workspace.validationResetId ?? null };
-  });
+  }));
 
   app.get("/api/directory/members", {
     preHandler: [requireAuth],
@@ -1155,8 +1156,7 @@ export async function buildApp(options = {}) {
   app.get("/api/team/members", {
     preHandler: [requireAuth],
     schema: { tags: ["Team"], summary: "List mission team profiles", security: [{ sessionCookie: [] }] }
-  }, async (request) => {
-    const data = store.read();
+  }, async (request) => store.read(data => {
     const visibleMemberIds = new Set([request.auth.user.memberId]);
     for (const team of data.teams) {
       if (!team.memberIds.includes(request.auth.user.memberId) && !canManageNamedTeam(data, request.auth.user, team)) continue;
@@ -1164,7 +1164,7 @@ export async function buildApp(options = {}) {
 
     }
     return { members: data.members.filter((member) => visibleMemberIds.has(member.id)).map((member) => publicMember(data, member)) };
-  });
+  }));
 
   app.patch("/api/team/members/:id", {
     preHandler: [requireAuth, requireCsrf],
@@ -1662,14 +1662,13 @@ export async function buildApp(options = {}) {
   app.get("/api/projects", {
     preHandler: [requireAuth],
     schema: { tags: ["System"], summary: "List projects associated with the account", security: [{ sessionCookie: [] }] }
-  }, async (request) => {
-    const data = store.read();
+  }, async (request) => store.read(data => {
     const projects = Object.values(data.workspace.projects || {})
       .filter((record) => canAccessProject(data, request.auth.user, record))
       .sort((left, right) => String(right.updatedAt).localeCompare(String(left.updatedAt)))
       .map(projectSummary);
     return { projects, validationResetId: data.workspace.validationResetId ?? null };
-  });
+  }));
 
   app.post("/api/projects", {
     bodyLimit: 32 * 1024 * 1024,
@@ -1708,13 +1707,12 @@ export async function buildApp(options = {}) {
   app.get("/api/projects/:id", {
     preHandler: [requireAuth],
     schema: { tags: ["System"], summary: "Open an associated project", security: [{ sessionCookie: [] }], params: projectParams }
-  }, async (request) => {
-    const data = store.read();
+  }, async (request) => store.read(data => {
     const record = data.workspace.projects?.[request.params.id];
     if (!record) throw httpError(404, "PROJECT_NOT_FOUND", "Project was not found.");
     if (!canAccessProject(data, request.auth.user, record)) throw httpError(403, "FORBIDDEN", "You cannot open this project.");
     return { project: record.document, revision: record.revision, updatedAt: record.updatedAt };
-  });
+  }));
 
   app.get('/api/projects/:id/system-history', { preHandler: [requireAuth], schema: { params: projectParams } }, async request => {
     const record = extractionProject(store.read(), request.auth.user, request.params.id);

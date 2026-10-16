@@ -3,7 +3,7 @@ import test from 'node:test';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { newDb } from 'pg-mem';
+import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
 import { createValidationProject, normalizeStoredData } from './data-store.mjs';
@@ -15,8 +15,7 @@ import { renderArtifactPdf } from './artifact-pdf.mjs';
 async function fixture(t, postgres = false) {
   const directory = await mkdtemp(join(tmpdir(), 'norte-organization-'));
   const storeFile = join(directory, 'state.json');
-  const adapter = postgres && newDb().adapters.createPg();
-  const store = adapter && await new PostgresDataStore('postgresql://test', { pool: new adapter.Pool() }).init();
+  const store = postgres && await new PostgresDataStore('postgresql://test', { pool: createMemoryPostgresPool() }).init();
   let app = await buildApp({ ...(store ? { store } : { storeFile }), logger: false });
   t.after(async () => { await app.close(); await rm(directory, { recursive: true, force: true }); });
   async function account(name) {

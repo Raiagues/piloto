@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { newDb } from "pg-mem";
+import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from "./app.mjs";
 import { PostgresDataStore } from "./postgres-store.mjs";
 
 test("the PostgreSQL adapter persists accounts, sessions and workspace data", async (t) => {
-  const database = newDb();
-  const adapter = database.adapters.createPg();
-  const pool = new adapter.Pool();
+  const pool = createMemoryPostgresPool();
   const store = await new PostgresDataStore("postgresql://test", { pool }).init();
   const app = await buildApp({ store, databaseUrl: "postgresql://test", logger: false, ai: { apiKey: "" } });
   t.after(async () => app.close());

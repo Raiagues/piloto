@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { newDb } from "pg-mem";
+import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { createInitialData, normalizeStoredData, JsonDataStore, VALIDATION_PROJECT_ID, VALIDATION_TEAM_ID } from "./data-store.mjs";
 import { assertResetEnvironment, resetJsonFile, resetPostgres, resetValidationData } from "../scripts/reset-validation-data.mjs";
 
@@ -110,11 +110,9 @@ test("JSON reset creates a private complete backup before replacing the local st
 
 test("PostgreSQL reset uses the same guarded state operation and backs up existing account data", async (t) => {
   const dir = await mkdtemp(join(tmpdir(), "norte-pg-reset-"));
-  const db = newDb();
-  const adapter = db.adapters.createPg();
-  const pool = new adapter.Pool();
+  const pool = createMemoryPostgresPool();
   t.after(async () => { await pool.end(); await rm(dir, { recursive: true, force: true }); });
-  await pool.query("CREATE TABLE norte_state (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW())");
+  await pool.query("CREATE TABLE norte_state (id TEXT PRIMARY KEY, data JSONB NOT NULL, updated_at TIMESTAMPTZ DEFAULT NOW(), revision BIGINT NOT NULL DEFAULT 0)");
   const original = legacyState();
   await pool.query("INSERT INTO norte_state (id, data) VALUES ($1, $2)", ["primary", JSON.stringify(original)]);
   const result = await resetPostgres("postgresql://localhost/norte_test", allowed, { pool, backupDirectory: dir });

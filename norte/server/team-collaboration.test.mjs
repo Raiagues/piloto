@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { newDb } from 'pg-mem';
+import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
 import { createInitialData, createValidationProject, normalizeStoredData } from './data-store.mjs';
@@ -14,8 +14,8 @@ import { assertPreviewEnvironment, seedTeamPreview } from '../scripts/seed-team-
 
 async function fixture(t, pg = false, configured = true) {
   const directory = await mkdtemp(join(tmpdir(), 'norte-teams-'));
-  const outbox = [], adapter = pg && newDb().adapters.createPg();
-  const store = adapter && await new PostgresDataStore('postgres://test', { pool: new adapter.Pool() }).init();
+  const outbox = [];
+  const store = pg && await new PostgresDataStore('postgres://test', { pool: createMemoryPostgresPool() }).init();
   const app = await buildApp({ ...(store ? { store } : { storeFile: join(directory, 'state.json') }), logger: false, mailer: { configured, publicUrl: 'https://norte.example.test/norte/', async send(message) { outbox.push(message); } } });
   t.after(async () => { await app.close(); await rm(directory, { recursive: true, force: true }); });
   async function register(name, email = `${name}@example.test`, nickname = name.toLowerCase()) {

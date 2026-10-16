@@ -84,6 +84,7 @@ export async function resetPostgres(databaseUrl, env = process.env, options = {}
   const pool = options.pool ?? new (await import("pg")).default.Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 10_000, application_name: "norte-validation-reset" });
   const client = await pool.connect();
   try {
+    await client.query("ALTER TABLE norte_state ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 0");
     await client.query("BEGIN");
     const result = await client.query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", ["primary"]);
     if (result.rows.length !== 1) throw new Error("Reset refused: no existing Norte state found.");
@@ -91,7 +92,7 @@ export async function resetPostgres(databaseUrl, env = process.env, options = {}
     const next = resetValidationData(original);
     const backupPath = resolve(options.backupDirectory ?? "var/backups", `validation-postgres-${Date.now()}-${randomUUID()}.json`);
     await backupSnapshot(backupPath, original);
-    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW() WHERE id = $1", ["primary", JSON.stringify(next)]);
+    await client.query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1", ["primary", JSON.stringify(next)]);
     await client.query("COMMIT");
     return { backupPath, ...validationSummary(next) };
   } catch (error) {

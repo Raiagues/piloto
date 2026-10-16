@@ -142,9 +142,9 @@ export class JsonDataStore {
     return this;
   }
 
-  read() {
+  read(select = value => value) {
     if (!this.data) throw new Error("Data store was not initialized.");
-    return clone(this.data);
+    return clone(select(this.data));
   }
 
   update(mutator) {

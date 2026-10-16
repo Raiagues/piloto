@@ -164,3 +164,21 @@ Validação desta rodada:
 - Reuniões: PDF real do exemplo, cópia privada editável, revisão humana, recarga, áudio WebRTC local nos dois sentidos e mute. A operação entre redes externas continua dependente da infraestrutura TURN configurada no serviço.
 
 As evidências detalhadas e capturas ficam em `.runtime/validation/` e nos logs locais citados; dados privados e arquivos de ambiente não integram o commit. O build ainda informa um pacote principal acima de 500 kB. O leitor PDF e seu worker ficam em arquivos separados.
+
+## Recuperação de projetos e acesso a ideias — 16/10/2026
+
+O incidente no Render apresentou projetos ausentes na interface e a entrada de ideias desativada. O evento de falha do servidor registrou timeout de cinco segundos na verificação de saúde; os logs mostraram consultas de equipe e projetos aguardando a mesma fila de recarga integral do estado. Não houve indicação de exclusão de projetos nessa falha.
+
+A verificação de saúde agora consulta a conexão PostgreSQL sem entrar na fila dos documentos. As demais consultas verificam a revisão do estado e só transferem o JSON quando ele muda. O marcador de data também detecta gravações de instâncias antigas durante a publicação. Leituras de autenticação, equipes e projetos clonam apenas o resultado necessário. A migração acrescenta uma coluna, preservando os dados existentes.
+
+A interface distingue falha de carregamento de uma lista vazia, permite tentar novamente e mantém a entrada de ideias disponível para selecionar ou recuperar o projeto. O carregamento de equipes e pessoas não condiciona o acesso aos projetos. Respostas de acesso negado descartam os dados em cache correspondentes; resumos públicos não reutilizam listas privadas. Atualizar a lista não substitui um documento aberto nem o rascunho de uma ideia.
+
+Validações específicas em ambiente isolado:
+
+- Seis regressões passaram com PostgreSQL 17 real: migração de tabela anterior, consultas simultâneas, gravação concorrente e rollback, atualização por outra instância, revogação após um SELECT em andamento e saúde independente da fila. O contêiner descartável foi removido.
+- Sessenta e quatro regressões de servidor, autenticação, demonstração, equipes e organização passaram antes da verificação integrada.
+- O teste de navegação preservou edições durante gravação atrasada, falha de gravação e nova tentativa. Evidência: `.runtime/project-recovery-navigation.log`.
+- A verificação integrada passou com 171 testes de interface e 406 de servidor, além de TypeScript, ESLint e build. O lint inicial apontou seis problemas no novo script de teste; foram corrigidos antes da execução final de ESLint. Logs: `.runtime/project-recovery-quality.log`, `project-recovery-lint.log` e `project-recovery-build-final.log`. Permanece o aviso de tamanho do pacote principal.
+- O navegador reproduziu HTTP 502 e 403, recuperação dos cartões, seleção de projeto em ideias, separação de cache público/privado e preservação do rascunho. Com a resposta de equipes retida, editar e salvar o projeto funcionou; com a resposta de pessoas retida, os cartões apareceram. Evidência: `.runtime/validation/project-loading-browser.json`.
+
+Esta rodada não configura áudio, não altera plano do Render, não abre o banco para acesso externo e não executa chamadas de IA.

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
-import { newDb } from 'pg-mem';
+import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
 
@@ -102,12 +102,10 @@ test('restart without the consumed secret preserves login and ordinary registrat
 });
 
 test('Postgres normalization preserves consumed bootstrap metadata across a new store instance', async t => {
-  // pg-mem's AST coverage checker rejects the second IF NOT EXISTS DDL even
-  // though that statement correctly leaves the existing table unchanged.
-  const database = newDb({ noAstCoverageCheck: true }), adapter = database.adapters.createPg(), token = randomBytes(32).toString('hex');
+  const pool = createMemoryPostgresPool(), token = randomBytes(32).toString('hex');
   let app;
   const start = async bootstrapToken => {
-    const store = await new PostgresDataStore('postgresql://isolated-test', { pool: new adapter.Pool() }).init();
+    const store = await new PostgresDataStore('postgresql://isolated-test', { pool }).init();
     const previous = process.env.NODE_ENV;
     process.env.NODE_ENV = 'production';
     try {

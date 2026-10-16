@@ -1,5 +1,6 @@
 import { goBack, initializeNavigation } from "./lib/navigation";
 import { IdeasPage } from "./pages/IdeasPage";
+import { ProjectAccessPanel } from "./components/ProjectAccessPanel";
 import { ProjectGuide, JourneyHint, FirstVisit } from "./components/ProjectJourney";
 import { AppHeader } from "./components/AppHeader";
 import { TeamDashboardPage } from "./pages/TeamDashboardPage";
@@ -30,6 +31,7 @@ import { VerificationPage } from "./pages/VerificationPage";
 import { DiscoveryPanel, useDiscoveryPanel } from "./components/DiscoveryPanel";
 import type { RailKey } from "./lib/projectRail";
 import { ApiError, useAuth } from "./lib/auth";
+import { canRetainReadCache } from './lib/projectLoading';
 import { getStoredLanguage, resolveText, setStoredLanguage } from "./lib/i18n";
 import { createEmptyProject, loadProject, normalizeProject, completeConception, recordMemoryRevision, saveProject } from "./lib/projectStore";
 import type { MissionProject } from "./lib/projectStore";
@@ -98,7 +100,13 @@ export function App() {
   const [sidebarExpanded, setSidebarExpanded] = useState(() => storedPreference("norte-sidebar-expanded") ? storedPreference("norte-sidebar-expanded") === "true" : window.innerWidth >= 1000);
   useEffect(() => { const media = window.matchMedia('(max-width: 900px)'); const collapse = () => { if (media.matches) setSidebarExpanded(false); }; collapse(); media.addEventListener('change', collapse); return () => media.removeEventListener('change', collapse); }, []);
   const discovery = useDiscoveryPanel();
-  const [activeProjectId, setActiveProjectId] = useState(() => storedPreference(ACTIVE_PROJECT_KEY));
+  const [activeProjectId, setActiveProjectId] = useState("");
+  const [projectLoadError, setProjectLoadError] = useState("");
+  const [teamLoadError, setTeamLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [openingProjectId, setOpeningProjectId] = useState("");
+  const loadedUserRef = useRef("");
+  const failedOpenRef = useRef<{ id: string; overview: boolean; destination?: "ideas" } | null>(null);
   const [saveError, setSaveError] = useState("");
   const [meetingNavigationError, setMeetingNavigationError] = useState("");
   const meetingRunning = useRef(false);
@@ -114,8 +122,9 @@ export function App() {
   const draftRef = useRef(false);
   const appliedMaps = useRef(new Map<string, { previousGeneratedAt?: string; model: EngineeringSystemModel }>());
 
-  const refreshProjects = useCallback(async () => {
-    const response = await auth.api<{ projects: ProjectSummary[]; validationResetId?: string | null }>("/projects");
+  const refreshProjects = useCallback(async (signal?: AbortSignal) => {
+    const response = await auth.api<{ projects: ProjectSummary[]; validationResetId?: string | null }>("/projects", { signal });
+    if (signal?.aborted) throw signal.reason;
     if (response.validationResetId && window.localStorage.getItem("norte-validation-reset-id") !== response.validationResetId) {
       // Only an explicitly guarded reset authorizes clearing obsolete workspace caches.
       const keys = Array.from({ length: window.localStorage.length }, (_, index) => window.localStorage.key(index));
@@ -126,8 +135,9 @@ export function App() {
     return response.projects;
   }, [auth.api]);
 
-  const refreshTeams = useCallback(async () => {
-    const response = await auth.api<{ teams: TeamRecord[] }>("/teams");
+  const refreshTeams = useCallback(async (signal?: AbortSignal) => {
+    const response = await auth.api<{ teams: TeamRecord[] }>("/teams", { signal });
+    if (signal?.aborted) throw signal.reason;
     setTeams(response.teams);
     return response.teams;
   }, [auth.api]);
@@ -239,55 +249,60 @@ export function App() {
   }, [auth.isDemo, refreshProjects, refreshTeams]);
 
   useEffect(() => {
-    let cancelled = false;
-    cloudReadyRef.current = false;
-    appliedMaps.current.clear();
-    persistableRef.current = false;
-    draftRef.current = false;
-    setIsDraft(false);
-    setLoadingProjects(true);
-
-    void Promise.all([refreshProjects(), refreshTeams()])
-      .then(async ([summaries]) => {
-        if (cancelled || draftRef.current) return;
-        if (summaries.length === 0) {
-          const empty = createEmptyProject(getStoredLanguage());
-          const directDraft = ["setup", "projectTeam"].includes(getRoute());
-          draftRef.current = directDraft;
-          setIsDraft(directDraft);
-          projectRef.current = empty;
-          setProject(empty);
-          setActiveProjectId("");
-          window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+    const controller = new AbortController(), navigation = projectNavigationRef.current;
+    const owner = auth.user?.id || '', sameOwner = loadedUserRef.current === owner;
+    const alreadyOpen = sameOwner && persistableRef.current && !draftRef.current;
+    if (!sameOwner) {
+      cloudReadyRef.current = false; persistableRef.current = false;
+      appliedMaps.current.clear(); draftRef.current = false; setIsDraft(false); setActiveProjectId('');
+      setProjects([]); setTeams([]);
+    }
+    setLoadingProjects(true); setProjectLoadError(''); setTeamLoadError(false); failedOpenRef.current = null;
+    // Independent reads: a directory outage must not hide a project. Retrying
+    // lists for the same account never replaces its open document or local edits.
+    void refreshTeams(controller.signal).catch(reason => {
+      if (!controller.signal.aborted) { setTeamLoadError(true); if (!canRetainReadCache(reason)) setTeams([]); }
+    });
+    const projectsRead = (async () => {
+      try {
+        const summaries = await refreshProjects(controller.signal);
+        if (controller.signal.aborted || draftRef.current || navigation !== projectNavigationRef.current) return;
+        if (alreadyOpen && summaries.some(item => item.id === projectRef.current.id)) return;
+        if (alreadyOpen) { persistableRef.current = false; cloudReadyRef.current = false; setActiveProjectId(''); }
+        if (!summaries.length) {
+          persistableRef.current = false; setActiveProjectId(''); window.localStorage.removeItem(ACTIVE_PROJECT_KEY);
+          if (!alreadyOpen) {
+            const empty = createEmptyProject(getStoredLanguage());
+            const directDraft = ['setup', 'projectTeam'].includes(getRoute());
+            draftRef.current = directDraft; setIsDraft(directDraft); projectRef.current = empty; setProject(empty);
+          }
+          loadedUserRef.current = owner;
           return;
         }
-
         const storedId = storedPreference(ACTIVE_PROJECT_KEY);
-        const preferredId = summaries.some((item) => item.id === storedId)
-          ? storedId
-          : summaries.some((item) => item.id === projectRef.current.id) ? projectRef.current.id : summaries[0].id;
-        const response = await auth.api<{ project: MissionProject }>("/projects/" + preferredId);
-        if (cancelled || !response.project) return;
+        const preferredId = summaries.some(item => item.id === storedId) ? storedId
+          : summaries.some(item => item.id === projectRef.current.id) ? projectRef.current.id : summaries[0].id;
+        const response = await auth.api<{ project: MissionProject }>('/projects/' + preferredId, { signal: controller.signal });
+        if (controller.signal.aborted || draftRef.current || navigation !== projectNavigationRef.current) return;
         const normalized = normalizeProject(response.project, getStoredLanguage());
-        projectRef.current = normalized;
-        setProject(saveProject(normalized));
-        persistableRef.current = true;
-        setActiveProjectId(normalized.id);
-        window.localStorage.setItem(ACTIVE_PROJECT_KEY, normalized.id);
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) {
-          cloudReadyRef.current = true;
-          setLoadingProjects(false);
+        projectRef.current = normalized; setProject(saveProject(normalized));
+        persistableRef.current = true; loadedUserRef.current = owner;
+        setActiveProjectId(normalized.id); window.localStorage.setItem(ACTIVE_PROJECT_KEY, normalized.id);
+      } catch (reason) {
+        if (!controller.signal.aborted && navigation === projectNavigationRef.current) {
+          setProjectLoadError('load');
+          if (!canRetainReadCache(reason)) { persistableRef.current = false; cloudReadyRef.current = false; setActiveProjectId(''); setProjects([]); setProjectLoadError('access'); }
         }
-      });
-
-    return () => {
-      cancelled = true;
-      cloudReadyRef.current = false;
-    };
-  }, [auth.api, auth.user?.id, auth.user?.emailVerifiedAt, membershipRevision, refreshProjects, refreshTeams]);
+      }
+    })();
+    void projectsRead.finally(() => {
+      if (!controller.signal.aborted) {
+        cloudReadyRef.current = persistableRef.current;
+        setLoadingProjects(false);
+      }
+    });
+    return () => controller.abort();
+  }, [auth.api, auth.user?.id, auth.user?.emailVerifiedAt, membershipRevision, loadAttempt, refreshProjects, refreshTeams]);
 
   useEffect(() => {
     const message = (event: MessageEvent) => {
@@ -372,45 +387,61 @@ export function App() {
     document.documentElement.lang = nextLanguage === "pt" ? "pt-BR" : "en";
   }
 
-  async function openProject(projectId: string, overview = false) {
+  async function openProject(projectId: string, overview = false, destination?: "ideas") {
     const navigation = ++projectNavigationRef.current, startingHash = window.location.hash;
+    setOpeningProjectId(projectId); setProjectLoadError(""); failedOpenRef.current = null;
     const saved = await flushProject();
-    if (!saved || navigation !== projectNavigationRef.current || window.location.hash !== startingHash) return;
+    if (!saved || navigation !== projectNavigationRef.current || window.location.hash !== startingHash) { if (navigation === projectNavigationRef.current) setOpeningProjectId(""); return; }
     try {
       const response = await auth.api<{ project: MissionProject }>("/projects/" + projectId);
       if (navigation !== projectNavigationRef.current || window.location.hash !== startingHash) return;
       const next = saveProject(normalizeProject(response.project, language));
       draftRef.current = false;
-      persistableRef.current = true;
+      persistableRef.current = true; cloudReadyRef.current = true; loadedUserRef.current = auth.user?.id || "";
       projectRef.current = next;
       setProject(next);
       setIsDraft(false);
       setActiveProjectId(next.id);
       window.localStorage.setItem(ACTIVE_PROJECT_KEY, next.id);
-      const nextRoute = !overview && ["preliminary", "brainstorm"].includes(next.navigation.lastRoute ?? "") ? "brainstorm" : "setup";
+      setProjects(current => current.some(item => item.id === next.id) ? current : [projectSummary(next), ...current]);
+      const nextRoute = destination === "ideas" ? "ideas" : !overview && ["preliminary", "brainstorm"].includes(next.navigation.lastRoute ?? "") ? "brainstorm" : "setup";
       const url = new URL(window.location.href);
       if (nextRoute === "brainstorm") url.searchParams.set("view", next.navigation.lastConceptionWorkspace ?? "system");
       else url.searchParams.delete("view");
-      url.hash = nextRoute === "brainstorm" ? "/brainstorming" : overview ? "/study-setup?tab=overview" : "/study-setup";
+      url.hash = nextRoute === "ideas" ? "/ideas" : nextRoute === "brainstorm" ? "/brainstorming" : overview ? "/study-setup?tab=overview" : "/study-setup";
       window.history.pushState({ ...window.history.state, norteIndex: undefined }, "", url);
       window.dispatchEvent(new HashChangeEvent("hashchange"));
       setRoute(nextRoute);
-    } catch {
+    } catch (reason) {
       if (navigation !== projectNavigationRef.current || window.location.hash !== startingHash) return;
-      const local = projects.find((item) => item.id === projectId);
-      if (local && projectRef.current.id === projectId) window.location.hash = ["preliminary", "brainstorm"].includes(projectRef.current.navigation.lastRoute ?? "") ? "#/brainstorming" : "#/study-setup";
+      if (!canRetainReadCache(reason)) {
+        setProjects(current => current.filter(item => item.id !== projectId));
+        if (projectRef.current.id === projectId) { persistableRef.current = false; cloudReadyRef.current = false; setActiveProjectId(''); }
+      }
+      failedOpenRef.current = { id: projectId, overview, destination };
+      setProjectLoadError(canRetainReadCache(reason) ? 'open' : 'access');
+    } finally {
+      if (navigation === projectNavigationRef.current) setOpeningProjectId('');
     }
   }
 
+  function retryProjectLoading() {
+    const failed = failedOpenRef.current;
+    if (failed) void openProject(failed.id, failed.overview, failed.destination);
+    else setLoadAttempt(value => value + 1);
+  }
+
   async function createProject(candidate: MissionProject) {
-    flushProject();
+    if (!await flushProject()) throw new Error(language === 'pt' ? 'Salve as alterações do projeto atual antes de criar outro.' : 'Save changes in the current project before creating another.');
     await saveQueueRef.current;
     const response = await auth.api<{ project: MissionProject }>("/projects", { method: "POST", body: JSON.stringify(candidate) });
     const next = saveProject(normalizeProject(response.project, language));
+    projectNavigationRef.current++; loadedUserRef.current = auth.user?.id || ""; cloudReadyRef.current = true;
     projectRef.current = next; setProject(next);
     persistableRef.current = true; draftRef.current = false; setIsDraft(false);
     setProjects(current => [projectSummary(next), ...current]);
-    await refreshTeams();
+    void refreshTeams().then(() => setTeamLoadError(false), () => setTeamLoadError(true));
+    setProjectLoadError(""); failedOpenRef.current = null;
     setActiveProjectId(next.id); window.localStorage.setItem(ACTIVE_PROJECT_KEY, next.id);
     window.location.hash = "#/study-setup";
   }
@@ -583,7 +614,9 @@ export function App() {
   if (route === "verification") page = <VerificationPage language={language} project={project} navigation={railNavigation} />;
   if (route === "brainstorm") page = <BrainstormPage key={`${project.id}:${route}`} language={language} project={project} t={t} onLanguageChange={changeLanguage} onProjectChange={changeProject} onHome={openHome} onBackSetup={openMemory} navigation={railNavigation} />;
 
-  if (!activeProjectId && !loadingProjects && ["setup", "projectTeam", "brainstorm", "ideas", "requirements", "verification", "schedule"].includes(route)) page = <ProjectGuide project={project} activeProject={false} teams={teams} language={language} route={route} />;
+  const projectReady = Boolean(activeProjectId && project.id === activeProjectId && persistableRef.current);
+  const loadingMessage = projectLoadError === 'access' ? language === 'pt' ? 'Este projeto não está disponível para seu acesso atual. Atualize a lista ou confira sua participação na equipe.' : 'This project is unavailable with your current access. Refresh the list or check your team membership.' : projectLoadError ? language === 'pt' ? 'Não foi possível carregar o projeto agora. Tente novamente; uma falha de conexão não significa que ele foi apagado.' : 'The project could not be loaded. Retry; a connection failure does not mean it was deleted.' : '';
+  if (!projectReady && ["setup", "projectTeam", "brainstorm", "ideas", "requirements", "verification", "schedule"].includes(route)) page = <ProjectAccessPanel language={language} ideas={route === 'ideas'} loading={loadingProjects} error={loadingMessage} projects={projects} opening={openingProjectId} onRetry={retryProjectLoading} onSelect={id => void openProject(id, false, route === 'ideas' ? 'ideas' : undefined)} onCreate={() => { window.location.hash = '#/new-project'; }} />;
 
   const discoveryAvailable = Boolean(activeProjectId) && !["people", "messages", "plans", "dashboard", "invitations", "home", "teams", "setup", "newProject", "admin", "ideas", "guide"].includes(route);
   const areaLabel = { guide: language === "pt" ? "Guia do projeto" : "Project guide", ideas: language === "pt" ? "Testar ideias" : "Test ideas", schedule: language === "pt" ? "Cronograma" : "Schedule", people: language === "pt" ? "Pessoas" : "People", messages: language === "pt" ? "Mensagens" : "Messages", plans: language === "pt" ? "Planos" : "Plans", meetings: language === "pt" ? "Reuniões" : "Meetings", dashboard: language === "pt" ? "Painel da equipe" : "Team dashboard", invitations: language === "pt" ? "Convites" : "Invitations", setup: language === "pt" ? "Memória do projeto" : "Project memory", projectTeam: language === "pt" ? "Equipe do projeto" : "Project team", brainstorm: language === "pt" ? "Concepção" : "Conception", requirements: language === "pt" ? "Requisitos" : "Requirements", verification: language === "pt" ? "Verificação" : "Verification", home: "", teams: "", newProject: "", admin: "" }[route];
@@ -598,8 +631,8 @@ export function App() {
   return (
     <div className={`${sidebarExpanded ? "app-shell sidebar-expanded" : "app-shell"} route-${route}${discovery.open && discoveryAvailable ? " discovery-open" : ""}`} style={discovery.open && discoveryAvailable ? { ["--discovery-width" as string]: `${discovery.width}px` } : undefined}>
       {meetingNavigationError && <div className="meetings-navigation-error" role="alert">{meetingNavigationError}</div>}
-      <MissionSidebar language={language} currentStep={currentStep} expanded={sidebarExpanded} connectedLabel={t("common.connected")} homeLabel={t("home.start")} teamLabel={language === "pt" ? "Equipes" : "Teams"} homeActive={route === "home"} teamActive={route === "teams"} meetingsActive={route === "meetings"} onMeetings={openMeetings} ideasActive={route === "ideas"} onIdeas={() => { if (route === "meetings") discovery.toggle(); else window.location.hash = "#/ideas"; }} projects={projects} projectTeamName={teams.find((team) => team.id === project.context.teamId)?.name || project.context.teamName} highestUnlockedStep={activeProjectId ? Math.max(1, project.phaseProgress.highestUnlockedStep) : -1} activeProjectId={activeProjectId} onToggle={() => setSidebarExpanded((current) => { window.localStorage.setItem("norte-sidebar-expanded", String(!current)); return !current; })} onHome={openHome} onTeam={openTeams} onProjectSelect={(id) => void openProject(id)} onStepSelect={openPipelineStep} activeArea={route in PROJECT_AREAS ? route : null} onAreaSelect={openArea} />
-      <div className="app-page"><AppHeader crumbs={crumbs} notice={auth.user?.demoAccount ? (language === "pt" ? "Sua conta de teste pode ser retomada neste navegador por 30 dias após o último acesso." : "Resume this test account in this browser for 30 days after your last visit.") : auth.user?.testEnvironment ? (language === "pt" ? "Ambiente de teste · cópia local dos dados" : "Test environment · local data copy") : undefined} language={language} title={areaLabel || ({ home: language === "pt" ? "Início" : "Home", teams: language === "pt" ? "Equipes" : "Teams", newProject: language === "pt" ? "Novo projeto" : "New project", admin: language === "pt" ? "Administração" : "Administration" } as Record<string, string>)[route] || ""} onHome={route !== "home" ? () => { flushProject(); goBack(route === "meetings" ? "#/meetings" : ["requirements", "verification", "schedule", "projectTeam", "brainstorm", "ideas"].includes(route) ? "#/study-setup" : "#/"); } : undefined} onLanguageChange={changeLanguage} canManageTeams={teams.some(team => team.canManage)} />{saveError && <div className="save-error" role="alert">{language === "pt" ? "Alterações não salvas: " : "Unsaved changes: "}{saveError}<button type="button" onClick={flushProject}>{language === "pt" ? "Tentar novamente" : "Retry"}</button></div>}<div className="app-content"><JourneyHint project={project} activeProject={Boolean(activeProjectId && activeProjectId === project.id && !loadingProjects)} teams={teams} language={language} route={route} />{page}</div></div>
+      <MissionSidebar language={language} currentStep={currentStep} expanded={sidebarExpanded} connectedLabel={t("common.connected")} homeLabel={t("home.start")} teamLabel={language === "pt" ? "Equipes" : "Teams"} homeActive={route === "home"} teamActive={route === "teams"} meetingsActive={route === "meetings"} onMeetings={openMeetings} ideasActive={route === "ideas"} onIdeas={() => { if (route === "meetings" && projectReady) discovery.toggle(); else window.location.hash = "#/ideas"; }} projects={projects} loadingProjects={loadingProjects} projectLoadFailed={Boolean(projectLoadError)} projectTeamName={projectReady ? teams.find((team) => team.id === project.context.teamId)?.name || project.context.teamName : ""} highestUnlockedStep={activeProjectId ? Math.max(1, project.phaseProgress.highestUnlockedStep) : -1} activeProjectId={activeProjectId} onToggle={() => setSidebarExpanded((current) => { window.localStorage.setItem("norte-sidebar-expanded", String(!current)); return !current; })} onHome={openHome} onTeam={openTeams} onProjectSelect={(id) => void openProject(id, false, route === "ideas" ? "ideas" : undefined)} onStepSelect={openPipelineStep} activeArea={route in PROJECT_AREAS ? route : null} onAreaSelect={openArea} />
+      <div className="app-page"><AppHeader crumbs={crumbs} notice={auth.user?.demoAccount ? (language === "pt" ? "Sua conta de teste pode ser retomada neste navegador por 30 dias após o último acesso." : "Resume this test account in this browser for 30 days after your last visit.") : auth.user?.testEnvironment ? (language === "pt" ? "Ambiente de teste · cópia local dos dados" : "Test environment · local data copy") : undefined} language={language} title={areaLabel || ({ home: language === "pt" ? "Início" : "Home", teams: language === "pt" ? "Equipes" : "Teams", newProject: language === "pt" ? "Novo projeto" : "New project", admin: language === "pt" ? "Administração" : "Administration" } as Record<string, string>)[route] || ""} onHome={route !== "home" ? () => { flushProject(); goBack(route === "meetings" ? "#/meetings" : ["requirements", "verification", "schedule", "projectTeam", "brainstorm", "ideas"].includes(route) ? "#/study-setup" : "#/"); } : undefined} onLanguageChange={changeLanguage} canManageTeams={teams.some(team => team.canManage)} />{saveError && <div className="save-error" role="alert">{language === "pt" ? "Alterações não salvas: " : "Unsaved changes: "}{saveError}<button type="button" onClick={flushProject}>{language === "pt" ? "Tentar novamente" : "Retry"}</button></div>}{(projectLoadError || teamLoadError) && <div className="project-resource-notice" role="status"><span>{projectLoadError ? loadingMessage : language === "pt" ? "A lista de equipes não carregou. Você pode continuar no projeto aberto." : "The team directory could not be loaded. You can continue in the open project."}</span><button type="button" disabled={loadingProjects || Boolean(openingProjectId)} onClick={retryProjectLoading}>{language === "pt" ? "Recarregar dados" : "Reload data"}</button></div>}<div className="app-content"><JourneyHint project={project} activeProject={Boolean(activeProjectId && activeProjectId === project.id && !loadingProjects)} teams={teams} language={language} route={route} />{page}</div></div>
       {discoveryAvailable && discovery.open && <DiscoveryPanel language={language} project={project} width={discovery.width} contextLabel={areaLabel} onClose={discovery.close} onResize={discovery.resize} onProjectChange={changeProject} />}
       {!loadingProjects && <FirstVisit language={language} route={route} activeProject={Boolean(activeProjectId)} />}
       <ChatWidget key={auth.user?.id} language={language} project={activeProjectId ? project : undefined} />
