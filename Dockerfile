@@ -16,14 +16,15 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN python3 -m venv /opt/venv && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 COPY . ./
-# Opt-in demo corpus: public manufacturer references are downloaded only for
-# this deployment, pinned by SHA-256 and never committed to the repository.
-ARG NORTE_DEMO_ACCOUNT=0
+# The requested validation deployment includes Quetzal by default. Public
+# manufacturer references are pinned and downloaded only into this image.
+# An explicit build argument of 0 still disables corpus provisioning.
+ARG NORTE_DEMO_ACCOUNT=1
 RUN if [ "$NORTE_DEMO_ACCOUNT" = "1" ]; then python3 scripts/provision_quetzal_demo.py --optional; fi
 COPY --from=production-dependencies /build/node_modules ./norte/node_modules
 COPY --from=frontend /build/dist ./norte/dist
 RUN mkdir -p /app/.runtime && chown node:node /app/.runtime
-ENV PATH="/opt/venv/bin:$PATH" NODE_ENV=production NORTE_API_HOST=0.0.0.0 NORTE_DEMO_ACCOUNT=0 PORT=8000
+ENV PATH="/opt/venv/bin:$PATH" NODE_ENV=production NORTE_API_HOST=0.0.0.0 NORTE_DEMO_ACCOUNT=${NORTE_DEMO_ACCOUNT} PORT=8000
 USER node
 EXPOSE 8000
 CMD ["python3", "scripts/service.py", "serve"]

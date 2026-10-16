@@ -16,3 +16,6 @@ project-documents/quetzal-1/originals/local-reference
 project-documents/quetzal-1/extracted/local-reference
 tests
 norte/tests
+# Editor recovery files stay local.
+*.swp
+*.swo

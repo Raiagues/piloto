@@ -12,7 +12,9 @@ services:
       - key: NODE_ENV
         value: production
       - key: NORTE_DEMO_ACCOUNT
-        value: "0"
+        value: "1"
+      - key: NORTE_DEMO_PROFILE
+        value: validation
       - key: NORTE_MEETING_BRIDGE_SECRET
         generateValue: true
       - key: NORTE_BOOTSTRAP_TOKEN
