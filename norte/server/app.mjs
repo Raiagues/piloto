@@ -39,7 +39,7 @@ import { VALIDATION_DOCUMENTS_MISSING_MESSAGE } from "./validation-documents.mjs
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const HEARTBEAT_MIN_INTERVAL_MS = 25_000;
-const PASSWORD_MIN_LENGTH = 15;
+const PASSWORD_MIN_LENGTH = 8;
 const ACCESS_ROLES = ["owner_admin", "captain", "manager", "member", "advisor"];
 const MEMBER_STATUSES = ["demo", "invited", "active"];
 const ARTIFACT_KINDS = ["official", "document", "repository", "dataset", "link"];
@@ -60,6 +60,17 @@ const SAFE_ARTIFACT_MIME_TYPES = new Set([
   "text/plain"
 ]);
 const COMMON_PASSWORDS = new Set([
+  "12345678",
+  "123456789",
+  "1234567890",
+  "00000000",
+  "11111111",
+  "password",
+  "password1",
+  "password123",
+  "senha123",
+  "senha1234",
+  "qwerty123",
   "123456789012345",
   "passwordpassword",
   "senha1234567890",
@@ -188,7 +199,7 @@ function validateEmail(email) {
 
 function validatePassword(password) {
   if (password.length < PASSWORD_MIN_LENGTH || password.length > 128) return false;
-  return !COMMON_PASSWORDS.has(password.toLocaleLowerCase("en-US"));
+  return Boolean(password.trim()) && !COMMON_PASSWORDS.has(password.toLocaleLowerCase("en-US"));
 }
 
 function validateArtifactUrl(value) {
@@ -388,15 +399,18 @@ export async function buildApp(options = {}) {
   const administrationInitialized = data => Boolean(data.authBootstrap?.completedAt)
     || data.users.some(user => user.accessRole === "owner_admin" && !user.isDemoAccount);
   function requireInitialBootstrap(data, submittedToken) {
-    if (!production) return;
+    if (!production) return false;
     const supplied = typeof submittedToken === "string" ? submittedToken.trim() : "";
+    // Public registration is independent of server administration. Only an
+    // explicit setup credential can request the initial administrator role.
+    if (!supplied) return false;
     if (administrationInitialized(data)) {
-      if (supplied) throw httpError(409, "BOOTSTRAP_COMPLETE", "A configuração inicial já foi concluída. Atualize a página e crie sua conta sem o código inicial.");
-      return;
+      throw httpError(409, "BOOTSTRAP_COMPLETE", "A configuração inicial já foi concluída. Atualize a página e crie sua conta sem o código inicial.");
     }
     if (bootstrapToken.length < 32 || bootstrapToken.length > 512) throw httpError(503, "BOOTSTRAP_UNAVAILABLE", "Initial account setup is not configured.");
     const suppliedDigest = createHash("sha256").update(supplied).digest();
     if (!timingSafeEqual(bootstrapDigest, suppliedDigest)) throw httpError(403, "BOOTSTRAP_INVALID", "Informe um código de configuração inicial válido, fornecido pelo responsável pela instalação.");
+    return true;
   }
   const cookieName = options.cookieName || (production ? "__Host-norte_session" : "norte_session");
   const demoAccount = options.demoAccount ?? demoAccountEnabled(process.env, production);
@@ -743,7 +757,7 @@ export async function buildApp(options = {}) {
     const auth = getSessionUser(request);
     const { hasOwner, bootstrapRequired } = store.read(data => ({
       hasOwner: data.users.some((user) => user.accessRole === "owner_admin" && user.active),
-      bootstrapRequired: production && !administrationInitialized(data)
+      bootstrapRequired: false
     }));
     if (auth?.user.isDemoAccount && !demoRecoveryRecentlyRetained(auth.user, request)) {
       const recoveryToken = await store.update(data => retainDemo(data, request, auth.user.id));
@@ -798,7 +812,7 @@ export async function buildApp(options = {}) {
     const email = normalizeEmail(body.email);
     const password = normalizePassword(body.password);
     if (!validateEmail(email)) throw httpError(400, "INVALID_EMAIL", "Enter a valid email address.");
-    if (!validatePassword(password)) throw httpError(400, "WEAK_PASSWORD", `Use a passphrase with at least ${PASSWORD_MIN_LENGTH} characters.`);
+    if (!validatePassword(password)) throw httpError(400, "WEAK_PASSWORD", `Escolha uma senha com pelo menos ${PASSWORD_MIN_LENGTH} caracteres e evite senhas muito comuns.`);
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
       memoryCost: 19_456,
@@ -809,13 +823,13 @@ export async function buildApp(options = {}) {
     const user = await store.update((data) => {
       // Repeat under the store transaction/lock: concurrent requests cannot
       // both become the first owner or reuse a just-consumed setup token.
-      requireInitialBootstrap(data, body.bootstrapToken);
+      const authorizedInitialSetup = requireInitialBootstrap(data, body.bootstrapToken);
       const nickname = body.nickname ? normalizeNickname(body.nickname) : uniqueNickname(data.users, body.name);
       if (!validNickname(nickname)) throw httpError(400, "INVALID_NICKNAME", "Use 3 a 30 letras, números ou sublinhado, começando por uma letra.");
       if (data.users.some(u => u.nickname === nickname)) throw httpError(409, "NICKNAME_EXISTS", "Este nickname já está em uso.");
       if (data.users.some((item) => item.email === email)) throw httpError(409, "EMAIL_EXISTS", "An account already uses this email.");
       const timestamp = new Date().toISOString();
-      const isFirstAccount = production ? !administrationInitialized(data)
+      const isFirstAccount = production ? authorizedInitialSetup
         : !data.users.some((item) => item.accessRole === "owner_admin" && item.active);
       if (isFirstAccount || administrationInitialized(data)) data.authBootstrap ??= { completedAt: timestamp };
       const invitedMember = data.members.find((item) => item.email === email && !item.accountId);

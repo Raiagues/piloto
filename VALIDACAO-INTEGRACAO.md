@@ -345,3 +345,39 @@ As rotinas usam dados isolados e não chamam serviços de IA. Evidências privad
 `.runtime/validation/delivery-browser.json`,
 `.runtime/validation/schedule-redesign-browser.json` e capturas
 `schedule-redesign-*.png`. Logs de qualidade: `.runtime/schedule-final-*.log`.
+
+
+## Cadastro simplificado — 17/10/2026
+
+O cadastro público solicita somente nome, e-mail e senha. O nickname é gerado
+automaticamente e nomes iguais recebem identificadores distintos. A senha tem
+mínimo de oito caracteres, sem regras de maiúsculas ou símbolos, e um controle
+permite mostrar/ocultar o valor digitado. Foram retirados o campo de código
+inicial, o aviso sobre a primeira administração e os dois textos de apresentação
+indicados pelo usuário. O formulário fica centralizado e usa os temas do Norte.
+
+Em produção, cadastro sem código funciona mesmo antes de existir administrador:
+cria uma conta comum, capaz de criar e gerenciar sua própria equipe. Não concede
+administração global, não assume equipes/projetos iniciais e não consome o
+bootstrap privado. O caminho privado com código explícito continua validado
+antes e dentro da transação, incluindo prevenção de reutilização. Hash Argon2,
+cookies de sessão, limites de tentativa e proteção CSRF foram preservados.
+Senhas muito comuns e valores vazios continuam rejeitados. Contas existentes
+mantêm seu login e sua senha; nenhuma migração de credenciais é necessária.
+
+Validação local: 18 testes de cadastro, bootstrap e API, 32 testes de acesso,
+presença e conta demonstrativa e 198 testes de interface aprovados. As provas
+incluem cadastro sem configuração do administrador, senha de oito caracteres,
+nickname automático, e-mail duplicado, bloqueio de administração pública,
+criação da própria equipe e login de contas existentes após reinício.
+Logs privados: `.runtime/signup-backend-tests.log`,
+`.runtime/signup-access-tests.log` e `.runtime/signup-unit.log`.
+
+O navegador validou o fluxo com servidor em modo produção e armazenamento
+isolado, sem segredo de bootstrap: cadastro, cookie Secure/HttpOnly, perfil
+comum, sair, entrar novamente e recarregar. Os três campos, senha curta
+rejeitada, mostrar/ocultar senha e layouts desktop/celular nos dois temas foram
+conferidos. Nenhum e-mail, serviço de IA ou acesso externo foi utilizado.
+Evidências: `.runtime/validation/simple-signup-browser.json` e capturas
+`simple-signup-*.png`. TypeScript, ESLint, build e varredura de segredos também
+passaram; permanece o aviso preexistente de tamanho do pacote de interface.
