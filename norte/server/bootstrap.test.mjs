@@ -85,7 +85,7 @@ test('missing setup code creates only members and wrong codes cannot claim owner
 
 test('simple eight-character passwords work with generated nicknames, duplicate checks and existing logins', async t => {
   const f = await fixture(t);
-  const simplePassword = 'abelhudo';
+  const simplePassword = '12345678';
   const first = await f.register('First', undefined, { name: 'Marina Costa', nickname: undefined, password: simplePassword });
   assert.equal(first.statusCode, 201, first.body);
   assert.equal(first.json().user.accessRole, 'member');
@@ -110,12 +110,12 @@ test('simple eight-character passwords work with generated nicknames, duplicate 
   assert.equal(existingLogin.json().user.id, second.json().user.id);
 });
 
-test('short, blank and commonly guessed passwords remain rejected without creating accounts', async t => {
+test('short and blank passwords remain rejected without creating accounts', async t => {
   const f = await fixture(t);
-  for (const candidate of ['abcdefg', '        ', '12345678', 'PASSWORD', 'senha1234', 'passwordpassword']) {
+  for (const candidate of ['abcdefg', '        ', '\t\t\t\t\t\t\t\t', 'x'.repeat(129)]) {
     const denied = await f.register('Visitor', undefined, { password: candidate });
     assert.equal(denied.statusCode, 400, denied.body);
-    if (candidate.length >= 8) assert.equal(denied.json().error, 'WEAK_PASSWORD');
+    if (candidate.length >= 8 && candidate.length <= 128) assert.equal(denied.json().error, 'WEAK_PASSWORD');
     assert.ok(!denied.json().message.includes(candidate), 'the rejected password is not included in the error message');
   }
   assert.equal(f.app.missionStore.read().users.length, 0);

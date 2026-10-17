@@ -23,6 +23,12 @@ async function fixture(t, pg = false, configured = true) {
     assert.equal(r.statusCode, 201, r.body);
     return { ...r.json().user, headers: { cookie: r.headers['set-cookie'].split(';')[0], 'x-csrf-token': r.json().csrfToken } };
   }
+  async function registerLogin(name, login) {
+    const r = await app.inject({ method: 'POST', url: '/api/auth/register', remoteAddress: `127.0.0.${app.missionStore.read().users.length + 1}`, payload: { name, login, password: '12345678' } });
+    assert.equal(r.statusCode, 201, r.body);
+    assert.equal(r.json().user.email, '');
+    return { ...r.json().user, headers: { cookie: r.headers['set-cookie'].split(';')[0], 'x-csrf-token': r.json().csrfToken } };
+  }
   const request = (actor, method, path, payload) => app.inject({ method, url: `/api${path}`, headers: actor.headers, ...(payload ? { payload } : {}) });
   const owner = await register('Owner'), captain = await register('Captain'), member = await register('Member'), outsider = await register('Outsider');
   const teamResponse = await request(captain, 'POST', '/teams', { name: 'Equipe de teste' });
@@ -38,7 +44,7 @@ async function fixture(t, pg = false, configured = true) {
     const confirmed = await request(actor, 'POST', '/auth/email-verification/confirm', { token }); assert.equal(confirmed.statusCode, 200, confirmed.body);
     return token;
   }
-  return { app, outbox, register, request, owner, captain, member, outsider, team, invite, accept, verify };
+  return { app, outbox, register, registerLogin, request, owner, captain, member, outsider, team, invite, accept, verify };
 }
 for (const pg of [false, true]) test(`nickname invitations need recipient consent and serialize duplicates (${pg ? 'PostgreSQL' : 'JSON'})`, async t => {
   const f = await fixture(t, pg), { request, team, captain, member, outsider } = f;
@@ -63,16 +69,85 @@ for (const pg of [false, true]) test(`nickname invitations need recipient consen
   assert.equal(f.outbox.length, 0);
 });
 
+for (const pg of [false, true]) test(`login-only accounts receive separate in-app invitations without SMTP (${pg ? 'PostgreSQL' : 'JSON'})`, async t => {
+  const f = await fixture(t, pg, false), { app, request, captain, team } = f;
+  const first = await f.registerLogin('First colleague', 'first-colleague');
+  const second = await f.registerLogin('Second colleague', 'second-colleague');
+  const outsider = await f.registerLogin('Unrelated colleague', 'unrelated-colleague');
+  const lookup = await request(captain, 'GET', `/directory/nickname/@${second.login.toUpperCase()}`);
+  assert.equal(lookup.statusCode, 200, lookup.body);
+  assert.equal(lookup.json().user.id, second.id);
+  assert.doesNotMatch(lookup.body, /email|password|accessRole|memberId/);
+  const firstInvite = await f.invite(first);
+  const secondResponse = await request(captain, 'POST', `/teams/${team.id}/invitations`, { nickname: second.login });
+  assert.equal(secondResponse.statusCode, 201, secondResponse.body);
+  const secondInvite = secondResponse.json().invitation;
+  assert.notEqual(firstInvite.id, secondInvite.id);
+  assert.equal(firstInvite.delivery, 'in_app');
+  assert.equal(secondInvite.delivery, 'in_app');
+  assert.equal((await request(captain, 'POST', `/teams/${team.id}/invitations`, { nickname: first.nickname })).statusCode, 409);
+  assert.deepEqual((await request(first, 'GET', '/invitations')).json().invitations.map(i => i.id), [firstInvite.id]);
+  assert.deepEqual((await request(second, 'GET', '/invitations')).json().invitations.map(i => i.id), [secondInvite.id]);
+  assert.deepEqual((await request(outsider, 'GET', '/invitations')).json().invitations, []);
+  for (const actor of [second, outsider]) {
+    assert.equal((await request(actor, 'POST', `/invitations/${firstInvite.id}/respond`, { decision: 'accept' })).statusCode, 404);
+  }
+  // An old incomplete invitation must not match every account without email.
+  await app.missionStore.update(data => {
+    data.invitations.push({ ...data.invitations.find(i => i.id === firstInvite.id), id: 'orphaned-empty-email', recipientUserId: null, recipientMemberId: null, email: '' });
+  });
+  for (const actor of [first, second, outsider]) {
+    assert.ok(!(await request(actor, 'GET', '/invitations')).json().invitations.some(i => i.id === 'orphaned-empty-email'));
+    assert.equal((await request(actor, 'POST', '/invitations/orphaned-empty-email/respond', { decision: 'accept' })).statusCode, 404);
+  }
+  await app.missionStore.update(data => { data.invitations.find(i => i.id === firstInvite.id).recipientUserId = null; });
+  assert.equal((await request(captain, 'POST', `/teams/${team.id}/invitations`, { nickname: first.nickname })).statusCode, 409, 'member identity also prevents duplicates');
+  await f.accept(first, firstInvite);
+  await f.accept(second, secondInvite);
+  assert.deepEqual(app.missionStore.read().teams.find(t => t.id === team.id).memberIds.sort(), [captain.memberId, first.memberId, second.memberId].sort());
+  const ownTeam = await request(first, 'POST', '/teams', { name: 'Equipe sem email' });
+  assert.equal(ownTeam.statusCode, 201, ownTeam.body);
+  const ownInvite = await request(first, 'POST', `/teams/${ownTeam.json().team.id}/invitations`, { nickname: second.nickname });
+  assert.equal(ownInvite.statusCode, 201, ownInvite.body);
+  await f.accept(second, ownInvite.json().invitation);
+  const verification = await request(first, 'POST', '/auth/email-verification');
+  assert.equal(verification.statusCode, 400, verification.body);
+  assert.equal(verification.json().error, 'EMAIL_REQUIRED');
+  assert.equal(f.outbox.length, 0);
+  assert.equal(app.missionStore.read().emailVerifications.length, 0);
+  await app.missionStore.update(data => { data.users.find(u => u.id === outsider.id).login = first.login; });
+  assert.equal((await request(captain, 'GET', `/directory/nickname/${first.login}`)).statusCode, 404, 'ambiguous imported identities never select an arbitrary account');
+  assert.equal((await request(captain, 'POST', `/teams/${team.id}/invitations`, { nickname: first.login })).statusCode, 404);
+});
+
+test('accounts without email cannot request or confirm mailbox proof, even with SMTP configured', async t => {
+  const f = await fixture(t), { request, app } = f;
+  const actor = await f.registerLogin('No mailbox', 'no-mailbox');
+  for (const [path, payload] of [['/auth/email-verification'], ['/auth/email-verification/confirm', { token: 'incomplete-record' }]]) {
+    const response = await request(actor, 'POST', path, payload);
+    assert.equal(response.statusCode, 400, response.body);
+    assert.equal(response.json().error, 'EMAIL_REQUIRED');
+  }
+  assert.equal(f.outbox.length, 0);
+  assert.equal(app.missionStore.read().emailVerifications.length, 0);
+  assert.equal(app.missionStore.read().users.find(u => u.id === actor.id).emailVerifiedAt, null);
+});
+
 test('email invitations require mailbox proof, exact account, expiry and explicit consent', async t => {
   const f = await fixture(t), { request, captain, outsider, team } = f;
   await f.verify(captain);
   const invited = await request(captain, 'POST', `/teams/${team.id}/invitations`, { email: 'newcomer@example.test' });
   assert.equal(invited.statusCode, 201, invited.body); const invitation = invited.json().invitation;
   const mail = f.outbox.at(-1); assert.equal(mail.to, 'newcomer@example.test'); assert.match(mail.text, /Equipe de teste/);
-  const token = new URLSearchParams(mail.text.match(/https:\/\/\S+/)[0].split('#/invitations?')[1]).get('token'); assert.ok(token);
+  const parameters = new URLSearchParams(mail.text.match(/https:\/\/\S+/)[0].split('#/invitations?')[1]);
+  const token = parameters.get('token'); assert.ok(token);
+  assert.equal(parameters.get('email'), 'newcomer@example.test', 'the real invitation link carries the mailbox required by registration');
   assert.doesNotMatch(JSON.stringify(f.app.missionStore.read()), new RegExp(token));
   assert.doesNotMatch(invited.body, /tokenHash|token=/);
-  const newcomer = await f.register('Newcomer');
+  const registration = await f.app.inject({ method: 'POST', url: '/api/auth/register', remoteAddress: '127.0.0.99', payload: { name: 'Newcomer', login: 'newcomer-login', email: parameters.get('email'), password: '12345678' } });
+  assert.equal(registration.statusCode, 201, registration.body);
+  const newcomer = { ...registration.json().user, headers: { cookie: registration.headers['set-cookie'].split(';')[0], 'x-csrf-token': registration.json().csrfToken } };
+  assert.equal(newcomer.email, parameters.get('email'));
   assert.ok(!f.app.missionStore.read().teams.find(t => t.id === team.id).memberIds.includes(newcomer.memberId));
   assert.equal((await request(newcomer, 'POST', `/invitations/${invitation.id}/respond`, { decision: 'accept', token })).statusCode, 403);
   assert.equal((await request(outsider, 'POST', `/invitations/${invitation.id}/respond`, { decision: 'accept', token })).statusCode, 404);

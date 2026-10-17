@@ -74,7 +74,12 @@ export function normalizeStoredData(value, { copy = true } = {}) {
   const named = [];
   for (const user of data.users) {
     const nickname = normalizeNickname(user.nickname);
-    user.nickname = validNickname(nickname) && !named.some(u => u.nickname === nickname) ? nickname : uniqueNickname(named, user.name);
+    // Keep valid legacy public names; generated names must not shadow a login.
+    if (validNickname(nickname) && !named.some(u => u.nickname === nickname)) user.nickname = nickname;
+    else {
+      const reserved = [...named, ...data.users.filter(other => other !== user && other.login).map(other => ({ login: other.login }))];
+      user.nickname = uniqueNickname(reserved, user.name);
+    }
     user.emailVerifiedAt ??= null;
     named.push(user);
   }

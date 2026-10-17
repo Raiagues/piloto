@@ -169,7 +169,8 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
             <div className="profile-fields">
               <label><span>{language === "pt" ? "Nome" : "Name"}</span><input value={profile.displayName} required maxLength={100} onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} /></label>
               <label><span>Nickname</span><input value={nickname} minLength={3} maxLength={30} pattern="[A-Za-z][A-Za-z0-9_]{2,29}" onChange={e => setNickname(e.target.value)} /><small>{language === "pt" ? "Identificador público único para receber convites." : "Unique public identifier for invitations."}</small></label>
-              <label><span>E-mail</span><input value={profile.email} readOnly /></label>
+              <label><span>{language === "pt" ? "Login" : "Username"}</span><input value={user.login || user.nickname || ''} readOnly /></label>
+              {profile.email && <label><span>E-mail</span><input value={profile.email} readOnly /></label>}
               <label><span>{language === "pt" ? "Universidade" : "University"}</span><input value={profile.institution} maxLength={160} onChange={(event) => setProfile({ ...profile, institution: event.target.value })} /></label>
               <label><span>{language === "pt" ? "Curso" : "Course"}</span><input value={profile.course} maxLength={120} onChange={(event) => setProfile({ ...profile, course: event.target.value })} /></label>
               <label><span>{language === "pt" ? "Semestre" : "Semester"}</span><input value={profile.academicStage} maxLength={80} onChange={(event) => setProfile({ ...profile, academicStage: event.target.value })} /></label>

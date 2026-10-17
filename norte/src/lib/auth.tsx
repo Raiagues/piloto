@@ -9,9 +9,10 @@ const STATIC_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
 export const API_ORIGIN = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/u, "");
 
 export type RegisterAccountInput = {
+  login?: string;
   nickname?: string;
   name: string;
-  email: string;
+  email?: string;
   password: string;
   bootstrapToken?: string;
 };
@@ -27,7 +28,7 @@ type AuthContextValue = {
   /** The server offers an isolated workspace retained in this browser. */
   demoAvailable: boolean;
   demoResumeAvailable: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (login: string, password: string) => Promise<void>;
   loginDemo: () => Promise<void>;
   register: (input: RegisterAccountInput) => Promise<void>;
   logout: () => Promise<void>;
@@ -124,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [api, status]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (login: string, password: string) => {
     if (STATIC_DEMO) {
       setUser({ ...DEMO_USER });
       setHasOwner(true);
@@ -133,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const response = await api<{ user: SessionUser; csrfToken: string }>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ login, password })
     });
     csrfRef.current = response.csrfToken;
     setUser(response.user);

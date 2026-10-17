@@ -49,7 +49,7 @@ try {
   await page.getByRole('button', { name: 'Exportar organograma', exact: true }).first().click();
   assert.equal(await (await downloadPromise).failure(), null);
   await page.getByRole('button', { name: 'Convites', exact: true }).click();
-  await page.getByLabel('Nickname', { exact: true }).fill('pessoa_teste');
+  await page.getByLabel('Login ou nickname', { exact: true }).fill('pessoa_teste');
   await page.getByRole('button', { name: 'Buscar pessoa', exact: true }).click();
   await page.locator('.invite-person').getByText('Pessoa Convidada', { exact: true }).waitFor();
   await page.getByRole('button', { name: 'Enviar convite', exact: true }).click();

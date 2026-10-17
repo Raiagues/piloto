@@ -59,7 +59,7 @@ export function registerPlatformSecurity(app, { store, requireAuth, requireCsrf,
     if (typeof request.body?.password !== 'string' || request.body.password.length > 128 || !await argon2.verify(user.passwordHash, request.body.password).catch(() => false)) throw platformError(403, 'REAUTH_REQUIRED', 'Confirme sua senha atual.');
     const secret = base32(randomBytes(20));
     await store.update(data => { const { user: actor } = currentAdministrator(request, data); if (actor.adminMfa) throw platformError(409, 'MFA_ALREADY_ENROLLED', 'O autenticador já está configurado.'); actor.pendingAdminMfa = { encrypted: protect(secret, user.id), expiresAt: Date.now() + 600000, sessionId: request.auth.session.id }; });
-    return { secret, uri: `otpauth://totp/Norte:${encodeURIComponent(user.email)}?secret=${secret}&issuer=Norte&algorithm=SHA1&digits=6&period=30` };
+    return { secret, uri: `otpauth://totp/Norte:${encodeURIComponent(user.login || user.email || user.nickname)}?secret=${secret}&issuer=Norte&algorithm=SHA1&digits=6&period=30` };
   });
   app.post('/api/platform/admin/security/verify', { preHandler: [requireAuth, requireCsrf], bodyLimit: 1000, config: { rateLimit: { max: 8, timeWindow: '15 minutes' } } }, async request => {
     administrator(request);

@@ -1,3 +1,4 @@
+import { normalizeLogin } from './login-identity.mjs';
 export function normalizeNickname(value) {
   return String(value || '').trim().replace(/^@/, '').toLowerCase();
 }
@@ -6,7 +7,7 @@ export function uniqueNickname(users, name) {
   const base = String(name || 'pessoa').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 20);
   const stem = /^[a-z]/.test(base) && base.length >= 3 ? base : 'pessoa';
   let candidate = stem, suffix = 1;
-  while (users.some(user => normalizeNickname(user.nickname) === candidate)) candidate = `${stem}_${suffix++}`;
+  while (users.some(user => normalizeNickname(user.nickname) === candidate || normalizeLogin(user.login) === candidate)) candidate = `${stem}_${suffix++}`;
   return candidate;
 }
 export function canManageTeam(data, user, team) {

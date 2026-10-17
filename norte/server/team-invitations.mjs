@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { canManageTeam, invitationStatus, normalizeNickname, validNickname } from './team-identity.mjs';
+import { canManageTeam, invitationStatus, normalizeNickname } from './team-identity.mjs';
+import { findLoginUser, validLogin } from './login-identity.mjs';
 import { createMailer } from './email.mjs';
 import { sameDemoScope } from './demo-account.mjs';
 
@@ -8,7 +9,17 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 const freshToken = () => randomBytes(32).toString('base64url');
 const body = properties => ({ type: 'object', additionalProperties: false, properties });
 const text = maxLength => ({ type: 'string', maxLength, minLength: 1 });
-const isRecipient = (invite, user) => invite.recipientUserId ? invite.recipientUserId === user.id : invite.email === user.email;
+const isRecipient = (invite, user) => invite.recipientUserId
+  ? invite.recipientUserId === user.id
+  : invite.recipientMemberId
+    ? invite.recipientMemberId === user.memberId
+    : Boolean(invite.email?.trim() && user.email?.trim() && invite.email === user.email);
+const sameRecipient = (invite, user, email) => Boolean(
+  (user?.id && invite.recipientUserId === user.id)
+  || (user?.memberId && invite.recipientMemberId === user.memberId)
+  || (email?.trim() && invite.email === email)
+);
+const directoryUser = (data, viewer, identifier) => findLoginUser(data.users.filter(user => sameDemoScope(viewer, user)), normalizeNickname(identifier));
 function publicInvitation(data, invite) {
   const user = data.users.find(u => u.id === invite.recipientUserId);
   return { id: invite.id, teamId: invite.teamId, teamName: data.teams.find(t => t.id === invite.teamId)?.name || 'Equipe', nickname: user?.nickname || null, displayName: user?.name || null, email: invite.email, status: invitationStatus(invite), channel: invite.channel, createdAt: invite.createdAt, expiresAt: invite.expiresAt, delivery: invite.delivery };
@@ -24,8 +35,8 @@ export function registerInvitations(app, { store, requireAuth, requireCsrf, mail
   const rate = { rateLimit: { max: 20, timeWindow: '1 hour', keyGenerator: request => request.auth?.user.id || request.ip } };
   app.get('/api/directory/nickname/:nickname', { preHandler: [requireAuth], config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async request => {
     const nickname = normalizeNickname(request.params.nickname);
-    if (!validNickname(nickname)) throw fail(400, 'INVALID_NICKNAME', 'Use o identificador completo, com 3 a 30 letras, números ou sublinhado.');
-    const user = store.read().users.find(u => u.active && u.nickname === nickname && sameDemoScope(request.auth.user, u));
+    if (!validLogin(nickname)) throw fail(400, 'INVALID_NICKNAME', 'Use o login ou nickname completo, com 3 a 30 letras, números, hífen ou sublinhado.');
+    const user = directoryUser(store.read(), request.auth.user, nickname);
     if (!user) throw fail(404, 'USER_NOT_FOUND', 'Nenhuma pessoa encontrada com esse identificador.');
     return { user: { id: user.id, nickname: user.nickname, displayName: user.name, institution: user.institution, avatarUrl: user.avatarUrl || '' } };
   });
@@ -40,18 +51,19 @@ export function registerInvitations(app, { store, requireAuth, requireCsrf, mail
   app.post('/api/teams/:id/invitations', { preHandler: write, config: rate, schema: { body: body({ nickname: text(31), email: text(254) }) } }, async (request, reply) => {
     if (Boolean(request.body.nickname) === Boolean(request.body.email)) throw fail(400, 'INVALID_RECIPIENT', 'Informe um nickname ou um email.');
     const email = request.body.email?.trim().toLowerCase();
+    if (!email && !validLogin(normalizeNickname(request.body.nickname))) throw fail(400, 'INVALID_NICKNAME', 'Informe um login ou nickname válido.');
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw fail(400, 'INVALID_EMAIL', 'Informe um email válido.');
     if (email && !mailer.configured) throw fail(503, 'EMAIL_UNAVAILABLE', 'O envio de emails ainda não foi configurado. Convide uma conta existente pelo nickname.');
-    if (email && !request.auth.user.emailVerifiedAt) throw fail(403, 'EMAIL_NOT_VERIFIED', 'Verifique seu email em Convites antes de enviar convites por email.');
+    if (email && (!request.auth.user.email?.trim() || !request.auth.user.emailVerifiedAt)) throw fail(403, 'EMAIL_NOT_VERIFIED', 'Verifique seu email em Convites antes de enviar convites por email.');
     const token = freshToken();
     const invitation = await store.update(data => {
       const team = manager(data, request.auth.user, request.params.id);
-      const recipient = email ? data.users.find(u => u.active && u.email === email && sameDemoScope(request.auth.user, u)) : data.users.find(u => u.active && u.nickname === normalizeNickname(request.body.nickname) && sameDemoScope(request.auth.user, u));
+      const recipient = email ? data.users.find(u => u.active && u.email === email && sameDemoScope(request.auth.user, u)) : directoryUser(data, request.auth.user, request.body.nickname);
       if (!email && !recipient) throw fail(404, 'USER_NOT_FOUND', 'Pessoa não encontrada.');
       if (recipient && team.memberIds.includes(recipient.memberId)) throw fail(409, 'ALREADY_MEMBER', 'Essa pessoa já pertence à equipe.');
-      const recipientEmail = email || recipient.email;
-      if (data.invitations.some(i => i.teamId === team.id && i.email === recipientEmail && invitationStatus(i) === 'pending')) throw fail(409, 'INVITATION_EXISTS', 'Já existe um convite pendente para essa pessoa.');
-      const item = { id: randomUUID(), teamId: team.id, createdBy: request.auth.user.id, recipientUserId: recipient?.id || null, email: recipientEmail, channel: email ? 'email' : 'nickname', tokenHash: hash(token), status: 'pending', delivery: email ? 'sending' : 'in_app', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 86400_000).toISOString() };
+      const recipientEmail = email || recipient?.email || '';
+      if (data.invitations.some(i => i.teamId === team.id && sameRecipient(i, recipient, recipientEmail) && invitationStatus(i) === 'pending')) throw fail(409, 'INVITATION_EXISTS', 'Já existe um convite pendente para essa pessoa.');
+      const item = { id: randomUUID(), teamId: team.id, createdBy: request.auth.user.id, recipientUserId: recipient?.id || null, recipientMemberId: recipient?.memberId || null, email: recipientEmail, channel: email ? 'email' : 'nickname', tokenHash: hash(token), status: 'pending', delivery: email ? 'sending' : 'in_app', createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 7 * 86400_000).toISOString() };
       data.invitations.push(item);
       return item;
     });
@@ -59,7 +71,7 @@ export function registerInvitations(app, { store, requireAuth, requireCsrf, mail
       try {
         const team = store.read().teams.find(t => t.id === invitation.teamId);
         const url = new URL(mailer.publicUrl);
-        url.hash = `/invitations?invite=${invitation.id}&token=${token}`;
+        url.hash = `/invitations?invite=${invitation.id}&token=${token}&email=${encodeURIComponent(email)}`;
         await mailer.send({ to: email, subject: `Convite para ${team.name} no Norte`, text: `A equipe ${team.name} convidou você para participar no Norte.\n\nEntre ou crie uma conta com este email, verifique o endereço e escolha aceitar ou recusar:\n${url.href}\n\nO convite expira em 7 dias e é exclusivo para este endereço. Abrir o link não adiciona você à equipe. Se não esperava o convite, ignore esta mensagem.` });
         await store.update(data => { data.invitations.find(i => i.id === invitation.id).delivery = 'sent'; });
       } catch {
@@ -101,8 +113,9 @@ export function registerInvitations(app, { store, requireAuth, requireCsrf, mail
     reply.code(204).send();
   });
   app.post('/api/auth/email-verification', { preHandler: write, config: { rateLimit: { max: 3, timeWindow: '15 minutes', keyGenerator: request => request.auth?.user.id || request.ip } } }, async request => {
-    if (!mailer.configured) throw fail(503, 'EMAIL_UNAVAILABLE', 'O envio de emails ainda não foi configurado.');
     const user = request.auth.user;
+    if (!user.email?.trim()) throw fail(400, 'EMAIL_REQUIRED', 'Esta conta não possui email. Use seu login para entrar e receber convites na plataforma.');
+    if (!mailer.configured) throw fail(503, 'EMAIL_UNAVAILABLE', 'O envio de emails ainda não foi configurado.');
     if (user.emailVerifiedAt) return { verified: true };
     const token = freshToken(), tokenHash = hash(token);
     await store.update(data => {
@@ -119,6 +132,7 @@ export function registerInvitations(app, { store, requireAuth, requireCsrf, mail
   });
   app.post('/api/auth/email-verification/confirm', { preHandler: write, config: rate, schema: { body: { ...body({ token: text(100) }), required: ['token'] } } }, async request => store.update(data => {
     const user = data.users.find(u => u.id === request.auth.user.id);
+    if (!user.email?.trim()) throw fail(400, 'EMAIL_REQUIRED', 'Esta conta não possui email para verificar.');
     const verification = data.emailVerifications.find(v => v.userId === user.id && v.email === user.email && v.tokenHash === hash(request.body.token) && Date.parse(v.expiresAt) > Date.now());
     if (!verification) throw fail(400, 'VERIFICATION_INVALID', 'Verificação inválida ou expirada. Entre na conta que solicitou este email.');
     user.emailVerifiedAt = new Date().toISOString();

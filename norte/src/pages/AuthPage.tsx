@@ -25,19 +25,24 @@ export function AuthPage() {
   }, []);
 
   const joinParameters = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const invitationSignup = window.location.hash.startsWith('#/join')
+    || (window.location.hash.startsWith('#/invitations') && Boolean(joinParameters.get('invite') && joinParameters.get('token')));
 
   const c = language === "pt" ? {
     loginTitle: "Entrar no Norte",
     registerTitle: "Criar sua conta",
     name: "Nome",
-    email: "E-mail",
+    login: "Login",
     password: "Senha",
     passwordHint: "8 caracteres ou mais.",
     showPassword: "Mostrar senha",
     hidePassword: "Ocultar senha",
     creating: "Criando conta…",
     entering: "Entrando…",
-    weakPassword: "Escolha uma senha com 8 caracteres ou mais, evitando senhas muito comuns.",
+    weakPassword: "Escolha uma senha com 8 caracteres ou mais.",
+    loginExists: "Esse login já está em uso. Escolha outro ou entre na sua conta.",
+    invalidLogin: "Use de 3 a 30 letras, números, hífen ou sublinhado, sem espaços.",
+    invalidCredentials: "Login ou senha incorretos.",
     emailExists: "Já existe uma conta com este e-mail. Use “Já tenho conta” para entrar.",
     enter: "Entrar",
     create: "Criar conta",
@@ -55,14 +60,17 @@ export function AuthPage() {
     loginTitle: "Sign in to Norte",
     registerTitle: "Create your account",
     name: "Name",
-    email: "Email",
+    login: "Username",
     password: "Password",
     passwordHint: "8 characters or more.",
     showPassword: "Show password",
     hidePassword: "Hide password",
     creating: "Creating account…",
     entering: "Signing in…",
-    weakPassword: "Choose a password with 8 or more characters, avoiding very common passwords.",
+    weakPassword: "Choose a password with 8 or more characters.",
+    loginExists: "This username is already taken. Choose another or sign in to your account.",
+    invalidLogin: "Use 3 to 30 letters, numbers, hyphens or underscores, without spaces.",
+    invalidCredentials: "Incorrect username or password.",
     emailExists: "An account already uses this email. Select “I already have an account” to sign in.",
     enter: "Sign in",
     create: "Create account",
@@ -92,17 +100,19 @@ export function AuthPage() {
     const data = new FormData(event.currentTarget);
     try {
       if (mode === "login") {
-        await auth.login(String(data.get("email") || ""), String(data.get("password") || ""));
+        await auth.login(String(data.get("login") || ""), String(data.get("password") || ""));
       } else {
         await auth.register({
           name: String(data.get("name") || ""),
-          email: String(data.get("email") || ""),
+          login: String(data.get("login") || ""),
+          ...(joinParameters.get("email") || invitationSignup ? { email: joinParameters.get("email") || String(data.get('invitationEmail') || '') } : {}),
           password: String(data.get("password") || "")
         });
       }
       if (/^#\/(?:login|register)/u.test(window.location.hash)) window.location.hash = joinParameters.get("return") === "plans" ? "#/plans" : "#/";
     } catch (reason) {
-      setError(reason instanceof ApiError ? reason.code === "WEAK_PASSWORD" ? c.weakPassword : reason.code === "EMAIL_EXISTS" ? c.emailExists : reason.message : (language === "pt" ? "Não foi possível concluir o acesso." : "Access could not be completed."));
+      const messages: Record<string, string> = { WEAK_PASSWORD: c.weakPassword, EMAIL_EXISTS: c.emailExists, LOGIN_EXISTS: c.loginExists, INVALID_LOGIN: c.invalidLogin, INVALID_CREDENTIALS: c.invalidCredentials };
+      setError(reason instanceof ApiError ? messages[reason.code] || reason.message : (language === "pt" ? "Não foi possível concluir o acesso." : "Access could not be completed."));
     } finally {
       setBusy(false);
     }
@@ -149,11 +159,13 @@ export function AuthPage() {
             <h1>{mode === "login" ? c.loginTitle : c.registerTitle}</h1>
           </div>
 
-          {window.location.hash.startsWith("#/invitations") && <p>{language === "pt" ? "Entre ou crie uma conta com o email que recebeu o convite. Você poderá verificar o email e decidir se deseja participar." : "Sign in or register with the invited email. You can verify the address and choose whether to join."}</p>}
+          {window.location.hash.startsWith("#/invitations") && <p>{language === "pt" ? "Entre na sua conta para ver e responder aos convites." : "Sign in to view and respond to your invitations."}</p>}
 
           <div className="auth-fields auth-fields-simple">
             {mode === "register" && <label><span>{c.name}</span><input name="name" autoComplete="name" required minLength={2} maxLength={100} /></label>}
-            <label><span>{c.email}</span><input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} required maxLength={254} defaultValue={mode === "register" ? joinParameters.get("email") || "" : ""} /></label>
+            <label><span>{c.login}</span><input name="login" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} required minLength={3} maxLength={mode === "register" ? 30 : 254} pattern={mode === "register" ? "[A-Za-z0-9_\\-]{3,30}" : undefined} title={mode === "register" ? c.invalidLogin : undefined} /></label>
+            {mode === "register" && joinParameters.get("email") && <label><span>{language === "pt" ? "E-mail do convite" : "Invitation email"}</span><input type="email" value={joinParameters.get("email")!} readOnly /></label>}
+            {mode === "register" && invitationSignup && !joinParameters.get("email") && <label><span>{language === "pt" ? "E-mail do convite" : "Invitation email"}</span><input type="email" name="invitationEmail" autoComplete="email" autoCapitalize="none" spellCheck={false} required maxLength={254} /></label>}
             <div className="auth-password-field">
               <label htmlFor="auth-password">{c.password}</label>
               <div className="auth-password-input">

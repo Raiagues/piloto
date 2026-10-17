@@ -11,6 +11,7 @@ export type SessionUser = {
   id: string;
   memberId: string;
   nickname?: string;
+  login?: string;
   emailVerifiedAt?: string | null;
   name: string;
   initials: string;

@@ -1,5 +1,7 @@
 import { registerMemoryCollaborationRoutes } from './memory-collaboration.mjs';
 import { normalizeNickname, validNickname, uniqueNickname, canManageTeam } from "./team-identity.mjs";
+import { normalizeLogin, validLogin, identityInUse, findLoginUser } from "./login-identity.mjs";
+import { configureAdminAccount } from './admin-account.mjs';
 import { registerInvitations } from "./team-invitations.mjs";
 import { registerOnboarding } from "./onboarding.mjs";
 import { registerConfigurationChanges } from "./configuration-changes.mjs";
@@ -59,31 +61,12 @@ const SAFE_ARTIFACT_MIME_TYPES = new Set([
   "text/markdown",
   "text/plain"
 ]);
-const COMMON_PASSWORDS = new Set([
-  "12345678",
-  "123456789",
-  "1234567890",
-  "00000000",
-  "11111111",
-  "password",
-  "password1",
-  "password123",
-  "senha123",
-  "senha1234",
-  "qwerty123",
-  "123456789012345",
-  "passwordpassword",
-  "senha1234567890",
-  "missiondev12345",
-  "qwertyuiop12345"
-]);
-
 const string = (maxLength, minLength = 0) => ({ type: "string", minLength, maxLength });
 const stringList = (maxItems = 12, maxLength = 80) => ({ type: "array", maxItems, items: string(maxLength, 1), uniqueItems: true });
 
 const profileProperties = {
   displayName: string(100, 2),
-  email: string(254, 3),
+  email: string(254),
   missionRole: string(60),
   primaryArea: string(80),
   secondaryAreas: stringList(6, 80),
@@ -100,11 +83,13 @@ const profileProperties = {
 const registerBody = {
   type: "object",
   additionalProperties: false,
-  required: ["name", "email", "password"],
+  required: ["name", "password"],
+  anyOf: [{ required: ["login"] }, { required: ["email"] }],
   properties: {
     name: string(100, 2),
     nickname: string(30, 3),
-    email: string(254, 3),
+    login: string(30, 3),
+    email: string(254),
     password: string(128, PASSWORD_MIN_LENGTH),
     bootstrapToken: string(512),
     institution: string(160, 2),
@@ -199,7 +184,7 @@ function validateEmail(email) {
 
 function validatePassword(password) {
   if (password.length < PASSWORD_MIN_LENGTH || password.length > 128) return false;
-  return Boolean(password.trim()) && !COMMON_PASSWORDS.has(password.toLocaleLowerCase("en-US"));
+  return Boolean(password.trim());
 }
 
 function validateArtifactUrl(value) {
@@ -251,6 +236,7 @@ function publicUser(user, environment) {
     testEnvironment: environment === "team-preview-test",
     memberId: user.memberId,
     nickname: user.nickname,
+    login: user.login || user.nickname,
     emailVerifiedAt: user.emailVerifiedAt || null,
     name: user.name,
     initials: initials(user.name),
@@ -444,6 +430,23 @@ export async function buildApp(options = {}) {
       message: validation || provisioning || (statusCode < 500 ? error.message : "The server could not complete this request.")
     });
   });
+  // Private deployment operation, never accepted from public signup. An invalid
+  // configuration must not interrupt access to existing accounts or projects.
+  try {
+    const administration = await configureAdminAccount(store, options.adminAccount ?? {
+      login: process.env.NORTE_ADMIN_LOGIN || undefined,
+      password: process.env.NORTE_ADMIN_PASSWORD || undefined,
+      operationId: process.env.NORTE_ADMIN_OPERATION_ID || undefined,
+      targetUserId: process.env.NORTE_ADMIN_TARGET_USER_ID || undefined,
+      createOnly: process.env.NORTE_ADMIN_CREATE_ONLY === '1'
+    });
+    if (administration.status !== 'not-configured') {
+      app.log.info({ event: 'administration.setup', status: administration.status }, 'Private administration operation completed');
+    }
+  } catch (error) {
+    const code = /^ADMIN_ACCOUNT_[A-Z_]+$/.test(error?.code || '') ? error.code : 'ADMIN_ACCOUNT_CONFIG_FAILED';
+    app.log.warn({ event: 'administration.setup', code }, 'Private administration operation was not applied');
+  }
   const ai = createBrainstormAiService({ ...options.ai, onAttempt: async (record, payload) => {
     app.log.info({ event: "engineering.provider_attempt", ...record }, "Organization provider attempt completed");
     await options.ai?.onAttempt?.(record, payload);
@@ -809,10 +812,12 @@ export async function buildApp(options = {}) {
   }, async (request, reply) => {
     const body = request.body;
     requireInitialBootstrap(store.read(), body.bootstrapToken);
-    const email = normalizeEmail(body.email);
+    const email = normalizeEmail(body.email || "");
+    const login = normalizeText(body.login || "");
     const password = normalizePassword(body.password);
-    if (!validateEmail(email)) throw httpError(400, "INVALID_EMAIL", "Enter a valid email address.");
-    if (!validatePassword(password)) throw httpError(400, "WEAK_PASSWORD", `Escolha uma senha com pelo menos ${PASSWORD_MIN_LENGTH} caracteres e evite senhas muito comuns.`);
+    if ((email || !login) && !validateEmail(email)) throw httpError(400, "INVALID_EMAIL", "Informe um email válido.");
+    if (body.login !== undefined && !validLogin(login)) throw httpError(400, "INVALID_LOGIN", "Use 3 a 30 letras, números, hífen ou sublinhado no login.");
+    if (!validatePassword(password)) throw httpError(400, "WEAK_PASSWORD", `Escolha uma senha com pelo menos ${PASSWORD_MIN_LENGTH} caracteres.`);
     const passwordHash = await argon2.hash(password, {
       type: argon2.argon2id,
       memoryCost: 19_456,
@@ -826,19 +831,20 @@ export async function buildApp(options = {}) {
       const authorizedInitialSetup = requireInitialBootstrap(data, body.bootstrapToken);
       const nickname = body.nickname ? normalizeNickname(body.nickname) : uniqueNickname(data.users, body.name);
       if (!validNickname(nickname)) throw httpError(400, "INVALID_NICKNAME", "Use 3 a 30 letras, números ou sublinhado, começando por uma letra.");
-      if (data.users.some(u => u.nickname === nickname)) throw httpError(409, "NICKNAME_EXISTS", "Este nickname já está em uso.");
-      if (data.users.some((item) => item.email === email)) throw httpError(409, "EMAIL_EXISTS", "An account already uses this email.");
+      if (identityInUse(data.users, nickname)) throw httpError(409, "NICKNAME_EXISTS", "Este nickname já está em uso.");
+      if (login && identityInUse(data.users, login)) throw httpError(409, "LOGIN_EXISTS", "Este login já está em uso.");
+      if (email && data.users.some((item) => normalizeEmail(item.email || "") === email)) throw httpError(409, "EMAIL_EXISTS", "Uma conta já usa este email.");
       const timestamp = new Date().toISOString();
       const isFirstAccount = production ? authorizedInitialSetup
         : !data.users.some((item) => item.accessRole === "owner_admin" && item.active);
       if (isFirstAccount || administrationInitialized(data)) data.authBootstrap ??= { completedAt: timestamp };
-      const invitedMember = data.members.find((item) => item.email === email && !item.accountId);
+      const invitedMember = email ? data.members.find((item) => item.email === email && !item.accountId) : null;
       const memberId = invitedMember?.id || randomUUID();
       const nextUser = {
         id: randomUUID(),
         memberId,
         name: normalizeText(body.name),
-        nickname, emailVerifiedAt: null,
+        nickname, login: login || nickname, emailVerifiedAt: null,
         email,
         passwordHash,
         accessRole: isFirstAccount ? "owner_admin" : invitedMember?.missionRole === "advisor" ? "advisor" : "member",
@@ -905,16 +911,17 @@ export async function buildApp(options = {}) {
       body: {
         type: "object",
         additionalProperties: false,
-        required: ["email", "password"],
-        properties: { email: string(254, 3), password: string(128, 1) }
+        required: ["password"],
+        oneOf: [{ required: ["login"] }, { required: ["email"] }],
+        properties: { login: string(254, 3), email: string(254, 3), password: string(128, 1) }
       }
     }
   }, async (request, reply) => {
-    const email = normalizeEmail(request.body.email);
+    const identifier = normalizeLogin(request.body.login ?? request.body.email);
     const password = normalizePassword(request.body.password);
-    const user = store.read().users.find((item) => item.email === email && item.active);
+    const user = findLoginUser(store.read().users, identifier);
     const valid = user && !user.isDemoAccount ? await argon2.verify(user.passwordHash, password).catch(() => false) : false;
-    if (!valid) throw httpError(401, "INVALID_CREDENTIALS", "Email or password is incorrect.");
+    if (!valid) throw httpError(401, "INVALID_CREDENTIALS", "Login ou senha incorretos.");
     await store.update((data) => {
       const storedUser = data.users.find((item) => item.id === user.id);
       if (storedUser) {
@@ -970,7 +977,9 @@ export async function buildApp(options = {}) {
       if (request.body.nickname !== undefined) {
         const nickname = normalizeNickname(request.body.nickname);
         if (!validNickname(nickname)) throw httpError(400, "INVALID_NICKNAME", "Use 3 a 30 letras, números ou sublinhado, começando por uma letra.");
-        if (data.users.some(u => u.id !== user.id && u.nickname === nickname)) throw httpError(409, "NICKNAME_EXISTS", "Este nickname já está em uso.");
+        if (identityInUse(data.users, nickname, user.id)) throw httpError(409, "NICKNAME_EXISTS", "Este nickname já está em uso.");
+        // Keep a legacy account's sign-in name when its public handle changes.
+        user.login ||= user.nickname;
         user.nickname = nickname;
       }
       user.name = member.displayName;
@@ -1214,9 +1223,9 @@ export async function buildApp(options = {}) {
       const body = request.body;
       if (body.email !== undefined) {
         const email = normalizeEmail(body.email);
-        if (!validateEmail(email)) throw httpError(400, "INVALID_EMAIL", "Enter a valid email address.");
+        if (email && !validateEmail(email)) throw httpError(400, "INVALID_EMAIL", "Enter a valid email address.");
         if (existing.accountId && email !== existing.email) throw httpError(409, "ACCOUNT_EMAIL_LOCKED", "Change an active account email through the account security flow.");
-        if (data.members.some((item) => item.id !== existing.id && item.email === email)) throw httpError(409, "MEMBER_EXISTS", "A team profile already uses this email.");
+        if (email && data.members.some((item) => item.id !== existing.id && item.email === email)) throw httpError(409, "MEMBER_EXISTS", "A team profile already uses this email.");
         existing.email = email;
       }
       const ownEditable = ["displayName", "primaryArea", "secondaryAreas", "institution", "course", "academicStage", "skills", "availabilityHours", "notes"];

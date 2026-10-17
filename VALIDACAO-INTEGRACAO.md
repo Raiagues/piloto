@@ -381,3 +381,33 @@ conferidos. Nenhum e-mail, serviço de IA ou acesso externo foi utilizado.
 Evidências: `.runtime/validation/simple-signup-browser.json` e capturas
 `simple-signup-*.png`. TypeScript, ESLint, build e varredura de segredos também
 passaram; permanece o aviso preexistente de tamanho do pacote de interface.
+
+## Acesso por login e administração privada — 17/10/2026
+
+O cadastro passa a solicitar nome, login e senha; email deixa de ser obrigatório.
+Senhas de oito caracteres, inclusive `12345678`, são aceitas conforme solicitado.
+O login não distingue maiúsculas de minúsculas e aceita letras, números, hífen
+e sublinhado. Contas anteriores continuam entrando pelo email ou nickname;
+alterar o nickname público preserva o identificador de entrada da conta.
+Colisões entre logins e nicknames são bloqueadas, inclusive em contas inativas.
+
+Convites internos usam a identidade da pessoa, sem comparar emails vazios.
+O cadastro comum permanece com três campos; links de convite por email mantêm
+o endereço e sua verificação antes do aceite. Perfis sem email não mostram
+ações de verificação que não podem usar.
+
+A criação administrativa é uma operação privada de implantação, identificada
+e idempotente. O modo de criação bloqueia qualquer administrador existente,
+preserva outras contas, sessões, equipes e projetos, e não reabre um bootstrap
+concluído. Credenciais não entram no repositório, nas respostas públicas nem
+nos logs. Configuração inválida mantém o serviço disponível. Cadastro público
+continua criando membros; Argon2, CSRF, limites de tentativa, cookies seguros
+e autenticação adicional dos controles administrativos permanecem ativos.
+
+Validação: 29 testes de administração e inicialização, 46 testes de cadastro,
+identidade, colaboração e controles administrativos, e 198 testes de interface
+aprovados. O navegador conferiu cadastro sem email com senha simples, entrada,
+saída, recarga, perfil, compatibilidade com contas antigas, temas e celular.
+Relatórios privados em `.runtime/validation/simple-signup-browser.json` e
+logs `.runtime/login-*.log`. O build mantém apenas o aviso conhecido de tamanho
+do pacote de interface.
