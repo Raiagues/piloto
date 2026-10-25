@@ -4,6 +4,22 @@ import { loadLocalEnvironment } from "./local-environment.mjs";
 // deployments inject their own environment and are left untouched.
 loadLocalEnvironment();
 
+if (process.env.NORTE_WORKSPACE_RETIREMENT) {
+  try {
+    const { runPostgresRetirement } = await import('./postgres-retirement.mjs');
+    if (!process.env.DATABASE_URL) throw new Error('PostgreSQL maintenance requires DATABASE_URL.');
+    const { inventory, ...result } = await runPostgresRetirement(process.env.DATABASE_URL, process.env.NORTE_WORKSPACE_RETIREMENT);
+    console.info(JSON.stringify({ event: 'norte_workspace_retirement', ...result }));
+    for (const [section, value] of Object.entries(inventory || {})) {
+      const items = Array.isArray(value) ? value : [value];
+      for (let offset = 0; offset < items.length; offset += 10) console.info(JSON.stringify({ event: 'norte_retirement_inventory', operationId: result.operationId, section, items: items.slice(offset, offset + 10) }));
+    }
+  } catch (error) {
+    // Maintenance failure must not disclose state or prevent ordinary access.
+    console.error(JSON.stringify({ event: 'norte_workspace_retirement_failed', code: error.code || 'RETIREMENT_FAILED' }));
+  }
+}
+
 const { buildApp } = await import("./app.mjs");
 
 const port = Number(process.env.PORT || process.env.NORTE_API_PORT || process.env.MISSION_API_PORT || 8787);

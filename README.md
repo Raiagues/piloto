@@ -82,6 +82,8 @@ Veja [arquitetura e dados](docs/architecture.md), [reuniões e memórias](docs/m
 
 Planos comerciais, comunidade, memória de projeto, concepção, laboratório de ideias e painéis de atividade de equipe foram retirados. A limpeza explícita do ambiente de teste remove os projetos Quetzal e exemplos antigos; uma instalação nova não cria nenhum projeto.
 
+Para instalações PostgreSQL, `node norte/scripts/retire-workspace.mjs --help` descreve a manutenção por plano e fingerprint, com backup transacional privado. O procedimento está em [arquitetura e dados](docs/architecture.md).
+
 ## IA e privacidade
 
 Preencha `TYPESAFE_API_KEY` para classificação JEV e `GOOGLE_API_KEY` para Gemini. A configuração detalhada está em `.env.example`. Chaves ausentes não geram resultados fictícios. Os testes padrão usam provedores simulados, sem cobranças.

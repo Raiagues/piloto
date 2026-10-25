@@ -18,7 +18,7 @@ function textCharacters(value) {
 // needs a listener: otherwise a temporary database restart terminates Node.
 function handleIdleConnectionError() {}
 
-async function transaction(pool, work) {
+export async function postgresTransaction(pool, work) {
   const client = await pool.connect();
   let connectionError = null;
   let discard = false;
@@ -109,7 +109,7 @@ export class PostgresDataStore {
     );
     // Normalize under the same lock used for ordinary writes; simultaneous
     // starts cannot overwrite a registration or upload with an old snapshot.
-    const snapshot = await transaction(this.pool, async ({ query, wait }) => {
+    const snapshot = await postgresTransaction(this.pool, async ({ query, wait }) => {
       const result = await query("SELECT data, revision::text AS revision, updated_at::text AS updated_at_token FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
       const encoded = isEncodedPostgresState(result.rows[0].data);
       const decoded = await wait(() => decodePostgresState(result.rows[0].data));
@@ -163,7 +163,7 @@ export class PostgresDataStore {
   update(mutator) {
     this.pendingRefresh = null;
     const operation = this.queue.then(async () => {
-      const snapshot = await transaction(this.pool, async ({ query, wait }) => {
+      const snapshot = await postgresTransaction(this.pool, async ({ query, wait }) => {
         const current = await query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
         const encoded = isEncodedPostgresState(current.rows[0].data);
         const decoded = await wait(() => decodePostgresState(current.rows[0].data));
