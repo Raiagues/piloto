@@ -166,11 +166,76 @@ try {
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
   await host.page.locator('.meeting-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
+  const readOnlyRequests = [], savedVersion = records.get(key).version;
+  host.page.on('request', request => {
+    const path = new URL(request.url()).pathname;
+    if (request.method() === 'POST' && /\/legacy\/(?:records|ai\/blocks\/review)$/.test(path)) readOnlyRequests.push(path);
+  });
   for (const page of [host.page, guest.page]) {
     await page.goto(origin + '/norte/?meeting=' + meeting.id + '#/meetings', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, meeting.id);
   }
   assert.equal(joinRequests.length, 0, 'owner and accepted participant deep links avoid join writes');
+  await frame.locator('#roomMinutes:not([disabled])').click();
+  await frame.locator('.gm-page').waitFor();
+  await host.page.locator('.meeting-back').click();
+  await frame.locator('.gm-page').waitFor({ state: 'detached' });
+  // Cover the editorial agent's 3.5-second debounce after reopening saved content.
+  await new Promise(resolve => setTimeout(resolve, 4200));
+  assert.deepEqual(readOnlyRequests, [], 'reading a completed meeting and its minutes does not save records or schedule AI');
+  assert.equal(records.get(key).version, savedVersion, 'read navigation preserves the persisted meeting version');
+
+  let releaseWrite, pendingWrite;
+  const writeGate = new Promise(resolve => { releaseWrite = resolve; });
+  const writeArrived = new Promise(resolve => { pendingWrite = resolve; });
+  const recordRoute = `**/api/meetings/${meeting.id}/legacy/records`;
+  let queuedWrites = 0;
+  const holdFirstWrite = async route => {
+    if (route.request().method() === 'POST' && ++queuedWrites === 1) { pendingWrite(); await writeGate; }
+    await route.continue();
+  };
+  await host.page.route(recordRoute, holdFirstWrite);
+  try {
+    await host.page.evaluate(() => {
+      const room = document.querySelector('.meetings-frame').contentWindow, title = room.document.querySelector('#roomTitle');
+      room.__savedTitle = title.value; title.value = 'Alteração pendente'; title.onchange();
+      room.__pendingSave = room.NorteMeetingRoom.flushStorage();
+    });
+    await writeArrived;
+    await host.page.evaluate(() => {
+      const room = document.querySelector('.meetings-frame').contentWindow, title = room.document.querySelector('#roomTitle');
+      title.value = room.__savedTitle; title.onchange(); room.__undoSave = room.NorteMeetingRoom.flushStorage();
+    });
+    releaseWrite();
+    assert.deepEqual(await host.page.evaluate(() => {
+      const room = document.querySelector('.meetings-frame').contentWindow;
+      return Promise.all([room.__pendingSave, room.__undoSave]);
+    }), [true, true]);
+    assert.equal(queuedWrites, 2, 'undoing to the previous snapshot while a write is pending must queue a second save');
+    assert.equal(records.get(key).version, savedVersion + 2);
+    assert.equal(JSON.parse(records.get(key).value).title, saved.title);
+  } finally { releaseWrite(); await host.page.unroute(recordRoute, holdFirstWrite); }
+
+  let retryWrites = 0;
+  const failFirstWrite = async route => {
+    if (route.request().method() === 'POST' && ++retryWrites === 1) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Isolated save failure' }) });
+    } else await route.continue();
+  };
+  await host.page.route(recordRoute, failFirstWrite);
+  try {
+    assert.equal(await host.page.evaluate(() => {
+      const room = document.querySelector('.meetings-frame').contentWindow, title = room.document.querySelector('#roomTitle');
+      title.value = 'Alteração sem confirmação'; title.onchange(); return room.NorteMeetingRoom.flushStorage();
+    }), false);
+    assert.equal(await host.page.evaluate(() => {
+      const room = document.querySelector('.meetings-frame').contentWindow, title = room.document.querySelector('#roomTitle');
+      title.value = room.__savedTitle; title.onchange(); return room.NorteMeetingRoom.flushStorage();
+    }), true);
+    assert.equal(retryWrites, 2, 'after a failed save, restoring the previous snapshot retries persistence');
+    assert.equal(records.get(key).version, savedVersion + 3);
+    assert.equal(JSON.parse(records.get(key).value).title, saved.title);
+  } finally { await host.page.unroute(recordRoute, failFirstWrite); }
 
   const injectAs = (actor, method, url, payload) => app.inject({ method, url, headers: { cookie: actor.cookie, 'x-csrf-token': actor.csrfToken }, ...(payload === undefined ? {} : { payload }) });
   const teamResponse = await injectAs(actors[0], 'POST', '/api/teams', { name: 'Opening validation team' }); assert.equal(teamResponse.statusCode, 201, teamResponse.body);
@@ -193,7 +258,7 @@ try {
   const deniedHTML = await injectAs(actors[2], 'GET', `/meeting/${teamMeeting.id}`); assert.equal(deniedHTML.statusCode, 404); assert.doesNotMatch(deniedHTML.body, /NORTE_MEETING_BOOTSTRAP/);
   assert.equal((await injectAs(actors[2], 'POST', `/api/meetings/${teamMeeting.id}/join`, {})).statusCode, 404);
   assert.deepEqual(errors, []);
-  console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation, mobile layout, owner/accepted-participant deep links without join writes, one first team join and denied outsider HTML/API.');
+  console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation, mobile layout, owner/accepted-participant deep links without join writes, read-only meeting/minutes navigation without writes or AI, queued undo and failed-save retry, one first team join and denied outsider HTML/API.');
 } catch (error) {
   if (hostPage) await hostPage.screenshot({ path: '/tmp/norte-integrated-meeting-failure.png', fullPage: true }).catch(() => {});
   for (const [index, context] of (browser?.contexts() || []).entries()) for (const page of context.pages()) {

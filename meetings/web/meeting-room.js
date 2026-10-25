@@ -42,7 +42,7 @@ const button=(label,fn,cls='compact-button')=>{const n=el('button',cls,label);n.
 let current=null,controller=null,mode=null,ready=false,provider='official',starting=false,closing=false,renaming=null,db=null,saveTimer=null,saveQueue=Promise.resolve(),renderFrame=0,lastTranscript='',history=[],view='library',initialized=false;
 let recognition=null,listening=false,micPaused=false,ledger=null,consumed=new Set(),micEnd=null,restartTimer=null,recognitionErrors=0,micStopping=false,stopPromise=null;
 let recognitionWindow=null,recognitionDeadline=null;
-let savesPending=0;
+let savesPending=0,persistedSnapshot=null;
 let pendingContributions=[],pendingTyped=null;
 const roomKind=()=> 'meeting';
 const finishHome=integrated?document.querySelector('.room-recording-controls'):$('roomFinish').parentElement;
@@ -74,12 +74,13 @@ function save(){
  if(!current)return saveQueue.then(()=>true);
  if(!db){notice('Não foi possível salvar '+savedWhere+'. A reunião continuará aberta para você baixar a ata.');return Promise.resolve(false);}
  const snapshot=JSON.stringify(current),item={id:current.id,title:current.title,date:current.createdAt,startedAt:current.startedAt,status:current.status,points:current.meeting_events.length,room_kind:current.room_kind||'meeting'};
+ if(!savesPending&&snapshot===persistedSnapshot)return saveQueue.then(()=>true);
  $('roomSave').textContent='Salvando…';savesPending++;
  saveQueue=saveQueue.catch(()=>{}).then(async()=>{
   await db.write(saveKey(item.id),snapshot);
   history=await db.change(INDEX,raw=>{let list=raw?JSON.parse(raw):[];list=[item,...list.filter(x=>x.id!==item.id)].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));return {value:JSON.stringify(list),result:list};});
-  renderLibrary();$('roomSave').textContent=inAccount?'Salvo na sua conta':'Salvo neste navegador';if(current?.id===item.id)blockAgents?.saved(current);return true;
- }).catch(error=>{$('roomSave').textContent='Falha ao salvar';notice((inAccount?cleanError(error)+' ':'Não foi possível salvar no navegador. ')+'Baixe a ata antes de fechar a página.');return false;}).finally(()=>{savesPending--;});
+  renderLibrary();$('roomSave').textContent=inAccount?'Salvo na sua conta':'Salvo neste navegador';if(current?.id===item.id){persistedSnapshot=snapshot;blockAgents?.saved(current);}return true;
+ }).catch(error=>{if(current?.id===item.id)persistedSnapshot=null;$('roomSave').textContent='Falha ao salvar';notice((inAccount?cleanError(error)+' ':'Não foi possível salvar no navegador. ')+'Baixe a ata antes de fechar a página.');return false;}).finally(()=>{savesPending--;});
  return saveQueue;
 }
 function renderLibrary(){
@@ -329,7 +330,9 @@ async function openMeeting(id){
   const raw=await db.read(saveKey(id));if(!raw&&!integrated)throw Error(inAccount?'Esta reunião não está disponível nesta conta. Entre na conta que criou a ata.':'Esta reunião não está salva neste navegador. Abra o link no navegador em que ela foi criada.');
   const original=raw?JSON.parse(raw):null,saved=original?(integrated?.meeting.copiedFromExample?integrated.view({...original,readonly_projection:'norte.meeting-view.v1'}):integrated&&!integrated.host?integrated.view(original):Session.restore(original)):draft(integrated.meeting.title);
   if(integrated){saved.id=id;saved.batch.batch_id=id;saved.room_kind=integrated.meeting.roomKind||'meeting';saved.createdAt=integrated.meeting.createdAt||saved.createdAt;saved.project_id=integrated.meeting.projectId;saved.integrated_norte=true;if(!integrated.host&&original)saved.status=original.status;}
-  current=saved;if(!integrated)delete current.block_review;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();blockAgents?.saved(current);
+  current=saved;if(!integrated)delete current.block_review;controller=null;mode=current.input_mode||null;lastTranscript='';canvas.reset();
+  // Reading a saved meeting does not enqueue editorial work or another save.
+  persistedSnapshot=raw&&!integrated?.meeting.copiedFromExample?JSON.stringify(current):null;
   $('roomTitle').value=current.title;view='room';transcriptPanel(transcriptPreference());renderView();
   notice(current.status==='interrupted'?'Esta reunião foi interrompida. Os registros recebidos foram preservados; gere a ata com os avisos de revisão.':'');render();if(integrated?.host&&(!raw||integrated.meeting.copiedFromExample))await save();if(new URLSearchParams(location.search).get('view')==='minutes')queueMicrotask(openMinutes);return true;
  }catch(error){notice(cleanError(error));return false;}
@@ -388,7 +391,7 @@ function transcriptPanel(open){$('meetingPage').classList.toggle('has-transcript
 $('roomTranscriptToggle').onclick=()=>{const open=$('roomTranscriptPanel').hidden;transcriptPanel(open);try{localStorage.setItem(TRANSCRIPT_PREF,open?'1':'0');}catch(_){}};
 $('roomTitle').onchange=()=>{if(current&&canWrite()){current.title=$('roomTitle').value.trim()||'Nova reunião';saveSoon();}};
 function reportView(view){if(integrated)window.parent.postMessage({type:'norte:meeting-view',meetingId:current?.id,view},location.origin);}
-function openMinutes(){if(!current||isRunning()||!current.meeting_events.length)return;reportView('minutes');NorteGeminiMinutes.open(current,{autoGenerate:false,readOnly:!canWrite(),onExplore:inspectEvidence,onClose:()=>reportView('canvas'),onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();return await save();}});}
+function openMinutes(){if(!current||isRunning()||!current.meeting_events.length)return;reportView('minutes');NorteGeminiMinutes.open(current,{readOnly:!canWrite(),onExplore:inspectEvidence,onClose:()=>reportView('canvas'),onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();return await save();}});}
 $('roomMinutes').onclick=openMinutes;
 window.addEventListener('message',event=>{if(!integrated||event.source!==window.parent||event.origin!==location.origin||event.data?.meetingId!==current?.id||event.data?.type!=='norte:meeting-view')return;if(event.data.view==='canvas')document.querySelector('#gmDialog')?.close();else if(event.data.view==='minutes')openMinutes();});
 $('roomImport').onclick=()=>{$('roomImportDialog').showModal();$('roomImportText').focus();};$('roomImportClose').onclick=()=>$('roomImportDialog').close();let filename='transcricao.txt';

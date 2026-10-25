@@ -43,6 +43,8 @@ Scripts, estilos e fontes da sala são arquivos públicos de uma lista fechada e
 
 A sala pré-carrega seus módulos em paralelo, mantendo a ordem de execução. A consulta ao serviço de processamento habilita a gravação, mas não bloqueia a leitura dos registros salvos. Reabrir uma reunião como anfitrião ou participante aceito não repete a escrita de entrada; o HTML e cada API continuam verificando o acesso atual.
 
+Abrir uma reunião salva ou sua ata não grava registros nem agenda revisão editorial. O PDF exporta o documento visível, mantendo a conferência das pendências; somente a ação de resumir solicita IA para a ata. Correções humanas e a geração solicitada continuam sendo salvas.
+
 ## Privacidade e autoridade
 
 Senhas usam Argon2id; cookies de sessão são HttpOnly. Escritas exigem CSRF e origem válida. O bootstrap administrativo de produção exige segredo privado, e métricas globais exigem TOTP. Ser administrador não ignora a autorização de uma equipe, reunião ou conversa.
