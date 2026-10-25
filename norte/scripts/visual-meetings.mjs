@@ -63,6 +63,24 @@ try {
       window.SpeechRecognition = window.webkitSpeechRecognition = TestSpeechRecognition;
       const Native = window.RTCPeerConnection; window.__audioPeers = [];
       window.RTCPeerConnection = class extends Native { constructor(...args) { super(...args); window.__audioPeers.push(this); } };
+      if (window.parent !== window && window.location.pathname.startsWith('/meeting/')) {
+        const captureFirstRoomPaint = () => {
+          const layout = document.querySelector('.app-shell');
+          if (!document.body || !layout?.getClientRects().length) { window.requestAnimationFrame(captureFirstRoomPaint); return; }
+          const rootStyle = window.getComputedStyle(document.documentElement), bodyStyle = window.getComputedStyle(document.body);
+          const colorContext = document.createElement('canvas').getContext('2d');
+          const normalize = value => { colorContext.fillStyle = value; return colorContext.fillStyle; };
+          window.__firstRoomPaint = {
+            theme: document.documentElement.dataset.theme, parentTheme: window.parent.document.documentElement.dataset.theme,
+            token: normalize(rootStyle.getPropertyValue('--norte-bg').trim()),
+            rootBackground: normalize(rootStyle.backgroundColor), bodyBackground: normalize(bodyStyle.backgroundColor),
+            controls: [...document.querySelectorAll('#roomLive,#roomMinutes,#roomSend')].map(button => ({
+              id: button.id, background: window.getComputedStyle(button).backgroundColor, color: window.getComputedStyle(button).color
+            }))
+          };
+        };
+        window.requestAnimationFrame(captureFirstRoomPaint);
+      }
     });
     await page.goto(origin + '/norte/#/meetings'); return { context, page };
   };
@@ -74,6 +92,12 @@ try {
   const frame = host.page.frameLocator('.meetings-frame');
   await frame.locator('#roomText').waitFor({ timeout: 30_000 });
   await host.page.waitForFunction(() => Boolean(document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id));
+  const firstPaint = await frame.locator('body').evaluate(() => window.__firstRoomPaint);
+  assert.equal(firstPaint.theme, 'light', JSON.stringify(firstPaint));
+  assert.equal(firstPaint.parentTheme, 'light');
+  assert.equal(firstPaint.rootBackground, firstPaint.token, JSON.stringify(firstPaint));
+  assert.equal(firstPaint.bodyBackground, firstPaint.token, JSON.stringify(firstPaint));
+  assert.ok(firstPaint.controls.length > 0, 'capture includes the room controls before interactions');
   assert.equal(healthPending, true); assert.equal(healthReleased, false, 'the room and its record open before processing health completes');
   healthReleased = true; releaseInitialHealth();
   assert.equal(await frame.locator('#roomTitle').isVisible(), false);
@@ -166,6 +190,9 @@ try {
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
   await host.page.locator('.meeting-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
+  const imported = JSON.parse(records.get(key).value);
+  imported.input_mode = 'import'; imported.meeting_metadata = { ...imported.meeting_metadata, duration_unknown: true };
+  records.set(key, { value: JSON.stringify(imported), version: records.get(key).version + 1 });
   const readOnlyRequests = [], savedVersion = records.get(key).version;
   host.page.on('request', request => {
     const path = new URL(request.url()).pathname;
@@ -176,14 +203,54 @@ try {
     await page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, meeting.id);
   }
   assert.equal(joinRequests.length, 0, 'owner and accepted participant deep links avoid join writes');
+  assert.equal(await frame.locator('#roomTimer').isVisible(), false, 'an imported meeting with unknown duration never shows processing time as meeting duration');
+  assert.deepEqual(await host.page.evaluate(() => document.querySelector('.meetings-frame').contentWindow.NorteMeetingRoom.snapshot().meeting_metadata), imported.meeting_metadata);
+  await frame.locator('#mc-direct-arrow path').waitFor({ state: 'attached' });
   await frame.locator('#roomMinutes:not([disabled])').click();
   await frame.locator('.gm-page').waitFor();
+  assert.equal(await frame.locator('#gmPDF').isEnabled(), true);
+  for (const theme of ['light', 'dark']) {
+    await host.page.evaluate(value => {
+      document.documentElement.dataset.theme = value;
+      window.dispatchEvent(new window.CustomEvent('norte:theme-change', { detail: { theme: value } }));
+    }, theme);
+    assert.equal(await frame.locator('html').getAttribute('data-theme'), theme);
+    await frame.locator('#gmPDF').hover();
+    const pdfHoverContrast = await frame.locator('#gmPDF').evaluate(async button => {
+      await Promise.all(button.getAnimations().map(animation => animation.finished));
+      const style = window.getComputedStyle(button);
+      const luminance = color => {
+        const [red, green, blue] = color.match(/[\d.]+/g).slice(0, 3).map(value => {
+          const channel = Number(value) / 255;
+          return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+        });
+        return .2126 * red + .7152 * green + .0722 * blue;
+      };
+      const foreground = luminance(style.color), background = luminance(style.backgroundColor);
+      return (Math.max(foreground, background) + .05) / (Math.min(foreground, background) + .05);
+    });
+    assert.ok(pdfHoverContrast >= 4.5, `${theme} PDF hover contrast is sufficient (${pdfHoverContrast.toFixed(2)}:1)`);
+    const markers = await frame.locator('body').evaluate(() => {
+      const rootStyle = window.getComputedStyle(document.documentElement), colorContext = document.createElement('canvas').getContext('2d');
+      const normalize = value => { colorContext.fillStyle = value; return colorContext.fillStyle; };
+      return [['direct', 'text-muted'], ['review', 'warning'], ['error', 'danger']].map(([name, token]) => {
+        const marker = document.querySelector(`#mc-${name}-arrow path`);
+        return { name, fill: marker ? normalize(window.getComputedStyle(marker).fill) : null, expected: normalize(rootStyle.getPropertyValue(`--norte-${token}`).trim()) };
+      });
+    });
+    for (const marker of markers) assert.equal(marker.fill, marker.expected, `${theme} ${marker.name} arrow follows its semantic color`);
+  }
+  await host.page.evaluate(() => {
+    document.documentElement.dataset.theme = 'light';
+    window.dispatchEvent(new window.CustomEvent('norte:theme-change', { detail: { theme: 'light' } }));
+  });
   await host.page.locator('.meeting-back').click();
   await frame.locator('.gm-page').waitFor({ state: 'detached' });
   // Cover the editorial agent's 3.5-second debounce after reopening saved content.
   await new Promise(resolve => setTimeout(resolve, 4200));
   assert.deepEqual(readOnlyRequests, [], 'reading a completed meeting and its minutes does not save records or schedule AI');
   assert.equal(records.get(key).version, savedVersion, 'read navigation preserves the persisted meeting version');
+  assert.deepEqual(JSON.parse(records.get(key).value).meeting_metadata, imported.meeting_metadata, 'the duration presentation preserves imported metadata');
 
   let releaseWrite, pendingWrite;
   const writeGate = new Promise(resolve => { releaseWrite = resolve; });

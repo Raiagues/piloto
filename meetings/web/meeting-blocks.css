@@ -1,20 +1,20 @@
-.mc-editorial { border:1px solid #35ba903d; border-radius:0; padding:3px 6px; background:#123c50; color:#94ecd3; font:inherit; font-size:10px; cursor:pointer; }
-.room-node-header:has(.mc-editorial) { flex-wrap:wrap; }
-.room-block-status { display:block; font-size:11px; color:var(--muted); }
-.room-block-dialog { width:min(620px,90vw); max-height:85vh; overflow:auto; border:1px solid var(--line-strong); border-radius:0; padding:24px; background:var(--panel); color:var(--text); }
-.room-block-dialog::backdrop { background:var(--norte-bg)b3; }
-.room-block-dialog h2 { margin-top:0; font-size:20px; }
-.room-block-dialog p { font-size:13px; line-height:1.5; }
-.room-block-dialog blockquote { margin:16px 0; padding:12px; background:var(--deep); border-left:3px solid var(--blue); white-space:pre-wrap; max-height:180px; overflow:auto; font-size:13px; line-height:1.6; }
-.room-block-dialog label { display:grid; gap:8px; font-size:13px; }
-.room-block-dialog textarea { box-sizing:border-box; width:100%; padding:10px; font:inherit; line-height:1.6; resize:vertical; border:1px solid var(--line-strong); border-radius:0; background:var(--deep); color:var(--text); }
-.room-block-dialog form>div { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
-.room-block-dialog [role=status] { color:#ffb4ab; }
-.mc-node-points { margin:0; padding-left:16px; display:grid; gap:5px; }
-#roomBoard .mc-node-copy.mc-node-excerpt { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
-#roomBoard .mc-node-copy:has(.mc-node-points) { display:block; overflow:visible; -webkit-line-clamp:unset; }
-.room-block-dialog label { margin-top:14px; }
-.room-block-dialog select { width:100%; padding:9px; font:inherit; background:var(--panel); color:var(--text); border:1px solid var(--line-strong); border-radius:0; }
-.room-block-dialog .room-block-learning-choice { display:flex; align-items:flex-start; gap:8px; }
-.room-block-dialog details { margin:12px 0; }
-.room-block-dialog summary { font-size:12px; cursor:pointer; color:var(--muted); }
+.mc-editorial { border: 1px solid var(--norte-success); border-radius: 0; padding: 3px 6px; background: transparent; color: var(--norte-text-secondary); font: inherit; font-size: 10px; cursor: pointer; border-color: transparent; }
+.room-node-header:has(.mc-editorial) { flex-wrap: wrap; }
+.room-block-status { display: block; font-size: 11px; color: var(--muted); }
+.room-block-dialog { width: min(620px,90vw); max-height: 85vh; overflow: auto; border: 1px solid var(--line-strong); border-radius: 0; padding: 24px; background: var(--panel); color: var(--text); }
+.room-block-dialog::backdrop { background: var(--norte-overlay); }
+.room-block-dialog h2 { margin-top: 0; font-size: 20px; }
+.room-block-dialog p { font-size: 13px; line-height: 1.5; }
+.room-block-dialog blockquote { margin: 16px 0; padding: 12px; background: var(--deep); border-left: 3px solid var(--blue); white-space: pre-wrap; max-height: 180px; overflow: auto; font-size: 13px; line-height: 1.6; }
+.room-block-dialog label { display: grid; gap: 8px; font-size: 13px; }
+.room-block-dialog textarea { box-sizing: border-box; width: 100%; padding: 10px; font: inherit; line-height: 1.6; resize: vertical; border: 1px solid var(--line-strong); border-radius: 0; background: var(--deep); color: var(--text); }
+.room-block-dialog form>div { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.room-block-dialog [role=status] { color: var(--norte-danger); }
+.mc-node-points { margin: 0; padding-left: 16px; display: grid; gap: 5px; }
+#roomBoard .mc-node-copy.mc-node-excerpt { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+#roomBoard .mc-node-copy:has(.mc-node-points) { display: block; overflow: visible; -webkit-line-clamp: unset; }
+.room-block-dialog label { margin-top: 14px; }
+.room-block-dialog select { width: 100%; padding: 9px; font: inherit; background: var(--panel); color: var(--text); border: 1px solid var(--line-strong); border-radius: 0; }
+.room-block-dialog .room-block-learning-choice { display: flex; align-items: flex-start; gap: 8px; }
+.room-block-dialog details { margin: 12px 0; }
+.room-block-dialog summary { font-size: 12px; cursor: pointer; color: var(--muted); }

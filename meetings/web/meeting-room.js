@@ -153,9 +153,12 @@ function controls(){
  updateTimer();
 }
 function updateTimer(){
- const start=Date.parse(current?.startedAt),end=current?.finishedAt?Date.parse(current.finishedAt):Date.now();
- const seconds=Number.isFinite(start)?Math.max(0,Math.floor((end-start)/1000)):0;
- $('roomTimer').textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
+ const timer=$('roomTimer'),meta=current?.meeting_metadata||{},imported=current?.input_mode==='import';
+ const start=Date.parse(imported?meta.started_at:current?.startedAt),end=imported?Date.parse(meta.ended_at):current?.finishedAt?Date.parse(current.finishedAt):Date.now();
+ const duration=imported&&Number.isFinite(meta.duration_ms)&&meta.duration_ms>=0?meta.duration_ms:Number.isFinite(start)&&Number.isFinite(end)&&end>=start?end-start:null;
+ timer.hidden=imported&&(meta.duration_unknown===true||duration===null);
+ const seconds=duration===null?0:Math.floor(duration/1000);
+ timer.textContent=String(Math.floor(seconds/60)).padStart(2,'0')+':'+String(seconds%60).padStart(2,'0');
 }
 function renderBoard(){
  const projection=canvas.render(current),count=current?.meeting_events.length||0,hasTopics=!!projection.topics.length;

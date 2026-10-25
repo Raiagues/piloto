@@ -95,7 +95,7 @@
 .requirement-link-options { max-height: 230px; overflow: auto; }
 .requirement-link-options label { flex-direction: row; gap: 10px; margin: 0; padding: 10px 0; }
 .requirement-link-options input { flex-shrink: 0; }
-.requirements-table .requirements-record.selected { background: var(--norte-accent-soft, #f2e8dc); box-shadow: inset 3px 0 var(--norte-accent); }
+.requirements-table .requirements-record.selected { background: var(--norte-accent-soft); box-shadow: inset 3px 0 var(--norte-accent); }
 @media (max-width: 1200px) {
   .requirements-layout.has-inspector { grid-template-columns: minmax(280px, 1fr) minmax(360px, 48%); }
   .requirements-layout.has-inspector .requirements-explorer { display: block; }
@@ -462,7 +462,7 @@
   font-size: 13px;
 }
 .standards-selection-summary span {
-  color: var(--norte-text-muted,#60717b);
+  color: var(--norte-text-muted);
   font-size: 12px;
 }
 .standards-options .standard-scope {

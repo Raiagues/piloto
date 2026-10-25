@@ -182,7 +182,7 @@
       // board's measured dimensions rather than the shared 18px icon size.
       svg.style.width=width+'px';svg.style.height=height+'px';
       const defs=make('defs');
-      for(const [name,color] of [['direct','#8faabf'],['review','#c4a361'],['error','#cf7886']]){const marker=make('marker',{id:'mc-'+name+'-arrow',viewBox:'0 0 8 8',refX:7,refY:4,markerWidth:6,markerHeight:6,orient:'auto'});marker.append(make('path',{d:'M1 1 L7 4 L1 7 Z',fill:color}));defs.append(marker);}svg.replaceChildren(defs);
+      for(const [name,color] of [['direct','var(--norte-text-muted)'],['review','var(--norte-warning)'],['error','var(--norte-danger)']]){const marker=make('marker',{id:'mc-'+name+'-arrow',viewBox:'0 0 8 8',refX:7,refY:4,markerWidth:6,markerHeight:6,orient:'auto'});marker.append(make('path',{d:'M1 1 L7 4 L1 7 Z',fill:color}));defs.append(marker);}svg.replaceChildren(defs);
       const cards=new Map([...board.querySelectorAll('.room-node')].map(card=>[card.dataset.eventId,card]));
       const box=card=>{const rect=card.getBoundingClientRect(),header=card.querySelector('.room-node-header').getBoundingClientRect();return {left:(rect.left-origin.left)/zoom,right:(rect.right-origin.left)/zoom,y:(header.top+header.height/2-origin.top)/zoom};};
       for(const link of links){
@@ -201,7 +201,7 @@
         if(link.review_state!=='confirmed'){
           const warning=make('g',{class:'mc-edge-warning',role:'button',tabindex:'0',transform:`translate(${labelX},${labelY+10})`,'aria-label':'Revisar vínculo: '+(link.issues?.[0]?.message||link.label)});
           warning.dataset.relationId=link.id;warning.dataset.status=link.error?'error':'review';
-          warning.append(make('path',{d:'M 0 -8 L 8 6 L -8 6 Z',fill:'#102332',stroke:'currentColor','stroke-width':1.3}));
+          warning.append(make('path',{d:'M 0 -8 L 8 6 L -8 6 Z',fill:'var(--norte-surface)',stroke:'currentColor','stroke-width':1.3}));
           const mark=make('text',{'text-anchor':'middle',y:3});mark.textContent='!';warning.append(mark);
           const inspect=()=>onInspect({kind:'relation',relation_id:link.id,issues:link.issues||[]});
           warning.addEventListener('click',inspect);warning.addEventListener('keydown',event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();inspect();}});svg.append(warning);

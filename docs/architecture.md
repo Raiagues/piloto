@@ -45,6 +45,8 @@ A sala pré-carrega seus módulos em paralelo, mantendo a ordem de execução. A
 
 Abrir uma reunião salva ou sua ata não grava registros nem agenda revisão editorial. O PDF exporta o documento visível, mantendo a conferência das pendências; somente a ação de resumir solicita IA para a ata. Correções humanas e a geração solicitada continuam sendo salvas.
 
+O cronômetro de uma transcrição importada usa apenas a duração informada nos metadados. Se ela for desconhecida, o cronômetro fica oculto; o tempo de processamento não representa a duração da reunião.
+
 ## Privacidade e autoridade
 
 Senhas usam Argon2id; cookies de sessão são HttpOnly. Escritas exigem CSRF e origem válida. O bootstrap administrativo de produção exige segredo privado, e métricas globais exigem TOTP. Ser administrador não ignora a autorização de uma equipe, reunião ou conversa.
