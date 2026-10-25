@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const R=require('../scripts/verify-typed-relations.cjs'),TR=require('../typed-relations.js');
+const R=require('../scripts/verify-typed-relations.cjs'),TR=require('../meetings/web/typed-relations.js');
 const fixture=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'fixtures/typed-relations-curated.json')));
 test('CLI confines network to local official proxy and keeps evaluation modes explicit',()=>{
  assert.equal(R.options(['--isolated']).isolated,true);assert.equal(R.options(['--from-run','x.json'])['from-run'],'x.json');

@@ -1,5 +1,0 @@
-export function registerOnboarding(app,{store,requireAuth,requireCsrf}){
- const view=u=>({completed:Boolean(u.onboarding?.completed),goal:u.onboarding?.goal||'project',version:u.onboarding?.version||0});
- app.get('/api/platform/onboarding',{preHandler:[requireAuth]},async request=>view(store.read().users.find(u=>u.id===request.auth.user.id)));
- app.patch('/api/platform/onboarding',{preHandler:[requireAuth,requireCsrf],bodyLimit:1000},async request=>store.update(data=>{const user=data.users.find(u=>u.id===request.auth.user.id&&u.active),b=request.body||{};if(!user)throw Object.assign(new Error('Entre novamente.'),{statusCode:401});if(b.version!==view(user).version)throw Object.assign(new Error('As preferências mudaram. Recarregue.'),{statusCode:409});if(typeof b.completed!=='boolean'||!['project','team','explore'].includes(b.goal))throw Object.assign(new Error('Preferência inválida.'),{statusCode:400});user.onboarding={completed:b.completed,goal:b.goal,version:view(user).version+1};return view(user);}));
-}

@@ -6,8 +6,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const F = require('../memory-flow.js');
-const T = require('../relation-worker.js').threads;
+const F = require('../meetings/web/memory-flow.js');
+const T = require('../meetings/web/relation-worker.js').threads;
 const root = path.resolve(__dirname, '..');
 const clone = value => JSON.parse(JSON.stringify(value));
 
@@ -101,7 +101,7 @@ async function main() {
     console.log('Usage: node scripts/verify-memory-v2.cjs [--batch file.json] [--legacy] [--chunks-only] [--output run.json] [--url http://localhost:8000] [--questions questions.json]');
     return;
   }
-  const V = args.legacy ? null : require('../memory-v2.js');
+  const V = args.legacy ? null : require('../meetings/web/memory-v2.js');
   const readJSON = filename => JSON.parse(fs.readFileSync(path.resolve(filename), 'utf8'));
   const questionsFile = args.questions ? readJSON(args.questions) : null;
   const questions = questionsFile?.questions || questionsFile || (args.legacy ? F.questions : V.questions);

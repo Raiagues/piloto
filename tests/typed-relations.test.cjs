@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const TR=require('../typed-relations.js');
+const TR=require('../meetings/web/typed-relations.js');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const curated=require('./fixtures/typed-relations-curated.json'),holdout=require('./fixtures/typed-relations-holdout.json');
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import '../collaboration-workspace.css';
+import '../styles/features/teams.css';
 import { useAuth } from '../lib/auth';
+import { PersonAvatar } from './OrganizationTree';
 import type { Language } from '../lib/types';
 export type Invitation = { id: string; teamId: string; teamName: string; nickname: string | null; displayName: string | null; email: string; status: string; channel: 'email' | 'nickname'; delivery: string; expiresAt: string };
 type FoundUser = { id: string; nickname: string; displayName: string; institution: string; avatarUrl: string };
@@ -17,21 +18,21 @@ export function TeamInvitations({ teamId, language }: { teamId: string; language
     event.preventDefault(); setBusy(true); setFeedback('');
     try { await api(`/teams/${teamId}/invitations`, { method: 'POST', body: JSON.stringify(channel === 'nickname' ? { nickname: found?.nickname } : { email: query }) }); setFeedback(pt ? 'Convite enviado. A entrada depende do aceite da pessoa.' : 'Invitation sent. Membership requires acceptance.'); setFound(null); setQuery(''); await load(); } catch (e) { setFeedback(message(e)); } finally { setBusy(false); }
   }
-  const statusLabel: Record<string, string> = pt ? { pending: 'Pendente', accepted: 'Aceito', declined: 'Recusado', cancelled: 'Cancelado', expired: 'Expirado', failed: 'Falha no envio' } : {};
-  return <section className="team-invitations organization-panel"><h3>{pt ? 'Convidar pessoas' : 'Invite people'}</h3>
-    <form onSubmit={e => void invite(e)}>{user?.email && <label>{pt ? 'Como convidar' : 'Invite by'}<select value={channel} onChange={e => { setChannel(e.target.value as typeof channel); setQuery(''); setFound(null); }}><option value="nickname">{pt ? 'Login ou nickname' : 'Username or nickname'}</option><option value="email">Email</option></select></label>}
+  const statusLabel: Record<string, string> = pt ? { pending: 'Aguardando resposta', accepted: 'Aceito', declined: 'Recusado', cancelled: 'Cancelado', expired: 'Expirado', failed: 'Falha no envio' } : { pending: 'Awaiting response', accepted: 'Accepted', declined: 'Declined', cancelled: 'Cancelled', expired: 'Expired', failed: 'Delivery failed' };
+  return <section className="team-invitations organization-panel"><h3>{pt ? 'Convidar integrante' : 'Invite a member'}</h3>
+    <form onSubmit={e => { if (channel === 'nickname' && !found) { e.preventDefault(); void find(); } else void invite(e); }}>{user?.email && <label>{pt ? 'Convidar por' : 'Invite by'}<select value={channel} onChange={e => { setChannel(e.target.value as typeof channel); setQuery(''); setFound(null); }}><option value="nickname">{pt ? 'Login ou nickname' : 'Username or nickname'}</option><option value="email">Email</option></select></label>}
       <label>{channel === 'nickname' ? (pt ? 'Login ou nickname' : 'Username or nickname') : 'Email'}<input required type={channel === 'email' ? 'email' : 'text'} maxLength={channel === 'email' ? 254 : 31} value={query} onChange={e => { setQuery(e.target.value); setFound(null); }} placeholder={channel === 'nickname' ? (pt ? 'Login ou @nickname' : 'Username or @nickname') : 'pessoa@exemplo.com'} /></label>
       {channel === 'nickname' && <button type="button" disabled={busy || !query.trim()} onClick={() => void find()}>{pt ? 'Buscar pessoa' : 'Find person'}</button>}
-      {found && <div className="invite-person"><strong>{found.displayName}</strong><span>@{found.nickname}</span><small>{found.institution}</small><p>{pt ? 'Confirme o nome e o identificador antes de enviar.' : 'Confirm the name and identifier before sending.'}</p></div>}
+      {found && <div className="invite-person"><PersonAvatar name={found.displayName} id={found.id} size={38}/><div><strong>{found.displayName}</strong><span>@{found.nickname}</span></div><button className="primary" type="submit" disabled={busy}>{pt ? 'Enviar convite' : 'Send invitation'}</button></div>}
       {channel === 'email' && <p>{!configured ? (pt ? 'O administrador precisa configurar o envio de emails neste ambiente.' : 'Email delivery must be configured by the administrator.') : !user?.emailVerifiedAt ? (pt ? 'Verifique seu email na página de Convites antes de enviar.' : 'Verify your email on the Invitations page first.') : (pt ? 'O destinatário precisará verificar este email e aceitar o convite. Expira em 7 dias.' : 'The recipient must verify this email and accept. Expires in 7 days.')}</p>}
-      <button className="primary" type="submit" disabled={busy || (channel === 'nickname' ? !found : !configured || !user?.emailVerifiedAt)}>{pt ? 'Enviar convite' : 'Send invitation'}</button>
+      {channel === 'email' && <button className="primary" type="submit" disabled={busy || !configured || !user?.emailVerifiedAt}>{pt ? 'Enviar convite' : 'Send invitation'}</button>}
     </form>
     {feedback && <p role="status">{feedback}</p>}
     <h4>{pt ? 'Convites enviados' : 'Sent invitations'}</h4>{invitations.length === 0 && <p>{pt ? 'Nenhum convite enviado.' : 'No invitations sent.'}</p>}
     <div className="invitation-list">{invitations.map(i => <article key={i.id}><div><strong>{i.nickname ? `@${i.nickname}` : i.email}</strong><small>{statusLabel[i.status] || i.status} · {pt ? 'Validade' : 'Expires'}: {new Date(i.expiresAt).toLocaleDateString(pt ? 'pt-BR' : 'en-GB')}</small></div>{i.status === 'pending' && <button type="button" disabled={busy} onClick={async () => { setBusy(true); try { await api(`/teams/${teamId}/invitations/${i.id}`, { method: 'DELETE' }); await load(); } catch (e) { setFeedback(message(e)); } finally { setBusy(false); } }}>{pt ? 'Cancelar convite' : 'Cancel invitation'}</button>}</article>)}</div>
   </section>;
 }
-export function InvitationInbox({ language, onBack }: { language: Language; onBack: () => void }) {
+export function InvitationInbox({ language }: { language: Language; onBack?: () => void }) {
   const { api, user, refresh } = useAuth(), pt = language === 'pt';
   const [params, setParams] = useState(() => new URLSearchParams(window.location.hash.split('?')[1] || ''));
   const [items, setItems] = useState<Invitation[]>([]), [busy, setBusy] = useState(false), [feedback, setFeedback] = useState('');
@@ -43,7 +44,7 @@ export function InvitationInbox({ language, onBack }: { language: Language; onBa
     window.addEventListener('hashchange', readLink); return () => window.removeEventListener('hashchange', readLink);
   }, [load]);
   async function run(action: () => Promise<unknown>) { setBusy(true); setFeedback(''); try { await action(); await load(); await refresh(); } catch (e) { setFeedback(message(e)); } finally { setBusy(false); } }
-  return <main className="collaboration-page invitation-inbox"><header className="workspace-heading"><div><span className="workspace-eyebrow">{pt ? 'COLABORAÇÃO' : 'COLLABORATION'}</span><h1>{pt ? 'Convites' : 'Invitations'}</h1><p>{pt ? 'Gerencie sua participação nas equipes.' : 'Manage your team memberships.'}</p></div><button type="button" className="workspace-action" onClick={onBack}>{pt ? 'Voltar ao início' : 'Back to home'}</button></header>
+  return <main className="collaboration-page invitation-inbox" aria-label={pt ? 'Convites recebidos' : 'Received invitations'}><header className="workspace-heading"><h1>{pt ? 'Convites recebidos' : 'Received invitations'}</h1></header>
     {user?.email && <section className="organization-panel"><h2>{pt ? 'Seu email' : 'Your email'}</h2><p>{user.email} · {user.emailVerifiedAt ? (pt ? 'Verificado' : 'Verified') : (pt ? 'Ainda não verificado' : 'Not verified')}</p>
       {!user?.emailVerifiedAt && <button type="button" disabled={busy} onClick={() => void run(async () => { await api('/auth/email-verification', { method: 'POST' }); setFeedback(pt ? 'Verificação enviada. Abra o link recebido no seu email.' : 'Verification sent. Open the link in your email.'); })}>{pt ? 'Enviar verificação de email' : 'Send email verification'}</button>}
       {params.get('verification') && <button type="button" disabled={busy || Boolean(user?.emailVerifiedAt)} onClick={() => void run(async () => { await api('/auth/email-verification/confirm', { method: 'POST', body: JSON.stringify({ token: params.get('verification') }) }); setFeedback(pt ? 'Email verificado. Agora você pode aceitar o convite.' : 'Email verified. You can now accept the invitation.'); })}>{pt ? 'Confirmar meu email' : 'Confirm my email'}</button>}

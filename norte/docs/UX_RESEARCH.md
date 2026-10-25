@@ -1,6 +1,6 @@
 # Early mission conception research notes
 
-This document records the engineering rationale behind the conception workflow used by Norte.
+Historical research notes. Conception, project memory and idea testing have been retired from the product; the engineering references below are retained as research, not as a description of the current interface. See [workspace retirement](workspace-retirement.md).
 
 ## Why the platform starts with framing rather than hardware
 

@@ -14,7 +14,6 @@ from pathlib import Path
 import re
 import signal
 import socket
-import subprocess
 import threading
 import time
 import zlib
@@ -25,11 +24,12 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 import auth
 from config import Settings, load_settings
-import gemini_minutes
-import meeting_bridge
-import ai_runtime
+from meetings.engine import gemini_minutes
+from meetings.engine import meeting_bridge
+from meetings.engine import ai_runtime
 
 ROOT = Path(__file__).resolve().parent
+WEB_ROOT = ROOT / 'meetings' / 'web'
 
 
 def meeting_return_path(value):
@@ -52,22 +52,10 @@ def meeting_return_path(value):
         return '/'
 
 
-ALLOWED = {'index.html', 'styles.css', 'memory-flow.css', 'memory-flow.js', 'memory-page.js', 'relation-worker.js', 'app.js', 'transcription.js', 'speech-windows.js', 'classifier.js', 'workspace.js', 'experiments.js', 'automation.js', 'lab.js', 'classifier-config.json', 'manual-test-example.json'}
-ENGINE_URL = ''
-ALLOWED.update({'memory-v2.js','gemini-minutes.js','gemini-minutes.css','reuniao.html','meeting-room.js','meeting-room.css','meeting-canvas.js','meeting-canvas.css','meeting-session.js','meeting-commands.js','meeting-hierarchy.js','meeting-evidence.js','meeting-state.js','meeting-review.js'})
-ALLOWED.update({'beam-engine.js','beam-commands.js','beam-workspace.js','beam-workspace.css','meeting-beam.js','meeting-beam.css','meeting-speech.js'})
-ALLOWED.update({'meeting-document.js','meeting-amendments.js'})
-ALLOWED.update({'account.js', 'account.css', 'remote-storage.js'})
-ALLOWED.update({'ai-client.js', 'ai-observatory.js', 'ai-observatory.css'})
-ALLOWED.update({'meeting-blocks.js', 'meeting-blocks.css'})
-ALLOWED.update({'typed-relations.js', 'typed-relations-page.js', 'meeting-minutes.js', 'meeting-minutes.css', 'relation-map.js', 'relation-map.css', 'memory-storage.js',
-                'vendor/minutes/jspdf-4.2.1.umd.min.js', 'vendor/minutes/DejaVuSans-2.37.ttf',
-                'tests/fixtures/typed-relations-curated.json', 'tests/fixtures/typed-relations-holdout.json', 'tests/fixtures/typed-relations-b002.json',
-                'tests/fixtures/typed-relations-natural.json', 'tests/fixtures/typed-relations-b002-clarified.json'})
-# Served without an account. Everything else in ALLOWED needs a session.
+# Explicit assets only; engine sources and retired laboratory pages are never served.
+ALLOWED = {'memory-storage.js', 'relation-worker.js', 'layout.js', 'meeting-session.js', 'meeting-canvas.css', 'meeting-speech.js', 'memory-flow.js', 'meeting-room.css', 'meeting-room.js', 'experiments.js', 'meeting-state.js', 'meeting-amendments.js', 'gemini-minutes.css', 'meeting-hierarchy.js', 'meeting-review.js', 'meeting-evidence.js', 'base.css', 'meeting-blocks.js', 'classifier-transport.js', 'meeting-commands.js', 'norte-meeting-bridge.js', 'index.html', 'meeting-minutes.css', 'speech-windows.js', 'meeting-blocks.css', 'vendor/minutes/DejaVuSans-Bold-2.37.ttf', 'vendor/minutes/DejaVuSans-2.37.ttf', 'norte-meeting-bridge.css', 'tokens.css', 'remote-storage.js', 'meeting-canvas.js', 'typed-relations.js', 'meeting-minutes.js', 'gemini-minutes.js', 'vendor/minutes/jspdf-4.2.1.umd.min.js', 'transcription.js', 'meeting-document.js', 'memory-v2.js'}
+# Preserve account login for standalone deployments.
 PUBLIC = {'login.html', 'auth.css', 'auth.js'}
-# Test benches and fixtures belong to the admin account only.
-ADMIN_ONLY = {'manual-test-example.json'} | {name for name in ALLOWED if name.startswith('tests/')}
 SETTINGS = Settings()
 OFFICIAL_URL = 'https://api.typesafe.ai/v1/systemone'
 STORE = None
@@ -80,9 +68,7 @@ SIGNUP_THROTTLE = auth.Throttle(10, 60 * 60)
 MAX_RECORD_REQUEST = 32_000_000
 POST_ROUTES = ('/api/classify', '/api/relations', '/api/typed-relations', '/api/minutes', '/api/records',
                '/api/auth/login', '/api/auth/signup', '/api/auth/logout',
-               '/api/ai/events', '/api/ai/resolve', '/api/ai/memory/query',
-               '/api/ai/blocks/review', '/api/ai/blocks/feedback', '/api/admin/ai/blocks/memory',
-               '/api/admin/ai/replay', '/api/admin/ai/run', '/api/admin/ai/aliases')
+               '/api/ai/blocks/review', '/api/ai/blocks/feedback', '/api/ai/blocks/learning', '/api/ai/blocks/inspect')
 AI_THROTTLE = auth.Throttle(120, 60)
 AI_ADMIN_THROTTLE = auth.Throttle(10, 60)
 # One request per lane per account: accounts never block each other.
@@ -134,7 +120,7 @@ def validate_state(state):
 def validate_request(body):
     if not isinstance(body, dict) or set(body) != {'model', 'state', 'questions'}:
         raise ValueError('Use model, state e questions.')
-    if body['model'] != 'jev-latest': raise ValueError('Use o modelo jev-latest.')
+    if body['model'] not in ('jev-latest', SETTINGS.jev_model): raise ValueError('Use jev-latest ou o modelo configurado em JEV_MODEL.')
     validate_state(body['state'])
     questions = body['questions']
     if not isinstance(questions, dict) or not 1 <= len(questions) <= 32: raise ValueError('Use de 1 a 32 perguntas.')
@@ -152,18 +138,6 @@ def validate_request(body):
         elif criteria is not None:
             if not isinstance(criteria, dict) or not criteria or set(criteria) - {'true', 'false'} or any(not isinstance(v, str) or len(v) > 800 for v in criteria.values()):
                 raise ValueError('Noul aceita descrições true e/ou false de até 800 caracteres.')
-
-
-def engine_request(body):
-    """jevos validates Noul criteria but ignores them; make their meaning explicit."""
-    effective = copy.deepcopy(body)
-    for question in effective['questions'].values():
-        if question['type'] == 'noul' and question.get('criteria'):
-            criteria = question.pop('criteria')
-            question['instructions'] += '\n\n' + '\n'.join(
-                f'Answer {key} when: {criteria[key]}' for key in ('true', 'false') if key in criteria
-            )
-    return effective
 
 
 def validate_response(response, questions):
@@ -191,24 +165,23 @@ def validate_response(response, questions):
             if type(score) not in (float, int) or not math.isfinite(score) or not 0 <= score <= len(expected) - 1: raise ValueError('Score inválido.')
 
 
-def classify(body, settings, local_url=None):
+def classify(body, settings):
     """Exactly one provider call, no automatic retries/fallback or secret error echoes."""
-    official = settings.provider == 'official'
-    if official and not settings.api_key:
+    if settings.provider != 'official': raise ProviderError('Use o provedor oficial configurado.', 400)
+    if not settings.api_key:
         raise ProviderError('Configure TYPESAFE_API_KEY no arquivo .env e execute ./start.', 503)
-    effective = copy.deepcopy(body) if official else engine_request(body)
+    effective = copy.deepcopy(body)
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-    if official: headers['Authorization'] = 'Bearer ' + settings.api_key
-    url = OFFICIAL_URL if official else (local_url or ENGINE_URL) + '/v1/systemone'
+    headers['Authorization'] = 'Bearer ' + settings.api_key
+    url = OFFICIAL_URL
     request = Request(url, data=json.dumps(effective, ensure_ascii=False).encode(), headers=headers, method='POST')
     started = time.perf_counter()
     try:
-        opener = OFFICIAL_HTTP.open if official else urlopen
-        with opener(request, timeout=30) as result:
+        with OFFICIAL_HTTP.open(request, timeout=30) as result:
             raw = result.read(2_000_001)
             if len(raw) > 2_000_000: raise ValueError('Resposta grande demais.')
             response = json.loads(raw)
-            timing = result.headers.get('Server-Timing') if not official else None
+            timing = None
         validate_response(response, body['questions'])
     except HTTPError as error:
         code = error.code
@@ -221,16 +194,15 @@ def classify(body, settings, local_url=None):
             429: 'Limite da API TypeSafe atingido. Aguarde antes de executar novamente.',
             529: 'TypeSafe temporariamente sobrecarregada. Tente novamente mais tarde.',
         }
-        message = messages.get(code, 'Falha na API TypeSafe (HTTP ' + str(code) + ').') if official else 'Falha no modelo local (HTTP ' + str(code) + ').'
+        message = messages.get(code, 'Falha na API TypeSafe (HTTP ' + str(code) + ').')
         raise ProviderError(message, code if code in (401, 402, 403, 422, 429) else 502) from None
     except (TimeoutError, socket.timeout):
         raise ProviderError('A classificação excedeu 30 segundos. Não houve repetição automática.', 504) from None
     except (OSError, URLError):
-        raise ProviderError('Não foi possível conectar à TypeSafe. Confira a internet.' if official else 'Não foi possível conectar ao modelo local.') from None
+        raise ProviderError('Não foi possível conectar à TypeSafe. Confira a internet.') from None
     except (ValueError, TypeError, RecursionError):
-        raise ProviderError('Resposta inválida da API TypeSafe.' if official else 'Resposta inválida do modelo local.') from None
+        raise ProviderError('Resposta inválida da API TypeSafe.') from None
     output = {'request': body, 'response': response, 'provider': settings.provider, 'latencyMs': round((time.perf_counter()-started)*1000), 'serverTiming': timing}
-    if effective != body: output.update({'requestAdapter': 'jevos-noul-criteria-v1', 'effectiveRequest': effective})
     return output
 
 
@@ -310,15 +282,11 @@ class Handler(SimpleHTTPRequestHandler):
     def redirect(self, location):
         self.send_response(302); self.send_header('Location', location); self.send_header('Content-Length', '0'); self.end_headers()
     def send_index(self, user):
-        html = (ROOT / 'index.html').read_text(encoding='utf-8')
-        marker = '<body data-page="live">'
+        html = (WEB_ROOT / 'index.html').read_text(encoding='utf-8')
+        marker = '<body data-page="meeting">'
         if marker not in html or '</head>' not in html or '</body>' not in html:
-            return self.send_error(500, 'index.html sem marcadores de conta')  # Never serve the full menu by accident.
-        version = re.search(r'\?v=([\w-]+)', html)
-        suffix = '?v=' + version.group(1) if version else ''
-        html = html.replace(marker, f'<body data-page="live" data-auth="on" data-role="{user["role"]}" data-username="{user["username"]}">', 1)
-        html = html.replace('</head>', f'  <link rel="stylesheet" href="account.css{suffix}">\n</head>', 1)
-        html = html.replace('</body>', f'  <script src="account.js{suffix}"></script>\n</body>', 1)
+            return self.send_error(500, 'index.html sem marcadores de conta')
+        html = html.replace(marker, f'<body data-page="meeting" data-auth="on" data-role="{user["role"]}" data-username="{user["username"]}">', 1)
         return self.serve_bytes(html.encode(), 'text/html; charset=utf-8')
 
     def do_GET(self):
@@ -338,14 +306,6 @@ class Handler(SimpleHTTPRequestHandler):
             if not user: return self.json_response(401, AUTH_REQUIRED)
             if route == '/api/auth/me': return self.json_response(200, {'user': public_user(user)})
             if route == '/api/records': return self.read_record(user)
-            if route in ('/api/ai/aliases', '/api/admin/ai/overview'):
-                if route.startswith('/api/admin/') and user['role'] != 'admin': return self.json_response(403, {'error': 'Acesso restrito ao administrador.'})
-                if AI_RUNTIME is None: return self.json_response(503, {'error': 'Agentes ainda não inicializados.'})
-                try:
-                    return self.json_response(200, AI_RUNTIME.overview() if route.startswith('/api/admin/') else AI_RUNTIME.aliases(user['id']))
-                except Exception as error:
-                    self.log_error('AI read failed: %s', type(error).__name__)
-                    return self.json_response(503, {'error': 'Não foi possível consultar os agentes.'})
             return self.json_response(404, {'error': 'Rota inexistente.'})
         return super().do_GET()
     def health(self, user):
@@ -354,10 +314,7 @@ class Handler(SimpleHTTPRequestHandler):
         if SETTINGS.provider == 'official':
             message = ('Jev oficial · chave configurada' if SETTINGS.api_key else 'Jev oficial · configure TYPESAFE_API_KEY ' + ('em Environment no Render.' if os.environ.get('RENDER') else 'no .env e execute ./start.')) if admin else ('Serviço pronto' if SETTINGS.api_key else 'Serviço indisponível no momento.')
             return self.json_response(200, {'app': 'norte', 'pid': os.getpid(), 'provider': 'official', 'engine': 'jev-latest', 'ready': bool(SETTINGS.api_key), 'message': message, 'remote': True, 'verified': False})
-        try:
-            with urlopen(ENGINE_URL + '/health', timeout=2) as result: health = json.load(result)
-            return self.json_response(200, {'app': 'norte', 'pid': os.getpid(), 'provider': 'local', 'ready': health.get('status') == 'ready', 'engine': 'jevos-v3', 'health': health})
-        except (OSError, ValueError): return self.json_response(200, {'app': 'norte', 'pid': os.getpid(), 'provider': 'local', 'ready': False, 'engine': 'jevos-v3', 'message': 'Carregando modelo local…'})
+        return self.json_response(503, {'error': 'Provedor indisponível.'})
     def send_head(self):
         # Restricts both GET and inherited HEAD, including traversal/encoded paths.
         route = self.path.split('?')[0]
@@ -371,10 +328,10 @@ class Handler(SimpleHTTPRequestHandler):
                 destination = meeting_return_path(self.path)
                 login = '/login' + ('?' + urlencode({'next': destination}) if destination != '/' else '')
                 return self.redirect(login) if name.endswith('.html') else self.send_error(401)
-            if name in ADMIN_ONLY and user['role'] != 'admin': return self.send_error(404)
             if name == 'index.html': return self.send_index(user)
-        self.path = '/' + name
-        return super().send_head()
+        path = ROOT / name if name in PUBLIC else ROOT / 'norte/src/styles/tokens.css' if name == 'tokens.css' else WEB_ROOT / name
+        try: return self.serve_bytes(path.read_bytes(), self.guess_type(str(path)))
+        except OSError: return self.send_error(404)
 
     def do_POST(self):
         if self.path not in POST_ROUTES: return self.send_error(404)
@@ -400,7 +357,7 @@ class Handler(SimpleHTTPRequestHandler):
             if self.path == '/api/minutes': return self.json_response(429, {'error':'Há uma organização em andamento. Aguarde um momento e tente novamente.','code':'busy','retryable':True,'retry_after_seconds':5})
             return self.json_response(429, {'error': 'Worker ocupado; tente novamente.'})
         started = time.monotonic()
-        usage_result, usage_status, usage_provider, usage_model = {}, 'error', ('jev' if SETTINGS.provider == 'official' else 'local'), 'jev-latest'
+        usage_result, usage_status, usage_provider, usage_model = {}, 'error', 'jev', SETTINGS.jev_model
         if self.path == '/api/minutes': usage_provider, usage_model = 'gemini', SETTINGS.gemini_model
         try:
             if self.path == '/api/minutes':
@@ -411,7 +368,15 @@ class Handler(SimpleHTTPRequestHandler):
                 usage_result = {'usageMetadata': result.get('usage_metadata', {})}
                 usage_status = 'success'
                 return self.json_response(200, result)
-            result = classify(body, SETTINGS)
+            effective = AI_RUNTIME.blocks.apply_learning(user['id'], body) if AI_RUNTIME is not None and self.path == '/api/classify' else body
+            validate_request(effective)
+            result = classify(effective, SETTINGS)
+            # The original request stays auditable; the contextual prompt has its
+            # own versioned history and must not replace transcript evidence.
+            result['request'] = body
+            if self.path == '/api/classify':
+                state = effective.get('state')
+                result['learning_version'] = state.get('meeting_feedback', {}).get('version', 0) if isinstance(state, dict) else 0
             usage_result, usage_status = result.get('response', {}), 'success'
             return self.json_response(200, result)
         except (OSError, ValueError): return self.json_response(503, {'error': 'Não foi possível carregar a configuração do servidor.'})
@@ -431,33 +396,13 @@ class Handler(SimpleHTTPRequestHandler):
         if throttle.blocked(user['id']): return self.json_response(429, {'error': 'Muitas solicitações; tente novamente em instantes.'})
         throttle.hit(user['id'])
         try:
-            body = self.read_json(640000 if self.path.endswith('/events') else 64000)
+            body = self.read_json(64000)
             if not isinstance(body, dict): raise ValueError('Requisição inválida.')
-            if self.path == '/api/ai/events': result = AI_RUNTIME.ingest(user['id'], body)
-            elif self.path == '/api/ai/resolve': result = AI_RUNTIME.resolve(user['id'], body)
-            elif self.path == '/api/ai/blocks/review': result = AI_RUNTIME.blocks.review(user['id'], body)
+            if self.path == '/api/ai/blocks/review': result = AI_RUNTIME.blocks.review(user['id'], body)
             elif self.path == '/api/ai/blocks/feedback': result = AI_RUNTIME.blocks.feedback(user['id'], body)
-            elif self.path == '/api/admin/ai/blocks/memory': result = AI_RUNTIME.blocks.disable(body)
-            elif self.path == '/api/ai/memory/query':
-                if set(body) - {'query', 'session_id'}: raise ValueError('Campos da consulta inválidos.')
-                result = AI_RUNTIME.memory.query(user['id'], body.get('query'), body.get('session_id'))
-            elif self.path == '/api/admin/ai/aliases':
-                if set(body) != {'id', 'action'} or body['action'] != 'disable': raise ValueError('Use id e action=disable.')
-                result = AI_RUNTIME.rollback(body['id'])
-            elif self.path == '/api/admin/ai/replay':
-                if set(body) - {'cases'}: raise ValueError('Envie cases ou um objeto vazio.')
-                cases = body.get('cases')
-                if cases is not None:
-                    if not isinstance(cases, list) or not 1 <= len(cases) <= 100: raise ValueError('Use de 1 a 100 casos.')
-                    for case in cases:
-                        if not isinstance(case, dict) or not isinstance(case.get('text'), str) or not 1 <= len(case['text']) <= 2000 or case.get('expected_intent') not in (None, ai_runtime.INTENT): raise ValueError('Caso inválido: use text e expected_intent open_simulation ou null.')
-                result = AI_RUNTIME.enqueue(user['id'], 'replay', body)
-            else:
-                if body: raise ValueError('Envie um objeto vazio.')
-                users = STORE._run('SELECT DISTINCT user_id FROM ai_events LIMIT 1000', fetch='all')
-                jobs = [AI_RUNTIME.enqueue(row[0], 'audit', dedup_key=f'manual-audit:{row[0]}:{ai_runtime.stamp() // 30}') for row in users]
-                result = AI_RUNTIME.enqueue(user['id'], 'metrics')
-                result['audit_jobs'] = [j['job_id'] for j in jobs]
+            elif self.path == '/api/ai/blocks/learning': result = AI_RUNTIME.blocks.learning(user['id'], body)
+            elif self.path == '/api/ai/blocks/inspect': result = AI_RUNTIME.blocks.inspect(user['id'], body)
+            else: return self.json_response(404, {'error': 'Rota inexistente.'})
             return self.json_response(200, result)
         except (ValueError, TypeError, RecursionError, OverflowError) as error:
             return self.json_response(400, {'error': str(error) or 'Requisição inválida.'})
@@ -545,7 +490,7 @@ def open_store(settings):
 
 
 def main():
-    global ENGINE_URL, SETTINGS, STORE, AI_RUNTIME
+    global SETTINGS, STORE, AI_RUNTIME
     parser = argparse.ArgumentParser()
     parser.add_argument('--host', default=os.environ.get('HOST', '127.0.0.1'))
     parser.add_argument('--port', type=int, default=int(os.environ.get('PORT', '8000')))
@@ -559,26 +504,12 @@ def main():
     AI_RUNTIME = ai_runtime.Runtime(STORE, SETTINGS)
     AI_RUNTIME.start()
     server = ThreadingHTTPServer((args.host, args.port), Handler)
-    engine, engine_log = None, None
-    if SETTINGS.provider == 'local':
-        binary = ROOT / '.runtime/jevos/jev'
-        if not binary.exists(): raise SystemExit('Execute ./setup para instalar o modelo local.')
-        with socket.socket() as sock:
-            sock.bind(('127.0.0.1', 0)); model_port = sock.getsockname()[1]
-        ENGINE_URL = f'http://127.0.0.1:{model_port}'
-        engine_log = (ROOT / '.runtime/model.log').open('ab')
-        engine = subprocess.Popen([str(binary), 'serve', '--port', str(model_port), '--host', '127.0.0.1', '--threads', str(min(4, os.cpu_count() or 2)), '--warmup', '0', '--state-cache', '2'], cwd=binary.parent, stdout=engine_log, stderr=engine_log)
     signal.signal(signal.SIGTERM, lambda *_: threading.Thread(target=server.shutdown, daemon=True).start())
     try:
         print(f'Norte: http://{args.host}:{args.port} · banco: {STORE.dialect}', flush=True)
         server.serve_forever()
     finally:
         server.server_close()
-        if engine:
-            engine.terminate()
-            try: engine.wait(timeout=8)
-            except subprocess.TimeoutExpired: engine.kill(); engine.wait()
-        if engine_log: engine_log.close()
         AI_RUNTIME.stop()
         STORE.close()
 

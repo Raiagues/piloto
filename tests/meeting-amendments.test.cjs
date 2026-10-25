@@ -1,6 +1,6 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const Amend=require('../meeting-amendments.js');
+const Amend=require('../meetings/web/meeting-amendments.js');
 const event=(id,type,extra={})=>({event_id:id,chunk_id:'C'+id,thread_id:'T1',type,text:'Frase original '+id,store_confidence:.99,type_confidence:.99,...extra});
 const edge=(from,to,match='exact',extra={})=>({relation_id:'R'+from+to,source_event_id:from,target_event_id:to,relation_type:'result_of',configuration_match:match,configuration_applicable:true,relation_probability:.99,match_probability:.99,review_state:'confirmed',...extra});
 const meeting=(events,relations=[])=>({id:'meeting-one',title:'Ensaio da viga',status:'done',meeting_threads:[{thread_id:'T1'},{thread_id:'T2'}],meeting_events:events,meeting_relations:relations});

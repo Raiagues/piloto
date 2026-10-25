@@ -2,4 +2,7 @@
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$PROJECT_DIR/setup"
-python3 "$PROJECT_DIR/scripts/service.py" start
+if [[ -x "$PROJECT_DIR/.runtime/tools/node-v24.20.0-linux-x64/bin/node" ]] && ! node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>24||(a===24&&b>=20)?0:1)' >/dev/null 2>&1; then
+  export PATH="$PROJECT_DIR/.runtime/tools/node-v24.20.0-linux-x64/bin:$PATH"
+fi
+exec "$PROJECT_DIR/.venv/bin/python" "$PROJECT_DIR/scripts/service.py" start "$@"

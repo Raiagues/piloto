@@ -1,9 +1,6 @@
-/** Decodes what Norte has actually stored for an artifact.
- *
- * This is the only place that decides whether a source can reach the
- * extraction model. `prepareProjectArtifacts` builds the model request from it
- * and the artifacts API publishes its verdict to the interface, so the page
- * can never promise readable memory the extraction service will reject.
+/** Read the literal content stored for a document.
+ * The artifacts API publishes this result so the interface and the engineering
+ * analysis agree on which files are readable. External links remain metadata.
  */
 import { xlsxToCsv } from "./xlsx-text.mjs";
 import { createHash } from "node:crypto";
@@ -58,7 +55,7 @@ function docxText(bytes) {
 export const ARTIFACT_STATUS_REASONS = {
   metadata_only: "External links are metadata only; their contents have not been fetched.",
   invalid: "File content is invalid or exceeds the document processing limit.",
-  budget: "Project memory exceeds the total document processing limit; this file was not read.",
+  budget: "The selected documents exceed the total document processing limit; this file was not read.",
   pdf: "PDF será lido por página; esquemas e páginas sem texto precisam de revisão visual ou OCR.",
   text: "Codificação inválida ou texto acima de 5 milhões de caracteres; nenhuma parte foi truncada.",
   spreadsheet: "The spreadsheet could not be read. Export it as CSV or PDF.",

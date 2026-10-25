@@ -1,8 +1,9 @@
+import { googleApiKey } from "./ai-keys.mjs";
 import { geminiConfig } from './gemini-config.mjs';
 import { geminiGenerate } from './gemini-transport.mjs';
 import { activeRequirementRules, validateRequirementAnalysis } from '../shared/requirement-quality.mjs';
 export function createRequirementAnalyzer(options = {}, intelligence) {
- const apiKey = options.apiKey ?? process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
+ const apiKey = options.apiKey ?? googleApiKey();
  return async ({ requirement, standards, projectId, corrections = [] }) => {
   const rules=activeRequirementRules(standards);
   if (!rules.length) throw Object.assign(new Error('Selecione uma referência NASA ou ECSS para a análise assistida. O checklist editorial continua disponível sem norma.'),{statusCode:400,code:'REFERENCE_REQUIRED'});

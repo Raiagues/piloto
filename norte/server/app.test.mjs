@@ -164,7 +164,7 @@ test("open registrations receive member access and legacy direct membership rout
   Object.assign(projectWithMemberCaptain, initialProject.json().project, { context: { ...initialProject.json().project.context, assignments: projectWithMemberCaptain.context.assignments } });
   const memberCannotPromoteSelf = await app.inject({
     method: "PUT",
-    url: "/api/workspace/project",
+    url: "/api/projects/project-role-permissions",
     headers: { cookie: secondCookie, "x-csrf-token": second.json().csrfToken },
     payload: projectWithMemberCaptain
   });
@@ -172,7 +172,7 @@ test("open registrations receive member access and legacy direct membership rout
 
   const savedProject = await app.inject({
     method: "PUT",
-    url: "/api/workspace/project",
+    url: "/api/projects/project-role-permissions",
     headers: { cookie: cookieFrom(owner), "x-csrf-token": owner.json().csrfToken },
     payload: projectWithMemberCaptain
   });
@@ -238,23 +238,17 @@ test("sessions and shared workspaces survive a server restart", async (t) => {
   const cookie = cookieFrom(registration);
   const csrf = registration.json().csrfToken;
   const project = { schemaVersion: 2, id: "mission-persistence", name: "Persistence project", board: { nodes: [], links: [] } };
-  const lab = { schemaVersion: 1, nodes: [], links: [] };
 
-  assert.equal((await app.inject({ method: "PUT", url: "/api/workspace/project", headers: { cookie, "x-csrf-token": csrf }, payload: project })).statusCode, 200);
-  assert.equal((await app.inject({ method: "PUT", url: "/api/workspace/labs/mission-persistence", headers: { cookie, "x-csrf-token": csrf }, payload: lab })).statusCode, 200);
-  const aiStatus = await app.inject({ method: "GET", url: "/api/brainstorm-ai/status", headers: { cookie } });
-  assert.equal(aiStatus.statusCode, 200);
-  assert.equal(aiStatus.json().configured, false);
+  assert.equal((await app.inject({ method: "POST", url: "/api/projects", headers: { cookie, "x-csrf-token": csrf }, payload: project })).statusCode, 201);
+  assert.equal((await app.inject({ method: "GET", url: "/api/brainstorm-ai/status", headers: { cookie } })).statusCode, 404);
 
   await app.close();
   app = await buildApp({ storeFile, logger: false, ai: { apiKey: "" } });
 
   const session = await app.inject({ method: "GET", url: "/api/auth/session", headers: { cookie } });
   assert.equal(session.json().authenticated, true);
-  const restoredProject = await app.inject({ method: "GET", url: "/api/workspace/project", headers: { cookie } });
+  const restoredProject = await app.inject({ method: "GET", url: "/api/projects/mission-persistence", headers: { cookie } });
   assert.equal(restoredProject.json().project.id, project.id);
-  const restoredLab = await app.inject({ method: "GET", url: "/api/workspace/labs/mission-persistence", headers: { cookie } });
-  assert.equal(restoredLab.json().board.schemaVersion, 1);
 });
 
 test("minimal profiles, teams, artifacts, and multiple projects share one workspace", async (t) => {
@@ -275,7 +269,7 @@ test("minimal profiles, teams, artifacts, and multiple projects share one worksp
     }
   });
   assert.equal(registration.statusCode, 201);
-  assert.equal(registration.json().user.profileComplete, false);
+  assert.equal(registration.json().user.profileComplete, true, "name and login complete the profile without academic fields");
   const headers = {
     cookie: cookieFrom(registration),
     "x-csrf-token": registration.json().csrfToken
@@ -440,11 +434,7 @@ test("public directories hide private team data and project lifecycle controls d
   const outsiderCookie = cookieFrom(outsider);
   const publicTeams = await app.inject({ method: "GET", url: "/api/teams", headers: { cookie: outsiderCookie } });
   const publicTeam = publicTeams.json().teams.find((team) => team.id === teamId);
-  assert.equal(publicTeam.memberCount, 1);
-  assert.deepEqual(publicTeam.memberIds, []);
-  assert.deepEqual(publicTeam.artifactIds, []);
-  assert.deepEqual(publicTeam.joinRequests, []);
-  assert.equal(publicTeam.createdBy, null);
+  assert.equal(publicTeam, undefined, "community discovery is unavailable; only associated teams are listed");
 
   const directory = await app.inject({ method: "GET", url: "/api/directory/members", headers: { cookie: outsiderCookie } });
   assert.equal(directory.statusCode, 200);
@@ -467,7 +457,7 @@ test("public directories hide private team data and project lifecycle controls d
   assert.equal(privateProjects.statusCode, 200);
   assert.deepEqual(privateProjects.json().projects, []);
   const teamsWithCount = await app.inject({ method: "GET", url: "/api/teams", headers: { cookie: outsiderCookie } });
-  assert.equal(teamsWithCount.json().teams.find((team) => team.id === teamId).projectCount, 1);
+  assert.equal(teamsWithCount.json().teams.some((team) => team.id === teamId), false);
   const teamInUse = await app.inject({ method: "DELETE", url: `/api/teams/${teamId}`, headers: ownerHeaders });
   assert.equal(teamInUse.statusCode, 409);
   assert.equal(teamInUse.json().error, "TEAM_IN_USE");

@@ -3,9 +3,8 @@ import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
 import { buildApp } from './app.mjs';
-import { createValidationProject } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 import { canReviewAccount, isFictionalProfile } from './reviewer-eligibility.mjs';
 
 test('only marked or exactly recognized legacy examples are fictional; the demo visitor remains eligible', () => {
@@ -53,36 +52,28 @@ async function fixture(t) {
   const action = async (name, payload, actor = captain) => {
     const state = await delivery(); return request(actor, 'POST', `${base}/delivery/actions`, { action: name, expectedRevision: state.revision, expectedBaselineHash: state.baselineHash, ...payload });
   };
-  const configuration = async reviewers => {
-    const current = (await request(captain, 'GET', `${base}/configuration-changes`)).json();
-    return request(captain, 'POST', `${base}/configuration-changes`, { basis: 'manual', key: randomUUID(), baselineHash: current.baselineHash, deliveryRevision: current.deliveryRevision, reviewers,
-      change: { id: randomUUID(), targetEntityId: 'eps', kind: 'parameter', oldValues: [], newValues: [{ key: 'voltage', name: 'Voltage', value: 3, unit: 'V', source: 'user', evidenceRefs: [] }], description: 'Manual voltage change', createdAt: new Date().toISOString() } });
-  };
-  const saved = await action('requirement.save', { item: { title: 'Power allocation', statement: 'The EPS shall supply 3.3 V.', entityIds: ['eps'], ownerId: examples[0].id } });
+  const saved = await action('requirement.save', { item: { title: 'Power allocation', statement: 'The EPS shall supply 3.3 V.', entityIds: ['eps'], ownerId: captain.id } });
   assert.equal(saved.statusCode, 200, saved.body);
-  return { app, captain, reviewer, examples, request, base, delivery, action, configuration, requirement: saved.json().requirements[0] };
+  return { app, captain, reviewer, examples, request, base, delivery, action, requirement: saved.json().requirements[0] };
 }
 
-test('examples stay available as owners but cannot be selected for configuration, requirement, or proposal review', async t => {
-  const f = await fixture(t), delivery = await f.delivery(), configuration = (await f.request(f.captain, 'GET', f.base + '/configuration-changes')).json();
-  for (const result of [delivery, configuration]) {
-    assert.equal(result.members.length, 4);
-    assert.equal(result.members.find(m => m.id === f.reviewer.id).canReview, true);
-    for (const example of f.examples) {
-      assert.equal(result.members.find(m => m.id === example.id).canReview, false);
-      assert.equal(result.members.find(m => m.id === example.id).isFictionalProfile, true);
-    }
-  }
-  assert.equal(delivery.requirements[0].ownerId, f.examples[0].id, 'illustrative responsibility is preserved');
+test('fictional accounts are hidden from delivery and cannot own requirements or approve reviews', async t => {
+  const f = await fixture(t), delivery = await f.delivery();
+  assert.equal(delivery.members.length, 2);
+  assert.equal(delivery.members.find(m => m.id === f.reviewer.id).canReview, true);
+  assert.equal(delivery.requirements[0].ownerId, f.captain.id);
   for (const example of f.examples) {
-    assert.equal((await f.configuration([example.id])).statusCode, 400);
+    assert.equal(delivery.members.some(member => member.id === example.id), false);
+    const invalidOwner = await f.action('requirement.save', { item: { title: 'Invalid owner', statement: 'The EPS shall supply 3.3 V.', ownerId: example.id } });
+    assert.equal(invalidOwner.statusCode, 400); assert.equal(invalidOwner.json().error, 'INVALID_MEMBER');
+  }
+  for (const example of f.examples) {
     const review = await f.action('requirement.request_review', { id: f.requirement.id, reviewers: [example.id] });
     assert.equal(review.statusCode, 400); assert.equal(review.json().error, 'INVALID_REVIEWERS');
     const proposal = await f.action('proposal.save', { item: { requirementId: f.requirement.id, statement: 'The EPS shall supply 3 V.', reason: 'Review voltage trade.', reviewers: [example.id] } });
-    assert.equal(proposal.statusCode, 400); assert.equal(proposal.json().error, 'INVALID_REVIEWERS');
+    assert.equal(proposal.statusCode, 400); assert.equal(proposal.json().error, 'INVALID_LINK');
   }
   assert.equal((await f.delivery()).requirements[0].status, 'draft');
-  assert.equal((await f.configuration([f.reviewer.id])).statusCode, 200);
   assert.equal((await f.action('requirement.request_review', { id: f.requirement.id, reviewers: [f.reviewer.id] })).statusCode, 200);
   const approved = await f.action('requirement.review', { id: f.requirement.id, decision: 'approve' }, f.reviewer);
   assert.equal(approved.statusCode, 200); assert.equal(approved.json().requirements[0].status, 'approved');
@@ -95,19 +86,13 @@ test('legacy assignments cannot approve or merge after the reviewer is identifie
   let response = await f.action('proposal.save', { item: { requirementId: f.requirement.id, statement: 'The EPS shall supply 3 V.', reason: 'Review voltage trade.', reviewers: [f.reviewer.id] } });
   const proposalId = response.json().proposals[0].id;
   response = await f.action('proposal.review', { id: proposalId, decision: 'approve' }, f.reviewer); assert.equal(response.statusCode, 200, response.body);
-  const change = (await f.configuration([f.reviewer.id])).json().changes[0], changeRoute = `${f.base}/configuration-changes/${change.id}/actions`;
-  response = await f.request(f.reviewer, 'POST', changeRoute, { action: 'review', decision: 'approve', expectedRevision: 1 }); assert.equal(response.statusCode, 200, response.body);
   // Isolated legacy fixture only: mark an existing reviewer's row, without
   // creating a fictional login or approving on behalf of any example person.
   await f.app.missionStore.update(data => { data.users.find(u => u.id === f.reviewer.id).isFictionalProfile = true; });
   const current = await f.delivery();
   assert.equal(current.requirements[0].status, 'in_review'); assert.equal(current.requirements[0].decisions.length, 0);
   assert.equal(current.proposals[0].status, 'open'); assert.equal(current.proposals[0].decisions.length, 0);
-  assert.equal((await f.action('requirement.review', { id: f.requirement.id, decision: 'approve' }, f.reviewer)).statusCode, 403);
-  assert.equal((await f.action('proposal.review', { id: proposalId, decision: 'approve' }, f.reviewer)).statusCode, 403);
+  assert.equal((await f.action('requirement.review', { id: f.requirement.id, decision: 'approve' }, f.reviewer)).statusCode, 401);
+  assert.equal((await f.action('proposal.review', { id: proposalId, decision: 'approve' }, f.reviewer)).statusCode, 401);
   assert.equal((await f.action('proposal.merge', { id: proposalId })).statusCode, 409);
-  const projected = (await f.request(f.captain, 'GET', f.base + '/configuration-changes')).json();
-  assert.equal(projected.changes[0].status, 'in_review'); assert.deepEqual(projected.changes[0].decisions, {});
-  assert.equal((await f.request(f.reviewer, 'POST', changeRoute, { action: 'review', decision: 'approve', expectedRevision: 2 })).statusCode, 403);
-  assert.equal((await f.request(f.captain, 'POST', changeRoute, { action: 'merge', expectedRevision: 2 })).statusCode, 409);
 });

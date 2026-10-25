@@ -3,7 +3,7 @@ export type MeetingScope = "private" | "team" | "sector";
 export type MeetingScopeTeam = { id: string; name: string; projects: { id: string; name: string; sectors: { id: string; name: string }[] }[] };
 export type MeetingSummary = {
   id: string; title: string; projectId: string | null; ownerId: string; hostUserId: string;
-  memoryMode: "none" | "project"; roomKind: "meeting" | "beam"; revision: number;
+  roomKind: "meeting" | "archive"; revision: number;
   status: string; createdAt?: string; updatedAt?: string; participants: MeetingParticipant[];
   myRole?: "host" | "participant";
   example?: boolean; copiedFromExample?: boolean; projectName?: string | null; scope?: MeetingScope; teamId?: string | null; sectorId?: string | null; teamName?: string | null; sectorName?: string | null;
@@ -11,10 +11,10 @@ export type MeetingSummary = {
 export type MeetingInvitation = { id: string; meetingId: string; meetingTitle?: string; title?: string; hostName?: string; status: string };
 export type MeetingContribution = { id: string; sequence: number; userId: string; text: string; createdAt: string };
 
-export function meetingFrameURL(id: string, roomKind: MeetingSummary["roomKind"]): string {
+export function meetingFrameURL(id: string, _roomKind: MeetingSummary["roomKind"]): string {
   const query = new URLSearchParams({ meeting: id });
-  if (typeof window !== "undefined") { const reference = new URLSearchParams(window.location.search); if (reference.get("meeting") === id && /^[A-Za-z0-9_.:-]{1,160}$/.test(reference.get("event") || "")) query.set("event", reference.get("event")!); }
-  return `/meeting/${encodeURIComponent(id)}?${query}${roomKind === "beam" ? "#simulacao" : "#reuniao"}`;
+  if (typeof window !== "undefined") { const reference = new URLSearchParams(window.location.search); if (reference.get("meeting") === id && reference.get("view") === "minutes") query.set("view", "minutes"); if (reference.get("meeting") === id && /^[A-Za-z0-9_.:-]{1,160}$/.test(reference.get("event") || "")) query.set("event", reference.get("event")!); }
+  return `/meeting/${encodeURIComponent(id)}?${query}#reuniao`;
 }
 
 export function mergeContributions(previous: MeetingContribution[], incoming: MeetingContribution[]): MeetingContribution[] {

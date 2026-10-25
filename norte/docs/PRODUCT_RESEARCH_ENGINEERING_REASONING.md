@@ -1,6 +1,6 @@
 # Engineering reasoning: product research
 
-Research date: 8 September 2026. The latest product specification supersedes the earlier generation button, permanent drawer and formal change form. These are product decisions informed by the primary sources below; they are not claims of measured usability or engineering accuracy.
+Historical research from 8 September 2026. Project memory, conception and idea testing have since been retired. These notes preserve primary references and design reasoning; implementation descriptions below are not the current product and are not claims of measured usability or engineering accuracy. See [workspace retirement](workspace-retirement.md).
 
 ## Relevant patterns
 
@@ -59,10 +59,10 @@ Google's [Generate Content document guide](https://ai.google.dev/gemini-api/docs
 
 Validation should measure task completion time, dependency recall, critical-impact precision, unsupported-claim rate and traceability coverage. These are planned metrics; this research did not measure them.
 
-## Product-principles and Quetzal follow-up
+## Historical product experiments
 
 The subsequent specification makes autonomy, expert correction, visual reasoning, observability and time-to-value product constraints. These principles guide the changes without copying another product's interface. Project Memory already builds System automatically; project membership configuration is no longer required to begin engineering review. Memory revisions continue to expose changed documents without silently replacing expert corrections.
 
 Expert corrections now retain the initial suggestion, previous and corrected states, source snapshots and project/baseline context in an exportable history. No training pipeline or machine-learning controls are exposed. The Quetzal validation context is seeded as ordinary Project Memory; evaluator-only expectations and on-orbit observations are isolated outside runtime imports.
 
-The browser fixture test measures one action from a saved, recognized engineering hypothesis to visible impact and zero configuration steps after Memory. Its recorded timings describe local automation with a mocked extraction provider, not a student experiment or provider latency. Technical extraction and reasoning are evaluated separately by the [Quetzal benchmark](VALIDATION_QUETZAL1.md); independent engineering review of the evaluation reference remains pending under the user-approved [V0.1 specification](VALIDATED.md). A0 means curated context, while A1 raw-artifact ingestion remains unmeasured. Boundary cases and masked structure checks isolate quantitative behavior; historical reconstruction and the contamination probe carry explicit limits. The benchmark scope is EPS/COMMS with only the required electrical consumers, while broader subsystem and student studies remain sequenced follow-ups.
+These implementation notes describe retired experiments, not the current product. The historical browser timings used a mocked extraction provider and did not establish usability or engineering validity. The Quetzal benchmark, project memory, conception and idea-analysis flows have been [retired](workspace-retirement.md). Research references above remain available; current requirements and verification workflows use explicit actions, source references and human review.

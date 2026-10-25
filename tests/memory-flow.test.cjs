@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),E=require('../experiments.js');
+const F=require('../meetings/web/memory-flow.js'),E=require('../meetings/web/experiments.js');
 const item=(id,store=true,type='observation')=>({id,current_utterance:'Text '+id,expected_store_memory:store,expected_event_type:store?type:null});
 const batch=cases=>({batch_id:'B01',cases});
 function output(req,{store=.95,type='observation',probability=.94}={}) {

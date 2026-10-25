@@ -1,7 +1,7 @@
-import { withPreparedExampleSummaries } from '../scripts/meeting-example-summaries.mjs';
+import { registerMeetingArchives } from './meeting-archives.mjs';
 /** Shared meetings. Accounts, consent and project access remain authoritative here. */
 import { randomUUID } from 'node:crypto';
-import { sameDemoScope } from './demo-account.mjs';
+import { sameDemoScope } from './account-scope.mjs';
 import { normalizeNickname } from './team-identity.mjs';
 import { registerMeetingAudio } from './meeting-audio.mjs';
 
@@ -28,7 +28,7 @@ export function createMeetingAccess({ canAccessProject }) {
     if (!meeting || !user || !sameDemoScope(user, meeting) || !activeUser(data, user.id)) return false;
     if (!scopeEligible(data, user, meeting) || meeting.blockedParticipantIds?.includes(user.id)) return false;
     if (meeting.ownerId !== user.id && !meeting.participantIds.includes(user.id) && (!meeting.scope || meeting.scope === 'private')) return false;
-    if (meeting.memoryMode === 'project') {
+    if ((meeting.projectAccessRequired || meeting.projectId)) {
       const project = data.workspace.projects?.[meeting.projectId];
       if (!project || !canAccessProject(data, user, project)) return false;
     }
@@ -37,6 +37,7 @@ export function createMeetingAccess({ canAccessProject }) {
   function requireMeeting(data, user, id, host = false) {
     const meeting = data.meetings?.[id];
     if (!accessible(data, user, meeting)) fail(404, 'MEETING_NOT_FOUND', 'Esta reunião não está disponível para sua conta.');
+    if (host && ['review', 'beam', 'archive'].includes(meeting.roomKind)) fail(409, 'MEETING_ARCHIVED', 'Este arquivo de reunião é somente leitura.');
     if (host && meeting.ownerId !== user.id) fail(403, 'HOST_REQUIRED', 'Somente quem conduz a reunião pode alterar o registro. Envie uma contribuição.');
     return meeting;
   }
@@ -48,14 +49,15 @@ export function createMeetingAccess({ canAccessProject }) {
       const member = data.members?.find(item => item.id === person.memberId);
       return { userId: id, name: person.name, nickname: person.nickname, avatarUrl: member?.avatarUrl || null, role: id === meeting.ownerId ? 'host' : 'participant', lastSeenAt, online: Boolean(lastSeenAt && Date.now() - Date.parse(lastSeenAt) < 90_000) };
     }).filter(Boolean);
-    return { id: meeting.id, title: meeting.title, example: meeting.example === 'curated_mock_v1', copiedFromExample: Boolean(meeting.copiedFromExample), projectName: data.workspace.projects?.[meeting.projectId]?.document?.name || null, ownerId: meeting.ownerId, hostUserId: meeting.ownerId, projectId: meeting.projectId, scope: meeting.scope || 'private', teamId: meeting.teamId || null, sectorId: meeting.sectorId || null, teamName: data.teams.find(team => team.id === meeting.teamId)?.name || null, sectorName: data.workspace.projects?.[meeting.projectId]?.document?.context?.sectors?.find(sector => sector.id === meeting.sectorId)?.name || null, memoryMode: meeting.memoryMode, memoryRevision: meeting.memoryRevision, roomKind: meeting.roomKind, status: meeting.status, revision: meeting.revision, createdAt: meeting.createdAt, updatedAt: meeting.updatedAt, participants, myRole: meeting.ownerId === user.id ? 'host' : 'participant' };
+    return { id: meeting.id, title: meeting.title, example: meeting.example === 'curated_mock_v1', copiedFromExample: Boolean(meeting.copiedFromExample), projectName: data.workspace.projects?.[meeting.projectId]?.document?.name || null, ownerId: meeting.ownerId, hostUserId: meeting.ownerId, projectId: meeting.projectId, scope: meeting.scope || 'private', teamId: meeting.teamId || null, sectorId: meeting.sectorId || null, teamName: data.teams.find(team => team.id === meeting.teamId)?.name || null, sectorName: data.workspace.projects?.[meeting.projectId]?.document?.context?.sectors?.find(sector => sector.id === meeting.sectorId)?.name || null, roomKind: ['review', 'beam', 'archive'].includes(meeting.roomKind) ? 'archive' : 'meeting', status: meeting.status, revision: meeting.revision, createdAt: meeting.createdAt, updatedAt: meeting.updatedAt, participants, myRole: meeting.ownerId === user.id ? 'host' : 'participant' };
   }
   return { accessible, requireMeeting, publicMeeting, scopeEligible };
 }
 
-export function registerMeetings(app, { store, requireAuth, requireCsrf, canAccessProject, retrieveContext }) {
+export function registerMeetings(app, { store, requireAuth, requireCsrf, canAccessProject }) {
   const access = createMeetingAccess({ canAccessProject });
   const { accessible, requireMeeting, publicMeeting, scopeEligible } = access;
+  registerMeetingArchives(app, { store, requireAuth, access });
   const audio = registerMeetingAudio(app, { store, requireAuth, requireCsrf, access });
   const read = [requireAuth], write = [requireAuth, requireCsrf];
   const params = shape({ id: identifier }, ['id']);
@@ -68,37 +70,21 @@ export function registerMeetings(app, { store, requireAuth, requireCsrf, canAcce
     const data = store.read();
     return { meetings: Object.values(data.meetings || {}).filter(meeting => accessible(data, request.auth.user, meeting) && (!request.query.projectId || meeting.projectId === request.query.projectId) && (!request.query.teamId || meeting.teamId === request.query.teamId) && (!request.query.sectorId || meeting.sectorId === request.query.sectorId) && (!request.query.scope || (meeting.scope || 'private') === request.query.scope)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(meeting => publicMeeting(data, meeting, request.auth.user)) };
   });
-  app.post('/api/meetings', { preHandler: write, config: { rateLimit: { max: 30, timeWindow: '1 hour' } }, schema: { body: shape({ title: text(160), projectId: { anyOf: [identifier, { type: 'null' }] }, teamId: { anyOf: [identifier, { type: 'null' }] }, sectorId: { anyOf: [identifier, { type: 'null' }] }, scope: { enum: ['private', 'team', 'sector'] }, memoryMode: { enum: ['none', 'project'] }, roomKind: { enum: ['meeting', 'plain', 'beam'] } }, ['title', 'memoryMode']) } }, async (request, reply) => {
+  app.post('/api/meetings', { preHandler: write, config: { rateLimit: { max: 30, timeWindow: '1 hour' } }, schema: { body: shape({ title: text(160), projectId: { anyOf: [identifier, { type: 'null' }] }, teamId: { anyOf: [identifier, { type: 'null' }] }, sectorId: { anyOf: [identifier, { type: 'null' }] }, scope: { enum: ['private', 'team', 'sector'] } }, ['title']) } }, async (request, reply) => {
     const result = await store.update(data => {
       const user = activeUser(data, request.auth.user.id);
       if (!user) fail(401, 'AUTH_REQUIRED', 'Entre novamente para continuar.');
       const projectId = request.body.projectId || null;
-      if (request.body.memoryMode === 'project' && !projectId) fail(400, 'PROJECT_REQUIRED', 'Selecione o projeto para usar sua memória.');
       const project = projectId && data.workspace.projects?.[projectId];
       if (projectId && (!project || !canAccessProject(data, user, project))) fail(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível para sua conta.');
       const scope = request.body.scope || 'private', teamId = scope === 'private' ? null : request.body.teamId || project?.document?.context?.teamId || null, sectorId = scope === 'sector' ? request.body.sectorId || null : null;
       if (scope !== 'private' && (!teamId || !scopeEligible(data, user, { scope, teamId, projectId, sectorId }))) fail(403, 'MEETING_SCOPE_FORBIDDEN', 'Escolha uma equipe e um setor dos quais você participa.');
       if (teamId && project && project.document?.context?.teamId !== teamId) fail(400, 'MEETING_SCOPE_MISMATCH', 'O projeto precisa pertencer à equipe escolhida.');
       const now = timestamp(), id = randomUUID();
-      const meeting = { id, title: request.body.title.trim(), ownerId: user.id, participantIds: [], projectId, scope, teamId, sectorId, memoryMode: request.body.memoryMode, memoryRevision: request.body.memoryMode === 'project' ? project.document.memoryRevision || 0 : null, roomKind: request.body.roomKind === 'beam' ? 'beam' : 'meeting', status: 'draft', revision: 1, createdAt: now, updatedAt: now, presence: { [user.id]: now }, contributions: [], nextSequence: 1, ...(user.demoSandboxId ? { demoSandboxId: user.demoSandboxId } : {}) };
+      const meeting = { id, title: request.body.title.trim(), ownerId: user.id, participantIds: [], projectId, scope, teamId, sectorId, roomKind: 'meeting', status: 'draft', revision: 1, createdAt: now, updatedAt: now, presence: { [user.id]: now }, contributions: [], nextSequence: 1, ...(user.demoSandboxId ? { demoSandboxId: user.demoSandboxId } : {}) };
       if (!meeting.title) fail(400, 'TITLE_REQUIRED', 'Informe o título da reunião.');
       data.meetings[id] = meeting;
       return publicMeeting(data, meeting, user);
-    });
-    reply.code(201); return { meeting: result };
-  });
-  // Examples stay immutable. Edits belong to an account-owned private copy.
-  app.post('/api/meetings/:id/copy', { preHandler: write, config: { rateLimit: { max: 20, timeWindow: '1 hour' } }, schema: { params, body: shape({}) } }, async (request, reply) => {
-    const result = await store.update(data => {
-      const source = requireMeeting(data, request.auth.user, request.params.id);
-      if (source.example !== 'curated_mock_v1' || !source.exampleSnapshot) fail(409, 'EXAMPLE_REQUIRED', 'Somente exemplos possuem este atalho de cópia.');
-      const user = activeUser(data, request.auth.user.id), now = timestamp(), id = randomUUID();
-      const snapshot = withPreparedExampleSummaries(source.exampleSnapshot);
-      snapshot.id = id; snapshot.title = ('Cópia · ' + source.title).slice(0, 160); snapshot.batch ||= {}; snapshot.batch.batch_id = id;
-      snapshot.integrated_norte = true; snapshot.project_memory_mode = 'none';
-      const copy = { id, title: snapshot.title, ownerId: user.id, participantIds: [], projectId: source.projectId, scope: 'private', teamId: source.teamId || null, sectorId: source.sectorId || null, memoryMode: 'none', memoryRevision: null, roomKind: source.roomKind, status: snapshot.status || 'done', revision: 1, runVersion: 0, createdAt: now, updatedAt: now, presence: { [user.id]: now }, contributions: [], nextSequence: 1, copiedFromExample: source.id, initialSnapshot: snapshot, ...(user.demoSandboxId ? { demoSandboxId: user.demoSandboxId } : {}) };
-      data.meetings[id] = copy;
-      return publicMeeting(data, copy, user);
     });
     reply.code(201); return { meeting: result };
   });
@@ -140,7 +126,7 @@ export function registerMeetings(app, { store, requireAuth, requireCsrf, canAcce
       if (!recipient) fail(404, 'USER_NOT_FOUND', 'Conta não encontrada.');
       if (!scopeEligible(data, recipient, meeting) || meeting.blockedParticipantIds?.includes(recipient.id)) fail(403, 'MEETING_SCOPE_FORBIDDEN', 'Essa pessoa precisa participar da equipe ou do setor desta reunião.');
       if (recipient.id === meeting.ownerId || meeting.participantIds.includes(recipient.id)) fail(409, 'ALREADY_PARTICIPANT', 'Essa pessoa já participa da reunião.');
-      if (meeting.memoryMode === 'project' && !canAccessProject(data, recipient, data.workspace.projects[meeting.projectId])) fail(403, 'PROJECT_ACCESS_REQUIRED', 'Convide essa pessoa para a equipe do projeto antes de compartilhar a reunião com memória.');
+      if ((meeting.projectAccessRequired || meeting.projectId) && !canAccessProject(data, recipient, data.workspace.projects[meeting.projectId])) fail(403, 'PROJECT_ACCESS_REQUIRED', 'Convide essa pessoa para a equipe do projeto antes de compartilhar esta reunião.');
       if (meeting.participantIds.length >= 100) fail(409, 'PARTICIPANT_LIMIT', 'A reunião atingiu o limite de participantes.');
       if (data.meetingInvitations.some(item => item.meetingId === meeting.id && item.recipientUserId === recipient.id && item.status === 'pending' && Date.parse(item.expiresAt) > Date.now())) fail(409, 'INVITATION_EXISTS', 'Já há um convite pendente para essa pessoa.');
       const item = { id: randomUUID(), meetingId: meeting.id, createdBy: request.auth.user.id, recipientUserId: recipient.id, status: 'pending', createdAt: timestamp(), expiresAt: new Date(Date.now() + 7 * 86400_000).toISOString() };
@@ -160,7 +146,7 @@ export function registerMeetings(app, { store, requireAuth, requireCsrf, canAcce
     if (!user || !owner || !sameDemoScope(user, meeting) || !accessible(data, owner, meeting)) fail(404, 'MEETING_NOT_FOUND', 'A reunião não está mais disponível.');
     if (request.body.decision === 'accept') {
       if (!scopeEligible(data, user, meeting) || meeting.blockedParticipantIds?.includes(user.id)) fail(403, 'MEETING_SCOPE_FORBIDDEN', 'Sua participação na equipe ou no setor desta reunião mudou.');
-      if (meeting.memoryMode === 'project' && !canAccessProject(data, user, data.workspace.projects[meeting.projectId])) fail(403, 'PROJECT_ACCESS_REQUIRED', 'É necessário acesso ao projeto antes de entrar nesta reunião.');
+      if ((meeting.projectAccessRequired || meeting.projectId) && !canAccessProject(data, user, data.workspace.projects[meeting.projectId])) fail(403, 'PROJECT_ACCESS_REQUIRED', 'É necessário acesso ao projeto antes de entrar nesta reunião.');
       if (meeting.participantIds.length >= 100) fail(409, 'PARTICIPANT_LIMIT', 'A reunião atingiu o limite de participantes.');
       meeting.participantIds = [...new Set([...meeting.participantIds, user.id])];
       meeting.revision++; meeting.updatedAt = timestamp(); invite.status = 'accepted';
@@ -198,14 +184,6 @@ export function registerMeetings(app, { store, requireAuth, requireCsrf, canAcce
       meeting.contributions.push(row); meeting.presence[request.auth.user.id] = row.createdAt;
       return row;
     }); reply.code(201); return { contribution: result };
-  });
-  app.post('/api/meetings/:id/context', { preHandler: write, config: rate, schema: { params, body: shape({ query: text(8000) }, ['query']) } }, async request => {
-    const data = store.read(), meeting = requireMeeting(data, request.auth.user, request.params.id);
-    if (meeting.memoryMode !== 'project') return { enabled: false, items: [], message: 'Esta reunião foi iniciada sem memória de projeto.' };
-    if (!retrieveContext) return { enabled: true, available: false, items: [], message: 'A consulta à memória ainda não está disponível.' };
-    const result = await retrieveContext({ data, meeting, project: data.workspace.projects[meeting.projectId].document, user: request.auth.user, query: request.body.query });
-    await store.refresh?.(); requireMeeting(store.read(), request.auth.user, request.params.id);
-    return result;
   });
   return access;
 }

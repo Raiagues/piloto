@@ -7,6 +7,7 @@ import { ReviewDocuments } from './ReviewDocuments';
 import '../../styles/schedule-reviews.css';
 
 type ReviewTreeProps = {
+  editingEnabled?: boolean;
   projectId: string;
   data: DeliveryState;
   pt: boolean;
@@ -30,7 +31,7 @@ function ReviewProgress({ value, total, label, emptyLabel }: { value: number; to
   </div>;
 }
 
-export function ReviewTree({ projectId, data, pt, busy, mutate, onSelect, onEdit, error }: ReviewTreeProps) {
+export function ReviewTree({ editingEnabled = false, projectId, data, pt, busy, mutate, onSelect, onEdit, error }: ReviewTreeProps) {
   const [expanded, setExpanded] = useState<string[]>([]);
   const treeId = useId();
   const reviews = data.tasks.filter(task => !task.archived && task.kind === 'review')
@@ -81,7 +82,7 @@ export function ReviewTree({ projectId, data, pt, busy, mutate, onSelect, onEdit
               <button className="schedule-review-expand" aria-expanded={open} aria-controls={detailsId} aria-label={`${pt ? 'Documentos de' : 'Documents for'} ${task.title}`} onClick={() => setExpanded(current => current.includes(task.id) ? current.filter(id => id !== task.id) : [...current, task.id])}>
                 <FileText size={14} aria-hidden="true" /><span>{pt ? 'Documentos' : 'Documents'}</span>{open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
               </button>
-              {task.canEdit ? <button className="schedule-review-edit" disabled={busy} aria-label={`${pt ? 'Editar' : 'Edit'} ${task.title}`} title={pt ? 'Editar revisão' : 'Edit review'} onClick={() => onEdit(task.id)}><Pencil size={15} aria-hidden="true" /></button> : <span className="schedule-review-edit-placeholder" />}
+              {editingEnabled && task.canEdit ? <button className="schedule-review-edit" disabled={busy} aria-label={`${pt ? 'Editar' : 'Edit'} ${task.title}`} title={pt ? 'Editar revisão' : 'Edit review'} onClick={() => onEdit(task.id)}><Pencil size={15} aria-hidden="true" /></button> : <span className="schedule-review-edit-placeholder" />}
             </header>
             {open && <div className="schedule-review-details" id={detailsId}>
               {task.reviewNeedsRevalidation && <p className="schedule-review-revalidation"><AlertCircle size={16} aria-hidden="true" />{pt ? 'Os critérios mudaram desde a última revisão. Confira os registros antes de concluir.' : 'The criteria changed since the last review. Check the records before completing it.'}</p>}
@@ -98,7 +99,7 @@ export function ReviewTree({ projectId, data, pt, busy, mutate, onSelect, onEdit
                   </button>)}
                   {!total && <p>{pt ? 'Ainda não há requisitos ou verificações vinculados.' : 'No requirements or verifications linked yet.'}</p>}
                 </div>
-                {task.canEdit && <button className="schedule-review-link-action" disabled={busy} onClick={() => onEdit(task.id)}>{pt ? 'Vincular critérios' : 'Link criteria'}<ChevronRight size={13} aria-hidden="true" /></button>}
+                {editingEnabled && task.canEdit && <button className="schedule-review-link-action" disabled={busy} onClick={() => onEdit(task.id)}>{pt ? 'Vincular critérios' : 'Link criteria'}<ChevronRight size={13} aria-hidden="true" /></button>}
               </section>
               <section className="schedule-review-package" aria-label={pt ? 'Documentos da revisão' : 'Review documents'}>
                 <h3><FileText size={16} aria-hidden="true" />{pt ? 'Documentos da revisão' : 'Review documents'}</h3>

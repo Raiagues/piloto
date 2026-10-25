@@ -8,7 +8,7 @@ from urllib.error import HTTPError
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-import gemini_minutes as G
+from meetings.engine import gemini_minutes as G
 from config import load_settings, Settings
 
 
@@ -151,7 +151,9 @@ class ConciseMinutesTests(unittest.TestCase):
         with patch.object(G,'_request',return_value=result) as send:
             generated=G.generate(source(),Settings(gemini_api_key='private-key'))
         payload=json.loads(send.call_args.args[0].data)
-        self.assertEqual(payload['generationConfig']['responseJsonSchema'],G.SCHEMA)
+        self.assertEqual(payload['generationConfig']['responseJsonSchema'],G.response_schema(source()))
+        self.assertNotIn('maxItems',json.dumps(G.response_schema(source())))
+        self.assertIn('maxItems',json.dumps(G.SCHEMA))
         self.assertIn('entries',payload['generationConfig']['responseJsonSchema']['properties']['topics']['items']['properties'])
         self.assertNotIn('summary',payload['generationConfig']['responseJsonSchema']['properties']['topics']['items']['properties'])
         self.assertIn('Não escreva histórico da discussão',payload['systemInstruction']['parts'][0]['text'])
@@ -256,7 +258,7 @@ if __name__=='__main__':unittest.main()
 
 class MinutesRouteTests(unittest.TestCase):
     def test_daily_limit_blocks_provider_and_does_not_count_a_paid_call(self):
-        import ai_runtime
+        from meetings.engine import ai_runtime
         import server
         from urllib.request import Request, urlopen
         from http.server import ThreadingHTTPServer
@@ -278,8 +280,8 @@ class MinutesRouteTests(unittest.TestCase):
                     self.assertEqual(json.load(second.exception)['code'], 'daily_limit')
                     self.assertEqual(generate.call_count, 1)
                     self.assertIs(generate.call_args.args[1], settings)
-                    self.assertEqual(runtime.overview()['settings']['minutes_daily_calls_used'], 1)
-                    self.assertEqual(runtime.metrics()['provider_calls'], 1)
+                    self.assertEqual(server.STORE._run('SELECT calls FROM ai_minutes_budget', fetch='one')[0], 1)
+                    self.assertEqual(server.STORE._run('SELECT COUNT(*) FROM ai_usage', fetch='one')[0], 1)
             finally:
                 http.shutdown(); http.server_close(); worker.join(); runtime.stop()
 

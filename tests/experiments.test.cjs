@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const E = require('../experiments.js');
+const E = require('../meetings/web/experiments.js');
 const prototypeTest = require('./fixtures/prototype-v1.json');
 const prototypeRequest = {model:prototypeTest.model,state:prototypeTest.state,questions:prototypeTest.questions};
 test('legacy prototype retains all eight expected answers and acceptance thresholds', () => {

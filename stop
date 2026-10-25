@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$PROJECT_DIR/scripts/service.py" stop
+PYTHON="${PROJECT_DIR}/.venv/bin/python"
+if [[ ! -x "$PYTHON" ]]; then PYTHON=python3; fi
+exec "$PYTHON" "$PROJECT_DIR/scripts/service.py" stop

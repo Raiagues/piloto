@@ -1,7 +1,0 @@
-export type FeedbackKind = "accepted" | "rejected" | "corrected" | "missing_relation" | "irrelevant_constraint" | "extraction_correction";
-export type LearningFeedback = { kind: FeedbackKind; input: string; subjectId?: string; comment?: string; correction?: Record<string, unknown>; sourceRevision: number };
-export type LearningSnapshot = { revision: number; metrics: { feedback: number; accepted: number; rejected: number; corrected: number; cacheHits?: number; jevCalls?: number; jevFailures?: number; llmCalls?: number; providerFailures?: number; usageUnavailable?: number; providerElapsedMs?: number; reportedInputTokens?: number; reportedOutputTokens?: number; reportedThoughtTokens?: number; reportedCachedTokens?: number }; extraction?: { documents: number; totalChunks: number; completedChunks: number; coverage: number | null; complete: boolean; cachedChunks: number | null } | null; providerAttempts?: { feature: string; model: string; failed: boolean; elapsedMs: number | null; usageUnavailable: boolean; createdAt: string }[]; versions: { revision: number; status: string; createdAt: string; rules: string[]; evaluation?: { measuredQualityGain: number | null; reason: string } }[]; events: { kind: FeedbackKind; input: string; comment?: string; createdAt?: string }[] };
-
-export function requestProjectFeedback(projectId: string, feedback: Partial<LearningFeedback>) {
-  window.dispatchEvent(new CustomEvent("norte:project-feedback", { detail: { projectId, feedback } }));
-}

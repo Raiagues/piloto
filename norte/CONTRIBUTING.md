@@ -5,16 +5,17 @@ Norte uses a mandatory quality gate for every change.
 ## Development
 
 ```bash
-./setup   # Node.js 24.20, npm packages, .env and the local database
+# From the repository root:
+./setup   # prepares tools, dependencies, configuration and the frontend build
 ./start   # runs in the background; ./stop ends it
 ```
 
-See [Run locally](README.md#run-locally) for details, or [manual setup](README.md#manual-setup) to use `npm run dev` directly.
+See [Run locally](../README.md#executar) for the integrated installation. For frontend/API development, run `npm run dev` from `norte/`; the meeting worker is started by the root launcher.
 
 Before opening a pull request, run
 
 ```bash
-npm run quality
+npm --prefix norte run quality
 ```
 
 This command performs the TypeScript typecheck, ESLint validation, unit tests and the production Vite build.

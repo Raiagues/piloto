@@ -1,15 +1,11 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import test from 'node:test';
 import pg from 'pg';
 import { PostgresDataStore } from './postgres-store.mjs';
 import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from './postgres-state-codec.mjs';
 import { createInitialData } from './data-store.mjs';
 import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
-import { resetPostgres } from '../scripts/reset-validation-data.mjs';
 
 const localUrl = process.env.NORTE_POSTGRES_TEST_URL;
 if (localUrl) {
@@ -87,7 +83,7 @@ test('compressed historical schemas still revoke legacy unaccepted memberships d
   await new PostgresDataStore('unused', { pool, compressState: false }).init();
   const legacy = createInitialData(); legacy.schemaVersion = 9;
   legacy.members.push({ id: 'unaccepted-invite', accountId: null, accountStatus: 'invited' });
-  legacy.teams[0].memberIds = ['unaccepted-invite'];
+  legacy.teams.push({ id: 'legacy-team', name: 'Preserved', memberIds: ['unaccepted-invite'] });
   const payload = await encodePostgresState(legacy, { compress: true });
   await pool.query('UPDATE norte_state SET data = $2::jsonb, revision = revision + 1 WHERE id = $1', ['primary', JSON.stringify(payload)]);
   const store = await new PostgresDataStore('unused', { pool, compressState: false }).init();
@@ -96,21 +92,6 @@ test('compressed historical schemas still revoke legacy unaccepted memberships d
   const migrated = await decodePostgresState((await row()).data);
   assert.equal(migrated.schemaVersion, 10);
   assert.deepEqual(migrated.teams[0].memberIds, []);
-});
-
-test('guarded local reset decodes its backup and keeps the compressed persistence format', async t => {
-  const { pool, row } = await fixture(t);
-  const directory = await mkdtemp(join(tmpdir(), 'norte-codec-reset-'));
-  t.after(() => rm(directory, { recursive: true, force: true }));
-  const store = await new PostgresDataStore('unused', { pool, compressState: true }).init();
-  await store.update(data => { data.workspace.codecBackupMarker = 'preserve original backup'; });
-  const result = await resetPostgres('postgresql://localhost/norte_test', { NODE_ENV: 'test', NORTE_ALLOW_DESTRUCTIVE_RESET: '1' }, { pool, backupDirectory: directory });
-  const backup = JSON.parse(await readFile(result.backupPath, 'utf8'));
-  assert.equal(backup.workspace.codecBackupMarker, 'preserve original backup');
-  assert.equal(isEncodedPostgresState(backup), false);
-  const stored = (await row()).data;
-  assert.equal(isEncodedPostgresState(stored), true);
-  assert.equal((await decodePostgresState(stored)).schemaVersion, 10);
 });
 
 test('string references activate only on request and remain readable without the writer flag', async t => {

@@ -1,0 +1,50 @@
+/* Light is the initial palette; dark mode requires an explicit preference. */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --norte-radius: 0px;
+  --norte-radius-panel: 0px;
+
+  --norte-bg: #f6f4ef;
+  --norte-surface: #fffefa;
+  --norte-surface-muted: #f0ede6;
+  --norte-surface-raised: #e7e1d7;
+  --norte-text: #2e2c28;
+  --norte-text-secondary: #5c574f;
+  --norte-text-muted: #787166;
+  --norte-border: #dcd7ce;
+  --norte-border-strong: #a49a8c;
+  --norte-accent: #8b5d34;
+  --norte-accent-hover: #754a27;
+  --norte-accent-soft: #f1e5d8;
+  --norte-on-accent: #ffffff;
+  --norte-link: #785238;
+  --norte-success: #276c52;
+  --norte-warning: #855b16;
+  --norte-danger: #a13935;
+  --norte-violet: #65548f;
+  --norte-overlay: #302b2370;
+  --norte-shadow: #302b2316;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --norte-bg: #1e1c19;
+  --norte-surface: #28251f;
+  --norte-surface-muted: #322e27;
+  --norte-surface-raised: #3a352d;
+  --norte-text: #f3eee5;
+  --norte-text-secondary: #ccc4b7;
+  --norte-text-muted: #b1a796;
+  --norte-border: #494237;
+  --norte-border-strong: #756956;
+  --norte-accent: #d4a373;
+  --norte-accent-hover: #e0b389;
+  --norte-accent-soft: #393128;
+  --norte-on-accent: #20170f;
+  --norte-link: #d4a373;
+  --norte-success: #94c3ae;
+  --norte-warning: #e0b46b;
+  --norte-danger: #e5a19c;
+  --norte-violet: #b9afd8;
+  --norte-overlay: #101419b8;
+  --norte-shadow: #00000040;
+}

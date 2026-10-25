@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { Ledger } = require('../transcription.js');
+const { Ledger } = require('../meetings/web/transcription.js');
 
 function result(text, isFinal = true) {
   const value = [{ transcript: text, confidence: 0.9 }];

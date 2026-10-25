@@ -7,8 +7,7 @@ import type { MissionProject } from '../lib/projectStore';
 import type { TeamRecord } from '../lib/team';
 import type { Language } from '../lib/types';
 import { useAuth } from '../lib/auth';
-import '../project-workspace.css';
-
+import '../styles/features/project.css';
 type Props = { language: Language; teams: TeamRecord[]; onCreate: (project: MissionProject) => Promise<void>; onHome: () => void; onTeams: () => void };
 export function ProjectSetupPage({ language, teams, onCreate, onHome, onTeams }: Props) {
   const auth = useAuth(), pt = language === 'pt';
@@ -34,7 +33,7 @@ export function ProjectSetupPage({ language, teams, onCreate, onHome, onTeams }:
     finally { setBusy(false); }
   }
   return <main className="project-create project-create-simple"><form onSubmit={event => void submit(event)}>
-    <header className="workspace-heading"><div><span className="workspace-eyebrow">NORTE / {pt ? 'PROJETOS' : 'PROJECTS'}</span><h1>{pt ? 'Novo projeto' : 'New project'}</h1><p>{pt ? 'Comece pelo nome. Organize os documentos e a equipe no seu ritmo.' : 'Start with a name. Organize documents and people as your project develops.'}</p></div></header>
+    <header className="workspace-heading"><div><h1>{pt ? 'Novo projeto' : 'New project'}</h1></div></header>
     <section className="workspace-card project-basics"><span className="project-create-symbol"><FolderKanban size={24} /></span>
       <label className="workspace-field"><span>{pt ? 'Nome do projeto' : 'Project name'}</span><input name="name" required maxLength={120} autoFocus placeholder={pt ? 'Ex.: Sistema de navegação Aurora' : 'E.g. Aurora navigation system'} value={name} onChange={e => setName(e.target.value)} /></label>
       <p className="project-create-team"><UsersRound size={16} />{team?.name || (pt ? 'Um espaço de equipe será criado somente com você.' : 'A team workspace will be created with only you.')}</p>
@@ -44,7 +43,7 @@ export function ProjectSetupPage({ language, teams, onCreate, onHome, onTeams }:
         <p>{pt ? 'Setores, permissões e programas de referência podem ser configurados depois.' : 'Sectors, permissions and reference programs can be configured later.'}</p>
         <button className="workspace-text-button" type="button" onClick={onTeams}>{pt ? 'Gerenciar equipes' : 'Manage teams'}<ArrowRight size={14} /></button>
       </div></details>
-      <footer className="project-create-footer"><button type="button" onClick={onHome}>{pt ? 'Cancelar' : 'Cancel'}</button><button className="primary" type="submit" disabled={busy || !name.trim() || auth.user?.accessRole === 'advisor'}>{busy ? (pt ? 'Criando…' : 'Creating…') : (pt ? 'Criar projeto' : 'Create project')}<ArrowRight size={16} /></button></footer>
+      <footer className="project-create-footer"><button type="button" onClick={onHome}>{pt ? 'Cancelar' : 'Cancel'}</button><button data-usage-action="project.create" className="primary" type="submit" disabled={busy || !name.trim() || auth.user?.accessRole === 'advisor'}>{busy ? (pt ? 'Criando…' : 'Creating…') : (pt ? 'Criar projeto' : 'Create project')}<ArrowRight size={16} /></button></footer>
       {error && <p className="workspace-error" role="alert">{error}</p>}
     </section>
   </form></main>;

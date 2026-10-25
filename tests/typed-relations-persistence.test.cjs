@@ -1,6 +1,6 @@
 // Real chunk/thread/typed pipelines with local transport fixtures. No external API.
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads,TR=require('../typed-relations.js');
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads,TR=require('../meetings/web/typed-relations.js');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const expected={P:{},R:{P:{relation_type:'result_of',configuration_match:'exact'}},AGAIN:{P:{relation_type:'repeats',configuration_match:'exact'},R:{relation_type:'repeats',configuration_match:'exact'}},BACKGROUND:{P:{relation_type:'none'},R:{relation_type:'none'},AGAIN:{relation_type:'none'}}};
 function batch() {

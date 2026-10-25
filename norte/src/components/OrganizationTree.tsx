@@ -4,8 +4,7 @@ import type { OrganizationNode } from '../../shared/organization-tree.mjs';
 import { layoutOrganization, organizationLines, organizationEdgePath } from '../lib/organizationLayout';
 import { memberColor, memberInitials } from '../lib/team';
 import type { Language } from '../lib/types';
-import '../team-overview.css';
-
+import '../styles/features/teams.css';
 const escapeXml = (text: string) => text.replace(/[<>&"']/g, char => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' })[char]!);
 export function exportOrganization(tree: OrganizationNode) {
   const { cards, edges, width, height } = layoutOrganization(tree);

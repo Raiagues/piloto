@@ -1,6 +1,7 @@
+import '../styles/features/auth.css';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useEffect, useState } from "react";
-import { Compass, Eye, EyeOff, KeyRound, LockKeyhole, RadioTower, RefreshCw, ShieldCheck } from "lucide-react";
+import { Compass, Eye, EyeOff, KeyRound, LockKeyhole, RefreshCw, ShieldCheck } from "lucide-react";
 import { LanguageToggle } from "../components/LanguageToggle";
 import { ApiError, useAuth } from "../lib/auth";
 import { getStoredLanguage, setStoredLanguage } from "../lib/i18n";
@@ -15,7 +16,6 @@ export function AuthPage() {
   const [mode, setMode] = useState<Mode>(routeMode);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [demoBusy, setDemoBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -48,10 +48,6 @@ export function AuthPage() {
     create: "Criar conta",
     noAccount: "Criar conta",
     hasAccount: "Já tenho conta",
-    demoDivider: "ou",
-    demoEnter: auth.demoResumeAvailable ? "Retomar conta de teste" : "Explorar com conta de teste",
-    demoHint: "A conta de teste fica salva neste navegador por 30 dias após o último acesso.",
-    demoError: "Não foi possível abrir a conta de teste agora.",
     offlineTitle: "Serviço temporariamente indisponível",
     offlineText: "Tente novamente em alguns instantes.",
     retry: "Tentar novamente",
@@ -76,10 +72,6 @@ export function AuthPage() {
     create: "Create account",
     noAccount: "Create account",
     hasAccount: "I already have an account",
-    demoDivider: "or",
-    demoEnter: auth.demoResumeAvailable ? "Resume test account" : "Explore with a test account",
-    demoHint: "The test account is saved in this browser for 30 days after your last visit.",
-    demoError: "The test account could not be opened right now.",
     offlineTitle: "Service temporarily unavailable",
     offlineText: "Try again in a few moments.",
     retry: "Try again",
@@ -94,7 +86,7 @@ export function AuthPage() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy || demoBusy) return;
+    if (busy) return;
     setBusy(true);
     setError("");
     const data = new FormData(event.currentTarget);
@@ -109,7 +101,7 @@ export function AuthPage() {
           password: String(data.get("password") || "")
         });
       }
-      if (/^#\/(?:login|register)/u.test(window.location.hash)) window.location.hash = joinParameters.get("return") === "plans" ? "#/plans" : "#/";
+      if (/^#\/(?:login|register)/u.test(window.location.hash)) window.location.hash = "#/";
     } catch (reason) {
       const messages: Record<string, string> = { WEAK_PASSWORD: c.weakPassword, EMAIL_EXISTS: c.emailExists, LOGIN_EXISTS: c.loginExists, INVALID_LOGIN: c.invalidLogin, INVALID_CREDENTIALS: c.invalidCredentials };
       setError(reason instanceof ApiError ? messages[reason.code] || reason.message : (language === "pt" ? "Não foi possível concluir o acesso." : "Access could not be completed."));
@@ -118,26 +110,16 @@ export function AuthPage() {
     }
   }
 
-  async function openDemo() {
-    setDemoBusy(true);
-    setError("");
-    try {
-      await auth.loginDemo();
-    } catch (reason) {
-      setError(reason instanceof ApiError ? reason.message : c.demoError);
-    } finally {
-      setDemoBusy(false);
-    }
-  }
+
 
   if (auth.status === "loading") {
-    return <div className="auth-status-screen"><RadioTower aria-hidden="true" /><span>{c.loading}</span></div>;
+    return <div className="auth-status-screen"><Compass aria-hidden="true" /><span>{c.loading}</span></div>;
   }
 
   if (auth.status === "offline") {
     return (
       <div className="auth-status-screen auth-offline">
-        <RadioTower aria-hidden="true" />
+        <Compass aria-hidden="true" />
         <h1>{c.offlineTitle}</h1>
         <p>{c.offlineText}</p>
         <button onClick={() => void auth.refresh()}><RefreshCw aria-hidden="true" />{c.retry}</button>
@@ -148,12 +130,12 @@ export function AuthPage() {
   return (
     <main className="auth-page">
       <header className="auth-header">
-        <a className="auth-brand" href="#/" aria-label="Norte"><RadioTower aria-hidden="true" /><span>NORTE</span></a>
+        <a className="auth-brand" href="#/landing" aria-label="Norte"><Compass aria-hidden="true" /><span>NORTE</span></a>
         <div className="auth-header-controls"><ThemeToggle language={language} /><LanguageToggle language={language} onChange={changeLanguage} /></div>
       </header>
 
       <section className="auth-layout">
-        <form className="auth-form" key={mode} onSubmit={submit} aria-busy={busy || demoBusy}>
+        <form className="auth-form" key={mode} onSubmit={submit} aria-busy={busy}>
           <div className="auth-form-heading">
             <div className="auth-form-icon">{mode === "login" ? <KeyRound aria-hidden="true" /> : <LockKeyhole aria-hidden="true" />}</div>
             <h1>{mode === "login" ? c.loginTitle : c.registerTitle}</h1>
@@ -177,15 +159,10 @@ export function AuthPage() {
           </div>
 
           {error && <div className="auth-error" role="alert">{error}</div>}
-          <button className="auth-submit" type="submit" disabled={busy || demoBusy}>{busy ? <RefreshCw className="auth-spinner" aria-hidden="true" /> : mode === "login" ? <KeyRound aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}{busy ? mode === "login" ? c.entering : c.creating : mode === "login" ? c.enter : c.create}</button>
-          <button className="auth-mode-switch" type="button" disabled={busy || demoBusy} onClick={() => { setMode((current) => current === "login" ? "register" : "login"); setError(""); setShowPassword(false); }}>{mode === "login" ? c.noAccount : c.hasAccount}</button>
-          {auth.demoAvailable && (
-            <div className="auth-demo">
-              <div className="auth-demo-divider"><span>{c.demoDivider}</span></div>
-              <button className="auth-demo-enter" type="button" onClick={() => void openDemo()} disabled={busy || demoBusy}>{demoBusy ? <RefreshCw className="auth-spinner" aria-hidden="true" /> : <Compass aria-hidden="true" />}{c.demoEnter}</button>
-              <small>{c.demoHint}</small>
-            </div>
-          )}
+          <button className="auth-submit" type="submit" disabled={busy}>{busy ? <RefreshCw className="auth-spinner" aria-hidden="true" /> : mode === "login" ? <KeyRound aria-hidden="true" /> : <ShieldCheck aria-hidden="true" />}{busy ? mode === "login" ? c.entering : c.creating : mode === "login" ? c.enter : c.create}</button>
+          <button className="auth-mode-switch" type="button" disabled={busy} onClick={() => { setMode((current) => current === "login" ? "register" : "login"); setError(""); setShowPassword(false); }}>{mode === "login" ? c.noAccount : c.hasAccount}</button>
+
+          <nav className="auth-policy-links" aria-label={language === 'pt' ? 'Políticas' : 'Policies'}><a href="#/privacy">{language === 'pt' ? 'Privacidade' : 'Privacy'}</a><span aria-hidden="true"> · </span><a href="#/terms">{language === 'pt' ? 'Termos de uso' : 'Terms of use'}</a></nav>
         </form>
       </section>
     </main>

@@ -1,4 +1,4 @@
-/** Engineering baseline. Discovery coordinates and activity are never physical evidence. */
+/** Persisted engineering baseline types. Historical records remain readable by delivery and document views. */
 export type EngineeringSource = "documented" | "calculated" | "inferred" | "user";
 export type EngineeringEntityKind = "system" | "subsystem" | "component" | "parameter" | "calculation" | "performance" | "interface";
 export const ENGINEERING_RELATION_KINDS = ["contains", "powers", "connects_to", "depends_on", "affects", "contributes_to", "constrained_by", "satisfies", "requires", "produces", "consumes", "measured_by", "derived_from", "communicates_with", "mounted_on", "thermal_coupling", "unknown"] as const;
@@ -22,7 +22,6 @@ export type ReasoningEvidence = { type: "fact" | "calculation" | "inference" | "
 export type EngineeringImpactStatus = "changed" | "valid" | "review" | "critical" | "unaffected";
 export type EngineeringImpact = { entityId: string; status: EngineeringImpactStatus; reasonCode: string; shortExplanation: string; path: string[]; traversedRelationIds: string[]; evidenceRefs: string[]; calculation?: EngineeringCalculation; reasoning: ReasoningEvidence; confidence: number };
 export type EngineeringAnalysis = { baseline?: Pick<EngineeringSystemModel, "entities" | "relations" | "requirements" | "evidence">; id: string; changeId: string; changedEntityId: string; change: EngineeringChange; impacts: EngineeringImpact[]; calculations: EngineeringCalculation[]; evidence?: EngineeringEvidence[]; unresolvedQuestions: string[]; createdAt: string; model?: string; metrics: { impacted: number; critical: number; review: number; evidenced: number; inferred: number } };
-export type EngineeringScenario = EngineeringAnalysis;
 export type EngineeringCorrectionSnapshot = { entity: EngineeringEntity } | { relation: EngineeringRelation } | { requirement: EngineeringRequirement };
 export type EngineeringCorrectionProjectContext = { projectId?: string; projectName?: string; projectType?: string };
 export type EngineeringCorrection = {
@@ -34,21 +33,3 @@ export type EngineeringCorrection = {
   createdAt: string;
 };
 export type EngineeringSystemModel = { schemaVersion: 1; id: string; name: string; entities: EngineeringEntity[]; relations: EngineeringRelation[]; requirements: EngineeringRequirement[]; evidence: EngineeringEvidence[]; artifactSources: EngineeringArtifactSource[]; generatedAt: string; generatedFromRevision: number; model?: string; revision?: number; scenarios?: EngineeringAnalysis[]; corrections?: EngineeringCorrection[] };
-
-export function formatEngineeringProperty(property: EngineeringProperty): string {
-  return `${property.value}${property.unit ? ` ${property.unit}` : ""}`;
-}
-
-export function requirementEntityIds(requirement: EngineeringRequirement, model: EngineeringSystemModel): Set<string> {
-  const ids = new Set(requirement.relatedEntityIds);
-  for (const relation of model.relations) if (requirement.relatedRelationIds.includes(relation.id)) { ids.add(relation.from); ids.add(relation.to); }
-  return ids;
-}
-
-/** Return undefined for unknown versions instead of inventing an architecture. */
-export function normalizeEngineeringSystem(value: unknown): EngineeringSystemModel | undefined {
-  if (!value || typeof value !== "object" || !("schemaVersion" in value) || value.schemaVersion !== 1) return undefined;
-  const model = value as EngineeringSystemModel;
-  if (!Array.isArray(model.entities) || !Array.isArray(model.relations) || !Array.isArray(model.requirements) || !Array.isArray(model.evidence)) return undefined;
-  return model;
-}

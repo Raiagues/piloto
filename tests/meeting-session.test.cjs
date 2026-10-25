@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{setTimeout:sleep}=require('node:timers/promises');
-const S=require('../meeting-session.js'),V=require('../memory-v2.js'),C=require('../meeting-commands.js');
+const S=require('../meetings/web/meeting-session.js'),V=require('../meetings/web/memory-v2.js'),C=require('../meetings/web/meeting-commands.js');
 const clone=value=>JSON.parse(JSON.stringify(value));
 function reply(req,choices){return {request:clone(req),provider:'official',latencyMs:1,response:{model:'fixture',answers:Object.fromEntries(Object.entries(req.questions).map(([id,q])=>{
  const value=typeof choices==='function'?choices(id,q):choices[id];
@@ -415,6 +415,8 @@ test('an announced test result waits for the speaker and becomes one chunk with 
  assert.equal(run.records.length,1);assert.equal(run.batch.cases[0].current_utterance,'RESULTADO a gente testou e validou a viga de 13 cm passou no ensaio de tensão');
  assert.deepEqual(run.batch.cases[0].source_entry_ids,['S0001','S0002']);
  assert.deepEqual(run.records[0].segmentation.checks.map(c=>[c.wait,c.merged??null]),[[true,true],[false,null]]);
+ assert.equal(run.records[0].segmentation.checks[0].output.request.state.current_utterance,'RESULTADO a gente testou e validou');
+ assert.equal(run.records[0].segmentation.checks[0].output.response.answers.speech_status.choice,'unfinished');
  assert.equal(seen[0].current_utterance,'RESULTADO a gente testou e validou');assert.equal(seen[1].current_utterance,run.batch.cases[0].current_utterance);
  assert.equal(run.meeting_events[0].type,'test_result');
 });
@@ -528,4 +530,25 @@ test('a meeting with pieces joined by the continuation check restores, and tampe
  for(const mutate of [r=>{r.records[0].segmentation.checks.forEach(c=>delete c.merged);},r=>{r.transcript[3].text='outro texto';},r=>{r.transcript[1].speaker='Bruno';}]){
   const corrupt=clone(saved);mutate(corrupt);assert.throws(()=>S.restore(corrupt));
  }
+});
+
+test('live continuation cannot rebuild a paragraph even when every Jev answer asks to merge',async()=>{
+ const s=S.create({send:gated(()=>true,{joins:()=>true}),continuation:fast});
+ const pieces=Array.from({length:8},(_,index)=>'A equipe registrou o ponto '+index+' sobre o suporte após avaliar o ensaio anterior');
+ pieces.forEach((text,index)=>s.append(text,{source:'microphone',speaker:'Ana',offsetMs:index*1000,endOffsetMs:index*1000+900}));
+ const run=await s.close();
+ assert.ok(run.batch.cases.length>=4);
+ assert.ok(run.batch.cases.every(item=>item.current_utterance.split(/\s+/).length<=32));
+ assert.equal(run.transcript.map(item=>item.text).join(' '),pieces.join(' '));
+ assert.equal(S.restore(clone(run)).transcript.length,pieces.length);
+});
+
+test('direct long input gets the same lossless bounded chunks as the microphone UI',async()=>{
+ const source='Foi observado '+Array.from({length:100},(_,index)=>'detalhe'+index).join(' ');
+ const s=S.create({send:fixture});s.append(source,{source:'text',speaker:'Ana'});
+ const run=await s.close();
+ assert.ok(run.transcript.length>3);
+ assert.equal(run.transcript.map(item=>item.text).join(' '),source);
+ assert.equal(run.transcript[0].sourceText,source);
+ assert.ok(run.batch.cases.every(item=>item.current_utterance.split(/\s+/).length<=32));
 });

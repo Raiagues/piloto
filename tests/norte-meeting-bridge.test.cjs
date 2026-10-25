@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const bridge = require('../norte-meeting-bridge.js');
-const documentModel = require('../meeting-document.js');
+const bridge = require('../meetings/web/norte-meeting-bridge.js');
+const documentModel = require('../meetings/web/meeting-document.js');
 
 function fixture(responses = [], owner = true) {
   const requests = [], events = [], origin = 'https://norte.test';

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),R=require('../relation-worker.js');
+const F=require('../meetings/web/memory-flow.js'),R=require('../meetings/web/relation-worker.js');
 const batch=require('./fixtures/memory-b001.json'),clone=value=>JSON.parse(JSON.stringify(value));
 const output=(request,answers)=>({request:clone(request),response:{model:'fixture',answers,usage:{fixture:true}},provider:'official',latencyMs:12});
 const chunkOutput=request=>{

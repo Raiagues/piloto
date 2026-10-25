@@ -1,4 +1,4 @@
-const F=require('../../memory-flow.js');
+const F=require('../../meetings/web/memory-flow.js');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const requested=clone(require('./memory-b001.json'));
 delete requested.expected_relations;

@@ -1,3 +1,4 @@
+# Somente API/interface Node; a implantação integrada usa ../render.yaml.
 services:
   - type: web
     name: norte-missao
@@ -27,6 +28,3 @@ services:
         value: gemini-3.8-flash
       - key: GEMINI_THINKING_LEVEL
         value: high
-      # Login page offers disposable demonstration sandboxes (24 h, capped at 20).
-      - key: NORTE_DEMO_ACCOUNT
-        value: "1"

@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const Document=require('../meeting-document.js'),Minutes=require('../meeting-minutes.js');
+const Document=require('../meetings/web/meeting-document.js'),Minutes=require('../meetings/web/meeting-minutes.js');
 const node=(id,type,text,extra={})=>({id,type,text,current:true,status:'open',completed:false,relations:[],...extra});
 function fixture(){
  const context=node('E001','observation','A viga de referência tem 6 m.'),hypothesis=node('E002','hypothesis','Reduzir o comprimento pode reduzir o momento.'),requirement=node('E003','requirement','Manter a força de 10 kN.'),test=node('E004','test_proposal','Simular a viga com 4 m.',{completed:true,status:'completed'}),result=node('E005','test_result','O momento na simulação foi 40 kN·m.'),decision=node('E006','decision','Adotar o comprimento de 4 m.'),pending=node('E007','test_proposal','Repetir a simulação com 12 kN.'),question=node('E008','other','Qual é o limite de deslocamento?'),orphan=node('E009','test_result','Foi obtido deslocamento de 5 mm.',{standalone:true});

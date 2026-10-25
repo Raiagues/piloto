@@ -11,30 +11,22 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NORTE_DEMO_ACCOUNT
-        value: "1"
-      - key: NORTE_DEMO_PROFILE
-        value: validation
       - key: NORTE_MEETING_BRIDGE_SECRET
         generateValue: true
       - key: NORTE_BOOTSTRAP_TOKEN
         generateValue: true
-      - key: GEMINI_EXTRACTION_MODEL
-        value: gemini-3.8-flash
-      - key: GEMINI_EXTRACTION_THINKING_LEVEL
-        value: low
-      - key: GEMINI_DISCOVERY_MODEL
-        value: gemini-3.5-flash-lite
-      - key: GEMINI_DISCOVERY_THINKING_LEVEL
-        value: minimal
-      - key: GEMINI_ORGANIZATION_MODEL
-        value: gemini-3.5-flash-lite
       - key: DATABASE_URL
         fromDatabase:
           name: norte-db
           property: connectionString
       - key: NORTE_PROVIDER
         value: official
+      - key: GEMINI_REQUIREMENTS_MODEL
+        value: gemini-3.5-flash-lite
+      - key: GEMINI_REQUIREMENTS_MAX_OUTPUT_TOKENS
+        value: "6000"
+      - key: NORTE_PRIVACY_EMAIL
+        value: emillyraianerodrigues@gmail.com
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
       # Standard até 31/12/2026. A partir de 01/01/2027: 1.50 / 7.50.
@@ -44,10 +36,6 @@ services:
         value: "3.75"
       - key: MINUTES_DAILY_CALL_LIMIT
         value: "50"
-      - key: ADMIN_USERNAME
-        value: admin
-      - key: ADMIN_PASSWORD
-        sync: false
       - key: TYPESAFE_API_KEY
         sync: false
       - key: GOOGLE_API_KEY

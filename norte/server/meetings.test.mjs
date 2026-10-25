@@ -7,10 +7,9 @@ import { gzipSync } from 'node:zlib';
 import { createHash, createHmac } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { buildApp } from './app.mjs';
-import { createValidationProject } from './data-store.mjs';
-import { createEngineeringValidationModel } from '../examples/engineering-validation.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 const require = createRequire(import.meta.url);
-const Session = require('../../meeting-session.js'), Bridge = require('../../norte-meeting-bridge.js'), Hierarchy = require('../../meeting-hierarchy.js');
+const Session = require('../../meetings/web/meeting-session.js'), Bridge = require('../../meetings/web/norte-meeting-bridge.js'), Hierarchy = require('../../meetings/web/meeting-hierarchy.js');
 
 const secret = 'test-only-bridge-secret-at-least-thirty-two-characters';
 async function fixture(t, extra = {}) {
@@ -47,7 +46,7 @@ async function fixture(t, extra = {}) {
   const request = (actor, method, path, payload, headers = {}) => app.inject({ method, url: '/api' + path, headers: { ...actor.headers, ...headers }, ...(payload !== undefined ? { payload } : {}) });
   const owner = await register('Owner'), host = await register('Host'), guest = await register('Guest'), outsider = await register('Outsider');
   async function create(actor = host, overrides = {}) {
-    const r = await request(actor, 'POST', '/meetings', { title: 'Revisão de projeto', memoryMode: 'none', ...overrides });
+    const r = await request(actor, 'POST', '/meetings', { title: 'Revisão de projeto', ...overrides });
     assert.equal(r.statusCode, 201, r.body); return r.json().meeting;
   }
   async function invite(meeting, recipient = guest) {
@@ -65,6 +64,24 @@ async function fixture(t, extra = {}) {
   }
   return { app, calls, records, register, request, owner, host, guest, outsider, create, invite, accept, project };
 }
+
+test('meeting learning takes its scope from the authenticated route and only the host may correct it', async t => {
+  const f = await fixture(t), meeting = await f.create();
+  await f.accept(await f.invite(meeting));
+  const path = `/meetings/${meeting.id}/legacy/ai/blocks/learning`;
+  assert.equal((await f.request(f.guest, 'POST', path, { session_id: meeting.id, action: 'get' })).statusCode, 403);
+  assert.equal((await f.request(f.outsider, 'POST', path, { session_id: meeting.id, action: 'get' })).statusCode, 404);
+  assert.equal((await f.request(f.host, 'POST', path, { session_id: 'other-meeting', action: 'get' })).statusCode, 403);
+  assert.equal((await f.request(f.host, 'POST', path, { session_id: meeting.id, action: 'get' })).statusCode, 200);
+  assert.equal(f.calls.at(-1).headers['x-norte-bridge-scope'], `meeting:${meeting.id}`);
+  const body = { model: 'jev-latest', state: { current_utterance: 'Decidimos revisar o suporte.', _norte_meeting_id: 'forged', meeting_feedback: { version: 999, examples: [] } }, questions: { event_type: { type: 'choice', instructions: 'Classifique a fala.', criteria: { decision: 'Decisão', observation: 'Observação' } } } };
+  const result = await f.request(f.host, 'POST', `/meetings/${meeting.id}/legacy/classify`, body);
+  assert.equal(result.statusCode, 200, result.body);
+  const forwarded = JSON.parse(f.calls.at(-1).body);
+  assert.equal(forwarded.state._norte_meeting_id, meeting.id);
+  assert.equal(forwarded.state.meeting_feedback, undefined);
+  assert.deepEqual(result.json().request, body, 'browser request is preserved without revealing server-added context');
+});
 
 test('meetings are private until the invited account explicitly accepts; administrative role has no content bypass', async t => {
   const f = await fixture(t), m = await f.create();
@@ -89,7 +106,7 @@ test('meetings are private until the invited account explicitly accepts; adminis
 
 test('CSRF, host ownership and compare-and-swap prevent unauthorized changes and lost metadata updates', async t => {
   const f = await fixture(t), m = await f.create();
-  const noCsrf = await f.app.inject({ method: 'POST', url: '/api/meetings', headers: { cookie: f.host.headers.cookie }, payload: { title: 'CSRF', memoryMode: 'none' } });
+  const noCsrf = await f.app.inject({ method: 'POST', url: '/api/meetings', headers: { cookie: f.host.headers.cookie }, payload: { title: 'CSRF' } });
   assert.equal(noCsrf.statusCode, 403); assert.equal(noCsrf.json().error, 'CSRF_INVALID');
   const invitation = await f.invite(m); await f.accept(invitation);
   const current = (await f.request(f.host, 'GET', `/meetings/${m.id}`)).json().meeting;
@@ -117,25 +134,17 @@ test('contributions are an ordered idempotent queue, presence is authenticated, 
   assert.equal((await f.request(f.guest, 'POST', `/meetings/${m.id}/contributions`, { text: 'Depois', clientId: 'turn-2' })).statusCode, 409);
 });
 
-test('project memory requires current project access for invitation, acceptance, reads, processing and retrieval', async t => {
-  let contextCalls = 0;
-  const f = await fixture(t, { meetingContext: async ({ project, query }) => { contextCalls++; return { items: [{ id: project.id, text: query }] }; } });
-  const own = await f.project(), m = await f.create(f.host, { projectId: own.project.id, memoryMode: 'project' });
+test('project-linked meetings retain project ACL after external context removal', async t => {
+  const f = await fixture(t), own = await f.project(), m = await f.create(f.host, { projectId: own.project.id });
   assert.equal((await f.request(f.host, 'POST', `/meetings/${m.id}/invitations`, { nickname: f.guest.nickname })).statusCode, 403);
   const invitation = (await f.request(f.host, 'POST', `/teams/${own.team.id}/invitations`, { nickname: f.guest.nickname })).json().invitation;
   await f.request(f.guest, 'POST', `/invitations/${invitation.id}/respond`, { decision: 'accept' });
-  const meetingInvite = await f.invite(m); await f.accept(meetingInvite);
-  assert.equal((await f.request(f.guest, 'POST', `/meetings/${m.id}/context`, { query: 'Energia' })).statusCode, 200);
-  assert.equal(contextCalls, 1);
+  await f.accept(await f.invite(m));
+  assert.equal((await f.request(f.guest, 'POST', `/meetings/${m.id}/context`, { query: 'Energia' })).statusCode, 404);
   await f.request(f.host, 'DELETE', `/teams/${own.team.id}/members/${f.guest.memberId}`);
   assert.equal((await f.request(f.guest, 'GET', `/meetings/${m.id}`)).statusCode, 404);
-  assert.equal((await f.request(f.guest, 'POST', `/meetings/${m.id}/context`, { query: 'Energia' })).statusCode, 404);
   assert.equal((await f.request(f.guest, 'GET', `/meetings/${m.id}/legacy/records?key=norte.meeting-room.session.v2.${m.id}`)).statusCode, 404);
-  assert.equal(contextCalls, 1); assert.equal(f.calls.length, 0);
-  const noMemory = await f.create(f.host, { projectId: own.project.id, memoryMode: 'none' });
-  await f.accept(await f.invite(noMemory));
-  const context = await f.request(f.guest, 'POST', `/meetings/${noMemory.id}/context`, { query: 'Energia' });
-  assert.equal(context.json().enabled, false); assert.deepEqual(context.json().items, []); assert.equal(contextCalls, 1);
+  assert.equal(f.calls.length, 0);
 });
 
 test('platform owner cannot read, download, invite into or edit another team and project', async t => {
@@ -176,7 +185,9 @@ test('legacy gateway signs server-derived identity, narrows records, enforces ho
   assert.equal(metadata.title, m.title); assert.equal(metadata.status, 'done');
   const read = await f.request(f.guest, 'GET', path + '/records?key=' + encodeURIComponent(key));
   assert.equal(read.statusCode, 200); assert.equal(JSON.parse(read.json().value).id, m.id);
-  assert.equal((await f.request(f.host, 'POST', path + '/ai/events', { events: [{ session_id: 'other' }] })).statusCode, 403);
+  assert.equal((await f.request(f.host, 'POST', path + '/ai/events', { events: [{ session_id: 'other' }] })).statusCode, 404);
+  assert.equal((await f.request(f.host, 'POST', path + '/ai/blocks/learning', { session_id: 'other' })).statusCode, 403);
+  assert.equal((await f.request(f.host, 'GET', path + '/ai/aliases')).statusCode, 404);
   const compressed = gzipSync(JSON.stringify({ key, expected_version: 1, value: JSON.stringify({ ...run, title: 'Compressed' }) }));
   const r = await f.request(f.host, 'POST', path + '/records', compressed, { 'content-type': 'application/json', 'content-encoding': 'gzip' });
   assert.equal(r.statusCode, 200, r.body); assert.equal(r.json().version, 2);
@@ -199,11 +210,11 @@ test('meeting HTML keeps bootstrap safe, assets are allowlisted, and login retur
   const anonymous = await f.app.inject({ method: 'GET', url: `/meeting/${m.id}?event=E001` });
   assert.equal(anonymous.statusCode, 302); assert.match(anonymous.headers.location, /event=E001/);
   assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/server.py', headers: f.host.headers })).statusCode, 404);
-  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/styles.css', headers: f.host.headers })).statusCode, 200);
+  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/base.css', headers: f.host.headers })).statusCode, 200);
   assert.equal(refreshes, 4);
   f.app.missionStore.refresh = () => f.app.missionStore.update(data => { data.users.find(user => user.id === f.host.id).active = false; });
   assert.equal((await f.app.inject({ method: 'GET', url: `/meeting/${m.id}`, headers: f.host.headers })).statusCode, 302);
-  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/styles.css', headers: f.host.headers })).statusCode, 401);
+  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/base.css', headers: f.host.headers })).statusCode, 401);
 });
 
 test('private project context never returns in classifier echoes; guests see no processing archive and host can resume', async t => {
@@ -221,7 +232,7 @@ test('private project context never returns in classifier echoes; guests see no 
   session.append('O rádio precisa de alimentação estável.');
   const run = await session.close();
   assert.equal(run.status, 'done'); assert.equal(run.meeting_events.length, 1);
-  assert.ok(f.calls.some(call => call.body && JSON.parse(call.body).state?.project_memory?.private_context === 'server-only-context'));
+  assert.ok(f.calls.every(call => !call.body || !JSON.parse(call.body).state?.project_memory));
   run.debug = { request: 'archive-only' };
   const written = await f.request(f.host, 'POST', path + '/records', { key, expected_version: 0, value: JSON.stringify(run) });
   assert.equal(written.statusCode, 200, written.body);
@@ -239,282 +250,6 @@ test('private project context never returns in classifier echoes; guests see no 
   assert.deepEqual((await resumed.close()).meeting_events, run.meeting_events);
 });
 
-test('demo-created teams, projects, artifacts and meetings inherit the server sandbox rather than client scope', async t => {
-  const f = await fixture(t);
-  const response = await f.app.inject({ method: 'POST', url: '/api/auth/demo' });
-  assert.equal(response.statusCode, 201, response.body);
-  const actor = { ...response.json().user, headers: { cookie: [response.headers['set-cookie']].flat().map(value => value.split(';')[0]).join('; '), 'x-csrf-token': response.json().csrfToken } };
-  const { team, project } = await f.project(actor);
-  const scope = f.app.missionStore.read().users.find(u => u.id === actor.id).demoSandboxId;
-  assert.equal(team.demoSandboxId, scope); assert.ok(team.id.startsWith(scope + '-'));
-  assert.equal(project.demoSandboxId, scope);
-  assert.equal((await f.request(actor, 'GET', `/projects/${project.id}`)).statusCode, 200);
-  assert.equal((await f.request(f.owner, 'GET', `/projects/${project.id}`)).statusCode, 403);
-  const m = await f.create(actor, { projectId: project.id, memoryMode: 'project' });
-  assert.equal(f.app.missionStore.read().meetings[m.id].demoSandboxId, scope);
-  assert.equal((await f.request(f.owner, 'GET', `/meetings/${m.id}`)).statusCode, 404);
-});
-
-test('long extraction jobs isolate accounts, require explicit CSRF publication and refuse a changed or revoked project', async t => {
-  const jobs = new Map(); let sequence = 0;
-  const systemAiService = {
-    status: () => ({ configured: true, model: 'test' }),
-    async start(project, artifacts, language, { scopeKey }) {
-      const jobId = 'job-' + ++sequence, job = { jobId, projectId: project.id, status: 'paused', progress: { totalChunks: 2, completedChunks: 1, coverage: .5 }, scopeKey };
-      jobs.set(jobId, job); return { jobId, projectId: project.id, status: job.status, progress: job.progress };
-    },
-    job(id, { scopeKey }) { const job = jobs.get(id); assert.equal(scopeKey, job.scopeKey); return { ...job }; },
-    async resume(id, { scopeKey }) { const job = jobs.get(id); assert.equal(scopeKey, job.scopeKey); job.status = 'completed'; job.result = createEngineeringValidationModel(); return { ...job }; }
-  };
-  const f = await fixture(t, { systemAiService }), own = await f.project();
-  const begin = await f.request(f.host, 'POST', '/system-ai/jobs', { projectId: own.project.id, language: 'pt' });
-  assert.equal(begin.statusCode, 202, begin.body);
-  const job = begin.json(), route = `/system-ai/jobs/${job.jobId}`;
-  assert.equal(jobs.get(job.jobId).scopeKey, f.host.id + ':' + own.project.id);
-  assert.equal((await f.request(f.owner, 'GET', route + '?projectId=' + own.project.id)).statusCode, 404);
-  assert.equal((await f.request(f.host, 'POST', route + '/apply', { projectId: own.project.id })).statusCode, 409);
-  assert.equal((await f.request(f.host, 'POST', route + '/resume', { projectId: own.project.id })).statusCode, 202);
-  const status = await f.request(f.host, 'GET', route + '?projectId=' + own.project.id);
-  assert.equal(status.json().status, 'completed');
-  assert.equal(f.app.missionStore.read().workspace.projects[own.project.id].document.engineeringSystem, undefined, 'GET never publishes a generated model');
-  const blocked = await f.app.inject({ method: 'POST', url: '/api' + route + '/apply', headers: { cookie: f.host.headers.cookie }, payload: { projectId: own.project.id } });
-  assert.equal(blocked.statusCode, 403);
-  await f.app.missionStore.update(data => { data.workspace.projects[own.project.id].document.memoryRevision++; });
-  const stale = await f.request(f.host, 'POST', route + '/apply', { projectId: own.project.id });
-  assert.equal(stale.statusCode, 409); assert.equal(stale.json().error, 'PROJECT_MEMORY_CHANGED');
-  const fresh = (await f.request(f.host, 'POST', '/system-ai/jobs', { projectId: own.project.id, language: 'pt' })).json();
-  const freshRoute = '/system-ai/jobs/' + fresh.jobId;
-  await f.request(f.host, 'POST', freshRoute + '/resume', { projectId: own.project.id });
-  const applied = await f.request(f.host, 'POST', freshRoute + '/apply', { projectId: own.project.id });
-  assert.equal(applied.statusCode, 200, applied.body);
-  assert.ok(applied.json().engineeringSystem.entities.length);
-  assert.equal((await f.request(f.host, 'POST', freshRoute + '/apply', { projectId: own.project.id })).statusCode, 200, 'publication is idempotent');
-  await f.app.missionStore.update(data => { data.teams.find(team => team.id === own.team.id).memberIds = []; });
-  assert.equal((await f.request(f.host, 'GET', freshRoute + '?projectId=' + own.project.id)).statusCode, 404);
-});
-
-test('regeneration requires review, archives the old map and refuses concurrent corrections', async t => {
-  const jobs = new Map(); let sequence = 0;
-  const systemAiService = {
-    status: () => ({ configured: true }),
-    async start(project) {
-      const result = createEngineeringValidationModel(); result.generatedFromRevision = project.memoryRevision || 0;
-      const job = { jobId: 'regen-' + ++sequence, status: 'completed', result, report: { complete: true, warnings: ['Review sources'] }, progress: { coverage: 1 } };
-      jobs.set(job.jobId, job); return job;
-    },
-    job: id => jobs.get(id)
-  };
-  const f = await fixture(t, { systemAiService }), own = await f.project();
-  const initial = createEngineeringValidationModel(); initial.entities[0].name = 'Correção humana preservada';
-  await f.app.missionStore.update(data => {
-    const record = data.workspace.projects[own.project.id];
-    record.document.engineeringSystem = initial;
-    record.document.phaseProgress = { highestUnlockedStep: 2 };
-  });
-  const payload = { projectId: own.project.id, regenerate: true };
-  assert.equal((await f.request(f.host, 'POST', '/system-ai/jobs', { projectId: own.project.id })).statusCode, 409);
-  const first = (await f.request(f.host, 'POST', '/system-ai/jobs', payload)).json();
-  const route = '/system-ai/jobs/' + first.jobId;
-  assert.deepEqual(f.app.missionStore.read().workspace.projects[own.project.id].document.engineeringSystem, initial);
-  const noReview = await f.request(f.host, 'POST', route + '/apply', { projectId: own.project.id });
-  assert.equal(noReview.json().error, 'SYSTEM_REPLACEMENT_REQUIRES_REVIEW');
-  await f.app.missionStore.update(data => { data.workspace.projects[own.project.id].document.engineeringSystem.entities[0].name = 'Nova correção'; });
-  assert.equal((await f.request(f.host, 'POST', route + '/apply', payload)).json().error, 'SYSTEM_CHANGED');
-  const fresh = (await f.request(f.host, 'POST', '/system-ai/jobs', payload)).json();
-  jobs.get(fresh.jobId).report.needsReview = true;
-  jobs.get(fresh.jobId).report.omissions = [{ kind: 'evidence', id: 'unverified', reason: 'Citação não comprovada' }];
-  const pendingReview = await f.request(f.host, 'POST', '/system-ai/jobs/' + fresh.jobId + '/apply', payload);
-  assert.equal(pendingReview.json().error, 'EXTRACTION_REQUIRES_REVIEW');
-  const reviewedPayload = { ...payload, reviewed: true };
-  const applied = await f.request(f.host, 'POST', '/system-ai/jobs/' + fresh.jobId + '/apply', reviewedPayload);
-  assert.equal(applied.statusCode, 200, applied.body);
-  assert.equal(applied.json().project.phaseProgress.highestUnlockedStep, 2);
-  assert.equal(applied.json().regenerated, true);
-  const history = await f.request(f.host, 'GET', `/projects/${own.project.id}/system-history`);
-  assert.equal(history.json().versions.length, 1);
-  assert.equal(history.json().versions[0].engineeringSystem.entities[0].name, 'Nova correção');
-  assert.equal(history.json().extractionReport.complete, true);
-  assert.equal(history.json().extractionReport.progress.coverage, 1);
-  assert.equal(history.json().extractionReport.needsReview, true);
-  assert.equal(history.json().extractionReport.omissions.length, 1);
-  assert.equal((await f.request(f.outsider, 'GET', `/projects/${own.project.id}/system-history`)).statusCode, 404);
-  await f.request(f.host, 'POST', '/system-ai/jobs/' + fresh.jobId + '/apply', reviewedPayload);
-  assert.equal((await f.request(f.host, 'GET', `/projects/${own.project.id}/system-history`)).json().versions.length, 1);
-});
-
-test('extraction responses and publication recheck current access after awaiting the provider', async t => {
-  for (const scenario of [
-    { stage: 'start', change: 'team', status: 404 },
-    { stage: 'job', change: 'inactive', status: 403 },
-    { stage: 'resume', change: 'advisor', status: 403 },
-    { stage: 'apply', change: 'inactive', status: 403 }
-  ]) await t.test(`${scenario.stage}: ${scenario.change}`, async child => {
-    let beforeReturn = async () => {};
-    const model = createEngineeringValidationModel();
-    model.entities[0].name = 'PRIVATE_EXTRACTION_SENTINEL';
-    const result = { jobId: 'acl-race', status: 'completed', result: model, progress: { coverage: 1 } };
-    const systemAiService = {
-      status: () => ({ configured: true }),
-      async start() { await beforeReturn('start'); return result; },
-      async job() { await beforeReturn('job'); return result; },
-      async resume() { await beforeReturn('resume'); return result; }
-    };
-    const f = await fixture(child, { systemAiService }), own = await f.project();
-    const payload = { projectId: own.project.id }, route = '/system-ai/jobs/acl-race';
-    if (scenario.stage !== 'start') {
-      const initial = await f.request(f.host, 'POST', '/system-ai/jobs', payload);
-      assert.equal(initial.statusCode, 202, initial.body);
-    }
-    let revoked = false;
-    beforeReturn = async stage => {
-      if (stage !== (scenario.stage === 'apply' ? 'job' : scenario.stage)) return;
-      await f.app.missionStore.update(data => {
-        const user = data.users.find(user => user.id === f.host.id);
-        if (scenario.change === 'team') data.teams.find(team => team.id === own.team.id).memberIds = [];
-        if (scenario.change === 'inactive') user.active = false;
-        if (scenario.change === 'advisor') user.accessRole = 'advisor';
-      });
-      revoked = true;
-    };
-    const response = scenario.stage === 'start'
-      ? await f.request(f.host, 'POST', '/system-ai/jobs', payload)
-      : scenario.stage === 'job'
-        ? await f.request(f.host, 'GET', route + '?projectId=' + own.project.id)
-        : await f.request(f.host, 'POST', route + '/' + scenario.stage, payload);
-    assert.equal(revoked, true, 'revocation happened after initial authentication while awaiting extraction');
-    assert.equal(response.statusCode, scenario.status, response.body);
-    assert.equal(response.body.includes('PRIVATE_EXTRACTION_SENTINEL'), false, 'no completed extraction may escape after access is revoked');
-    const record = f.app.missionStore.read().workspace.projects[own.project.id];
-    assert.equal(record.document.engineeringSystem, undefined, 'revocation prevents publication');
-    assert.equal(record.engineeringHistory?.length || 0, 0);
-    const history = await f.request(f.host, 'GET', `/projects/${own.project.id}/system-history`);
-    assert.ok([401, 403, 404].includes(history.statusCode), history.body);
-    assert.equal(history.body.includes('PRIVATE_EXTRACTION_SENTINEL'), false);
-  });
-});
-
-test('extraction lookup survives a new app instance, deduplicates navigation starts and omits final graphs from polls', async t => {
-  const jobs = new Map(); let starts = 0;
-  const service = {
-    status: () => ({ configured: true }),
-    async start(project, _artifacts, _language, settings) {
-      starts++;
-      assert.equal(settings.autoRun, true);
-      await new Promise(resolve => setTimeout(resolve, 20));
-      const job = { jobId: 'durable-job', status: 'completed', projectId: project.id, result: createEngineeringValidationModel(), progress: { coverage: 1 }, report: { complete: true } };
-      jobs.set(job.jobId, job); return job;
-    },
-    job: id => jobs.get(id)
-  };
-  const f = await fixture(t, { systemAiService: service }), own = await f.project();
-  const payload = { projectId: own.project.id, language: 'pt', autoRun: true };
-  const [first, second] = await Promise.all([f.request(f.host, 'POST', '/system-ai/jobs', payload), f.request(f.host, 'POST', '/system-ai/jobs', payload)]);
-  assert.equal(first.statusCode, 202, first.body);
-  assert.equal(second.json().jobId, first.json().jobId);
-  assert.equal(starts, 1);
-  await f.app.missionStore.update(data => { data.workspace.projects[own.project.id].document.navigation = { lastRoute: 'meeting' }; });
-  const navigated = await f.request(f.host, 'POST', '/system-ai/jobs', payload);
-  assert.equal(navigated.json().jobId, first.json().jobId);
-  assert.equal(starts, 1);
-  const metadata = f.app.missionStore.read().workspace.extractionJobs['durable-job'];
-  assert.equal(metadata.userId, f.host.id);
-  assert.equal(metadata.snapshot, undefined, 'no full artifact data is duplicated in ownership metadata');
-  assert.equal(metadata.snapshotHash.length, 64);
-  const lookup = await f.request(f.host, 'GET', '/system-ai/jobs/latest?projectId=' + own.project.id);
-  assert.equal(lookup.json().job.jobId, 'durable-job');
-  assert.equal(lookup.json().job.result, undefined);
-  const compact = await f.request(f.host, 'GET', '/system-ai/jobs/durable-job?summary=true&projectId=' + own.project.id);
-  assert.equal(compact.json().result, undefined);
-  assert.ok(jobs.get('durable-job').result, 'polling cannot mutate the provider result');
-  assert.equal((await f.request(f.outsider, 'GET', '/system-ai/jobs/latest?projectId=' + own.project.id)).statusCode, 404);
-  const storeFile = f.app.missionStore.filePath;
-  await f.app.close();
-  const restored = await buildApp({ logger: false, storeFile, systemAiService: service });
-  t.after(() => restored.close());
-  const request = (method, path, body) => restored.inject({ method, url: '/api' + path, headers: f.host.headers, ...(body ? { payload: body } : {}) });
-  const afterRestart = await request('GET', '/system-ai/jobs/latest?projectId=' + own.project.id);
-  assert.equal(afterRestart.statusCode, 200, afterRestart.body);
-  assert.equal(afterRestart.json().job.jobId, 'durable-job');
-  assert.equal(starts, 1, 'recovering the job index does not start another extraction');
-  const applied = await request('POST', '/system-ai/jobs/durable-job/apply', payload);
-  assert.equal(applied.statusCode, 200, applied.body);
-  assert.equal(restored.missionStore.read().workspace.extractionJobs['durable-job'].applied, true);
-  assert.deepEqual((await request('GET', '/system-ai/jobs/latest?projectId=' + own.project.id)).json(), { job: null }, 'published maps never reappear as pending proposals');
-});
-
-test('startup restores only the explicitly continuous current job and never a revoked project', async t => {
-  const f = await fixture(t, { systemAiService: {
-    status: () => ({ configured: true }),
-    async start(project) { return { jobId: 'restart-current', projectId: project.id, status: 'running', progress: { completedChunks: 2, totalChunks: 4 } }; }
-  } });
-  const own = await f.project();
-  assert.equal((await f.request(f.host, 'POST', '/system-ai/jobs', { projectId: own.project.id, autoRun: true })).statusCode, 202);
-  const storeFile = f.app.missionStore.filePath;
-  await f.app.close();
-  let restores = 0, recovered = null;
-  const service = {
-    status: () => ({ configured: true }),
-    job() { if (!recovered) throw Object.assign(new Error('Missing'), { code: 'EXTRACTION_JOB_NOT_FOUND' }); return recovered; },
-    async restore(id, project, _artifacts, _language, settings) {
-      restores++;
-      assert.equal(settings.scopeKey, f.host.id + ':' + own.project.id);
-      assert.equal(settings.autoRun, true);
-      await settings.assertAuthorized();
-      recovered = { jobId: id, projectId: project.id, status: 'running', progress: { completedChunks: 2, totalChunks: 4 } };
-      return recovered;
-    }
-  };
-  const restarted = await buildApp({ logger: false, storeFile, systemAiService: service });
-  await restarted.ready();
-  assert.equal(restores, 1);
-  const result = await restarted.inject({ method: 'GET', url: '/api/system-ai/jobs/latest?projectId=' + own.project.id, headers: f.host.headers });
-  assert.equal(result.json().job.jobId, 'restart-current');
-  assert.equal(result.json().job.progress.completedChunks, 2);
-  await restarted.missionStore.update(data => { data.users.find(user => user.id === f.host.id).active = false; });
-  await restarted.close();
-  recovered = null;
-  const revoked = await buildApp({ logger: false, storeFile, systemAiService: service });
-  t.after(() => revoked.close());
-  await revoked.ready();
-  assert.equal(restores, 1, 'revoked actor never reaches the recovery service or a provider');
-});
-
-test('removed documentary sources cannot escape through an in-memory job after an awaited response', async t => {
-  for (const stage of ['start', 'job', 'latest', 'resume']) await t.test(stage, async child => {
-    let beforeReturn = async () => {};
-    const model = createEngineeringValidationModel(); model.entities[0].name = 'REMOVED_SOURCE_SENTINEL';
-    const result = { jobId: 'source-race', status: 'completed', result: model, report: { complete: true, documents: [{ label: 'REMOVED_SOURCE_SENTINEL' }] } };
-    const service = {
-      status: () => ({ configured: true }),
-      async start() { await beforeReturn('start'); return result; },
-      async job() { await beforeReturn('job'); return result; },
-      async resume() { await beforeReturn('resume'); return result; }
-    };
-    const f = await fixture(child, { systemAiService: service }), own = await f.project();
-    const artifactId = 'document-' + own.project.id;
-    await f.app.missionStore.update(data => {
-      data.artifacts.push({ id: artifactId, label: 'Engineering source', scope: 'project', ownerId: own.project.id, url: 'data:text/plain;base64,TXkgZG9jdW1lbnQu' });
-      data.workspace.projects[own.project.id].document.context.projectArtifactIds.push(artifactId);
-    });
-    const payload = { projectId: own.project.id };
-    if (stage !== 'start') assert.equal((await f.request(f.host, 'POST', '/system-ai/jobs', payload)).statusCode, 202);
-    let removed = false;
-    beforeReturn = async operation => {
-      if (operation !== (stage === 'latest' ? 'job' : stage) || removed) return;
-      removed = true;
-      await f.app.missionStore.update(data => { data.artifacts = data.artifacts.filter(artifact => artifact.id !== artifactId); });
-    };
-    const response = stage === 'start' ? await f.request(f.host, 'POST', '/system-ai/jobs', payload)
-      : stage === 'resume' ? await f.request(f.host, 'POST', '/system-ai/jobs/source-race/resume', payload)
-      : await f.request(f.host, 'GET', '/system-ai/jobs/' + (stage === 'latest' ? 'latest' : 'source-race') + '?projectId=' + own.project.id);
-    assert.equal(removed, true);
-    assert.equal(response.statusCode, stage === 'latest' ? 200 : 409, response.body);
-    assert.equal(response.body.includes('REMOVED_SOURCE_SENTINEL'), false);
-    if (stage === 'latest') assert.deepEqual(response.json(), { job: null });
-    assert.equal((await f.request(f.host, 'GET', '/projects/' + own.project.id)).statusCode, 200, 'project membership remains authorized');
-  });
-});
-
 test('team and sector meetings use current explicit membership for lists, links, invitations and audio', async t => {
   const f = await fixture(t), own = await f.project();
   const invitation = (await f.request(f.host, 'POST', `/teams/${own.team.id}/invitations`, { nickname: f.guest.nickname })).json().invitation;
@@ -527,7 +262,7 @@ test('team and sector meetings use current explicit membership for lists, links,
   assert.equal((await f.request(f.guest, 'GET', `/meetings/${structure.id}`)).statusCode, 404);
   assert.equal((await f.request(f.guest, 'POST', `/meetings/${structure.id}/audio/join`, {})).statusCode, 404);
   assert.equal((await f.request(f.host, 'POST', `/meetings/${structure.id}/invitations`, { nickname: f.guest.nickname })).statusCode, 403);
-  assert.equal((await f.request(f.guest, 'POST', '/meetings', { title: 'Forbidden', memoryMode: 'none', scope: 'sector', teamId: own.team.id, projectId: own.project.id, sectorId: 'structure' })).statusCode, 403);
+  assert.equal((await f.request(f.guest, 'POST', '/meetings', { title: 'Forbidden', scope: 'sector', teamId: own.team.id, projectId: own.project.id, sectorId: 'structure' })).statusCode, 403);
   assert.deepEqual((await f.request(f.guest, 'GET', '/meeting-scopes')).json().teams[0].projects[0].sectors.map(item => item.id), ['power']);
   assert.equal((await f.request(f.outsider, 'POST', `/meetings/${general.id}/join`, {})).statusCode, 404);
   const joined = await f.request(f.guest, 'POST', `/meetings/${general.id}/join`, {}); assert.equal(joined.statusCode, 200, joined.body); assert.ok(joined.json().meeting.participants.some(person => person.userId === f.guest.id));
@@ -590,55 +325,4 @@ test('TURN configuration uses one-hour per-account HMAC credentials without retu
   assert.equal(turn.credential, createHmac('sha1', env.NORTE_TURN_SECRET).update(turn.username).digest('base64'));
   assert.ok(!JSON.stringify(config).includes(env.NORTE_TURN_SECRET));
   assert.equal(meetingIceConfiguration('user', { NORTE_TURN_URLS: env.NORTE_TURN_URLS, NORTE_TURN_SECRET: 'short' }, now).relayConfigured, false);
-});
-
-test('fictional meeting examples are idempotent, preserve sources and open read-only without any provider call', async t => {
-  const { seedMeetingExamples } = await import('../scripts/seed-meeting-examples.mjs');
-  const f = await fixture(t), own = await f.project();
-  await f.app.missionStore.update(data => { data.environment = 'quetzal-workspace-test'; const project = data.workspace.projects[own.project.id].document; project.context.sectors = [{ id: 'systems', name: 'Engenharia de sistemas' }]; });
-  const initial = f.app.missionStore.read(), usersBefore = JSON.stringify(initial.users), artifactsBefore = JSON.stringify(initial.artifacts);
-  assert.throws(() => seedMeetingExamples(initial, { projectId: own.project.id, actorId: f.host.id }), /sandbox|cópia local/);
-  const first = seedMeetingExamples(initial, { projectId: own.project.id, actorId: f.host.id, allowLocalTest: true });
-  const second = seedMeetingExamples(first.data, { projectId: own.project.id, actorId: f.host.id, allowLocalTest: true });
-  assert.equal(first.audit.createdMeetingIds.length, 2); assert.equal(second.audit.changed, false); assert.deepEqual(first.data, second.data);
-  assert.equal(JSON.stringify(first.data.users), usersBefore); assert.equal(JSON.stringify(first.data.artifacts), artifactsBefore);
-  await f.app.missionStore.update(data => { data.meetings = first.data.meetings; });
-  for (const id of first.audit.meetingIds) {
-    const meeting = first.data.meetings[id], snapshot = meeting.exampleSnapshot;
-    assert.equal(snapshot.transcript.length, 61); assert.equal(snapshot.transcript.at(-1).offsetMs, 1_500_000); assert.equal(snapshot.calls, 0);
-    assert.ok(Hierarchy.build(snapshot).topics.length >= 5); assert.match(meeting.title, /MOCK/);
-    assert.equal((await f.request(f.host, 'GET', `/meetings/${id}`)).json().meeting.example, true);
-    assert.equal((await f.request(f.outsider, 'GET', `/meetings/${id}`)).statusCode, 404);
-    const result = await f.request(f.host, 'GET', `/meetings/${id}/legacy/records?key=norte.meeting-room.session.v2.${id}`);
-    assert.equal(result.statusCode, 200, result.body); const view = JSON.parse(result.json().value); assert.equal(view.readonly_projection, 'norte.meeting-view.v1');
-    assert.doesNotThrow(() => Bridge.readView(view, id));
-    assert.equal((await f.request(f.host, 'POST', `/meetings/${id}/legacy/records`, { key: `norte.meeting-room.session.v2.${id}`, value: JSON.stringify(snapshot), expected_version: 1 })).statusCode, 403);
-    assert.equal((await f.request(f.host, 'GET', `/meetings/${id}/legacy/health`)).statusCode, 200);
-  }
-  assert.equal(f.calls.length, 0, 'no paid service or private engine needed to display curated examples');
-});
-
-
-test('editing a fictional example creates a private copy; source and other accounts stay isolated with CAS', async t => {
-  const { seedMeetingExamples } = await import('../scripts/seed-meeting-examples.mjs');
-  const f = await fixture(t), own = await f.project();
-  await f.app.missionStore.update(data => { data.environment = 'quetzal-workspace-test'; data.workspace.projects[own.project.id].document.context.sectors = [{ id: 'systems', name: 'Sistemas' }]; });
-  const seeded = seedMeetingExamples(f.app.missionStore.read(), { projectId: own.project.id, actorId: f.host.id, allowLocalTest: true });
-  await f.app.missionStore.update(data => { data.meetings = seeded.data.meetings; });
-  const sourceId = seeded.audit.meetingIds[0], original = JSON.stringify(f.app.missionStore.read().meetings[sourceId]);
-  assert.equal((await f.request(f.outsider, 'POST', `/meetings/${sourceId}/copy`, {})).statusCode, 404);
-  const noCsrf = await f.app.inject({ method: 'POST', url: `/api/meetings/${sourceId}/copy`, headers: { cookie: f.host.headers.cookie }, payload: {} });assert.equal(noCsrf.statusCode, 403);
-  const copied = await f.request(f.host, 'POST', `/meetings/${sourceId}/copy`, {});assert.equal(copied.statusCode, 201, copied.body);
-  const copy = copied.json().meeting;assert.equal(copy.example, false);assert.equal(copy.copiedFromExample, true);assert.equal(copy.scope, 'private');assert.equal(copy.ownerId, f.host.id);
-  assert.equal((await f.request(f.outsider, 'GET', `/meetings/${copy.id}`)).statusCode, 404);
-  const key = `norte.meeting-room.session.v2.${copy.id}`, path = `/meetings/${copy.id}/legacy/records`;
-  const loaded = (await f.request(f.host, 'GET', `${path}?key=${key}`)).json();assert.equal(loaded.version, 0);
-  const run = JSON.parse(loaded.value);assert.equal(run.id, copy.id);assert.equal(run.batch.batch_id, copy.id);assert.equal(run.transcript.length, 61);
-  const event = run.meeting_events[0];run.block_edits = { [event.event_id]: { source: event.text, text: 'Resumo confirmado por uma pessoa.' } };
-  const writes = await Promise.all([1,2].map(() => f.request(f.host, 'POST', path, { key, value: JSON.stringify(run), expected_version: 0 })));
-  assert.deepEqual(writes.map(response => response.statusCode).sort(), [200,409]);
-  assert.equal(f.app.missionStore.read().meetings[copy.id].initialSnapshot, undefined);
-  const latest = JSON.parse((await f.request(f.host, 'GET', `${path}?key=${key}`)).json().value);assert.deepEqual(latest.block_edits, run.block_edits);
-  assert.equal(latest.meeting_events[0].text, event.text);assert.equal(JSON.stringify(f.app.missionStore.read().meetings[sourceId]), original);
-  assert.equal((await f.request(f.host, 'POST', `/meetings/${copy.id}/copy`, {})).statusCode, 409);
 });

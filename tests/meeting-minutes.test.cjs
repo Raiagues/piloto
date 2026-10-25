@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const M=require('../meeting-minutes.js');
+const M=require('../meetings/web/meeting-minutes.js');
 const make=()=>({id:'run-1',batch:{batch_id:'REVIEW-01'},status:'done',createdAt:'2026-01-01T10:00:00Z',meeting_events:[
   {event_id:'E001',chunk_id:'C01',thread_id:'T001',type:'hypothesis',text:'Talvez a rigidez explique a deformação.',status:'open'},
   {event_id:'E002',chunk_id:'C02',thread_id:'T001',type:'test_proposal',text:'Vamos medir a versão de 4 mm sob 20 N.',status:'open'},
@@ -106,8 +106,8 @@ test('PDF plan declares table row destinations and permits only http(s) external
 });
 test('actual PDF has external meeting links and comparison tables across multiple pages',async()=>{
  const fs=require('node:fs'),savedFetch=globalThis.fetch,savedPDF=globalThis.jspdf;
- globalThis.jspdf=require('../vendor/minutes/jspdf-4.2.1.umd.min.js');
- globalThis.fetch=async()=>{const data=fs.readFileSync(require('node:path').join(__dirname,'../vendor/minutes/DejaVuSans-2.37.ttf'));return {ok:true,arrayBuffer:async()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)};};
+ globalThis.jspdf=require('../meetings/web/vendor/minutes/jspdf-4.2.1.umd.min.js');
+ globalThis.fetch=async()=>{const data=fs.readFileSync(require('node:path').join(__dirname,'../meetings/web/vendor/minutes/DejaVuSans-2.37.ttf'));return {ok:true,arrayBuffer:async()=>data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength)};};
  try{
    const base='https://norte.example/?meeting=meeting-1#reuniao',rows=Array.from({length:60},(_,i)=>({event_id:'E'+i,anchor_id:'event:E'+i,cells:[String(i)+' mm','Resultado registrado','Ref. '+i],external_url:base.replace('#','&event=E'+i+'#')}));
    const doc={title:'Ata concisa',meeting_url:base,metrics:{events:61},threads:[{id:'topic:T1',title:'Assunto 1: Medições',sections:[{id:'section:T1:results',title:'1.4 Resultados',blocks:[{text:'Ver medição',reference_label:'Ref. 60',external_url:base.replace('#','&event=E60#'),anchor_id:'event:E60',event_ids:['E60'],marker:'bullet'},{text:'Destino inválido',external_url:'javascript:alert(1)',marker:'bullet'}],tables:[{title:'Valores testados',headers:['Valor','Resultado','Referência'],rows}]}]}]};

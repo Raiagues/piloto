@@ -50,7 +50,7 @@ class ConfigTests(unittest.TestCase):
             original = path.read_bytes()
             config.load_settings(path, {})
             self.assertEqual(path.read_bytes(), original)
-            path.write_text('NORTE_PROVIDER=invalid\n')
+            path.write_text('NORTE_PROVIDER=local\n')
             with self.assertRaisesRegex(ValueError, 'NORTE_PROVIDER'): config.load_settings(path, {})
             path.write_text('TYPESAFE_API_KEY=private value\n')
             with self.assertRaises(ValueError) as error: config.load_settings(path, {})
@@ -60,7 +60,7 @@ class ConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             (root / '.env.example').write_text('NORTE_PROVIDER=official\nTYPESAFE_API_KEY=\n')
-            with patch.object(config, 'ROOT', root), patch.object(config, 'load_settings', return_value=config.Settings()), patch.object(config.subprocess, 'run') as install, patch('builtins.print'):
+            with patch.object(config, 'ROOT', root), patch.object(config, 'load_settings', return_value=config.Settings()), patch('subprocess.run') as install, patch('builtins.print'):
                 config.setup()
                 install.assert_not_called()
                 self.assertEqual((root / '.env').stat().st_mode & 0o777, 0o600)
@@ -71,7 +71,7 @@ class ConfigTests(unittest.TestCase):
 
 class TransportTests(unittest.TestCase):
     def setUp(self):
-        self.body = json.loads((ROOT / 'manual-test-example.json').read_text())
+        self.body = json.loads((ROOT / 'tests/fixtures/legacy-classifier/full-request.json').read_text())
         self.body = {key: self.body[key] for key in ('model', 'state', 'questions')}
         self.settings = config.Settings(api_key=FAKE_KEY)
 
@@ -113,14 +113,10 @@ class TransportTests(unittest.TestCase):
             with patch.object(server.OFFICIAL_HTTP, 'open', return_value=reply(value)):
                 with self.assertRaises(server.ProviderError): server.classify(self.body, self.settings)
 
-    def test_local_path_stays_explicit_and_does_not_send_credentials(self):
-        with patch.object(server, 'urlopen', return_value=reply(fixture_response(self.body))) as local, patch.object(server.OFFICIAL_HTTP, 'open') as official:
-            result = server.classify(self.body, config.Settings(provider='local', api_key=FAKE_KEY), 'http://127.0.0.1:12345')
-        sent = local.call_args.args[0]
-        self.assertIsNone(sent.get_header('Authorization'))
-        self.assertEqual(result['provider'], 'local')
-        self.assertEqual(result['requestAdapter'], 'jevos-noul-criteria-v1')
-        official.assert_not_called()
+    def test_retired_local_provider_is_rejected_without_a_call(self):
+        with patch.object(server, 'urlopen') as local, patch.object(server.OFFICIAL_HTTP, 'open') as official:
+            with self.assertRaises(server.ProviderError): server.classify(self.body, config.Settings(provider='local', api_key=FAKE_KEY))
+        local.assert_not_called(); official.assert_not_called()
 
 
 class QuietHandler(server.Handler):
@@ -136,7 +132,7 @@ class HttpBoundaryTests(unittest.TestCase):
         self.thread.start()
         self.base = f'http://127.0.0.1:{self.http.server_port}'
         self.user_id, self.auth = signed_in(self, role='admin')
-        self.body = json.loads((ROOT / 'manual-test-example.json').read_text())
+        self.body = json.loads((ROOT / 'tests/fixtures/legacy-classifier/full-request.json').read_text())
         self.body = {key: self.body[key] for key in ('model', 'state', 'questions')}
 
     def tearDown(self):
@@ -150,29 +146,25 @@ class HttpBoundaryTests(unittest.TestCase):
         self.assertNotIn(FAKE_KEY, json.dumps(result))
         remote.assert_not_called()
 
-    def test_ui_assets_share_a_release_and_never_store_in_browser_cache(self):
+    def test_ui_assets_never_store_in_browser_cache(self):
         import re
-        html = (ROOT / 'index.html').read_text()
-        assets = re.findall(r'(?:src|href)="([^\"]+\.(?:js|css)\?v=[^\"]+)"', html)
+        html = (ROOT / 'meetings/web/index.html').read_text()
+        assets = re.findall(r'(?:src|href)="([^"?]+\.(?:js|css))"', html)
         self.assertGreaterEqual(len(assets), 13)
-        self.assertTrue({'meeting-room.js', 'meeting-canvas.css', 'meeting-room.css'}.issubset({asset.split('?')[0] for asset in assets}))
-        self.assertEqual(len({asset.split('?v=')[1] for asset in assets}), 1)
+        self.assertTrue({'meeting-room.js', 'meeting-canvas.css', 'meeting-room.css'}.issubset(set(assets)))
         with patch.object(server.OFFICIAL_HTTP, 'open') as remote:
-            for path in ['/', '/index.html', '/styles.css', '/lab.js', *['/' + asset for asset in assets]]:
+            for path in ['/', '/index.html', *['/' + asset for asset in assets]]:
                 for method in ('GET', 'HEAD'):
                     with self.subTest(path=path, method=method), urlopen(Request(self.base + path, method=method, headers=self.auth)) as response:
                         self.assertEqual(response.status, 200)
                         self.assertEqual(response.headers.get('Cache-Control'), 'no-store')
                         if method == 'GET':
-                            filename = 'index.html' if path == '/' else path[1:].split('?')[0]
+                            filename = 'index.html' if path == '/' else path[1:]
                             body = response.read()
-                            if filename != 'index.html': self.assertEqual(body, (ROOT / filename).read_bytes())
-                            else:
-                                # The account layer adds role data and its own assets, on the same release.
-                                served = body.decode()
-                                self.assertIn('data-auth="on" data-role="admin"', served)
-                                self.assertEqual(len(set(re.findall(r'\?v=([\w-]+)', served))), 1)
-                                self.assertTrue({'account.js', 'account.css'}.issubset(set(re.findall(r'(?:src|href)="([\w.-]+)\?v=', served))))
+                            if filename != 'index.html':
+                                expected = ROOT / 'norte/src/styles/tokens.css' if filename == 'tokens.css' else ROOT / 'meetings/web' / filename
+                                self.assertEqual(body, expected.read_bytes())
+                            else: self.assertIn('data-auth="on" data-role="admin"', body.decode())
             remote.assert_not_called()
 
     def test_private_files_blocked_on_get_and_head(self):

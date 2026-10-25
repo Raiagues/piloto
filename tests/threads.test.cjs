@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{setTimeout:sleep}=require('node:timers/promises');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads;
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads;
 const {requested,scenario,threadOutput,chunkOutput,response,clone}=require('./fixtures/thread-scenarios.cjs');
 async function until(check){for(let i=0;i<300;i++){if(check())return;await sleep(3);}throw Error('Timed out');}
 async function execute(batch=requested,send=threadOutput,config=T.defaults){

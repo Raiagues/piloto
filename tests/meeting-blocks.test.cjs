@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const Blocks=require('../meeting-blocks.js'),Canvas=require('../meeting-canvas.js');
+const Blocks=require('../meetings/web/meeting-blocks.js'),Canvas=require('../meetings/web/meeting-canvas.js');
 const source='Conversamos sobre o suporte por bastante tempo e ficou decidido, depois dessa conversa, que Marina revisará o suporte na sexta-feira.';
 function run(){return {id:'S1',topic_titles:{},meeting_threads:[{thread_id:'T1'}],meeting_relations:[],meeting_events:[{event_id:'E1',thread_id:'T1',type:'decision',text:source,store_confidence:.99,type_confidence:.99}]};}
 function overlay(r){const basis=r.meeting_events.map(e=>({id:e.event_id,text:e.text,type:e.type,thread_id:e.thread_id}));return {blocks:{E1:{text:'Marina revisará o suporte na sexta-feira.',source,basis,key:'B1',version:1,origin:'automatic'}},titles:{T1:{text:'Revisão do suporte',source,basis,key:'T1',version:1,origin:'automatic'}}};}
@@ -55,4 +55,16 @@ test('restore original explicitly overrides a previous automatic summary',()=>{
 test('local manual editing never enables automatic provider calls',async()=>{
  const current=run();let requests=0;const client=Blocks.create({getRun:()=>current,automatic:false,fetch:async()=>{requests++;throw Error('unexpected');},delay:0});
  client.saved(current);await client.refresh();client.stop();assert.equal(requests,0);
+});
+
+test('human label changes the projection while preserving raw Jev classification and reverting cleanly',()=>{
+ const r=run(),raw=JSON.stringify(r.meeting_events);
+ r.classification_learning={version:1,examples:[{event_id:'E1',source,label:'hypothesis',original_label:'decision'}]};
+ const projection=Canvas.build(r),node=projection.topics[0].columns.hypotheses[0];
+ assert.equal(node.type,'hypothesis');assert.equal(node.event.original_type,'decision');
+ assert.equal(JSON.stringify(r.meeting_events),raw);
+ r.classification_learning={version:2,examples:[]};
+ assert.equal(Canvas.build(r).topics[0].columns.details[0].type,'decision');
+ r.classification_learning={version:3,examples:[{event_id:'E1',source:'Fonte diferente',label:'hypothesis'}]};
+ assert.equal(Blocks.classification(r,r.meeting_events[0]),null);
 });

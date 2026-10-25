@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{setTimeout:sleep}=require('node:timers/promises');
-const Review=require('../meeting-review.js'),Evidence=require('../meeting-evidence.js'),Session=require('../meeting-session.js');
+const Review=require('../meetings/web/meeting-review.js'),Evidence=require('../meetings/web/meeting-evidence.js'),Session=require('../meetings/web/meeting-session.js');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 function reply(request,select,probability=.97,provider='official'){

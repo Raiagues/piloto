@@ -1,0 +1,6 @@
+.recent-work { display: flex; align-items: center; gap: 4px; padding: 6px 22px; overflow-x: auto; background: var(--norte-surface); border-bottom: 1px solid var(--norte-border); }
+.recent-work > span { font-size: 10px; color: var(--norte-text-muted); padding-right: 10px; }
+.recent-work > div { display: flex; flex-shrink: 0; align-items: center; background: var(--norte-surface-muted); }
+.recent-work button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 0; background: transparent; color: var(--norte-text-secondary); font-size: 11px; cursor: pointer; }
+.recent-work button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+.recent-work button:hover { color: var(--norte-accent); }

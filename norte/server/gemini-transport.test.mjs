@@ -1,9 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { geminiGenerate, retryDelay } from "./gemini-transport.mjs";
-import { compactExtractionSchema, evidenceFactSetSchema, extractionEnums, validateFactSet, assembleExtraction, sourceLedger, assembleLedgerExtraction, ledgerExtractionSchema } from "./extraction-pipeline.mjs";
-import { hydrateExtraction } from "./system-ai.mjs";
-import { engineeringSystemSchema } from "../shared/engineering-schema.mjs";
+
 const body = { contents: [{ role: "user", parts: [{ text: "public test" }] }], generationConfig: { temperature: 0.1, responseJsonSchema: { type: "object" } } };
 const policy = { timeoutMs: 1000, maxAttempts: 2, totalDeadlineMs: 5000 };
 const ok = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ thought: true, text: "PRIVATE_THOUGHT" }, { text: '{"entities":[]}' }] }, finishReason: "STOP" }], usageMetadata: { totalTokenCount: 10 } }));
@@ -69,47 +67,4 @@ test("provider errors never log echoed project data or raw messages", async () =
     onAttempt: (record, payload) => attempts.push({ record, response: payload.response })
   }));
   assert.doesNotMatch(JSON.stringify(attempts), /Private hypothesis|customer@|secret-key|PRIVATE/);
-});
-test("provider extraction enums are subsets of the shared runtime schema at every matching path", () => {
-  const provider = extractionEnums(engineeringSystemSchema);
-  function check(node, runtime) {
-    if (!node || typeof node !== "object") return;
-    if (node.enum) assert.ok(node.enum.every((value) => runtime.enum.includes(value)));
-    for (const [key, child] of Object.entries(node)) if (key !== "enum") {
-      if (Array.isArray(child)) child.forEach((value, index) => check(value, runtime[key][index]));
-      else check(child, runtime?.[key]);
-    }
-  }
-  check(provider, engineeringSystemSchema);
-  assert.deepEqual(provider.properties.evidence.items.properties.kind.enum, ["fact"]);
-  assert.deepEqual(provider.properties.entities.items.properties.source.enum, ["documented", "inferred"]);
-  assert.ok(!compactExtractionSchema.properties.relations.items.properties.kind.enum.includes("contains"));
-  assert.equal(compactExtractionSchema.properties.requirements.items.properties.status, undefined);
-});
-test("fact stage cannot invent a citation and deterministic assembly preserves references", () => {
-  const parsed = [{ source: { artifactId: "source", artifactLabel: "Test" }, text: "Unit mass is 5 kg." }];
-  const fact = { subject: "unit", predicate: "mass", value: 5, unit: "kg", artifactId: "source", excerpt: "Unit mass is 5 kg.", classification: "documented" };
-  assert.ok(validateFactSet({ facts: [fact] }, parsed));
-  assert.throws(() => validateFactSet({ facts: [{ ...fact, excerpt: "Unit mass is 7 kg." }] }, parsed));
-  assert.deepEqual(evidenceFactSetSchema.properties.facts.items.properties.classification.enum, ["documented", "inferred"]);
-  const result = assembleExtraction({ entities: [], relations: [], requirements: [] }, { id: "test", name: "Test", memoryRevision: 4 }, parsed, [fact]);
-  assert.equal(result.evidence[0].id, "fact-1"); assert.equal(result.evidence[0].artifactLabel, "Test"); assert.equal(result.generatedFromRevision, 4);
-});
-test("literal ledger preserves text and typed assembly derives calculation directions without arithmetic", () => {
-  const text = "Source capacity 4 Wh.\nDemand 2 W.\nDuration uses energy_over_power.";
-  const parsed = [{ source: { artifactId: "doc", artifactLabel: "Method" }, text }];
-  const ledger = sourceLedger(parsed);
-  assert.ok(ledger.every((item) => text.includes(item.excerpt)));
-  const output = { entities: [{ id: "duration", properties: [], calculation: { formula: "energy_over_power", source: "documented", evidenceRefs: ["source-3"] }, calculationInputs: [{ entityId: "energy", source: "documented", evidenceRefs: ["source-1", "source-3"] }] }], relations: [], requirements: [] };
-  const model = assembleLedgerExtraction(output, ledger, { id: "example", name: "Example" }, parsed);
-  assert.equal(model.relations[0].from, "duration"); assert.equal(model.relations[0].to, "energy"); assert.equal(model.relations[0].kind, "derived_from");
-  assert.deepEqual(model.entities[0].properties.map((property) => property.value), ["energy_over_power"]);
-  assert.ok(ledgerExtractionSchema(true).properties.entities.items.properties.calculation.anyOf[1].properties.formula.enum.includes("energy_over_power"));
-  assert.equal(output.relations.length, 0);
-});
-test("metadata hydration cannot create missing architecture or accept duplicate hierarchy", () => {
-  const project = { id: "example", name: "Example", memoryRevision: 9 };
-  const result = hydrateExtraction({ entities: [], relations: [], requirements: [], evidence: [], generatedFromRevision: 99, id: "invented" }, project);
-  assert.equal(result.id, "system-example"); assert.equal(result.generatedFromRevision, 9); assert.equal(result.entities.length, 0);
-  assert.throws(() => hydrateExtraction({ relations: [{ kind: "contains" }] }, project), { code: "SYSTEM_HIERARCHY_INVALID" });
 });

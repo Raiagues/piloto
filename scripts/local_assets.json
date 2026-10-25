@@ -1,0 +1,9 @@
+{
+  "comment": "Verified Node.js runtime used by prepare-local. No inference models are installed.",
+  "node": {
+    "version": "24.20.0",
+    "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-linux-x64.tar.xz",
+    "shasums": "https://nodejs.org/dist/v24.20.0/SHASUMS256.txt",
+    "dir": ".runtime/tools/node-v24.20.0-linux-x64"
+  }
+}

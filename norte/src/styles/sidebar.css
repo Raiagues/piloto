@@ -1,0 +1,59 @@
+:root { --mission-sidebar-collapsed: 72px; --mission-sidebar-expanded: 296px; }
+.app-shell { position: relative; min-height: 100dvh; background: var(--norte-bg); }
+.app-page { min-width: 0; margin-left: var(--mission-sidebar-collapsed); transition: margin-left 180ms ease; }
+.app-shell.sidebar-expanded .app-page { margin-left: var(--mission-sidebar-expanded); }
+.mission-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 1000; display: flex; flex-direction: column; width: var(--mission-sidebar-collapsed); height: 100dvh; overflow: hidden; background: var(--norte-surface); border-right: 1px solid var(--norte-border); color: var(--norte-text-secondary); transition: width 180ms ease; }
+.mission-sidebar.expanded { width: var(--mission-sidebar-expanded); }
+.mission-sidebar-header { position: relative; flex: 0 0 66px; display: flex; align-items: center; min-width: 0; padding: 0 16px; border-bottom: 1px solid var(--norte-border); }
+.mission-sidebar.collapsed .mission-sidebar-header { flex-basis: 106px; flex-direction: column; justify-content: center; gap: 9px; padding: 10px 0; }
+.mission-sidebar .brand { padding: 0; white-space: nowrap; border: 0; }
+.mission-sidebar.collapsed .brand { display: grid; place-items: center; width: 38px; height: 32px; }
+.mission-sidebar.collapsed .brand > span { display: none; }
+.mission-sidebar-toggle { display: grid; place-items: center; width: 38px; height: 38px; flex: 0 0 38px; padding: 0; color: var(--norte-text-secondary); background: transparent; border: 0; border-radius: var(--norte-radius); }
+.mission-sidebar.expanded .mission-sidebar-toggle { position: absolute; right: 12px; top: 14px; }
+.mission-sidebar-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.mission-sidebar-home { width: calc(100% - 20px); min-height: 46px; margin: 10px 10px 7px; padding: 0 12px; display: flex; align-items: center; gap: 12px; color: var(--norte-text-secondary); background: transparent; border: 0; border-radius: var(--norte-radius); white-space: nowrap; overflow: hidden; }
+.mission-sidebar-team { margin-top: -4px; }
+.mission-sidebar-home-icon { display: grid; place-items: center; width: 30px; min-width: 30px; height: 30px; }
+.mission-sidebar-home-icon svg { width: 21px; height: 21px; stroke-width: 1.55; }
+.mission-sidebar-home-label { font-size: 13px; }
+.mission-sidebar.collapsed .mission-sidebar-home { width: 46px; min-height: 44px; justify-content: center; margin: 8px auto 4px; padding: 0; }
+.mission-sidebar.collapsed .mission-sidebar-home-label { display: none; }
+.mission-sidebar-divider { height: 1px; flex-shrink: 0; margin: 5px 16px 8px; background: var(--norte-border); }
+.mission-sidebar.collapsed .mission-sidebar-divider { margin: 5px 12px 7px; }
+.mission-context-switcher { display: grid; gap: 10px; padding: 4px 15px 12px; }
+.mission-context-switcher label { display: grid; min-width: 0; gap: 5px; }
+.mission-context-switcher label > span { color: var(--norte-text-muted); font-size: 10px; }
+.mission-context-switcher select { width: 100%; min-height: 36px; padding: 0 8px; border: 1px solid var(--norte-border); border-radius: var(--norte-radius); background: var(--norte-surface); color: var(--norte-text); font-size: 11px; cursor: pointer; }
+.mission-context-compact { display: grid; place-items: center; width: 44px; height: 44px; margin: 5px auto 10px; border: 0; background: transparent; color: var(--norte-text-muted); border-radius: var(--norte-radius); }
+.mission-context-compact svg { width: 21px; height: 21px; stroke-width: 1.5; }
+.mission-project-team { display: grid; gap: 7px; padding: 8px 0 4px; }
+.mission-project-team > span { color: var(--norte-text-muted); font-size: 10px; }
+.mission-project-team > strong { font-size: 12px; font-weight: 500; overflow-wrap: anywhere; }
+.mission-pipeline { display: flex; flex-direction: column; min-height: 0; gap: 4px; padding: 6px 10px 18px; overflow-y: auto; overflow-x: hidden; }
+.mission-phase { position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 49px; padding: 4px 10px; border: 0; border-radius: var(--norte-radius); background: transparent; color: var(--norte-text-secondary); text-align: left; }
+.mission-phase-icon { position: relative; display: grid; place-items: center; width: 32px; min-width: 32px; height: 36px; background: transparent; color: inherit; }
+.mission-phase-icon > svg { width: 21px; height: 21px; stroke-width: 1.5; }
+.mission-phase-copy { display: grid; grid-template-columns: minmax(0,1fr); min-width: 0; flex: 1; }
+.mission-phase-copy > span { font-size: 12px; line-height: 1.5; }
+.mission-phase-rail { display: none; }
+.mission-phase-lock { position: absolute; bottom: 0; right: -1px; display: grid; place-items: center; width: 13px; height: 13px; border-radius: 50%; background: var(--norte-surface); color: var(--norte-text-muted); }
+.mission-phase-lock svg { width: 10px; height: 10px; fill: none; stroke: currentColor; }
+.mission-phase.locked { opacity: .6; }
+.mission-sidebar.collapsed .mission-phase { justify-content: center; padding: 4px 0; }
+.mission-sidebar.collapsed .mission-phase-copy { display: none; }
+.mission-sidebar-toggle:hover, .mission-context-compact:hover, .mission-sidebar-home:hover, .mission-phase:hover:not(:disabled) { color: var(--norte-text); background: var(--norte-surface-muted); }
+.mission-sidebar-home.active, .mission-phase.current { color: var(--norte-accent); background: var(--norte-accent-soft); }
+.mission-sidebar-overlay { display: none; }
+@media (max-width: 900px) {
+  :root { --mission-sidebar-collapsed: 64px; --mission-sidebar-expanded: 286px; }
+  .app-shell.sidebar-expanded .app-page { margin-left: var(--mission-sidebar-collapsed); }
+  .mission-sidebar.expanded { width: min(var(--mission-sidebar-expanded), calc(100vw - 20px)); z-index: 1060; }
+  .mission-pipeline { padding-left: 5px; padding-right: 5px; }
+  .mission-sidebar-overlay.visible { display: block; position: fixed; inset: 0; z-index: 1055; border: 0; padding: 0; background: var(--norte-overlay); }
+}
+@media (max-width: 650px) {
+  :root { --mission-sidebar-collapsed: 54px; }
+  .mission-sidebar-header { flex-basis: 60px; }
+  .mission-sidebar.expanded .mission-sidebar-toggle { top: 11px; }
+}

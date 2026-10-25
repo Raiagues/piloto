@@ -3,7 +3,7 @@ import hmac
 import unittest
 
 import auth
-import meeting_bridge as bridge
+from meetings.engine import meeting_bridge as bridge
 
 
 class BridgeTests(unittest.TestCase):

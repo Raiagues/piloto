@@ -3,7 +3,6 @@ import { deflateRawSync } from "node:zlib";
 import test from "node:test";
 import { classifyArtifactSource, artifactReadabilityRecord } from "./artifact-content.mjs";
 import { readXlsxSheets, xlsxToCsv } from "./xlsx-text.mjs";
-import { projectMemoryReadiness } from "../shared/project-memory.mjs";
 
 const dataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
 
@@ -71,7 +70,7 @@ test("the spreadsheet reader refuses archives it cannot safely read", () => {
   ])), /no worksheet/u);
 });
 
-test("classification decides exactly what reaches the extraction model", () => {
+test("classification reports only readable stored document content", () => {
   const pdf = Buffer.concat([Buffer.from("%PDF-1.7\n"), Buffer.alloc(64, 0x20)]);
   assert.equal(classifyArtifactSource({ url: dataUrl(pdf, "application/pdf") }).status, "pdf");
   assert.equal(classifyArtifactSource({ url: dataUrl("# Notes", "text/markdown") }).text, "# Notes");
@@ -92,27 +91,4 @@ test("classification decides exactly what reaches the extraction model", () => {
   // The published record carries the verdict and never the file bytes.
   const record = artifactReadabilityRecord({ url: dataUrl(pdf, "application/pdf") });
   assert.deepEqual(Object.keys(record).sort(), ["reason", "status"]);
-});
-
-test("readiness follows the server's verdict, so the page cannot promise unusable memory", () => {
-  const project = { id: "p1", name: "Project", context: { teamId: "t1", teamArtifactIds: [], projectArtifactIds: ["a1"] } };
-  const linked = { id: "a1", scope: "project", ownerId: "p1" };
-
-  const blocked = projectMemoryReadiness(project, [{ ...linked, readability: { status: "metadata_only", reason: "" } }]);
-  assert.equal(blocked.basicProjectReady, true);
-  assert.equal(blocked.engineeringMemoryReadable, false);
-  assert.equal(blocked.ready, false);
-  assert.deepEqual(blocked.missing, ["readable-artifact"]);
-
-  const ready = projectMemoryReadiness(project, [{ ...linked, readability: { status: "pdf", reason: "" } }]);
-  assert.equal(ready.ready, true);
-  assert.deepEqual(ready.readableArtifactIds, ["a1"]);
-
-  // An artifact the project does not own is never counted, however readable.
-  const foreign = projectMemoryReadiness(project, [{ id: "a1", scope: "project", ownerId: "other", readability: { status: "parsed", reason: "" } }]);
-  assert.equal(foreign.linkedCount, 0);
-  assert.equal(foreign.ready, false);
-
-  // Without a name or a team the project is not ready either.
-  assert.deepEqual(projectMemoryReadiness({ ...project, name: " ", context: { ...project.context, teamId: null } }, []).missing, ["name", "team", "readable-artifact"]);
 });

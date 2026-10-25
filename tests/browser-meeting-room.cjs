@@ -3,7 +3,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=r
 const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:timers/promises');
 
 (async()=>{
- const root=path.resolve(__dirname,'..'),requests=[],errors=[];
+ const root=path.resolve(__dirname,'../meetings/web'),requests=[],errors=[];
  const utterances=[
   'O suporte está deformando acima do limite.',
   'Talvez a espessura do suporte explique a deformação.',
@@ -19,7 +19,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
  const attentionTypes=['requirement','hypothesis','test_proposal','test_result'];
  let gateRelease,gateHeld=false;const gate=new Promise(resolve=>gateRelease=resolve);
  let cancelRelease,cancelHeld=false;const cancellationGate=new Promise(resolve=>cancelRelease=resolve);
- const assets=new Set(['meeting-blocks.js','meeting-blocks.css','index.html','reuniao.html','styles.css','memory-flow.css','workspace.js','automation.js','classifier.js','lab.js','app.js','memory-page.js','typed-relations-page.js','relation-map.js','relation-map.css','classifier-config.json','manual-test-example.json','meeting-canvas.js','meeting-canvas.css','meeting-room.css','meeting-room.js','experiments.js','relation-worker.js','memory-flow.js','memory-v2.js','typed-relations.js','memory-storage.js','speech-windows.js','transcription.js','meeting-commands.js','meeting-session.js','meeting-speech.js','meeting-evidence.js','meeting-state.js','meeting-review.js','meeting-hierarchy.js','meeting-minutes.js','meeting-minutes.css','meeting-amendments.js','meeting-document.js','gemini-minutes.js','gemini-minutes.css','vendor/minutes/jspdf-4.2.1.umd.min.js','vendor/minutes/DejaVuSans-2.37.ttf']);
+ const assets=new Set(['index.html', 'tokens.css', 'base.css', 'classifier-transport.js', 'layout.js', 'experiments.js', 'speech-windows.js', 'transcription.js', 'relation-worker.js', 'memory-flow.js', 'memory-v2.js', 'memory-storage.js', 'typed-relations.js', 'meeting-room.js', 'meeting-room.css', 'meeting-canvas.js', 'meeting-canvas.css', 'meeting-blocks.js', 'meeting-blocks.css', 'meeting-commands.js', 'meeting-session.js', 'meeting-speech.js', 'meeting-evidence.js', 'meeting-state.js', 'meeting-review.js', 'meeting-hierarchy.js', 'meeting-minutes.js', 'meeting-minutes.css', 'meeting-amendments.js', 'meeting-document.js', 'gemini-minutes.js', 'gemini-minutes.css', 'norte-meeting-bridge.css', 'vendor/minutes/jspdf-4.2.1.umd.min.js', 'vendor/minutes/DejaVuSans-2.37.ttf', 'vendor/minutes/DejaVuSans-Bold-2.37.ttf']);
  const subject=text=>/caixa|furos/.test(text||'')?'caixa':'suporte';
  const server=http.createServer(async(req,res)=>{
   try {
@@ -65,7 +65,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    }
    const name=pathname.slice(1)||'index.html';
    if(!assets.has(name))return res.writeHead(404).end();
-   res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':name.endsWith('.json')?'application/json':'font/ttf','Cache-Control':'no-store'}).end(await fs.readFile(path.join(root,name)));
+   res.writeHead(200,{'Content-Type':name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':name.endsWith('.html')?'text/html':name.endsWith('.json')?'application/json':'font/ttf','Cache-Control':'no-store'}).end(await fs.readFile(name==='tokens.css'?path.resolve(root,'../../norte/src/styles/tokens.css'):path.join(root,name)));
   }catch(error){errors.push(error.stack);if(!res.headersSent)res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:error.message}));}
  });
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -78,7 +78,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   let next=0;const pending=new Map();
   const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++next,timer=setTimeout(()=>{pending.delete(id);reject(Error('CDP timeout '+method));},20000);pending.set(id,{resolve:value=>{clearTimeout(timer);resolve(value);},reject:error=>{clearTimeout(timer);reject(error);}});socket.send(JSON.stringify({id,method,params}));});
   socket.addEventListener('message',event=>{const message=JSON.parse(event.data);if(message.method==='Runtime.exceptionThrown')errors.push(message.params.exceptionDetails);if(message.method==='Page.javascriptDialogOpening'&&message.params.type==='beforeunload')call('Page.handleJavaScriptDialog',{accept:true}).catch(error=>errors.push(error.message));if(message.id){const item=pending.get(message.id);if(!item)return;pending.delete(message.id);message.error?item.reject(Error(JSON.stringify(message.error))):item.resolve(message.result);}});
-  const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
+  const evaluate=async expression=>{const result=await call('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true,userGesture:true});if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
   const wait=async expression=>{for(let i=0;i<500;i++){try{if(await evaluate(expression))return;}catch(error){if(!/Inspected target navigated|Cannot find context|Execution context was destroyed/.test(error.message))throw error;}await sleep(30);}const state=await evaluate('(()=>{const r=window.NorteMeetingRoom?.snapshot();return r&&{status:r.status,error:r.error,records:r.records.map(x=>({id:x.id,status:x.status,error:x.error})),threads:r.thread_worker&&{status:r.thread_worker.status,jobs:r.thread_worker.jobs.map(x=>({id:x.event_id,status:x.status,error:x.error}))},relations:r.typed_relation_worker&&{status:r.typed_relation_worker.status,error:r.typed_relation_worker.error,jobs:r.typed_relation_worker.jobs.map(x=>({id:x.event_id,status:x.status,error:x.error}))}};})()');throw Error('Timed out: '+expression+' '+JSON.stringify(errors)+' '+JSON.stringify(state));};
   const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
   const snapshot=()=>evaluate('NorteMeetingRoom.snapshot()');
@@ -98,34 +98,26 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await call('Emulation.setDeviceMetricsOverride',{width:1500,height:1000,deviceScaleFactor:1,mobile:false});
   const origin='http://127.0.0.1:'+server.address().port;
   const labSentinel=JSON.stringify({schemaVersion:1,cases:[],batches:[]});
-  const memorySentinel=JSON.stringify(require('../memory-flow.js').emptyLibrary());
+  const memorySentinel=JSON.stringify(require('../meetings/web/memory-flow.js').emptyLibrary());
   await call('Page.navigate',{url:origin+'/__seed'});await wait('location.pathname==="/__seed"');
   await evaluate(`(async()=>{localStorage.setItem('norte.tests.v1',${JSON.stringify(labSentinel)});const request=indexedDB.open('norte-memory',1);await new Promise((resolve,reject)=>{request.onupgradeneeded=()=>request.result.createObjectStore('records');request.onerror=()=>reject(request.error);request.onsuccess=resolve;});const db=request.result;await new Promise((resolve,reject)=>{const tx=db.transaction('records','readwrite'),store=tx.objectStore('records');for(const [key,value] of Object.entries({'norte.meeting-room.current.v1':'"legacy"','norte.meeting-room.index.v1':'[{"id":"legacy","title":"Reunião antiga","date":"2026-01-01"}]','norte.meeting-room.session.v1.legacy':'{"id":"legacy"}','norte.meeting-room.session.v1.orphan':'{"id":"orphan"}','norte.memory-library.v1':${JSON.stringify(memorySentinel)}}))store.put(value,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();})()`);
   await call('Page.navigate',{url:origin+'/index.html#reuniao'});
-  await wait('window.NorteMeetingRoom?.ready() && window.NorteLab && NorteClassifier.isAvailable() && document.body.dataset.page==="meeting"');
+  await wait('window.NorteMeetingRoom?.ready() && window.NorteClassifier && document.body.dataset.page==="meeting"');
   const visible=selector=>evaluate(`!!document.querySelector(${JSON.stringify(selector)})?.getClientRects().length`);
   const openSaved=async id=>{await wait('[...document.querySelectorAll(".room-open-meeting")].some(button=>button.dataset.meetingId==='+JSON.stringify(id)+')');await evaluate(`document.querySelector('.room-open-meeting[data-meeting-id="'+${JSON.stringify(id)}+'"]').click()`);await wait('NorteMeetingRoom.view()==="room" && NorteMeetingRoom.snapshot()?.id==='+JSON.stringify(id));};
   const createInstant=async()=>{await click('#roomNew');await wait('!document.querySelector("#roomCreateMenu").hidden');assert.equal(await evaluate('document.querySelector("#roomSchedule").disabled'),true);await click('#roomCreateInstant');await wait('NorteMeetingRoom.view()==="room" && NorteMeetingRoom.snapshot()?.status==="draft" && !document.querySelector("#roomLive").disabled');return snapshot();};
-  assert.equal(await evaluate('document.querySelectorAll("#sidebar").length'),1,'the meeting uses the original application sidebar');
+  assert.equal(await evaluate('document.querySelectorAll("#sidebar").length'),0,'the meeting entry has no retired laboratory sidebar');
   assert.equal(await evaluate('document.querySelector(".room-nav")'),null,'no standalone navigation is embedded');
-  assert.equal(await evaluate('document.querySelector("#meetingMode").getAttribute("aria-current")'),'page');
   assert.equal(await evaluate('NorteMeetingRoom.view()'),'library');assert.equal(await snapshot(),null);
   assert.equal(await visible('#roomLibrary'),true);assert.equal(await visible('#roomLibraryEmpty'),true);
   assert.equal(await evaluate('document.querySelectorAll("#roomLibraryList .room-open-meeting").length'),0);
   assert.equal(await evaluate('(window.__speechInstances||[]).length'),0);assert.equal(requests.length,0,'opening an empty library never records or sends inference');
   const migrated=await evaluate(`(async()=>{const db=await NorteMemoryStorage.open();const keys=['norte.meeting-room.current.v1','norte.meeting-room.index.v1','norte.meeting-room.session.v1.legacy','norte.meeting-room.session.v1.orphan','norte.memory-library.v1'];const values=Object.fromEntries(await Promise.all(keys.map(async key=>[key,await db.read(key)])));db.close();return {values,lab:localStorage.getItem('norte.tests.v1')};})()`);
-  for(const key of Object.keys(migrated.values).filter(key=>key.startsWith('norte.meeting-room.')))assert.equal(migrated.values[key],null,'migration removes only obsolete meeting data: '+key);
+  assert.deepEqual(Object.fromEntries(Object.entries(migrated.values).filter(([key])=>key.startsWith('norte.meeting-room.'))),{'norte.meeting-room.current.v1':'"legacy"','norte.meeting-room.index.v1':'[{"id":"legacy","title":"Reunião antiga","date":"2026-01-01"}]','norte.meeting-room.session.v1.legacy':'{"id":"legacy"}','norte.meeting-room.session.v1.orphan':'{"id":"orphan"}'},'opening the current room preserves every historical record byte-for-byte');
   assert.equal(migrated.values['norte.memory-library.v1'],memorySentinel);assert.equal(migrated.lab,labSentinel,'lab history survives the room-only migration');
-  const pageBackground=await evaluate('getComputedStyle(document.body).backgroundColor');assert.ok((pageBackground.match(/\d+/g)||[]).slice(0,3).every(value=>Number(value)<90),'existing dark palette retained');
+  const pageBackground=await evaluate('getComputedStyle(document.body).backgroundColor');assert.ok((pageBackground.match(/\d+/g)||[]).slice(0,3).every(value=>Number(value)>200),'light default follows canonical tokens');
   await screenshot('library-empty');
-  // The new library is one application route; previous workspaces keep their own drafts.
-  await click('#manualMode');await wait('document.body.dataset.page==="manual"');
-  const manualDraft=JSON.stringify({current_utterance:'Rascunho preservado na página manual.'});
-  await evaluate(`document.querySelector('#manualState').value=${JSON.stringify(manualDraft)};document.querySelector('#manualState').dispatchEvent(new Event('input',{bubbles:true}))`);
-  for(const [id,page,hash] of [['automatedMode','automated','#automatizados'],['memoryMode','memory','#memoria'],['liveMode','live','#ao-vivo'],['manualMode','manual','#manual']]){await click('#'+id);await wait('document.body.dataset.page==='+JSON.stringify(page));assert.equal(await evaluate('location.hash'),hash);assert.equal(await evaluate('document.querySelector('+JSON.stringify('#'+id)+').getAttribute("aria-current")'),'page');}
-  assert.equal(await evaluate('document.querySelector("#manualState").value'),manualDraft);
-  await click('#meetingMode');await wait('document.body.dataset.page==="meeting" && NorteMeetingRoom.view()==="library"');
-  assert.equal(requests.length,0,'navigation never starts a meeting');
+  assert.equal(requests.length,0,'opening the current entry never starts a meeting');
   const draft=await createInstant();
   assert.equal(draft.startedAt,null);assert.deepEqual(draft.transcript,[]);assert.deepEqual(draft.meeting_events,[]);
   assert.equal(requests.length,0,'instant meeting is only a draft until input arrives');assert.equal(await evaluate('(window.__speechInstances||[]).length'),0);
@@ -213,8 +205,6 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   const callsBeforeReopen=requests.length;
   await click('#roomBack');await wait('NorteMeetingRoom.view()==="library"');await screenshot('library');await openSaved(finished.id);
   assert.equal((await snapshot()).meeting_events.length,7);assert.equal(requests.length,callsBeforeReopen,'reopening stored meetings never repeats inference');
-  await click('#manualMode');await wait('document.body.dataset.page==="manual"');assert.equal(await evaluate('document.querySelector("#manualState").value'),manualDraft);
-  await click('#meetingMode');await wait('document.body.dataset.page==="meeting"');
   if(await evaluate('NorteMeetingRoom.view()==="library"'))await openSaved(finished.id);
   assert.equal((await snapshot()).id,finished.id);
   await click('#roomMinutes');await wait('document.querySelector("#gmDialog")?.open');assert.equal(requests.filter(item=>item.url==='/api/minutes').length,0);
@@ -261,17 +251,15 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal(await evaluate('document.querySelectorAll(".room-speech").length'),1,'processing chunks are grouped into the original speech turn');
   assert.equal(await evaluate('document.querySelector(".room-speech-text").textContent'),firstSpokenTurn);
   await evaluate(`__speech.emit(${JSON.stringify(utterances[2])},false,1);__speech.finalOnStop=${JSON.stringify(utterances[2])}`);await sleep(80);assert.equal((await snapshot()).transcript.length,2);
-  const paused=await evaluate(`(()=>{window.__pausedSpeech=__speech;const button=document.querySelector('#roomLive');button.click();button.click();return {disabled:button.disabled,instances:__speechInstances.length,same:__speech===__pausedSpeech,running:NorteMeetingRoom.isRunning(),navigationDisabled:['manualMode','automatedMode','memoryMode','liveMode'].every(id=>document.getElementById(id).disabled),backDisabled:document.querySelector('#roomBack').disabled};})()`);
-  assert.deepEqual(paused,{disabled:true,instances:1,same:true,running:true,navigationDisabled:true,backDisabled:true},'pause cannot race another recognizer or leave a running meeting');
+  const paused=await evaluate(`(()=>{window.__pausedSpeech=__speech;const button=document.querySelector('#roomLive');button.click();button.click();return {disabled:button.disabled,instances:__speechInstances.length,same:__speech===__pausedSpeech,running:NorteMeetingRoom.isRunning(),newMeetingDisabled:document.querySelector('#roomNew').disabled,backDisabled:document.querySelector('#roomBack').disabled};})()`);
+  assert.deepEqual(paused,{disabled:true,instances:1,same:true,running:true,newMeetingDisabled:true,backDisabled:true},'pause cannot race another recognizer or leave a running meeting');
   await click('#roomFinish');await wait('NorteMeetingRoom.snapshot()?.status==="done" && NorteMeetingRoom.snapshot()?.typed_relation_worker?.status==="done"');
   const spoken=await snapshot();assert.equal(spoken.transcript.length,3);assert.equal(spoken.meeting_events.length,3);assert.equal(spoken.transcript[2].text,utterances[2]);assert.equal(spoken.meeting_events.filter(item=>item.text===utterances[0]).length,1);assert.equal(await evaluate('__pausedSpeech.stopCalls'),1);
   assert.equal(await evaluate('document.querySelectorAll(".room-speech").length'),2,'the final speech after stopping remains a separate complete turn');
-  await evaluate('NorteMeetingRoom.flushStorage()');const callsBeforeV2=requests.length;
-  await evaluate('window.__beforeReload=true');await call('Page.navigate',{url:origin+'/index.html?profile=memory-v2#reuniao'});
-  await wait('!window.__beforeReload && window.NorteMeetingRoom?.ready() && window.NorteMemoryPage && window.NorteTypedRelationsPage && document.body.dataset.page==="meeting" && NorteMeetingRoom.view()==="library"');
-  assert.equal(await snapshot(),null);assert.equal(await evaluate('document.querySelector("#memoryPage").dataset.profile'),'memory-v2');
-  await click('#memoryV2Mode');await wait('document.body.dataset.page==="memory"');assert.equal(await evaluate('location.hash'),'#memoria');assert.equal(await evaluate('document.querySelector("#mfTypedQuestions").hidden'),false);
-  await click('#meetingMode');await wait('document.body.dataset.page==="meeting" && NorteMeetingRoom.view()==="library"');await openSaved(spoken.id);assert.equal((await snapshot()).id,spoken.id);assert.equal(requests.length,callsBeforeV2);
+  await evaluate('NorteMeetingRoom.flushStorage()');const callsBeforeSpeechReload=requests.length;
+  await evaluate('window.__beforeReload=true');await call('Page.reload');
+  await wait('!window.__beforeReload && window.NorteMeetingRoom?.ready() && document.body.dataset.page==="meeting" && NorteMeetingRoom.view()==="library"');
+  assert.equal(await snapshot(),null);await openSaved(spoken.id);assert.equal((await snapshot()).id,spoken.id);assert.equal(requests.length,callsBeforeSpeechReload,'reload and reopen preserve results without inference');
   // Conflicts and incomplete links belong to explicit diagnostics, independent of zoom.
   await click('#roomBack');await wait('NorteMeetingRoom.view()==="library"');await createInstant();await click('#roomImport');
   await evaluate(`document.querySelector('#roomImportText').value=${JSON.stringify(attentionText.map((text,index)=>'[00:0'+index+':00] Participante: '+text).join('\n'))};document.querySelector('#roomImportForm').requestSubmit()`);
@@ -311,7 +299,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    window.__blockRun={id:'block-ui',meeting_events:[event],meeting_threads:[{thread_id:'TB1'}],meeting_relations:[],block_review:{blocks:{EB1:entry},titles:{}}};
    window.__blockPosts=[];
    const host=document.createElement('div');host.id='blockFixture';host.style.cssText='position:fixed;inset:80px;background:white;z-index:2000;overflow:auto';const board=document.createElement('div');host.append(board);document.body.append(host);
-   const client=NorteMeetingBlocks.create({getRun:()=>__blockRun,onUpdate:()=>canvas.render(__blockRun),fetch:async(path,options)=>{const body=JSON.parse(options.body);__blockPosts.push(body);if(body.action==='restore')__blockRun.block_review.blocks={};else {entry.text=body.text||entry.text;entry.version++;entry.origin='human';}return {ok:true,json:async()=>({status:'ready',review:__blockRun.block_review})};}});
+   const client=NorteMeetingBlocks.create({getRun:()=>__blockRun,onUpdate:()=>canvas.render(__blockRun),fetch:async(path,options)=>{const body=JSON.parse(options.body);__blockPosts.push({path,...body});if(path.endsWith('/learning'))return {ok:true,json:async()=>({learning:{version:0,examples:[]}})};if(body.action==='restore')__blockRun.block_review.blocks={};else {entry.text=body.text||entry.text;entry.version++;entry.origin='human';}return {ok:true,json:async()=>({status:'ready',review:__blockRun.block_review})};}});
    const canvas=NorteMeetingCanvas.create({canvas:host,board,onReview:(kind,id)=>client.edit(kind,id)});canvas.render(__blockRun);window.__blockTest={client,canvas,host};
   })()`);
   await click('#blockFixture .mc-editorial');await wait('!!document.querySelector(".room-block-dialog[open]")');
@@ -326,11 +314,15 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   await evaluate('[...document.querySelectorAll(".room-block-dialog button")].find(b=>b.textContent==="Usar original").click()');
   await wait('!document.querySelector(".room-block-dialog")');
   assert.match(await evaluate('document.querySelector("#blockFixture .mc-node-copy").textContent'),/^Conversamos/);
-  assert.equal(await evaluate('__blockPosts.length'),1,'manual display restore needs no provider or feedback call');
+  assert.deepEqual(await evaluate('__blockPosts.map(({path,action})=>({path,action}))'),[
+   {path:'/api/ai/blocks/learning',action:'get'},
+   {path:'/api/ai/blocks/feedback',action:'correct'},
+   {path:'/api/ai/blocks/learning',action:'get'},
+  ],'opening the editor reads current guidance; restoring display adds no provider or correction call');
   assert.equal(await evaluate('__blockRun.block_edits.EB1.restore'),true);
   await evaluate('__blockTest.client.stop();__blockTest.canvas.destroy();__blockTest.host.remove()');
   assert.deepEqual(errors,[]);
-  console.log('PASS: empty library, scoped legacy migration, draft creation without recording/inference, disabled scheduling, same-session import, visible hierarchical canvas with text disclosure/zoom/pan, transcript toggle/keyboard resize, list/reopen/reload, explicit recording with final speech retained, existing navigation/drafts, local minutes, mobile and concurrent V2 imports.');
+  console.log('PASS: empty library, preserved historical records, draft creation without recording/inference, disabled scheduling, same-session import, visible hierarchical canvas with text disclosure/zoom/pan, transcript toggle/keyboard resize, list/reopen/reload, explicit recording with final speech retained, current meeting entry, local minutes, mobile and immutable editorial overlays.');
  }finally{
   gateRelease();cancelRelease();socket?.close();
   await new Promise(resolve=>{if(chrome.exitCode!==null)return resolve();chrome.once('exit',resolve);chrome.kill('SIGTERM');});

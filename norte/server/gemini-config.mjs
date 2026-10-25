@@ -16,7 +16,7 @@ const levels = {
 };
 const invalid = (field) => Object.assign(new Error(`Invalid Gemini configuration (${field}). Review the server settings; no fallback model was used.`), { code: "GEMINI_CONFIG_INVALID", category: "configuration", statusCode: 503 });
 
-export function geminiConfig(options = {}, feature = "extraction") {
+export function geminiConfig(options = {}, feature = "requirements") {
   const env = options.env ?? process.env;
   const prefix = `GEMINI_${feature.toUpperCase()}`;
   const override = options.features?.[feature] ?? {};
@@ -25,7 +25,7 @@ export function geminiConfig(options = {}, feature = "extraction") {
   const rawLevel = override.thinkingLevel ?? options.thinkingLevel ?? (env[`${prefix}_THINKING_LEVEL`] || env.GEMINI_THINKING_LEVEL);
   const level = typeof rawLevel === "string" ? rawLevel.trim().toLowerCase() : rawLevel;
   if (level && level !== "default" && !levels[model]?.includes(level)) throw invalid("thinking level/model compatibility");
-  const maxOutputTokens = Number(override.maxOutputTokens ?? env[`${prefix}_MAX_OUTPUT_TOKENS`] ?? ({ discovery: 8192, extraction: 16000, organization: 6000 })[feature]);
+  const maxOutputTokens = Number(override.maxOutputTokens ?? env[`${prefix}_MAX_OUTPUT_TOKENS`] ?? 6000);
   if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 256 || maxOutputTokens > 65536) throw invalid("max output tokens");
   return { model, maxOutputTokens, ...(level && level !== "default" ? { thinkingConfig: { thinkingLevel: level.toUpperCase() } } : {}) };
 }

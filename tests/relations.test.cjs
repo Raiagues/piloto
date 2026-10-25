@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const {setTimeout:sleep}=require('node:timers/promises');
-const R=require('../relation-worker.js'),F=require('../memory-flow.js');
+const R=require('../meetings/web/relation-worker.js'),F=require('../meetings/web/memory-flow.js');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const event=(n,type='test_proposal',status='open',text='Event '+n)=>({event_id:'E'+String(n).padStart(3,'0'),chunk_id:'C'+n,timestamp:'00:00:01',type,status,text,store_confidence:.91,type_confidence:.99});
 const output=(request,p=.98)=>({request:clone(request),response:{model:'fixture',answers:Object.fromEntries(Object.keys(request.questions).map((key,i)=>[key,{type:'noul',noul:Array.isArray(p)?p[i]:p,confidence:.01}]))},latencyMs:1,provider:'official'});

@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
-const State=require('../meeting-state.js'),Evidence=require('../meeting-evidence.js');
+const State=require('../meetings/web/meeting-state.js'),Evidence=require('../meetings/web/meeting-evidence.js');
 const event=(id,type,text=id,extra={})=>({event_id:id,chunk_id:'C'+id,thread_id:'T1',type,text,store_confidence:.99,type_confidence:.99,...extra});
 const edge=(from,to,type,match='not_applicable',extra={})=>({relation_id:'R-'+from+'-'+to+'-'+type,source_event_id:from,target_event_id:to,relation_type:type,configuration_match:match,configuration_applicable:match!=='not_applicable',relation_probability:.99,match_probability:.99,review_state:'confirmed',...extra});
 const run=(events,relations=[],extra={})=>({status:'done',meeting_threads:[{thread_id:'T1'}],meeting_events:events,meeting_relations:relations,...extra});
@@ -148,7 +148,7 @@ test('processing errors and uncertain missing links remain actionable without dr
 });
 
 test('browser module requires evidence projection and never falls back to unfiltered events',()=>{
- const code=fs.readFileSync(require.resolve('../meeting-state.js'),'utf8'),bare={};vm.runInNewContext(code,bare);
+ const code=fs.readFileSync(require.resolve('../meetings/web/meeting-state.js'),'utf8'),bare={};vm.runInNewContext(code,bare);
  assert.throws(()=>bare.NorteMeetingState.build(run([event('A','observation')])),/evidências/);
  const context={NorteMeetingEvidence:Evidence};vm.runInNewContext(code,context);assert.equal(context.NorteMeetingState.build(run([event('A','observation')])).byId.A.status,'open');
 });

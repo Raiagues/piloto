@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { platformError as fail } from './platform-security.mjs';
-import { sameDemoScope } from './demo-account.mjs';
+import { sameDemoScope } from './account-scope.mjs';
 import { sectorRole, isProjectAdmin } from '../shared/project-organization.mjs';
 
 const now = () => new Date().toISOString();
@@ -37,6 +37,36 @@ function imageAttachment(input) {
   if (buffer.length < 33 || buffer.length > 1_000_000 || buffer.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a' || buffer.toString('ascii', 12, 16) !== 'IHDR' || !buffer.readUInt32BE(16) || !buffer.readUInt32BE(20) || buffer.readUInt32BE(16) > 2400 || buffer.readUInt32BE(20) > 2400) throw fail(400, 'INVALID_IMAGE', 'Imagem inválida ou maior que 2400 pixels / 1 MB.');
   return { id: randomUUID(), data: buffer.toString('base64'), mimeType: 'image/png', name: text(input.name || 'captura.png', 120), digest: createHash('sha256').update(buffer).digest('hex') };
 }
+
+// Images are stored once, in the same ordered content stream as the text.
+// The legacy body/attachment format remains readable for existing conversations.
+function messageBlocks(input) {
+  if (input === undefined) return null;
+  if (!Array.isArray(input) || input.length > 40) throw fail(400, 'INVALID_BLOCKS', 'Use até 40 trechos por mensagem.');
+  let characters = 0, images = 0;
+  return input.flatMap(block => {
+    if (block?.type === 'text') {
+      const value = text(block.text, 4000);
+      characters += value.length;
+      if (characters > 4000) throw fail(400, 'INVALID_FIELDS', 'Use até 4000 caracteres por mensagem.');
+      return value ? [{ type: 'text', text: value }] : [];
+    }
+    if (block?.type === 'image') {
+      if (++images > 6) throw fail(400, 'IMAGE_LIMIT', 'Use até 6 imagens por mensagem.');
+      const attachment = imageAttachment(block.image);
+      if (!attachment) throw fail(400, 'INVALID_IMAGE', 'Imagem indisponível.');
+      return [{ type: 'image', image: attachment }];
+    }
+    throw fail(400, 'INVALID_BLOCKS', 'Trecho de mensagem inválido.');
+  });
+}
+const storedImages = message => message.blocks
+  ? message.blocks.filter(block => block.type === 'image').map(block => block.image)
+  : message.attachment ? [message.attachment] : [];
+const contentSignature = message => JSON.stringify(message.blocks
+  ? message.blocks.map(block => block.type === 'text' ? ['text', block.text] : ['image', block.image.digest, block.image.name])
+  : [['text', message.body], ...(message.attachment ? [['image', message.attachment.digest, message.attachment.name]] : [])]);
+
 export function registerConversationRoutes(app, { store, state, readState, requireAuth, requireCsrf, canAccessProject, userView, privileged }) {
   const admin = actor => actor.active && actor.accessRole === 'owner_admin' && !actor.isDemoAccount;
   function forActor(data, actor, id, request) {
@@ -49,7 +79,10 @@ export function registerConversationRoutes(app, { store, state, readState, requi
     if (!allowed) throw fail(404, 'CONVERSATION_NOT_FOUND', 'Conversa indisponível.');
     return c;
   }
-  const publicMessage = (c, message) => ({ ...message, key: undefined, attachment: message.attachment ? { id: message.attachment.id, name: message.attachment.name, url: `/api/platform/conversations/${c.id}/attachments/${message.attachment.id}` } : undefined });
+  const publicImage = (c, image) => ({ id: image.id, name: image.name, url: `/api/platform/conversations/${c.id}/attachments/${image.id}` });
+  const publicMessage = (c, message) => ({ ...message, key: undefined,
+    blocks: message.blocks?.map(block => block.type === 'text' ? { type: 'text', text: block.text } : { type: 'image', image: publicImage(c, block.image) }),
+    attachment: message.attachment ? publicImage(c, message.attachment) : undefined });
   function view(data, actor, c) {
     const participants = ['team', 'sector'].includes(c.kind) ? data.users.filter(u => groupAccess(data, u, c, canAccessProject)) : c.kind === 'administration' ? data.users.filter(u => u.id === c.createdBy || admin(u)) : data.users.filter(u => c.participantIds.includes(u.id));
     return { id: c.id, projectId: c.projectId, teamId: c.teamId, sectorId: c.sectorId, title: c.title || '', kind: c.kind, participants: participants.map(u => userView(data, u)), updatedAt: c.updatedAt, unread: c.messages.filter(m => m.senderId !== actor.id && m.sequence > (c.readThrough?.[actor.id] || 0)).length, lastMessage: c.messages.at(-1)?.body.slice(0, 120) || '' };
@@ -70,19 +103,20 @@ export function registerConversationRoutes(app, { store, state, readState, requi
   });
   app.get('/api/platform/conversations', { preHandler: [requireAuth] }, async request => {
     const data = store.read();
-    return { conversations: Object.values(readState(data).conversations).filter(c => { try { forActor(data, request.auth.user, c.id, request); return true; } catch { return false; } }).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).map(c => view(data, request.auth.user, c)) };
+    return { conversations: Object.values(readState(data).conversations).filter(c => { if (c.kind === 'help') return false; try { forActor(data, request.auth.user, c.id, request); return true; } catch { return false; } }).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).map(c => view(data, request.auth.user, c)) };
   });
   app.post('/api/platform/conversations', { preHandler: [requireAuth, requireCsrf], bodyLimit: 2000, config: { rateLimit: { max: 60, timeWindow: '1 hour' } } }, async request => store.update(data => {
     const actor = data.users.find(u => u.id === request.auth.user.id && u.active), b = request.body || {}, platform = state(data);
     if (!actor) throw fail(401, 'AUTH_REQUIRED', 'Entre novamente.');
+    if (b.kind === 'help') throw fail(410, 'GUIDE_RETIRED', 'Use a conversa com a Administração para ajuda e feedback.');
     let kind = b.kind || 'direct', participantIds = [actor.id], projectId = null, teamId = null, sectorId = null, title = '', identity;
     if (['team', 'sector'].includes(kind)) {
       teamId = text(b.teamId, 100, 1); projectId = b.projectId ? text(b.projectId, 100, 1) : null; sectorId = kind === 'sector' ? text(b.sectorId, 100, 1) : null;
       if (!groupAccess(data, actor, { teamId, projectId, sectorId }, canAccessProject)) throw fail(404, 'GROUP_NOT_FOUND', 'Grupo indisponível.');
       title = kind === 'team' ? data.teams.find(t => t.id === teamId).name : data.workspace.projects[projectId].document.context.sectors.find(s => s.id === sectorId).name;
       identity = `${kind}:${teamId}:${projectId || ''}:${sectorId || ''}`;
-    } else if (kind === 'administration' || kind === 'help') {
-      title = kind === 'help' ? 'Ajuda Norte' : 'Administração Norte'; identity = `${kind}:${actor.id}`;
+    } else if (kind === 'administration') {
+      title = 'Administração Norte'; identity = `${kind}:${actor.id}`;
     } else {
       const recipientId = text(b.recipientId, 100, 1), recipient = data.users.find(u => u.id === recipientId && u.active);
       projectId = b.projectId ? text(b.projectId, 100, 1) : null;
@@ -101,23 +135,28 @@ export function registerConversationRoutes(app, { store, state, readState, requi
     return { conversation: view(data, request.auth.user, c), messages: messages.map(m => publicMessage(c,m)), hasOlder: eligible.length > 100 };
   });
   app.get('/api/platform/conversations/:id/attachments/:attachmentId', { preHandler: [requireAuth] }, async (request, reply) => {
-    const c = forActor(store.read(), request.auth.user, request.params.id, request), attachment = c.messages.find(m => m.attachment?.id === request.params.attachmentId)?.attachment;
+    const c = forActor(store.read(), request.auth.user, request.params.id, request), attachment = c.messages.flatMap(storedImages).find(image => image.id === request.params.attachmentId);
     if (!attachment) throw fail(404, 'NOT_FOUND', 'Imagem indisponível.');
     return reply.header('Cache-Control','no-store').header('X-Content-Type-Options','nosniff').header('Content-Security-Policy',"default-src 'none'; sandbox").type('image/png').send(Buffer.from(attachment.data,'base64'));
   });
-  app.post('/api/platform/conversations/:id/messages', { preHandler: [requireAuth, requireCsrf], bodyLimit: 1_550_000, config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async request => store.update(data => {
-    const actor = request.auth.user, c = forActor(data, actor, request.params.id, request), body = text(request.body?.body || '', 4000), key = text(request.body?.key, 100, 8), attachment = imageAttachment(request.body?.attachment);
-    if (!body && !attachment) throw fail(400, 'EMPTY_MESSAGE', 'Escreva uma mensagem ou adicione uma imagem.');
+  app.post('/api/platform/conversations/:id/messages', { preHandler: [requireAuth, requireCsrf], bodyLimit: 8_100_000, config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async request => store.update(data => {
+    const actor = request.auth.user, c = forActor(data, actor, request.params.id, request), key = text(request.body?.key, 100, 8), blocks = messageBlocks(request.body?.blocks);
+    if (c.kind === 'help') throw fail(410, 'GUIDE_RETIRED', 'Use a conversa com a Administração para ajuda e feedback.');
+    if (blocks && request.body?.attachment) throw fail(400, 'INVALID_BLOCKS', 'Inclua a imagem na sequência da mensagem.');
+    const body = blocks ? blocks.filter(block => block.type === 'text').map(block => block.text).join('\n') : text(request.body?.body || '', 4000);
+    const attachment = blocks ? null : imageAttachment(request.body?.attachment);
+    if (!body && !attachment && !blocks?.length) throw fail(400, 'EMPTY_MESSAGE', 'Escreva uma mensagem ou adicione uma imagem.');
     if (['direct','project','support'].includes(c.kind)) {
       if (c.participantIds.some(id => !data.users.some(u => u.id === id && u.active))) throw fail(409,'CONVERSATION_INACTIVE','Um participante não está mais disponível.');
       if (c.projectId && !c.participantIds.every(id => canAccessProject(data, data.users.find(u => u.id === id), data.workspace.projects[c.projectId]))) throw fail(403,'PROJECT_ACCESS_CHANGED','O acesso de um participante ao projeto mudou.');
     }
     const previous = c.messages.find(m => m.senderId === actor.id && m.key === key);
-    if (previous) { if (previous.body !== body || previous.attachment?.digest !== attachment?.digest) throw fail(409,'IDEMPOTENCY_CONFLICT','Este envio já contém outra mensagem.'); return { message: publicMessage(c,previous) }; }
-    if (attachment && (c.messages.filter(m => m.attachment).length >= 100 || c.messages.reduce((n,m) => n+(m.attachment?.data.length || 0),0)+attachment.data.length > 15_000_000)) throw fail(413,'ATTACHMENT_QUOTA','Esta conversa atingiu o limite de imagens. Envie uma mensagem de texto.');
-    const message = { id: randomUUID(), sequence: (c.messages.at(-1)?.sequence || 0)+1, senderId: actor.id, body, key, createdAt: now(), ...(attachment ? { attachment } : {}) };
+    const content = { body, ...(blocks ? { blocks } : attachment ? { attachment } : {}) };
+    if (previous) { if (contentSignature(previous) !== contentSignature(content)) throw fail(409,'IDEMPOTENCY_CONFLICT','Este envio já contém outra mensagem.'); return { message: publicMessage(c,previous) }; }
+    const images = storedImages(content), existingImages = c.messages.flatMap(storedImages);
+    if (images.length && (existingImages.length + images.length > 100 || [...existingImages, ...images].reduce((n,image) => n + image.data.length, 0) > 15_000_000)) throw fail(413,'ATTACHMENT_QUOTA','Esta conversa atingiu o limite de imagens. Envie uma mensagem de texto.');
+    const message = { id: randomUUID(), sequence: (c.messages.at(-1)?.sequence || 0)+1, senderId: actor.id, ...content, key, createdAt: now() };
     c.messages.push(message); c.updatedAt = message.createdAt;
-    if (c.kind === 'help') { const answer = helpAnswer(body,request.body?.language); c.messages.push({ id: randomUUID(), sequence: message.sequence+1, senderId: 'norte-guide', ...answer, createdAt: now() }); }
     return { message: publicMessage(c,message) };
   }));
   app.post('/api/platform/conversations/:id/read', { preHandler: [requireAuth, requireCsrf], bodyLimit: 500 }, async request => store.update(data => {

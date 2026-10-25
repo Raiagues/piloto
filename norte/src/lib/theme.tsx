@@ -8,7 +8,7 @@ export function getStoredTheme(): Theme {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch { /* A theme must remain usable when browser storage is unavailable. */ }
-  return "dark";
+  return "light";
 }
 
 export function applyTheme(theme: Theme) {

@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const H = require('../meeting-hierarchy.js');
+const H = require('../meetings/web/meeting-hierarchy.js');
 
 const event = (id,type,text,thread='T001') => ({event_id:id,thread_id:thread,chunk_id:'C'+id,type,text});
 const edge = (source,target,type,config='not_applicable',extra={}) => ({
@@ -154,7 +154,7 @@ test('incomplete classification and uncertain negative pairs become compact revi
 });
 
 test('browser UMD fallback keeps a test open even if raw event.status claims completion', () => {
-  const context={};vm.runInNewContext(fs.readFileSync(require.resolve('../meeting-hierarchy.js'),'utf8'),context);
+  const context={};vm.runInNewContext(fs.readFileSync(require.resolve('../meetings/web/meeting-hierarchy.js'),'utf8'),context);
   const source=run();source.meeting_events[2].status='completed';
   const doc=context.NorteMeetingHierarchy.build(source);
   assert.equal(find(doc,'E3').completed,false);

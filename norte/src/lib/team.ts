@@ -46,6 +46,7 @@ export type TeamMember = {
 };
 
 export type TeamRecord = {
+  professionalProfiles?: Record<string, { roleName: string; functionName: string; version: number }>;
   captainMemberId?: string | null;
   id: string;
   name: string;
@@ -153,7 +154,7 @@ export function accessRoleLabel(role: AccessRole, language: Language): string {
 }
 
 /** A stable accent per person, so avatars keep their colour across every view. */
-export const MEMBER_PALETTE = ["#62aaff", "#33d4a0", "#a59cff", "#ef866d", "#e5b95f", "#5ad4e6"] as const;
+export const MEMBER_PALETTE = ["#866344", "#847052", "#777358", "#956958", "#7f7367", "#686556"] as const;
 export function memberColor(seed: string): string {
   let hash = 0;
   for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;

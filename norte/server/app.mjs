@@ -1,27 +1,21 @@
-import { registerMemoryCollaborationRoutes } from './memory-collaboration.mjs';
+import { isRealAccount, professionalMembership } from './workspace-access.mjs';
 import { normalizeNickname, validNickname, uniqueNickname, canManageTeam } from "./team-identity.mjs";
 import { normalizeLogin, validLogin, identityInUse, findLoginUser } from "./login-identity.mjs";
 import { configureAdminAccount } from './admin-account.mjs';
 import { registerInvitations } from "./team-invitations.mjs";
-import { registerOnboarding } from "./onboarding.mjs";
-import { registerConfigurationChanges } from "./configuration-changes.mjs";
-import { registerIdeaStarterRoutes } from "./idea-starters.mjs";
-import { registerIdeaSessions } from "./idea-sessions.mjs";
-import { preparePublicQuetzalDemo } from "./quetzal-public-demo.mjs";
 import { registerPlatformRoutes } from "./platform-service.mjs";
 import { registerDeliveryRoutes } from "./project-delivery.mjs";
-import { registerTeamActivity, recordActivity } from "./team-activity.mjs";
 import { registerMeetings } from "./meeting-service.mjs";
 import { registerMeetingGateway } from "./meeting-gateway.mjs";
-import { createProjectIntelligence, registerIntelligenceRoutes } from "./project-intelligence.mjs";
-import { geminiConfig } from "./gemini-config.mjs";
-import { captureValidationResponse } from './validation-capture.mjs';
+import { geminiStatus } from "./gemini-config.mjs";
+import { googleApiKey } from "./ai-keys.mjs";
+import { createEngineeringMetrics } from "./engineering-metrics.mjs";
 import { projectOrganization } from "../shared/organization-tree.mjs";
 import { requireArtifactEditor, requireProjectAdmin, validateProjectOrganization } from "./project-organization.mjs";
 import { renderArtifactPdf } from "./artifact-pdf.mjs";
-import { interpretationRequestSchema } from "./discovery-interpretation.mjs";
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
@@ -33,11 +27,8 @@ import swaggerUi from "@fastify/swagger-ui";
 import argon2 from "argon2";
 import { JsonDataStore } from "./data-store.mjs";
 import { PostgresDataStore } from "./postgres-store.mjs";
-import { brainstormRequestSchema, createBrainstormAiService } from "./brainstorm-ai.mjs";
-import { createSystemAiService, generationRequestSchema, projectArtifacts, validateEngineeringSystem } from "./system-ai.mjs";
 import { artifactReadabilityRecord } from "./artifact-content.mjs";
-import { createDemoSandbox, demoAccountEnabled, demoExpiresAt, DEMO_TTL_MS, pruneDemoSandboxes, sameDemoScope } from "./demo-account.mjs";
-import { VALIDATION_DOCUMENTS_MISSING_MESSAGE } from "./validation-documents.mjs";
+import { sameDemoScope } from "./account-scope.mjs";
 
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const HEARTBEAT_MIN_INTERVAL_MS = 25_000;
@@ -245,7 +236,7 @@ function publicUser(user, environment) {
     institution: user.institution,
     primaryArea: user.primaryArea,
     avatarUrl: user.avatarUrl || "",
-    profileComplete: Boolean(user.institution && user.course && user.academicStage),
+    profileComplete: Boolean(user.name && (user.login || user.nickname)),
     demoAccount: Boolean(user.isDemoAccount)
   };
 }
@@ -326,7 +317,6 @@ function validProjectDocument(value) {
     && typeof value.id === "string" && value.id.length > 0 && value.id.length <= 100
     && value.board && typeof value.board === "object"
     && Array.isArray(value.board.nodes) && Array.isArray(value.board.links)
-    && (value.engineeringSystem === undefined || validateEngineeringSystem(value.engineeringSystem))
     && (value.memoryRevision === undefined || (Number.isInteger(value.memoryRevision) && value.memoryRevision >= 0))
     && (value.systemGeneratedFromRevision === undefined || (Number.isInteger(value.systemGeneratedFromRevision) && value.systemGeneratedFromRevision >= 0))
     && (value.phaseProgress === undefined || (value.phaseProgress && [0, 1, 2].includes(value.phaseProgress.highestUnlockedStep)));
@@ -365,17 +355,6 @@ function markArtifactMemoryChanged(data, artifactId) {
   }
 }
 
-function projectMemorySnapshot(project, artifacts) {
-  return { name: project.name, revision: project.memoryRevision || 0, context: project.context, setup: project.setup, artifacts: projectArtifacts(project, artifacts) };
-}
-
-function validLabBoard(value) {
-  return value && typeof value === "object" && !Array.isArray(value)
-    && value.schemaVersion === 1
-    && Array.isArray(value.nodes) && Array.isArray(value.links)
-    && value.nodes.length <= 500 && value.links.length <= 1_000;
-}
-
 export async function buildApp(options = {}) {
   const production = process.env.NODE_ENV === "production";
   const bootstrapToken = String(options.bootstrapToken ?? process.env.NORTE_BOOTSTRAP_TOKEN ?? "").trim();
@@ -399,8 +378,6 @@ export async function buildApp(options = {}) {
     return true;
   }
   const cookieName = options.cookieName || (production ? "__Host-norte_session" : "norte_session");
-  const demoAccount = options.demoAccount ?? demoAccountEnabled(process.env, production);
-  const demoCookieName = production ? "__Host-norte_demo" : "norte_demo";
   const databaseUrl = options.databaseUrl ?? process.env.DATABASE_URL;
   if (process.env.RENDER && !databaseUrl && !options.store && !options.storeFile) throw new Error("DATABASE_URL is required on Render so user documents are not stored on ephemeral disk.");
   const store = options.store || await (options.storeFile || !databaseUrl
@@ -408,11 +385,7 @@ export async function buildApp(options = {}) {
     : new PostgresDataStore(databaseUrl)).init();
 
   const systemAiOptions = options.systemAi || options.ai || {};
-  const intelligence = options.intelligence || createProjectIntelligence({ store, ...(options.jev ? { jev: options.jev } : {}), canAccessProject, inferencePolicy: geminiConfig(systemAiOptions, 'discovery'),
-    canReadArtifact: (data, user, artifact) => visibleArtifacts(data, user).some(item => item.id === artifact.id) });
-  const initializingSystems = new Map();
-  const extractionJobs = new Map(Object.entries(store.read(data => data.workspace.extractionJobs || {})));
-  const extractionStarts = new Map();
+  const intelligence = createEngineeringMetrics(store);
   const logger = options.logger ?? {
     level: process.env.LOG_LEVEL || "info",
     redact: ["req.headers.cookie", "req.headers.authorization", "password", "body.password", "body.token", "req.body.token", "req.body.password", "bootstrapToken", "body.bootstrapToken", "req.body.bootstrapToken"]
@@ -424,10 +397,9 @@ export async function buildApp(options = {}) {
     const statusCode = Number.isInteger(error.statusCode) ? error.statusCode : 500;
     if (statusCode >= 500) request.log.error({ err: error }, "request failed");
     const validation = error.validation ? "The submitted data is incomplete or invalid." : null;
-    const provisioning = statusCode === 503 && error.code === "VALIDATION_DOCUMENTS_MISSING" ? VALIDATION_DOCUMENTS_MISSING_MESSAGE : null;
     reply.code(statusCode).send({
       error: error.validation ? "VALIDATION_ERROR" : error.code || "INTERNAL_ERROR",
-      message: validation || provisioning || (statusCode < 500 ? error.message : "The server could not complete this request.")
+      message: validation || (statusCode < 500 ? error.message : "The server could not complete this request.")
     });
   });
   // Private deployment operation, never accepted from public signup. An invalid
@@ -447,28 +419,10 @@ export async function buildApp(options = {}) {
     const code = /^ADMIN_ACCOUNT_[A-Z_]+$/.test(error?.code || '') ? error.code : 'ADMIN_ACCOUNT_CONFIG_FAILED';
     app.log.warn({ event: 'administration.setup', code }, 'Private administration operation was not applied');
   }
-  const ai = createBrainstormAiService({ ...options.ai, onAttempt: async (record, payload) => {
-    app.log.info({ event: "engineering.provider_attempt", ...record }, "Organization provider attempt completed");
-    await options.ai?.onAttempt?.(record, payload);
-  } });
-  const systemAi = options.systemAiService || createSystemAiService({ ...systemAiOptions,
-    feedbackContext: systemAiOptions.feedbackContext || intelligence.feedbackContext,
-    fastInterpreter: (...args) => intelligence.fastInterpreter(...args),
-    rememberInterpretation: (...args) => intelligence.rememberInterpretation(...args),
-    onRejection: async (record) => {
-    app.log.warn({ event: "discovery.interpretation_rejected", ...record }, "Discovery interpretation rejected");
-    await systemAiOptions.onRejection?.(record);
-  }, onAttempt: async (record, payload) => {
-    app.log.info({ event: "engineering.provider_attempt", ...record }, "Engineering provider attempt completed");
-    await intelligence.recordProviderAttempt?.(record);
-    await captureValidationResponse(record, payload);
-    await systemAiOptions.onAttempt?.(record, payload);
-  } });
-
   await app.register(cookie);
   await app.register(helmet, {
     global: true,
-    contentSecurityPolicy: { directives: { mediaSrc: ["'self'", "blob:", ...(() => { try { const tutorial = new URL(process.env.NORTE_CHAT_TUTORIAL_URL || ''); return tutorial.protocol === 'https:' ? [tutorial.origin] : []; } catch { return []; } })()] } },
+    contentSecurityPolicy: { directives: { formAction: ["'self'", "https://www.overleaf.com"], mediaSrc: ["'self'", "blob:", ...(() => { try { const tutorial = new URL(process.env.NORTE_CHAT_TUTORIAL_URL || ''); return tutorial.protocol === 'https:' ? [tutorial.origin] : []; } catch { return []; } })()] } },
     crossOriginResourcePolicy: { policy: "same-site" }
   });
   await app.register(rateLimit, { global: false, ipv6Subnet: 64 });
@@ -478,7 +432,7 @@ export async function buildApp(options = {}) {
       info: {
         title: "Norte API",
         version: "1.0.0",
-        description: "Contas, equipe e memória de projetos de missões universitárias."
+        description: "Contas, equipes, requisitos, verificações, documentos e reuniões de engenharia."
       },
       components: {
         securitySchemes: {
@@ -551,43 +505,9 @@ export async function buildApp(options = {}) {
     });
   }
 
-  function demoRecoveryHash(request) {
-    const token = request.cookies[demoCookieName];
-    return typeof token === "string" && /^[A-Za-z0-9_-]{43}$/u.test(token) ? hashToken(token) : null;
-  }
-
-  function resumableDemo(data, request) {
-    const tokenHash = demoRecoveryHash(request);
-    return tokenHash ? data.users.find(user => user.active && user.isDemoAccount && user.demoSandboxOwner
-      && user.demoResumeTokenHash === tokenHash && demoExpiresAt(user) > Date.now()) : undefined;
-  }
-
-  // Only an authenticated owner or its existing random browser credential can
-  // establish recovery. A client-supplied account/project id is never accepted.
-  function retainDemo(data, request, userId) {
-    const user = data.users.find(item => item.id === userId && item.active && item.isDemoAccount && item.demoSandboxOwner);
-    if (!user) return null;
-    const current = request.cookies[demoCookieName];
-    const tokenHash = demoRecoveryHash(request);
-    const token = tokenHash && tokenHash === user.demoResumeTokenHash ? current : randomBytes(32).toString("base64url");
-    user.demoResumeTokenHash = hashToken(token);
-    user.demoExpiresAt = Date.now() + DEMO_TTL_MS;
-    return token;
-  }
-
-  function demoRecoveryRecentlyRetained(user, request, now = Date.now()) {
-    return Boolean(user.demoResumeTokenHash) && demoRecoveryHash(request) === user.demoResumeTokenHash
-      && demoExpiresAt(user) > now + DEMO_TTL_MS - HEARTBEAT_MIN_INTERVAL_MS;
-  }
-
-  function setDemoCookie(reply, token) {
-    if (token) reply.setCookie(demoCookieName, token, { path: "/", httpOnly: true, secure: production,
-      sameSite: "strict", maxAge: Math.floor(DEMO_TTL_MS / 1000) });
-  }
-
   async function requireAuth(request) {
     const auth = getSessionUser(request);
-    if (!auth) throw httpError(401, "AUTH_REQUIRED", "Authentication is required.");
+    if (!auth || !isRealAccount(auth.user)) throw httpError(401, "AUTH_REQUIRED", "Authentication is required.");
     request.auth = auth;
     if (auth.user.isDemoAccount) {
       // A sandbox never reaches real teams, and it cannot send mail on the operator's behalf.
@@ -620,7 +540,9 @@ export async function buildApp(options = {}) {
     }
   }
 
-  function canManageNamedTeam(data, user, team) { return canManageTeam(data, user, team); }
+  function canManageNamedTeam(data, user, team) { return isRealAccount(user) && canManageTeam(data, user, team); }
+
+  const realMemberIds = data => new Set(data.users.filter(isRealAccount).map(user => user.memberId));
 
   function requireNamedTeamManager(data, user, team) {
     if (!team || !canManageNamedTeam(data, user, team)) throw httpError(403, "FORBIDDEN", "You cannot manage this team.");
@@ -662,55 +584,32 @@ export async function buildApp(options = {}) {
     const online = user.active && data.sessions.some(session => session.userId === user.id && session.expiresAt > Date.now() && Date.now() - Date.parse(session.lastSeenAt || "") < 90_000);
     return { presence: online ? "online" : "offline", lastSeenAt: user.lastSeenAt || user.lastLoginAt || null };
   }
-  registerMemoryCollaborationRoutes(app, { store, requireAuth, requireCsrf, visibleArtifacts, canAccessProject });
   registerInvitations(app, { store, requireAuth, requireCsrf, mailer: options.mailer });
-  registerTeamActivity(app, { store, requireAuth, requireCsrf, canAccessProject });
-  registerIntelligenceRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, intelligence });
   registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions: systemAiOptions, intelligence });
-  registerOnboarding(app, { store, requireAuth, requireCsrf });
-  registerConfigurationChanges(app, { store, requireAuth, requireCsrf, canAccessProject, intelligence });
-  registerIdeaStarterRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, intelligence, aiOptions: systemAiOptions });
-  registerIdeaSessions(app, { store, requireAuth, requireCsrf, canAccessProject, intelligence, systemAi });
   registerPlatformRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, presence, getSessionUser, production, ...options.platform });
-  const meetingAccess = registerMeetings(app, { store, requireAuth, requireCsrf, canAccessProject, retrieveContext: options.meetingContext || (input => intelligence.meetingContext(input)) });
-  registerMeetingGateway(app, { store, requireAuth, requireCsrf, access: meetingAccess, ...options.meetingGateway, prepareMeetingRequest: options.prepareMeetingRequest || (input => intelligence.prepareMeetingRequest(input)) });
-  app.decorate('projectIntelligence', intelligence);
-  app.post("/api/auth/heartbeat", { preHandler: [requireAuth, requireCsrf] }, async (request, reply) => {
+  const meetingAccess = registerMeetings(app, { store, requireAuth, requireCsrf, canAccessProject });
+  registerMeetingGateway(app, { store, requireAuth, requireCsrf, access: meetingAccess, ...options.meetingGateway });
+  app.post("/api/auth/heartbeat", { preHandler: [requireAuth, requireCsrf] }, async (request) => {
     // onRequest has refreshed the database and both guards have run. A recent
     // login/heartbeat already proves presence; do not rewrite every document.
     const now = Date.now(), age = now - Date.parse(request.auth.session.lastSeenAt || "");
-    const user = request.auth.user;
-    const recoveryReady = !user.isDemoAccount || !user.demoSandboxOwner
-      || demoRecoveryRecentlyRetained(user, request, now);
-    if (age >= 0 && age < HEARTBEAT_MIN_INTERVAL_MS && recoveryReady) return { ok: true };
-    const recoveryToken = await store.update(data => {
+    if (age >= 0 && age < HEARTBEAT_MIN_INTERVAL_MS) return { ok: true };
+    await store.update(data => {
       const session = data.sessions.find(s => s.id === request.auth.session.id && s.expiresAt > Date.now());
       const currentUser = session && data.users.find(u => u.id === session.userId && u.active);
       if (!session || !currentUser) throw httpError(401, "AUTH_REQUIRED", "Session expired.");
       const timestamp = new Date().toISOString();
       session.lastSeenAt = timestamp;
       currentUser.lastSeenAt = timestamp;
-      return retainDemo(data, request, session.userId);
+      return null;
     });
-    setDemoCookie(reply, recoveryToken);
     return { ok: true };
   });
   app.get("/api/admin/users", { preHandler: [requireAuth] }, async (request) => {
     requireRole(request.auth.user, ["owner_admin"]);
     const data = store.read();
-    return { users: data.users.filter(user => user.id === request.auth.user.id || data.teams.some(team => team.memberIds.includes(user.memberId) && canManageNamedTeam(data, request.auth.user, team))).map(user => ({ ...publicUser(user, data.environment), active: user.active, ...presence(data, user) })) };
+    return { users: data.users.filter(user => isRealAccount(user) && (user.id === request.auth.user.id || data.teams.some(team => team.memberIds.includes(user.memberId) && canManageNamedTeam(data, request.auth.user, team)))).map(user => ({ ...publicUser(user, data.environment), active: user.active, ...presence(data, user) })) };
   });
-  app.get("/api/projects/:id/activity", { preHandler: [requireAuth] }, async (request) => {
-    const data = store.read(), record = data.workspace.projects?.[request.params.id];
-    if (!record) throw httpError(404, "PROJECT_NOT_FOUND", "Project not found.");
-    if (!canAccessProject(data, request.auth.user, record)) throw httpError(403, "FORBIDDEN", "Project access denied.");
-    requireProjectAdmin(record, request.auth.user);
-    return { users: (record.document.context?.assignments || []).map(a => {
-      const member = data.members.find(m => m.id === a.memberId), user = data.users.find(u => u.memberId === a.memberId);
-      return { id: a.memberId, name: member?.displayName || "", ...(user ? presence(data, user) : { presence: "offline", lastSeenAt: null }) };
-    }) };
-  });
-
   function projectSummary(record) {
     const project = record.document;
     return {
@@ -749,7 +648,7 @@ export async function buildApp(options = {}) {
     await store.health?.();
     // `engineering` reports only whether a key is present, never the key itself,
     // so a deployment can be verified with one unauthenticated request.
-    const engineering = systemAi.status();
+    const engineering = geminiStatus(googleApiKey(), {...systemAiOptions,features:{...systemAiOptions.features,requirements:{maxOutputTokens:3000,...systemAiOptions.features?.requirements}}}, 'requirements');
     return { status: "ok", version: "1.0.0", revision: /^[a-f0-9]{40}$/.test(process.env.RENDER_GIT_COMMIT || "") ? process.env.RENDER_GIT_COMMIT : null, pid: process.pid, supervisorPid: process.ppid, storage: databaseUrl ? "postgresql" : "local", engineering: { configured: engineering.configured, model: engineering.model } };
   });
 
@@ -762,48 +661,8 @@ export async function buildApp(options = {}) {
       hasOwner: data.users.some((user) => user.accessRole === "owner_admin" && user.active),
       bootstrapRequired: false
     }));
-    if (auth?.user.isDemoAccount && !demoRecoveryRecentlyRetained(auth.user, request)) {
-      const recoveryToken = await store.update(data => retainDemo(data, request, auth.user.id));
-      setDemoCookie(reply, recoveryToken);
-    }
-    const demoResumeAvailable = demoAccount && store.read(data => Boolean(resumableDemo(data, request) || auth?.user.demoSandboxOwner));
-    if (!auth) return { authenticated: false, hasOwner, bootstrapRequired, demoAvailable: demoAccount, demoResumeAvailable };
-    return { authenticated: true, hasOwner, bootstrapRequired, demoAvailable: demoAccount, demoResumeAvailable, user: store.read(data => publicUser(auth.user, data.environment)), csrfToken: auth.session.csrfToken };
-  });
-
-  app.post("/api/auth/demo", {
-    config: { rateLimit: { max: 12, timeWindow: "15 minutes" } },
-    schema: { tags: ["Authentication"], summary: "Open or resume this browser's isolated test workspace" }
-  }, async (request, reply) => {
-    if (!demoAccount) throw httpError(404, "DEMO_UNAVAILABLE", "A conta de demonstração não está habilitada neste ambiente.");
-    const auth = getSessionUser(request);
-    if (auth && !auth.user.isDemoAccount) throw httpError(409, "ACCOUNT_ALREADY_OPEN", "Saia da sua conta antes de abrir a conta de teste.");
-    if (auth) await requireCsrf(request);
-    const result = await store.update((data) => {
-      const current = auth && data.sessions.some(session => session.id === auth.session.id && session.expiresAt > Date.now())
-        ? data.users.find(user => user.id === auth.user.id && user.active && user.demoSandboxOwner) : null;
-      if (auth && !current) throw httpError(401, "AUTH_REQUIRED", "Session expired.");
-      let user = current || resumableDemo(data, request);
-      const resumed = Boolean(user);
-      // Adopt a valid legacy session before expiry cleanup, preserving its map.
-      if (user) user.demoExpiresAt = Date.now() + DEMO_TTL_MS;
-      pruneDemoSandboxes(data);
-      if (!user) {
-        user = createDemoSandbox(data);
-        const projectId = `${user.demoSandboxId}-quetzal-1`;
-        if (data.workspace.projects[projectId]) {
-          preparePublicQuetzalDemo(data, { projectId, actorId: user.id });
-          user = data.users.find(candidate => candidate.id === user.id);
-        }
-      }
-      const token = retainDemo(data, request, user.id);
-      user.lastLoginAt = new Date().toISOString();
-      return { user, token, resumed };
-    });
-    const session = await setSession(reply, result.user.id);
-    setDemoCookie(reply, result.token);
-    reply.code(result.resumed ? 200 : 201);
-    return { user: publicUser(result.user, store.read().environment), csrfToken: session.csrfToken, resumed: result.resumed, demoResumeAvailable: true };
+    if (!auth) return { authenticated: false, hasOwner, bootstrapRequired, demoAvailable: false, demoResumeAvailable: false };
+    return { authenticated: true, hasOwner, bootstrapRequired, demoAvailable: false, demoResumeAvailable: false, user: store.read(data => publicUser(auth.user, data.environment)), csrfToken: auth.session.csrfToken };
   });
 
   app.post("/api/auth/register", {
@@ -885,17 +744,6 @@ export async function buildApp(options = {}) {
           updatedAt: timestamp
         });
       }
-      if (isFirstAccount && data.teams[0]) {
-        data.teams[0].memberIds = [...new Set([...data.teams[0].memberIds, memberId])];
-        data.teams[0].createdBy ||= nextUser.id;
-        data.teams[0].captainMemberId ||= memberId;
-        data.teams[0].updatedAt = timestamp;
-        for (const record of Object.values(data.workspace.projects || {})) {
-          if (record.document.context?.teamId !== data.teams[0].id || record.createdBy) continue;
-          record.createdBy = nextUser.id;
-          record.document.creatorId = nextUser.id;
-        }
-      }
       return nextUser;
     });
     const session = await setSession(reply, user.id);
@@ -938,29 +786,24 @@ export async function buildApp(options = {}) {
     preHandler: [requireAuth, requireCsrf],
     schema: { tags: ["Authentication"], summary: "End the current session", security: [{ sessionCookie: [], csrfToken: [] }] }
   }, async (request, reply) => {
-    // Logout ends authentication; explicitly choosing Resume is required again.
-    if (request.auth.user.isDemoAccount) {
-      const token = await store.update(data => retainDemo(data, request, request.auth.user.id));
-      setDemoCookie(reply, token);
-    }
     await clearSession(request, reply);
     reply.code(204).send();
   });
 
   app.get("/api/profile", {
     preHandler: [requireAuth],
-    schema: { tags: ["Authentication"], summary: "Read the current academic profile", security: [{ sessionCookie: [] }] }
+    schema: { tags: ["Authentication"], summary: "Read the current profile and professional memberships", security: [{ sessionCookie: [] }] }
   }, async (request) => {
     const data = store.read();
     const member = data.members.find((item) => item.id === request.auth.user.memberId);
     if (!member) throw httpError(404, "PROFILE_NOT_FOUND", "Your profile was not found.");
     if (request.auth.user.pendingLegacyMemberId && !request.auth.user.emailVerifiedAt) throw httpError(403, "EMAIL_NOT_VERIFIED", "Verifique seu email antes de recuperar o perfil.");
-    return { profile: publicMember(data, member) };
+    return { profile: publicMember(data, member), memberships: data.teams.filter(team => sameDemoScope(request.auth.user, team) && team.memberIds.includes(member.id)).map(team => professionalMembership(team, member.id)) };
   });
 
   app.patch("/api/profile", {
     preHandler: [requireAuth, requireCsrf],
-    schema: { tags: ["Authentication"], summary: "Update the current academic profile", security: [{ sessionCookie: [], csrfToken: [] }], body: ownProfileBody }
+    schema: { tags: ["Authentication"], summary: "Update the current personal profile", security: [{ sessionCookie: [], csrfToken: [] }], body: ownProfileBody }
   }, async (request) => {
     if (request.auth.user.pendingLegacyMemberId && !request.auth.user.emailVerifiedAt) throw httpError(403, "EMAIL_NOT_VERIFIED", "Verifique seu email antes de editar o perfil.");
     if (request.body.avatarUrl !== undefined && !validateAvatarUrl(request.body.avatarUrl)) {
@@ -1001,18 +844,20 @@ export async function buildApp(options = {}) {
     schema: { tags: ["Team"], summary: "List available and associated teams", security: [{ sessionCookie: [] }] }
   }, async (request) => store.read(data => {
     return {
-      teams: data.teams.filter((team) => sameDemoScope(request.auth.user, team)).map((team) => {
+      teams: data.teams.filter((team) => sameDemoScope(request.auth.user, team) && team.memberIds.includes(request.auth.user.memberId)).map((team) => {
+        const actualMembers = team.memberIds.filter(id => realMemberIds(data).has(id));
         const membership = team.memberIds.includes(request.auth.user.memberId) ? "member" : "available";
         const canManage = canManageNamedTeam(data, request.auth.user, team);
         const canSeePrivateData = membership === "member" || canManage;
         return {
           id: team.id, name: team.name, description: team.description, createdAt: team.createdAt, updatedAt: team.updatedAt,
           captainMemberId: canSeePrivateData ? team.captainMemberId : null,
-          memberIds: canSeePrivateData ? team.memberIds : [],
+          memberIds: canSeePrivateData ? actualMembers : [],
+          professionalProfiles: canSeePrivateData ? Object.fromEntries(actualMembers.map(id => [id, professionalMembership(team, id)])) : {},
           artifactIds: canSeePrivateData ? team.artifactIds : [],
           joinRequests: [],
           createdBy: canSeePrivateData ? team.createdBy : null,
-          memberCount: team.memberIds.length,
+          memberCount: actualMembers.length,
           artifactCount: team.artifactIds.length,
           projectCount: team.projectCount ?? Object.values(data.workspace.projects || {}).filter((record) => record?.document?.context?.teamId === team.id).length,
           membership,
@@ -1020,6 +865,36 @@ export async function buildApp(options = {}) {
         };
       })
     };
+  }));
+
+  app.patch('/api/teams/:id/members/:memberId/professional-profile', {
+    preHandler: [requireAuth, requireCsrf],
+    schema: {
+      tags: ['Team'], summary: 'Update a team member’s professional role without changing permissions',
+      params: { type: 'object', additionalProperties: false, required: ['id', 'memberId'], properties: { id: string(100, 1), memberId: string(100, 1) } },
+      body: { type: 'object', additionalProperties: false, required: ['roleName', 'functionName', 'expectedVersion'], properties: {
+        roleName: string(100, 1), functionName: string(500), expectedVersion: { type: 'integer', minimum: 0 }
+      } }
+    }
+  }, async request => store.update(data => {
+    const team = data.teams.find(item => item.id === request.params.id);
+    // Recheck current authority inside the transaction, including membership.
+    const actor = data.users.find(user => user.id === request.auth.user.id);
+    requireNamedTeamManager(data, actor, team);
+    const memberId = request.params.memberId;
+    if (!team.memberIds.includes(memberId) || !data.users.some(user => user.memberId === memberId && isRealAccount(user) && sameDemoScope(actor, user))) {
+      throw httpError(404, 'MEMBER_NOT_FOUND', 'Esta conta não faz parte da equipe.');
+    }
+    const current = professionalMembership(team, memberId);
+    if (request.body.expectedVersion !== current.version) throw httpError(409, 'PROFILE_CHANGED', 'O cargo foi alterado. Atualize a equipe antes de salvar.');
+    const roleName = normalizeText(request.body.roleName);
+    if (!roleName) throw httpError(400, 'INVALID_ROLE_NAME', 'Informe o cargo.');
+    team.professionalProfiles ||= {};
+    team.professionalProfiles[memberId] = { roleName, functionName: normalizeText(request.body.functionName), version: current.version + 1, updatedAt: new Date().toISOString(), updatedBy: actor.id };
+    data.platformAudit ||= [];
+    data.platformAudit.push({ actorId: actor.id, event: 'professional_profile_updated', subjectId: memberId, teamId: team.id, at: team.professionalProfiles[memberId].updatedAt });
+    data.platformAudit = data.platformAudit.slice(-2000);
+    return { membership: professionalMembership(team, memberId) };
   }));
 
   app.get("/api/teams/:id/projects", {
@@ -1045,8 +920,8 @@ export async function buildApp(options = {}) {
           ...projectSummary(record),
           sectorCount: (context.sectors || []).length,
           hasSystem: Boolean(record.document.engineeringSystem),
-          organization: projectOrganization(record.document, data.members),
-          participants: (context.assignments || []).map((assignment) => {
+          organization: projectOrganization({ ...record.document, context: { ...context, assignments: (context.assignments || []).filter(a => realMemberIds(data).has(a.memberId)) } }, data.members.filter(m => realMemberIds(data).has(m.id))),
+          participants: (context.assignments || []).filter(assignment => realMemberIds(data).has(assignment.memberId)).map((assignment) => {
             const member = data.members.find((item) => item.id === assignment.memberId);
             return {
               memberId: assignment.memberId,
@@ -1069,7 +944,7 @@ export async function buildApp(options = {}) {
   }, async (request) => {
     const data = store.read();
     return {
-      members: data.users.filter((user) => user.active && (user.id === request.auth.user.id || data.teams.some(team => team.memberIds.includes(user.memberId) && team.memberIds.includes(request.auth.user.memberId)))).map((user) => {
+      members: data.users.filter((user) => isRealAccount(user) && sameDemoScope(request.auth.user, user) && (user.id === request.auth.user.id || data.teams.some(team => team.memberIds.includes(user.memberId) && team.memberIds.includes(request.auth.user.memberId)))).map((user) => {
         const member = data.members.find((item) => item.id === user.memberId);
         return {
           id: user.id,
@@ -1121,7 +996,7 @@ export async function buildApp(options = {}) {
       const existing = data.teams.find((item) => item.id === request.params.id);
       requireNamedTeamManager(data, request.auth.user, existing);
       if (request.body.captainMemberId !== undefined) {
-        if (!existing.memberIds.includes(request.body.captainMemberId) || !data.users.some(u => u.memberId === request.body.captainMemberId && u.active)) throw httpError(400, "INVALID_CAPTAIN", "Selecione alguém que já pertence à equipe.");
+        if (!existing.memberIds.includes(request.body.captainMemberId) || !data.users.some(u => u.memberId === request.body.captainMemberId && isRealAccount(u))) throw httpError(400, "INVALID_CAPTAIN", "Selecione alguém que já pertence à equipe.");
         existing.captainMemberId = request.body.captainMemberId;
       }
       if (request.body.name !== undefined) existing.name = normalizeText(request.body.name);
@@ -1200,7 +1075,7 @@ export async function buildApp(options = {}) {
       team.memberIds.forEach((memberId) => visibleMemberIds.add(memberId));
 
     }
-    return { members: data.members.filter((member) => visibleMemberIds.has(member.id)).map((member) => publicMember(data, member)) };
+    return { members: data.members.filter((member) => visibleMemberIds.has(member.id) && realMemberIds(data).has(member.id)).map((member) => publicMember(data, member)) };
   }));
 
   app.patch("/api/team/members/:id", {
@@ -1345,7 +1220,6 @@ export async function buildApp(options = {}) {
       const timestamp = new Date().toISOString();
       const next = { id: randomUUID(), ...input, official: false, createdBy: request.auth.user.id, connectedAt: timestamp, updatedAt: timestamp, ...(request.auth.user.demoSandboxId ? { demoSandboxId: request.auth.user.demoSandboxId } : {}) };
       data.artifacts.push(next);
-      if (next.scope === "project") recordActivity(data, request.auth.user.id, next.ownerId, "artifactCreated");
       const project = data.workspace.projects?.[next.ownerId]?.document;
       if (next.scope === "project" && project?.context) {
         project.context.projectArtifactIds = [...new Set([...(project.context.projectArtifactIds || []), next.id])];
@@ -1389,7 +1263,6 @@ export async function buildApp(options = {}) {
       if (merged.documentText === undefined) delete existing.documentText;
       Object.assign(existing, merged, { revision: (existing.revision || 0) + 1, updatedAt: new Date().toISOString() });
       markArtifactMemoryChanged(data, existing.id);
-      if (existing.scope === "project") recordActivity(data, request.auth.user.id, existing.ownerId, "artifactEdited");
       return existing;
     });
     return { artifact: artifactForUser(store.read(), request.auth.user, artifact) };
@@ -1425,268 +1298,6 @@ export async function buildApp(options = {}) {
       return null;
     });
     reply.code(204).send();
-  });
-
-  app.get("/api/brainstorm-ai/status", {
-    preHandler: [requireAuth],
-    schema: { tags: ["System"], summary: "Check the private organization engine", security: [{ sessionCookie: [] }] }
-  }, async () => ai.status());
-
-  app.post("/api/brainstorm-ai/analyze", {
-    preHandler: [requireAuth, requireCsrf],
-    config: { rateLimit: { max: 20, timeWindow: "1 hour" } },
-    schema: {
-      tags: ["System"],
-      summary: "Analyze or organize a brainstorming map",
-      security: [{ sessionCookie: [], csrfToken: [] }],
-      body: brainstormRequestSchema
-    }
-  }, async (request) => ai.analyze(request.body));
-
-  app.get("/api/system-ai/status", {
-    preHandler: [requireAuth],
-    schema: { tags: ["System"], summary: "Check engineering extraction availability", security: [{ sessionCookie: [] }] }
-  }, async () => systemAi.status());
-
-  const extractionBody = { type: 'object', additionalProperties: false, required: ['projectId'], properties: { projectId: string(160, 1), language: { enum: ['pt', 'en'] }, regenerate: { type: 'boolean' }, reviewed: { type: 'boolean' }, autoRun: { type: 'boolean' } } };
-  const extractionDigest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-  function extractionProject(data, user, projectId) {
-    user = data.users.find(candidate => candidate.id === user?.id && candidate.active);
-    if (!user) throw httpError(403, 'FORBIDDEN', 'Sua conta não possui mais acesso a esta operação.');
-    const record = data.workspace.projects?.[projectId];
-    if (!record || !canAccessProject(data, user, record)) throw httpError(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível para sua conta.');
-    if (user.accessRole === 'advisor') throw httpError(403, 'FORBIDDEN', 'Conta de leitura.');
-    requireProjectAdmin(record, user);
-    return record;
-  }
-  function extractionUnchanged(job, data, record) {
-    const user = data.users.find(candidate => candidate.id === job.userId && candidate.active);
-    const readable = new Set(user ? visibleArtifacts(data, user).map(artifact => artifact.id) : []);
-    if (projectArtifacts(record.document, data.artifacts).some(artifact => !readable.has(artifact.id))) throw httpError(409, 'PROJECT_MEMORY_CHANGED', 'Uma fonte deixou de estar disponível para sua conta. Atualize a memória antes de continuar.');
-    if (job.snapshotHash !== extractionDigest(projectMemorySnapshot(record.document, data.artifacts))) throw httpError(409, 'PROJECT_MEMORY_CHANGED', 'Os documentos mudaram. Inicie uma nova extração; trechos iguais serão reutilizados.');
-    if (job.baselineHash !== extractionDigest(record.document.engineeringSystem || null)) throw httpError(409, 'SYSTEM_CHANGED', 'O mapa foi corrigido durante a extração. Inicie uma nova proposta para preservar essas alterações.');
-  }
-  function extractionGuard(job, { allowApplied = false } = {}) {
-    return async () => {
-      await store.refresh?.();
-      const data = store.read(), record = extractionProject(data, { id: job.userId }, job.projectId);
-      if (!allowApplied || !job.applied) extractionUnchanged(job, data, record);
-    };
-  }
-  async function persistExtraction(id, job) {
-    await store.update(data => {
-      const record = extractionProject(data, { id: job.userId }, job.projectId);
-      if (!job.applied) extractionUnchanged(job, data, record);
-      data.workspace.extractionJobs ||= {}; data.workspace.extractionJobs[id] = structuredClone(job);
-    });
-    extractionJobs.set(id, job);
-  }
-  async function extractionState(id, job, { summary = false } = {}) {
-    await extractionGuard(job, { allowApplied: true })();
-    let result;
-    try { result = await systemAi.job(id, { scopeKey: job.scopeKey, summary }); }
-    catch (error) {
-      if (!['EXTRACTION_JOB_NOT_FOUND', 'EXTRACTION_NOT_FOUND'].includes(error.code) || typeof systemAi.restore !== 'function') throw error;
-      const data = store.read(), record = extractionProject(data, { id: job.userId }, job.projectId);
-      if (!job.applied) extractionUnchanged(job, data, record);
-      const restored = await systemAi.restore(id, record.document, data.artifacts, job.language, { scopeKey: job.scopeKey, autoRun: !job.applied && job.autoRun, assertAuthorized: extractionGuard(job) });
-      if (!restored) throw httpError(409, 'EXTRACTION_CHECKPOINT_UNAVAILABLE', 'O progresso não está mais disponível neste servidor. Inicie uma nova extração; os documentos e a versão salva do mapa foram mantidos.');
-      result = await systemAi.job(id, { scopeKey: job.scopeKey, summary });
-    }
-    // Read access alone is insufficient if source membership changed during an
-    // asynchronous provider/read operation. Never return its old quotations.
-    await extractionGuard(job, { allowApplied: true })();
-    if (!summary) return result;
-    const compact = { ...result }; delete compact.result; return compact;
-  }
-  function extractionJob(request) {
-    const job = extractionJobs.get(request.params.jobId);
-    const projectId = request.body?.projectId || request.query.projectId;
-    if (!job || job.userId !== request.auth.user.id || job.projectId !== projectId) throw httpError(404, 'EXTRACTION_NOT_FOUND', 'Extração não disponível para sua conta.');
-    extractionProject(store.read(), request.auth.user, job.projectId);
-    return job;
-  }
-  const extractionView = (result, job) => ({ ...result, projectId: job.projectId, applied: job.applied, regenerate: job.regenerate, autoRun: job.autoRun });
-  app.post('/api/system-ai/jobs', { preHandler: [requireAuth, requireCsrf], config: { rateLimit: { max: 12, timeWindow: '1 hour' } }, schema: { body: extractionBody } }, async (request, reply) => {
-    if (typeof systemAi.start !== 'function') throw httpError(503, 'EXTRACTION_UNAVAILABLE', 'A extração em etapas ainda não está disponível.');
-    const data = store.read(), record = extractionProject(data, request.auth.user, request.body.projectId);
-    if (record.document.engineeringSystem && request.body.regenerate !== true) throw httpError(409, 'SYSTEM_ALREADY_EXISTS', 'Use a atualização do mapa para revisar uma proposta antes de substituir a versão atual.');
-    const scopeKey = request.auth.user.id + ':' + record.document.id;
-    const metadata = { userId: request.auth.user.id, projectId: record.document.id, scopeKey,
-      snapshotHash: extractionDigest(projectMemorySnapshot(record.document, data.artifacts)), baselineHash: extractionDigest(record.document.engineeringSystem || null),
-      feedbackHash: extractionDigest(await (systemAiOptions.feedbackContext || intelligence.feedbackContext)(record.document) || null),
-      language: request.body.language || 'en', autoRun: request.body.autoRun !== false, regenerate: request.body.regenerate === true, createdAt: Date.now(), applied: false };
-    const startKey = extractionDigest([scopeKey, metadata.snapshotHash, metadata.baselineHash, metadata.language, metadata.feedbackHash]);
-    let operation = extractionStarts.get(startKey);
-    if (!operation) {
-      operation = (async () => {
-        const previous = [...extractionJobs.entries()].reverse().find(([, job]) => job.scopeKey === scopeKey && job.snapshotHash === metadata.snapshotHash && job.baselineHash === metadata.baselineHash && job.language === metadata.language && job.feedbackHash === metadata.feedbackHash && !job.applied);
-        if (previous) {
-          const [id, job] = previous;
-          try {
-            let result = await extractionState(id, job);
-            if (metadata.autoRun && result.status === 'paused') {
-              job.autoRun = true;
-              await persistExtraction(id, job);
-              result = await systemAi.resume(id, { scopeKey, autoRun: true, assertAuthorized: extractionGuard(job) });
-            }
-            return extractionView(result, job);
-          } catch (error) { if (error.code !== 'EXTRACTION_CHECKPOINT_UNAVAILABLE') throw error; }
-        }
-        const result = await systemAi.start(record.document, data.artifacts, metadata.language, { scopeKey, autoRun: metadata.autoRun, assertAuthorized: extractionGuard(metadata) });
-        await store.refresh?.();
-        const current = store.read(), latest = extractionProject(current, request.auth.user, record.document.id);
-        extractionUnchanged(metadata, current, latest);
-        if (!result?.jobId) throw httpError(502, 'EXTRACTION_INVALID', 'O serviço não retornou uma identificação de extração.');
-        await persistExtraction(result.jobId, metadata);
-        return extractionView(result, metadata);
-      })();
-      extractionStarts.set(startKey, operation);
-    }
-    try {
-      const result = await operation;
-      await extractionGuard(metadata)();
-      reply.code(202); return result;
-    } finally { if (extractionStarts.get(startKey) === operation) extractionStarts.delete(startKey); }
-  });
-  app.get('/api/system-ai/jobs/latest', { preHandler: [requireAuth] }, async request => {
-    const data = store.read(), record = extractionProject(data, request.auth.user, request.query.projectId);
-    const candidates = [...extractionJobs.entries()].filter(([, job]) => job.userId === request.auth.user.id && job.projectId === record.document.id).sort((a, b) => b[1].createdAt - a[1].createdAt);
-    for (const [id, job] of candidates) {
-      // A published version is already in the project. Do not resurrect its old
-      // proposal or a stale proposal after source edits when returning to a tab.
-      if (job.applied || record.extractionJobId === id) return { job: null };
-      try {
-        extractionUnchanged(job, data, record);
-        const result = await extractionState(id, job, { summary: true });
-        return { job: extractionView(result, job) };
-      } catch (error) { if (!['PROJECT_MEMORY_CHANGED', 'SYSTEM_CHANGED', 'EXTRACTION_CHECKPOINT_UNAVAILABLE'].includes(error.code)) throw error; }
-    }
-    return { job: null };
-  });
-  app.get('/api/system-ai/jobs/:jobId', { preHandler: [requireAuth] }, async request => {
-    const job = extractionJob(request);
-    if (job.applied) {
-      await extractionGuard(job, { allowApplied: true })();
-      return extractionView({ jobId: request.params.jobId, status: 'completed' }, job);
-    }
-    const result = await extractionState(request.params.jobId, job, { summary: request.query.summary === 'true' });
-    return extractionView(result, job);
-  });
-  app.post('/api/system-ai/jobs/:jobId/resume', { preHandler: [requireAuth, requireCsrf], config: { rateLimit: { max: 120, timeWindow: '1 hour' } }, schema: { body: extractionBody } }, async (request, reply) => {
-    const job = extractionJob(request), data = store.read(), record = extractionProject(data, request.auth.user, job.projectId);
-    extractionUnchanged(job, data, record);
-    await extractionState(request.params.jobId, job, { summary: true });
-    job.autoRun = request.body.autoRun !== false;
-    await persistExtraction(request.params.jobId, job);
-    const result = await systemAi.resume(request.params.jobId, { scopeKey: job.scopeKey, autoRun: job.autoRun, assertAuthorized: extractionGuard(job) });
-    await extractionGuard(job)();
-    reply.code(202); return extractionView(result, job);
-  });
-  app.post('/api/system-ai/jobs/:jobId/apply', { preHandler: [requireAuth, requireCsrf], schema: { body: extractionBody } }, async request => {
-    const job = extractionJob(request);
-    if (job.applied) {
-      const record = extractionProject(store.read(), request.auth.user, job.projectId);
-      if (record.extractionJobId !== request.params.jobId) throw httpError(409, 'SYSTEM_CHANGED', 'Uma versão mais recente do mapa já foi salva.');
-      return { engineeringSystem: record.document.engineeringSystem, memoryRevision: record.document.memoryRevision || 0, project: record.document, revision: record.revision, regenerated: job.regenerate };
-    }
-    const result = await extractionState(request.params.jobId, job);
-    if (result.status !== 'completed' || !result.result) throw httpError(409, 'EXTRACTION_INCOMPLETE', 'Aguarde a conclusão e revise os avisos de cobertura.');
-    if (result.report?.needsReview && request.body.reviewed !== true) throw httpError(409, 'EXTRACTION_REQUIRES_REVIEW', 'Revise as omissões e os avisos antes de aplicar este mapa.');
-    const applied = await store.update(data => {
-      const record = extractionProject(data, data.users.find(user => user.id === request.auth.user.id && user.active), job.projectId);
-      if (record.extractionJobId === request.params.jobId) return { engineeringSystem: record.document.engineeringSystem, memoryRevision: record.document.memoryRevision || 0, project: record.document, revision: record.revision, regenerated: job.regenerate };
-      extractionUnchanged(job, data, record);
-      if (record.document.engineeringSystem && (!job.regenerate || request.body.regenerate !== true)) throw httpError(409, 'SYSTEM_REPLACEMENT_REQUIRES_REVIEW', 'Confirme a substituição após revisar a proposta; a versão anterior será preservada.');
-      const engineeringSystem = result.result.engineeringSystem || result.result;
-      if (!validateEngineeringSystem(engineeringSystem)) throw httpError(502, 'EXTRACTION_INVALID', 'O mapa extraído não passou na validação.');
-      if (record.document.engineeringSystem) {
-        record.engineeringHistory ||= [];
-        record.engineeringHistory.push({ id: randomUUID(), archivedAt: new Date().toISOString(), archivedBy: request.auth.user.id, engineeringSystem: structuredClone(record.document.engineeringSystem), extractionReport: structuredClone(record.extractionReport || null) });
-      }
-      record.document.engineeringSystem = engineeringSystem;
-      record.document.systemGeneratedFromRevision = engineeringSystem.generatedFromRevision;
-      record.document.phaseProgress = { highestUnlockedStep: Math.max(1, record.document.phaseProgress?.highestUnlockedStep || 0) };
-      record.document.updatedAt = new Date().toISOString();
-      record.revision = (record.revision || 0) + 1; record.updatedAt = record.document.updatedAt; record.updatedBy = request.auth.user.id;
-      if (data.workspace.project?.document?.id === job.projectId) data.workspace.project = record;
-      record.extractionJobId = request.params.jobId;
-      data.workspace.extractionJobs ||= {};
-      data.workspace.extractionJobs[request.params.jobId] = { ...job, applied: true };
-      record.extractionReport = { ...structuredClone(result.report || {}), progress: structuredClone(result.progress || {}), completedAt: record.updatedAt };
-      return { engineeringSystem, memoryRevision: record.document.memoryRevision || 0, project: record.document, revision: record.revision, regenerated: job.regenerate };
-    });
-    job.applied = true;
-    return applied;
-  });
-
-  app.post("/api/system-ai/generate", {
-    preHandler: [requireAuth, requireCsrf],
-    config: { rateLimit: { max: 12, timeWindow: "1 hour" } },
-    schema: { tags: ["System"], summary: "Initialize engineering architecture from this project's persisted artifacts", security: [{ sessionCookie: [], csrfToken: [] }], body: generationRequestSchema }
-  }, async (request) => {
-    const data = store.read();
-    const record = data.workspace.projects?.[request.body.projectId];
-    if (!record) throw httpError(404, "PROJECT_NOT_FOUND", "Project was not found.");
-    if (!canAccessProject(data, request.auth.user, record)) throw httpError(403, "FORBIDDEN", "You cannot open this project.");
-    if (request.auth.user.accessRole === "advisor") throw httpError(403, "FORBIDDEN", "Advisors have read-only access to the project workspace.");
-    requireProjectAdmin(record, request.auth.user);
-    const project = record.document;
-    if (project.engineeringSystem) return { engineeringSystem: project.engineeringSystem, memoryRevision: project.memoryRevision || 0 };
-    const operationKey = project.id;
-    if (initializingSystems.has(operationKey)) return initializingSystems.get(operationKey);
-    const memorySnapshot = projectMemorySnapshot(project, data.artifacts);
-    const operation = (async () => {
-      const engineeringSystem = await systemAi.generate(project, data.artifacts, request.body.language);
-      return store.update((current) => {
-        const latest = current.workspace.projects?.[project.id];
-        if (!latest) throw httpError(409, "PROJECT_CHANGED", "This project changed during initialization.");
-        requireProjectAdmin(latest, current.users.find(user => user.id === request.auth.user.id && user.active));
-        if (!canAccessProject(current, request.auth.user, latest)) throw httpError(403, "FORBIDDEN", "Project access changed during initialization.");
-        if (latest.document.engineeringSystem) return { engineeringSystem: latest.document.engineeringSystem, memoryRevision: latest.document.memoryRevision || 0 };
-        // PostgreSQL JSONB may reorder object keys on its transaction round trip.
-        // Compare values, preserving array order and every actual memory change.
-        if (!isDeepStrictEqual(memorySnapshot, projectMemorySnapshot(latest.document, current.artifacts))) throw httpError(409, "PROJECT_MEMORY_CHANGED", "Project memory changed during initialization. Retry with the current memory.");
-        latest.document = { ...latest.document, engineeringSystem, phaseProgress: { highestUnlockedStep: 1 }, systemGeneratedFromRevision: engineeringSystem.generatedFromRevision, updatedAt: new Date().toISOString() };
-        latest.revision = (latest.revision || 0) + 1;
-        latest.updatedAt = latest.document.updatedAt;
-        latest.updatedBy = request.auth.user.id;
-        if (current.workspace.project?.document?.id === project.id) current.workspace.project = latest;
-        return { engineeringSystem, memoryRevision: latest.document.memoryRevision || 0 };
-      });
-    })();
-    initializingSystems.set(operationKey, operation);
-    try { return await operation; } finally { initializingSystems.delete(operationKey); }
-  });
-
-  app.post("/api/system-ai/interpret-hypothesis", {
-    preHandler: [requireAuth, requireCsrf],
-    config: { rateLimit: { max: 60, timeWindow: "1 hour" } },
-    schema: { tags: ["System"], summary: "Interpret a canvas hypothesis against the saved architecture", body: interpretationRequestSchema }
-  }, async (request) => {
-    const data = store.read();
-    const record = data.workspace.projects?.[request.body.projectId];
-    if (!record) throw httpError(404, "PROJECT_NOT_FOUND", "Project was not found.");
-    if (!canAccessProject(data, request.auth.user, record) || request.auth.user.accessRole === "advisor") throw httpError(403, "FORBIDDEN", "You cannot change this project.");
-    const baseline = record.document.engineeringSystem;
-    const deliveryRevision = data.workspace.delivery?.[record.document.id]?.revision || 0;
-    if (!baseline) throw httpError(409, "SYSTEM_NOT_READY", "Initialize the project architecture first.");
-    const result = await systemAi.interpret(baseline, request.body.text, request.body.language, { ...request.body, project: record.document, actorId: request.auth.user.id });
-    const current = store.read(), latest = current.workspace.projects?.[request.body.projectId];
-    if (!latest || !canAccessProject(current, request.auth.user, latest)) throw httpError(403, "FORBIDDEN", "Project access changed.");
-    if (!isDeepStrictEqual(baseline, latest.document.engineeringSystem)) throw httpError(409, "SYSTEM_CHANGED", "The architecture changed. Interpret the idea again.");
-    if ((current.workspace.delivery?.[record.document.id]?.revision || 0) !== deliveryRevision) throw httpError(409, "PROJECT_CONTEXT_CHANGED", "Os requisitos mudaram. Interprete a ideia novamente.");
-    const analysis = intelligence.analysisContext(record.document.id, request.auth.user.id);
-    return { ...result, baselineId: baseline.id, baselineRevision: baseline.revision || 0, baselineGeneratedAt: baseline.generatedAt, analysisModel: analysis.model, deliveryRevision: analysis.deliveryRevision };
-  });
-
-  app.get('/api/projects/:id/analysis-context', { preHandler: [requireAuth] }, async request => {
-    const data = store.read(), record = data.workspace.projects?.[request.params.id];
-    if (!record || !canAccessProject(data, request.auth.user, record)) throw httpError(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível.');
-    const baseline = record.document.engineeringSystem;
-    if (!baseline) throw httpError(409, 'SYSTEM_NOT_READY', 'Crie ou revise a arquitetura primeiro.');
-    const analysis = intelligence.analysisContext(record.document.id, request.auth.user.id);
-    return { analysisModel: analysis.model, deliveryRevision: analysis.deliveryRevision, baselineId: baseline.id, baselineRevision: baseline.revision || 0, baselineGeneratedAt: baseline.generatedAt };
   });
 
   const projectParams = {
@@ -1751,11 +1362,6 @@ export async function buildApp(options = {}) {
     return { project: record.document, revision: record.revision, updatedAt: record.updatedAt };
   }));
 
-  app.get('/api/projects/:id/system-history', { preHandler: [requireAuth], schema: { params: projectParams } }, async request => {
-    const record = extractionProject(store.read(), request.auth.user, request.params.id);
-    return { versions: record.engineeringHistory || [], extractionReport: record.extractionReport || null };
-  });
-
   app.put("/api/projects/:id", {
     bodyLimit: 32 * 1024 * 1024,
     preHandler: [requireAuth, requireCsrf],
@@ -1795,8 +1401,6 @@ export async function buildApp(options = {}) {
         updatedBy: request.auth.user.id
       };
       data.workspace.projects[request.params.id] = record;
-      intelligence.captureMapCorrections?.(data, previous.document, record.document, request.auth.user.id);
-      if (changedOrganization) recordActivity(data, request.auth.user.id, record.document.id, "organizationUpdated");
       data.workspace.project = record;
       return { project: record.document, revision: record.revision, updatedAt: record.updatedAt };
     });
@@ -1832,87 +1436,10 @@ export async function buildApp(options = {}) {
     reply.code(204).send();
   });
 
-  app.get("/api/workspace/project", { preHandler: [requireAuth] }, async (request) => {
-    const data = store.read(), record = data.workspace.project;
-    if (record && !canAccessProject(data, request.auth.user, record)) throw httpError(403, "FORBIDDEN", "You cannot open this project.");
-    return { project: record?.document ?? null, revision: record?.revision ?? 0, updatedAt: record?.updatedAt ?? null, validationResetId: data.workspace.validationResetId ?? null };
-  });
-  app.put("/api/workspace/project", { bodyLimit: 32 * 1024 * 1024, preHandler: [requireAuth, requireCsrf] }, async (request, reply) => {
-    if (!validProjectDocument(request.body)) throw httpError(400, "INVALID_PROJECT", "Invalid project.");
-    const exists = store.read().workspace.projects?.[request.body.id];
-    const response = await app.inject({ method: exists ? "PUT" : "POST", url: exists ? `/api/projects/${encodeURIComponent(request.body.id)}` : "/api/projects", headers: { cookie: request.headers.cookie, "x-csrf-token": request.headers["x-csrf-token"] }, payload: request.body });
-    return reply.code(response.statusCode === 201 ? 200 : response.statusCode).send(response.json());
-  });
-
-  const labParams = {
-    type: "object",
-    additionalProperties: false,
-    required: ["projectId"],
-    properties: {
-      projectId: {
-        type: "string",
-        minLength: 1,
-        maxLength: 100,
-        pattern: "^(?!__proto__$)(?!constructor$)(?!prototype$)[A-Za-z0-9._:-]+$"
-      }
-    }
-  };
-
-  app.get("/api/workspace/labs/:projectId", {
-    preHandler: [requireAuth],
-    schema: { tags: ["System"], summary: "Read a shared exploration map", security: [{ sessionCookie: [] }], params: labParams }
-  }, async (request) => {
-    const data = store.read(), project = data.workspace.projects?.[request.params.projectId];
-    if (!project || !canAccessProject(data, request.auth.user, project)) throw httpError(403, "FORBIDDEN", "You cannot open this project.");
-    const record = data.workspace.labs[request.params.projectId];
-    return { board: record?.document ?? null, revision: record?.revision ?? 0, updatedAt: record?.updatedAt ?? null };
-  });
-
-  app.put("/api/workspace/labs/:projectId", {
-    bodyLimit: 4 * 1024 * 1024,
-    preHandler: [requireAuth, requireCsrf],
-    schema: {
-      tags: ["System"],
-      summary: "Persist a shared exploration map",
-      security: [{ sessionCookie: [], csrfToken: [] }],
-      params: labParams,
-      body: { type: "object", additionalProperties: true }
-    }
-  }, async (request) => {
-    if (request.auth.user.accessRole === "advisor") throw httpError(403, "FORBIDDEN", "Advisors have read-only access to the project workspace.");
-    if (!validLabBoard(request.body)) throw httpError(400, "INVALID_LAB_BOARD", "The exploration map is invalid or unsupported.");
-    return store.update((data) => {
-      const project = data.workspace.projects?.[request.params.projectId];
-      if (!project || !canAccessProject(data, request.auth.user, project)) throw httpError(403, "FORBIDDEN", "You cannot update this project.");
-      const previous = data.workspace.labs[request.params.projectId];
-      const record = {
-        document: preserveProjectProgress(previous?.document, request.body),
-        revision: (previous?.revision ?? 0) + 1,
-        updatedAt: new Date().toISOString(),
-        updatedBy: request.auth.user.id
-      };
-      data.workspace.labs[request.params.projectId] = record;
-      return { board: record.document, revision: record.revision, updatedAt: record.updatedAt };
-    });
-  });
-
   if (options.serveStatic ?? production) {
-    await app.register(fastifyStatic, { root: resolve("dist"), prefix: "/" });
+    await app.register(fastifyStatic, { root: options.staticRoot || fileURLToPath(new URL('../dist/', import.meta.url)), prefix: '/' });
   }
-
   app.decorate("missionStore", store);
-  app.addHook("onReady", async () => {
-    if (typeof systemAi.restore !== 'function') return;
-    // Only explicitly started background jobs are recovered. No old demo map or
-    // failed attempt is regenerated silently during server startup.
-    for (const [id, job] of extractionJobs) {
-      if (!job.autoRun || job.applied) continue;
-      try {
-        await extractionGuard(job)();
-        await extractionState(id, job, { summary: true });
-      } catch (error) { app.log.info({ event: 'extraction.recovery_skipped', jobId: id, code: error.code }, 'Extraction recovery awaits a valid current project'); }
-    }
-  });
-  app.addHook("onClose", async () => { await systemAi.close?.(); await store.close?.(); });
+  app.addHook("onClose", async () => { await store.close?.(); });
   return app;
 }

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads;
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads;
 const input=require('./fixtures/memory-b001-thread-results.json');
 const {scenario,clone,threadOutput,chunkOutput}=require('./fixtures/thread-scenarios.cjs');
 async function execute(batch=input,send=threadOutput){

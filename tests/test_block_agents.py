@@ -5,9 +5,9 @@ import threading
 from urllib.error import HTTPError
 from unittest.mock import patch
 
-import ai_runtime
+from meetings.engine import ai_runtime
 import auth
-import block_agents as B
+from meetings.engine import block_agents as B
 import config
 
 
@@ -47,6 +47,16 @@ class BlockTests(unittest.TestCase):
             self.runtime.run_once()
         return self.blocks.review(self.user, {'session_id': 's1'}), model.call_count, response
 
+    def test_inspection_is_scoped_to_saved_meeting_and_user(self):
+        self.process()
+        result = self.blocks.inspect(self.user, {'session_id': 's1'})
+        self.assertFalse(result['external_context'])
+        self.assertEqual(result['editorial_total'], 2)
+        self.assertEqual(result['learning']['version'], 0)
+        with self.assertRaises(ValueError): self.blocks.inspect(self.other, {'session_id': 's1'})
+        with self.assertRaises(ValueError): self.blocks.inspect(self.user, {'session_id': 'other'})
+        with self.assertRaises(ValueError): self.blocks.inspect(self.user, {'session_id': 's1', 'user_id': self.other})
+
     def test_editor_critic_publish_overlay_without_mutating_original(self):
         before = self.store.get_record(self.user, B.PREFIX + 's1')
         result, calls, _ = self.process()
@@ -67,7 +77,7 @@ class BlockTests(unittest.TestCase):
             self.assertFalse(self.runtime.run_once())
         self.assertEqual(model.call_count, 2)
 
-    def test_human_correction_reused_only_with_same_source_context_and_account(self):
+    def test_human_correction_stays_in_same_meeting_source_context_and_account(self):
         result, _, _ = self.process()
         entry = result['review']['blocks']['E1']
         body = {'session_id': 's1', 'id': 'E1', 'kind': 'block', 'key': entry['key'], 'version': entry['version'],
@@ -78,11 +88,9 @@ class BlockTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.blocks.feedback(self.user, body)  # stale edit
         self.save(meeting(), 's2')
         reused = self.blocks.review(self.user, {'session_id': 's2'})
-        self.assertEqual(reused['status'], 'ready')
-        self.assertEqual(reused['review']['blocks']['E1']['text'], body['text'])
-        self.assertEqual(self.blocks.overview()['human_reused_items'], 1)
-        self.blocks.review(self.user, {'session_id': 's2'})
-        self.assertEqual(self.blocks.overview()['human_reused_items'], 1)
+        self.assertEqual(reused['review']['blocks'], {})
+        self.assertEqual(self.blocks.review(self.user, {'session_id': 's1'})['review']['blocks']['E1']['text'], body['text'])
+        self.assertEqual(self.blocks.overview()['human_reused_items'], 0)
         self.save(meeting(), user=self.other)
         self.assertEqual(self.blocks.review(self.other, {'session_id': 's1'})['review']['blocks'], {})
         changed = meeting(); changed['meeting_events'].insert(0, {'event_id': 'E0', 'thread_id': 'T1', 'type': 'observation', 'text': 'Novo contexto.'})
@@ -97,6 +105,19 @@ class BlockTests(unittest.TestCase):
         self.blocks.disable({'user_id': self.user, 'key': title['key']})
         self.assertEqual(self.blocks.review(self.user, {'session_id': 's1'})['review'], {'blocks': {}, 'titles': {}})
         self.assertFalse(self.runtime.run_once())
+
+    def test_legacy_editorial_key_is_read_only_in_its_original_meeting(self):
+        result, _, _ = self.process()
+        scoped = result['review']['blocks']['E1']['key']
+        legacy = next(item['key'] for item in B.items_for(meeting()) if item['kind'] == 'block')
+        self.store._run('UPDATE ai_block_memory SET key=%s WHERE user_id=%s AND key=%s', (legacy, self.user, scoped))
+        with patch.object(self.blocks, 'ask') as provider:
+            original = self.blocks.review(self.user, {'session_id': 's1'})
+            self.assertEqual(original['review']['blocks']['E1']['text'], SUMMARY)
+            self.assertEqual(original['review']['blocks']['E1']['key'], legacy)
+            self.save({**meeting(), 'id': 's2'}, 's2')
+            self.assertEqual(self.blocks.review(self.user, {'session_id': 's2'})['review']['blocks'], {})
+            provider.assert_not_called()
 
     def test_manual_titles_and_short_blocks_need_no_editor(self):
         run = meeting('Texto já curto.'); run['topic_titles']['T1'] = 'Meu título'
@@ -160,6 +181,60 @@ class BlockTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.blocks.review(self.other, {'session_id':'s1'})
         with self.assertRaises(ValueError): self.blocks.review(self.user, {'session_id':'s1','user_id':self.other})
 
+    def test_editor_rejects_long_wall_of_text_but_accepts_short_bullets(self):
+        source = 'Marina revisará o suporte. Ana conferirá o relatório. ' * 8
+        self.assertFalse(B.concise_summary(source, source))
+        self.assertTrue(B.concise_summary(source, 'Marina revisará o suporte.\nAna conferirá o relatório.'))
+        self.assertFalse(B.concise_summary('Usar 20 N. Não ultrapassar 30 N.', 'Usar 30 N.'))
+
+    def test_classification_learning_is_versioned_scoped_and_reversible(self):
+        from meetings.engine.meeting_learning import LABELS
+        correction = {'session_id': 's1', 'action': 'correct', 'version': 0, 'event_id': 'E1',
+                      'source': SOURCE, 'label': 'decision', 'summary': SUMMARY, 'note': 'Há uma decisão explícita.'}
+        with patch.object(self.blocks, 'ask', return_value={'label': 'decision', 'rationale': 'A fala registra a decisão de revisar o suporte.', 'anchors': ['ficou decidido']}) as model:
+            result = self.blocks.learning(self.user, correction)
+        self.assertEqual(model.call_args.args[1], 'learn')
+        self.assertEqual(result['learning']['version'], 1)
+        self.assertEqual(result['learning']['examples'][0]['status'], 'llm_reviewed')
+        request = {'model': 'jev-latest', 'state': {'current_utterance': 'Decidimos rever a base.', '_norte_meeting_id': 's1'},
+                   'questions': {'event_type': {'type': 'choice', 'instructions': 'Classifique a fala.', 'criteria': {label: label for label in LABELS}}}}
+        updated = self.blocks.apply_learning(self.user, request)
+        self.assertEqual(updated['state']['meeting_feedback']['version'], 1)
+        self.assertNotIn('_norte_meeting_id', updated['state'])
+        self.assertNotIn('meeting_feedback', request['state'], 'original request must remain auditable')
+        self.assertIn('reviewed examples', updated['questions']['event_type']['instructions'])
+        self.assertNotIn('meeting_feedback', self.blocks.apply_learning(self.other, request)['state'])
+        other_session = json.loads(json.dumps(request)); other_session['state']['_norte_meeting_id'] = 's2'
+        self.assertNotIn('meeting_feedback', self.blocks.apply_learning(self.user, other_session)['state'])
+        with self.assertRaises(ValueError): self.blocks.learning(self.other, {'session_id': 's1', 'action': 'get'})
+        with self.assertRaises(ValueError): self.blocks.learning(self.user, correction)
+        reverted = self.blocks.learning(self.user, {'session_id': 's1', 'action': 'revert', 'version': 1, 'target_version': 0})
+        self.assertEqual(reverted['learning']['version'], 2)
+        self.assertEqual(reverted['learning']['examples'], [])
+        self.assertNotIn('meeting_feedback', self.blocks.apply_learning(self.user, request)['state'])
+
+    def test_learning_never_publishes_an_invented_label_or_anchor_as_llm_reviewed(self):
+        body = {'session_id': 's1', 'action': 'correct', 'version': 0, 'event_id': 'E1', 'source': SOURCE, 'label': 'decision'}
+        with patch.object(self.blocks, 'ask', return_value={'label': 'test_result', 'rationale': 'Teste aprovado.', 'anchors': ['teste aprovado']}):
+            result = self.blocks.learning(self.user, body)
+        entry = result['learning']['examples'][0]
+        self.assertEqual(entry['label'], 'decision')
+        self.assertEqual(entry['status'], 'human_example')
+        self.assertNotIn('rationale', entry)
+        self.assertEqual(self.store.get_record(self.user, B.PREFIX + 's1')[0], json.dumps(meeting()))
+
+    def test_learning_discards_untrusted_context_and_no_longer_applies_after_source_changes(self):
+        body = {'session_id': 's1', 'action': 'correct', 'version': 0, 'event_id': 'E1', 'source': SOURCE, 'label': 'decision'}
+        with patch.object(self.blocks, 'ask', return_value=None): self.blocks.learning(self.user, body)
+        request = {'model': 'jev-latest', 'state': {'current_utterance': 'Decidimos rever a base.', '_norte_meeting_id': 's1', 'meeting_feedback': {'forged': True}},
+                   'questions': {'event_type': {'type': 'choice', 'instructions': 'Classifique.', 'criteria': {'decision': 'Decision', 'other': 'Other'}}}}
+        self.assertEqual(self.blocks.apply_learning(self.user, request)['state']['meeting_feedback']['version'], 1)
+        run = meeting(); run['meeting_events'][0]['text'] = 'Outro trecho.'
+        self.store.put_record(self.user, B.PREFIX + 's1', json.dumps(run))
+        self.assertNotIn('meeting_feedback', self.blocks.apply_learning(self.user, request)['state'])
+        request['state']['_norte_meeting_id'] = ['invalid']
+        self.assertNotIn('meeting_feedback', self.blocks.apply_learning(self.user, request)['state'])
+
     def test_budget_shared_with_existing_agents_and_cost_measured(self):
         self.runtime.settings=dataclasses.replace(self.runtime.settings,ai_daily_call_limit=0)
         with patch.object(ai_runtime.AI_HTTP,'open') as http:
@@ -189,7 +264,7 @@ class BlockTests(unittest.TestCase):
             self.assertIsNone(self.blocks.ask(self.user, 'edit', {'items': []}))
         status = self.runtime.provider_status()
         self.assertEqual(status['last_error']['http_status'], 401)
-        self.assertNotIn('SECRET', json.dumps(self.runtime.overview()))
+        self.assertNotIn('SECRET', json.dumps({'provider': status, 'usage': self.store._run('SELECT details FROM ai_usage', fetch='all')}))
         budget = self.store._run('SELECT calls,reserved_usd FROM ai_budget', fetch='one')
         self.assertEqual(budget[0], 1); self.assertGreater(budget[1], 0)
         self.assertEqual(self.blocks.overview()['unknown_cost_calls'], 1)

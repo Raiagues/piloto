@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { canManageTeam, invitationStatus, normalizeNickname } from './team-identity.mjs';
 import { findLoginUser, validLogin } from './login-identity.mjs';
 import { createMailer } from './email.mjs';
-import { sameDemoScope } from './demo-account.mjs';
+import { sameDemoScope } from './account-scope.mjs';
 
 const fail = (statusCode, code, message) => Object.assign(new Error(message), { statusCode, code });
 const hash = value => createHash('sha256').update(value).digest('hex');

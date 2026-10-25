@@ -4,7 +4,7 @@
 // No model calls. The ephemeral loopback server serves static assets and the run only.
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),http=require('node:http'),crypto=require('node:crypto');
 const {spawn,execFileSync}=require('node:child_process'),{setTimeout:sleep}=require('node:timers/promises');
-const F=require('../memory-flow.js'),TR=require('../typed-relations.js'),M=require('../meeting-minutes.js');
+const F=require('../meetings/web/memory-flow.js'),TR=require('../meetings/web/typed-relations.js'),M=require('../meetings/web/meeting-minutes.js');
 function options(argv){const out={};for(let i=0;i<argv.length;i++){if(argv[i]==='--help')out.help=true;else if(['--run','--output'].includes(argv[i])&&argv[i+1]&&!argv[i+1].startsWith('--'))out[argv[i++].slice(2)]=argv[i];else throw Error('Use --run artifact.json --output minutes.pdf');}if(!out.help&&(!out.run||!out.output))throw Error('Both --run and --output are required.');return out;}
 const normalize=s=>s.normalize('NFKC').replace(/\s+/gu,' ').trim();
 async function main(){

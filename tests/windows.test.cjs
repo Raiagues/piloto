@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { Cutter, alignWords } = require('../speech-windows.js');
-const { Ledger } = require('../transcription.js');
+const { Cutter, alignWords } = require('../meetings/web/speech-windows.js');
+const { Ledger } = require('../meetings/web/transcription.js');
 const result = (text, final = false) => Object.assign([{ transcript: text, confidence: .8 }], { isFinal: final });
 
 function interruptedSentence(prefix, full) {

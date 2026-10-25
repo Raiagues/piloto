@@ -31,21 +31,25 @@ export function UsagePrivacyControl({ language }: { language: Language }) {
       setBusy(false);
     }
   }
-  return <div className="usage-privacy"><label><input type="checkbox" disabled={busy} checked={allowed} onChange={event => void change(event.target.checked)} />{language === 'pt' ? 'Compartilhar métricas de navegação para melhorar o Norte' : 'Share navigation metrics to improve Norte'}</label><small>{language === 'pt' ? 'Telas, tempo ativo e opções de planos. Sem conteúdo de documentos ou mensagens. Desativar remove suas métricas de uso.' : 'Pages, active time and plan choices. No document or message content. Disabling removes your usage metrics.'}</small>{error && <p role="alert">{error}</p>}</div>;
+  return <div className="usage-privacy"><label><input type="checkbox" disabled={busy} checked={allowed} onChange={event => void change(event.target.checked)} />{language === 'pt' ? 'Compartilhar métricas de navegação para melhorar o Norte' : 'Share navigation metrics to improve Norte'}</label><small>{language === 'pt' ? 'Telas, tempo ativo, funções usadas e país/região quando disponíveis. Sem conteúdo de documentos ou mensagens. Desativar remove suas métricas de uso.' : 'Pages, active time, feature usage and country/region when available. No document or message content. Disabling removes your usage metrics.'}</small>{error && <p role="alert">{error}</p>}</div>;
 }
 export function UsageTelemetry() {
   const { user } = useAuth();
   useEffect(() => {
     token = ''; let activeAt = Date.now(), seconds = 0, page = '', consent = usageAllowed();
-    const current = () => { const hash = window.location.hash.split('?')[0]; const mapping: Record<string, string> = { '#/': user ? 'home' : 'landing', '#/login': 'login', '#/register': 'register', '#/new-project': 'newProject', '#/study-setup': 'setup', '#/project-team': 'projectTeam', '#/brainstorming': 'brainstorm', '#/admin/users': 'admin', '#/admin': 'admin' }; return mapping[hash] || (['requirements', 'verification', 'schedule', 'meetings', 'teams', 'dashboard', 'invitations', 'people', 'messages', 'plans'].find(name => hash.startsWith('#/' + name))) || (user ? 'home' : 'landing'); };
+    const current = () => { const hash = window.location.hash.split('?')[0]; const mapping: Record<string, string> = { '#/': user ? 'home' : 'landing', '#/landing': 'landing', '#/home': 'home', '#/login': 'login', '#/register': 'register', '#/new-project': 'newProject' }; return mapping[hash] || (['requirements', 'verification', 'schedule', 'documents', 'meetings', 'teams', 'invitations', 'people', 'messages', 'privacy', 'terms', 'admin'].find(name => hash.startsWith('#/' + name))) || (user ? 'home' : 'landing'); };
     const flush = () => { if (seconds > 0 && page) void trackUsage('page_time', page, {}, seconds); seconds = 0; };
     const route = () => { flush(); const next = current(); if (page !== next) { page = next; activeAt = Date.now(); if (consent) void trackUsage('page_view', page); } };
     const interaction = () => { activeAt = Date.now(); };
+    const click = (event: MouseEvent) => {
+      const action = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-usage-action]')?.dataset.usageAction : undefined;
+      if (consent && action) void trackUsage('feature_click', page, { action });
+    };
     const change = () => { consent = usageAllowed(); token = ''; if (consent) { page = ''; route(); } else seconds = 0; };
     const visibility = () => { if (document.visibilityState !== 'visible') flush(); else activeAt = Date.now(); };
     const timer = window.setInterval(() => { if (consent && document.visibilityState === 'visible' && Date.now() - activeAt < 60000) seconds++; if (seconds >= 30) flush(); }, 1000);
-    route(); window.addEventListener('hashchange', route); window.addEventListener('norte-usage-consent-changed', change); window.addEventListener('pointerdown', interaction); window.addEventListener('keydown', interaction); window.addEventListener('scroll', interaction, true); window.addEventListener('pagehide', flush); document.addEventListener('visibilitychange', visibility);
-    return () => { flush(); window.clearInterval(timer); window.removeEventListener('hashchange', route); window.removeEventListener('norte-usage-consent-changed', change); window.removeEventListener('pointerdown', interaction); window.removeEventListener('keydown', interaction); window.removeEventListener('scroll', interaction, true); window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', visibility); };
+    route(); window.addEventListener('click', click); window.addEventListener('hashchange', route); window.addEventListener('norte-usage-consent-changed', change); window.addEventListener('pointerdown', interaction); window.addEventListener('keydown', interaction); window.addEventListener('scroll', interaction, true); window.addEventListener('pagehide', flush); document.addEventListener('visibilitychange', visibility);
+    return () => { flush(); window.clearInterval(timer); window.removeEventListener('click', click); window.removeEventListener('hashchange', route); window.removeEventListener('norte-usage-consent-changed', change); window.removeEventListener('pointerdown', interaction); window.removeEventListener('keydown', interaction); window.removeEventListener('scroll', interaction, true); window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', visibility); };
   }, [user?.id]);
   return null;
 }

@@ -2,64 +2,20 @@ import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { normalizeNickname, uniqueNickname, validNickname } from "./team-identity.mjs";
 import { randomUUID } from "node:crypto";
-import { QUETZAL_PROJECT_ID, QUETZAL_PROJECT_NAME, QUETZAL_TEAM_ID, QUETZAL_TEAM_NAME } from "../examples/quetzal1/source-manifest.mjs";
-
-export const VALIDATION_TEAM_ID = QUETZAL_TEAM_ID;
-export const VALIDATION_PROJECT_ID = QUETZAL_PROJECT_ID;
-export const VALIDATION_TEAM_NAME = QUETZAL_TEAM_NAME;
-export const VALIDATION_PROJECT_NAME = QUETZAL_PROJECT_NAME;
-
-export function createValidationProject(timestamp = new Date().toISOString()) {
-  return {
-    schemaVersion: 2,
-    id: VALIDATION_PROJECT_ID,
-    name: QUETZAL_PROJECT_NAME,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    navigation: { lastRoute: "setup" },
-    phaseProgress: { highestUnlockedStep: 0 },
-    memoryRevision: 1,
-    context: {
-      // Quetzal-1 is an independent engineering project: it has no competition
-      // program, modality or category. Real documents are attached by the
-      // explicit importer, never invented by application startup.
-      configured: false, programId: null, modalityId: null, categoryId: null, referenceProgram: "independent",
-      teamId: VALIDATION_TEAM_ID, teamName: VALIDATION_TEAM_NAME,
-      teamArtifactIds: [], projectArtifactIds: [],
-      roles: [{ id: "captain", name: "Lead" }, { id: "manager", name: "Manager" }, { id: "member", name: "Member" }, { id: "advisor", name: "Advisor" }],
-      sectors: [], assignments: []
-    },
-    setup: { intent: "problem", statement: "", framework: "norte-core", references: [] },
-    board: { nodes: [], links: [] },
-    progress: { mode: "standard", customCriteria: [] },
-    studies: [], resolvedIssueKeys: [],
-    templates: { activeTemplateId: "norte-core-v1", lockedPaths: [] }
-  };
-}
+export const DEFAULT_PROJECT_ROLES = [{id:'captain',name:'Responsável'},{id:'manager',name:'Gestor'},{id:'member',name:'Integrante'},{id:'advisor',name:'Revisor'}];
 
 export function createInitialData() {
   const timestamp = new Date().toISOString();
-  const project = { document: createValidationProject(timestamp), revision: 1, updatedAt: timestamp };
-  return {
-    schemaVersion: 10,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-    users: [], members: [], artifacts: [], sessions: [], invitations: [], emailVerifications: [], teamStats: {}, activity: [], meetings: {}, meetingInvitations: [],
-    teams: [{
-      id: VALIDATION_TEAM_ID, name: VALIDATION_TEAM_NAME, description: "",
-      memberIds: [], artifactIds: [], joinRequests: [], createdBy: null,
-      createdAt: timestamp, updatedAt: timestamp
-    }],
-    workspace: { project, projects: { [VALIDATION_PROJECT_ID]: project }, labs: {} }
-  };
+  return { schemaVersion: 10, createdAt: timestamp, updatedAt: timestamp,
+    users: [], members: [], artifacts: [], sessions: [], invitations: [], emailVerifications: [],
+    meetings: {}, meetingInvitations: [], teams: [], workspace: { projects: {}, delivery: {} } };
 }
 
 export function normalizeStoredData(value, { copy = true } = {}) {
   if (!value || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(value.schemaVersion) || !Array.isArray(value.users) || !Array.isArray(value.members) || !Array.isArray(value.artifacts)) {
     throw new Error("Unsupported Norte data schema.");
   }
-  // Normal startup only normalizes shape. Removing old demo data is an explicit,
-  // guarded operation in scripts/reset-validation-data.mjs, never a migration.
+  // Normalization preserves stored work; a new installation starts empty.
   const previousSchema = value.schemaVersion;
   // A freshly decoded compressed database snapshot is already privately owned.
   // Other callers retain copy-on-normalize, including JSON stores and tools.
@@ -67,8 +23,6 @@ export function normalizeStoredData(value, { copy = true } = {}) {
   data.schemaVersion = 10;
   data.invitations ??= [];
   data.emailVerifications ??= [];
-  data.teamStats ??= {};
-  data.activity ??= [];
   data.meetings ??= {};
   data.meetingInvitations ??= [];
   const named = [];
@@ -86,11 +40,10 @@ export function normalizeStoredData(value, { copy = true } = {}) {
   data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
   data.teams = Array.isArray(data.teams) ? data.teams : [];
   data.workspace = data.workspace && typeof data.workspace === "object" && !Array.isArray(data.workspace)
-    ? data.workspace : { project: null, projects: {}, labs: {} };
+    ? data.workspace : { projects: {}, delivery: {} };
   data.workspace.project ??= null;
   if (!data.workspace.projects || typeof data.workspace.projects !== "object" || Array.isArray(data.workspace.projects)) data.workspace.projects = {};
   if (data.workspace.project?.document?.id) data.workspace.projects[data.workspace.project.document.id] ??= data.workspace.project;
-  if (!data.workspace.labs || typeof data.workspace.labs !== "object" || Array.isArray(data.workspace.labs)) data.workspace.labs = {};
   data.artifacts = data.artifacts.map((artifact) => ({
     ...artifact,
     url: typeof artifact.url === "string" ? artifact.url.replace(/^\/mission-dev\/artifacts\//u, "artifacts/") : artifact.url,
@@ -116,7 +69,7 @@ export function normalizeStoredData(value, { copy = true } = {}) {
     project.context.folders ??= [];
     project.context.sectors ??= [];
     project.context.assignments ??= [];
-    project.context.roles ??= createValidationProject().context.roles;
+    project.context.roles ??= structuredClone(DEFAULT_PROJECT_ROLES);
     project.context.teamId ??= data.teams.find((team) => team.name === project.context.teamName)?.id ?? null;
     project.context.teamArtifactIds = Array.isArray(project.context.teamArtifactIds) ? project.context.teamArtifactIds : [];
     project.context.projectArtifactIds = Array.isArray(project.context.projectArtifactIds) ? project.context.projectArtifactIds : [];
@@ -170,7 +123,7 @@ export class JsonDataStore {
 
   async persist(data) {
     const temporaryPath = `${this.filePath}.${process.pid}.${randomUUID()}.tmp`;
-    await writeFile(temporaryPath, `${JSON.stringify(data, null, 2)}\n`, { mode: 0o600 });
+    await writeFile(temporaryPath, `${JSON.stringify(data)}\n`, { mode: 0o600 });
     await rename(temporaryPath, this.filePath);
     await chmod(this.filePath, 0o600);
   }

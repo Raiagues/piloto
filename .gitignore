@@ -9,6 +9,24 @@ node_modules/
 *.sqlite3
 *.sqlite3-*
 norte/data/extraction-cache/
+# User documents, derived answer keys and results stay private.
+/VEÍCULO ORBITAL LYLE.pdf
+/jev_results_tracker_tests_002_to_007.xlsx
+/B002.json
+/MEMORY_RELATIONS_LIMITATIONS.md
+/RELATIONS_VALIDATION.md
+/exemplos-testes/
+/novo_teste/**
+!/novo_teste/**/
+!/novo_teste/**/README.md
+!/novo_teste/scripts/import-meeting-results.mjs
+!/novo_teste/resultados/reunioes/scripts/avaliar_lyle.cjs
+!/novo_teste/resultados/reunioes/scripts/provedores_lyle.py
+!/novo_teste/resultados/reunioes/scripts/preparar-seed-lyle.cjs
+!/novo_teste/resultados/reunioes/scripts/visual-lyle.mjs
+!/novo_teste/resultados/reunioes/scripts/revisoes-lyle.test.cjs
+/norte/examples/lyle-synthetic/**
+!/norte/examples/lyle-synthetic/README.md
 # Editor recovery files stay local.
 *.swp
 *.swo

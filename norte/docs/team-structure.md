@@ -10,13 +10,13 @@ O modelo separa **nível de acesso**, **função na equipe** e **área técnica*
 - Membro: contribui nas áreas principal e secundárias.
 - Orientador: revisa e aconselha, com acesso de leitura por padrão.
 
-## Áreas disponíveis
+## Áreas pesquisadas
 
-Sistemas e integração; missão e carga útil; gestão do projeto; estruturas e térmica; potência; OBC e aviónica; software de voo; comunicações e segmento solo; ADCS/GNC; integração e testes; operações e análise orbital; segurança e regulação; finanças/compras/patrocínio; comunicação e documentação.
+Sistemas e integração; missão e carga útil; gestão do projeto; estruturas e térmica; potência; OBC e aviónica; software de voo; comunicações e segmento solo; ADCS/GNC; integração e testes; operações e análise orbital; segurança e regulação; finanças/compras/patrocínio; comunicação e documentação. São referências de pesquisa, não setores criados automaticamente no produto.
 
 ## Dados de perfil
 
-São coletados somente dados úteis ao trabalho: nome, e-mail, instituição, curso/etapa, função, áreas, competências, disponibilidade e notas de contexto. CPF, RG, endereço, data de nascimento e documentos acadêmicos não são necessários para colaborar no projeto e ficam fora deste cadastro.
+O perfil pessoal permite manter nome, login, nickname, email e foto. Curso, período, instituição acadêmica e horas disponíveis foram retirados. Vínculos de equipe/empresa mostram cargo e função para leitura; somente a liderança autorizada da equipe pode alterá-los. Texto de cargo não concede acesso administrativo.
 
 ## Referências da pesquisa
 

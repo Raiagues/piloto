@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow'),T=require('../relation-worker').threads;
+const F=require('../meetings/web/memory-flow'),T=require('../meetings/web/relation-worker').threads;
 const {clone,chunkOutput,response}=require('./fixtures/thread-scenarios.cjs');
 const batch=require('./fixtures/memory-b001-continuity.json');
 

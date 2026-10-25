@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const Speech=require('../meeting-speech.js'),Session=require('../meeting-session.js');
+const Speech=require('../meetings/web/meeting-speech.js'),Session=require('../meetings/web/meeting-session.js');
 const actual='Oi gente a gente vai começar a reunião agora hoje a gente vai tentar fazer a simulação da Viga porque ela tinha dado um problema na parte anterior então vamos começar a gente vai tentar mudar ela de 20 cm para 25 cm para a gente conseguir entender principalmente qual que vai ser todo o efeito';
 const command='tá então o Norte vamos simular um teste uma discussão vamos simular uma viga';
 function lossless(text,segments){
@@ -35,7 +35,7 @@ test('a new unaddressed simulation instruction cannot complete a previous unfini
  for(const next of ['4 metros','é 4 metros','para 4 metros'])assert.equal(Speech.canContinue(previous,next),true,next);
 });
 test('speech context prompts satisfy the proxy instruction limit without altering the base contract',()=>{
- const Flow=require('../memory-flow.js'),V=require('../memory-v2.js'),E=require('../experiments.js'),original=JSON.stringify(V.questions);
+ const Flow=require('../meetings/web/memory-flow.js'),V=require('../meetings/web/memory-v2.js'),E=require('../meetings/web/experiments.js'),original=JSON.stringify(V.questions);
  for(const stage of ['store','type']){
   const request=Flow.request({current_utterance:'para 15 mm',speech_context:'Vamos testar a espessura de 10'},stage,V.questions);
   assert.doesNotThrow(()=>E.validateConfig(request));

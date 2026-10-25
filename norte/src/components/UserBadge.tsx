@@ -1,16 +1,18 @@
+import '../styles/features/account.css';
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Bell, Copy, Camera, Check, LoaderCircle, LogOut, Settings2, ShieldCheck, UsersRound, X, MessageSquare, CreditCard, Sun, Moon } from "lucide-react";
+import { Bell, Copy, Camera, Check, LoaderCircle, LogOut, Settings2, ShieldCheck, UsersRound, ContactRound, Building2, ChevronDown, X, MessageSquare, Sun, Moon } from "lucide-react";
 import { ApiError, useAuth } from "../lib/auth";
 import { accessRoleLabel } from "../lib/team";
 import type { Language } from "../lib/types";
 import type { TeamMember, TeamRecord } from "../lib/team";
 import { useTheme } from "../lib/theme";
 
+type ProfileMembership = { teamId: string; teamName: string; roleName: string; functionName: string };
+
 type Props = {
   connectedLabel: string;
   compact?: boolean;
   language?: Language;
-  canManageTeams?: boolean;
 };
 
 function avatarData(file: File): Promise<string> {
@@ -40,16 +42,17 @@ function avatarData(file: File): Promise<string> {
   });
 }
 
-export function UserBadge({ connectedLabel, compact = false, canManageTeams = false, language: preferredLanguage }: Props) {
+export function UserBadge({ connectedLabel, compact = false, language: preferredLanguage }: Props) {
   const auth = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { user, logout, isDemo } = auth;
+  const { user, logout } = auth;
   const [invitationCount, setInvitationCount] = useState(0);
   const [nickname, setNickname] = useState(user?.nickname || "");
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profile, setProfile] = useState<TeamMember | null>(null);
   const [teams, setTeams] = useState<TeamRecord[]>([]);
+  const [memberships, setMemberships] = useState<ProfileMembership[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -64,13 +67,13 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
   }, []);
 
   useEffect(() => {
-    if (!user || isDemo) return;
+    if (!user) return;
     let active = true;
     const load = () => { void auth.api<{ invitations: unknown[] }>("/invitations").then(r => { if (active) setInvitationCount(r.invitations.length); }).catch(() => undefined); };
     load(); const timer = window.setInterval(load, 45_000);
     window.addEventListener("norte-invitations-changed", load);
     return () => { active = false; window.clearInterval(timer); window.removeEventListener("norte-invitations-changed", load); };
-  }, [auth.api, user, isDemo]);
+  }, [auth.api, user]);
 
   async function openProfile() {
     setOpen(false);
@@ -79,10 +82,11 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
     setError("");
     try {
       const [profileResponse, teamResponse] = await Promise.all([
-        auth.api<{ profile: TeamMember }>("/profile"),
+        auth.api<{ profile: TeamMember; memberships?: ProfileMembership[] }>("/profile"),
         auth.api<{ teams: TeamRecord[] }>("/teams")
       ]);
       setProfile(profileResponse.profile);
+      setMemberships(profileResponse.memberships || []);
       setTeams(teamResponse.teams.filter((team) => team.membership === "member" || team.memberIds.includes(user?.memberId || "")));
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : (language === "pt" ? "Não foi possível abrir o perfil." : "The profile could not be opened."));
@@ -100,10 +104,6 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
         body: JSON.stringify({
           displayName: profile.displayName,
           ...(nickname ? { nickname } : {}),
-          institution: profile.institution,
-          course: profile.course,
-          academicStage: profile.academicStage,
-          availabilityHours: profile.availabilityHours,
           avatarUrl: profile.avatarUrl || ""
         })
       });
@@ -145,22 +145,20 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
             <div className="account-menu-head"><ShieldCheck aria-hidden="true" /><div><strong>{user.name}</strong><span>{user.email}</span></div></div>
             {user.nickname && <button type="button" onClick={() => { void navigator.clipboard.writeText(user.nickname!).catch(() => undefined); }}><Copy size={16} />@{user.nickname}</button>}
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/invitations"; }}><Bell size={16} />{language === "pt" ? "Convites" : "Invitations"} ({invitationCount})</button>
-            <div className="account-menu-role">{isDemo ? (language === "pt" ? "Conta de teste · ambiente isolado" : "Test account · isolated workspace") : accessRoleLabel(user.accessRole, language)}</div>
+            <div className="account-menu-role">{accessRoleLabel(user.accessRole, language)}</div>
             <button type="button" onClick={() => void openProfile()}><Settings2 aria-hidden="true" />{language === "pt" ? "Ver e editar perfil" : "View and edit profile"}</button>
-            <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/people"; }}><UsersRound aria-hidden="true" />{language === "pt" ? "Pessoas na plataforma" : "People on Norte"}</button>
+            <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/people"; }}><ContactRound aria-hidden="true" />{language === "pt" ? "Contatos" : "Contacts"}</button>
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/messages"; }}><MessageSquare aria-hidden="true" />{language === "pt" ? "Mensagens" : "Messages"}</button>
-            <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/plans"; }}><CreditCard aria-hidden="true" />{language === "pt" ? "Planos e contratação" : "Plans and subscriptions"}</button>
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/teams"; }}><UsersRound aria-hidden="true" />{language === "pt" ? "Minhas equipes" : "My teams"}</button>
-            {canManageTeams && <button type="button" onClick={() => { setOpen(false); window.location.hash = '#/dashboard'; }}><BarChart3 />{language === 'pt' ? 'Painel da equipe' : 'Team dashboard'}</button>}
-            {user.accessRole === 'owner_admin' && !isDemo && <button type="button" onClick={() => { setOpen(false); window.location.hash = '#/admin/users'; }}><ShieldCheck />{language === 'pt' ? 'Administrar usuários' : 'Manage users'}</button>}
-            {!isDemo && <button type="button" onClick={() => void logout()}><LogOut aria-hidden="true" />{language === "pt" ? "Sair" : "Sign out"}</button>}
+            {user.accessRole === 'owner_admin' && <button type="button" onClick={() => { setOpen(false); window.location.hash = '#/admin/users'; }}><ShieldCheck />{language === 'pt' ? 'Administrar usuários' : 'Manage users'}</button>}
+            {<button type="button" onClick={() => void logout()}><LogOut aria-hidden="true" />{language === "pt" ? "Sair" : "Sign out"}</button>}
           </div>
         )}
       </div>
 
       {profileOpen && <div className="profile-dialog-backdrop" role="presentation" onPointerDown={() => setProfileOpen(false)}>
         <section className="profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profile-dialog-title" onPointerDown={(event) => event.stopPropagation()}>
-          <header><div><span>{language === "pt" ? "CONTA" : "ACCOUNT"}</span><h2 id="profile-dialog-title">{language === "pt" ? "Seu perfil" : "Your profile"}</h2></div><button type="button" onClick={() => setProfileOpen(false)} aria-label={language === "pt" ? "Fechar" : "Close"}><X aria-hidden="true" /></button></header>
+          <header><div><h2 id="profile-dialog-title">{language === "pt" ? "Seu perfil" : "Your profile"}</h2></div><button type="button" onClick={() => setProfileOpen(false)} aria-label={language === "pt" ? "Fechar" : "Close"}><X aria-hidden="true" /></button></header>
           {!profile ? <div className="profile-loading">{error || <LoaderCircle aria-hidden="true" />}</div> : <form onSubmit={(event) => void saveProfile(event)}>
             <div className="profile-avatar-editor">
               <div>{profile.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : user.initials}</div>
@@ -168,17 +166,17 @@ export function UserBadge({ connectedLabel, compact = false, canManageTeams = fa
             </div>
             <div className="profile-fields">
               <label><span>{language === "pt" ? "Nome" : "Name"}</span><input value={profile.displayName} required maxLength={100} onChange={(event) => setProfile({ ...profile, displayName: event.target.value })} /></label>
-              <label><span>Nickname</span><input value={nickname} minLength={3} maxLength={30} pattern="[A-Za-z][A-Za-z0-9_]{2,29}" onChange={e => setNickname(e.target.value)} /><small>{language === "pt" ? "Identificador público único para receber convites." : "Unique public identifier for invitations."}</small></label>
+              <label><span>Nickname</span><input value={nickname} minLength={3} maxLength={30} pattern="[A-Za-z][A-Za-z0-9_]{2,29}" onChange={e => setNickname(e.target.value)} /></label>
               <label><span>{language === "pt" ? "Login" : "Username"}</span><input value={user.login || user.nickname || ''} readOnly /></label>
               {profile.email && <label><span>E-mail</span><input value={profile.email} readOnly /></label>}
-              <label><span>{language === "pt" ? "Universidade" : "University"}</span><input value={profile.institution} maxLength={160} onChange={(event) => setProfile({ ...profile, institution: event.target.value })} /></label>
-              <label><span>{language === "pt" ? "Curso" : "Course"}</span><input value={profile.course} maxLength={120} onChange={(event) => setProfile({ ...profile, course: event.target.value })} /></label>
-              <label><span>{language === "pt" ? "Semestre" : "Semester"}</span><input value={profile.academicStage} maxLength={80} onChange={(event) => setProfile({ ...profile, academicStage: event.target.value })} /></label>
-              <label><span>{language === "pt" ? "Horas disponíveis por semana" : "Available hours per week"}</span><input type="number" min={0} max={80} value={profile.availabilityHours} onChange={(event) => setProfile({ ...profile, availabilityHours: Number(event.target.value) })} /></label>
             </div>
-            <section className="profile-teams"><span>{language === "pt" ? "EQUIPES ASSOCIADAS" : "ASSOCIATED TEAMS"}</span><div>{teams.map((team) => <button type="button" key={team.id} onClick={() => { setProfileOpen(false); window.location.hash = "#/teams"; }}><UsersRound aria-hidden="true" /><strong>{team.name}</strong></button>)}{teams.length === 0 && <p>{language === "pt" ? "Você ainda não participa de uma equipe." : "You are not part of a team yet."}</p>}</div></section>
+            <section className="profile-teams profile-organizations"><h3>{language === "pt" ? "Equipes e empresas" : "Teams and organizations"}</h3><div>{teams.map(team => {
+              const membership = memberships.find(item => item.teamId === team.id);
+              const role = membership?.roleName || (team.captainMemberId === user.memberId ? (language === 'pt' ? 'Gestor' : 'Manager') : (language === 'pt' ? 'Integrante' : 'Member'));
+              return <details key={team.id}><summary><Building2 size={20} /><span><strong>{team.name}</strong><small>{role}</small></span><ChevronDown size={16} /></summary><dl><div><dt>{language === 'pt' ? 'Cargo' : 'Role'}</dt><dd>{role}</dd></div><div><dt>{language === 'pt' ? 'Função' : 'Responsibilities'}</dt><dd>{membership?.functionName || (language === 'pt' ? 'Ainda não definida' : 'Not assigned yet')}</dd></div></dl><p>{language === 'pt' ? 'Cargo e função são definidos pela gestão da equipe.' : 'Roles and responsibilities are assigned by team management.'}</p><a href={`#/teams?team=${encodeURIComponent(team.id)}`} onClick={() => setProfileOpen(false)}>{language === 'pt' ? 'Ver equipe' : 'View team'}</a></details>;
+            })}{teams.length === 0 && <p>{language === "pt" ? "Nenhuma equipe associada." : "No associated teams."}</p>}</div></section>
             {error && <p className="profile-error" role="alert">{error}</p>}
-            <footer><button type="button" onClick={() => setProfileOpen(false)}>{language === "pt" ? "Preencher depois" : "Complete later"}</button><button className="primary" type="submit" disabled={busy}>{busy ? <LoaderCircle className="profile-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}{language === "pt" ? "Salvar perfil" : "Save profile"}</button></footer>
+            <footer><button type="button" onClick={() => setProfileOpen(false)}>{language === "pt" ? "Cancelar" : "Cancel"}</button><button className="primary" type="submit" disabled={busy}>{busy ? <LoaderCircle className="profile-spin" aria-hidden="true" /> : <Check aria-hidden="true" />}{language === "pt" ? "Salvar perfil" : "Save profile"}</button></footer>
           </form>}
         </section>
       </div>}

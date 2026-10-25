@@ -1,7 +1,7 @@
 /** Minimal, dependency-free XLSX reader.
  *
  * Norte only needs the literal cell text of an official spreadsheet so the
- * extraction pipeline can read it. A full spreadsheet library is a large
+ * engineering analysis can read it. A full spreadsheet library is a large
  * attack surface for that, so this module reads only the ZIP entries it needs
  * (shared strings and worksheets), never evaluates formulas, never follows
  * relationships outside the archive, and never writes to disk.

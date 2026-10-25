@@ -1,23 +1,23 @@
 # Interface de projetos e equipes
 
-Revisão de 20/09/2026. As sugestões abaixo organizam o trabalho de equipes estudantis. Não substituem regulamentos, evidências técnicas ou a arquitetura extraída dos documentos.
+Revisão de 24/10/2026. As decisões atuais organizam o trabalho de equipes e empresas. As referências de organização abaixo são pesquisa; não criam setores ou regras automaticamente.
 
 ## Decisões de interação
 
 - Um cabeçalho em `App` mantém idioma, convites e perfil na mesma posição em todas as páginas autenticadas. O perfil não é montado novamente em cada página ou na lateral.
-- Criação: nome, tipo e equipe; escolher uma competição revela modalidade e classe quando houver opções conhecidas. É possível decidir a classe depois. O objetivo não é solicitado nesse formulário; objetivos de projetos existentes continuam preservados.
-- Setores: lista e organograma são apresentações alternativas. Renomear, adicionar, remover e ordenar são ações explícitas. Trocar a modalidade mantém o rascunho de setores de cada seleção durante o preenchimento.
-- Equipe do projeto: lista paginada de pessoas, com participação por checkbox e edição de cargo/acessos no botão de opções. O popup usa controles de seleção e não um acordeão. Salvar configuração continua sendo a ação que persiste as alterações.
-- Organograma: cartões agrupam o responsável e os participantes do setor, mantendo todas as pessoas. Ajuste automático, zoom e exportação SVG usam a mesma árvore de dados. Grandes equipes podem precisar de zoom para leitura; a lista oferece busca e paginação. Em telas pequenas, formulários têm rolagem vertical para manter controles legíveis.
-- O painel da equipe é acessado pelo perfil, somente para usuários autorizados a gerenciar equipes. Os controles de atividade saem da memória do projeto. A autorização da API e a coleta de dados permanecem as mesmas.
+- O projeto oferece Requisitos, Verificação, Cronograma e Documentos. As áreas experimentais foram retiradas para todas as contas.
+- Equipes mostram contas existentes e seus projetos. Cargo e função são gerenciados por quem tem autorização na equipe e aparecem somente para leitura no perfil pessoal.
+- Contatos permite buscar e carregar mais resultados; respostas antigas não substituem uma busca mais recente.
+- Navegação não grava snapshots inteiros do projeto. Cada ação confirma sua própria alteração e mantém as verificações de acesso no servidor.
+- O perfil reúne identidade e vínculos profissionais. Não coleta campos acadêmicos ou horas disponíveis.
 
 A [pesquisa do Nielsen Norman Group sobre formulários](https://www.nngroup.com/articles/4-principles-reduce-cognitive-load/) orientou o agrupamento e os campos condicionais. As [diretrizes de tooltips](https://www.nngroup.com/articles/tooltip-guidelines/) fundamentam explicações curtas, opcionais, acessíveis por foco e toque; rótulos e erros necessários continuam visíveis. O [padrão de diálogo da W3C](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) orienta foco contido, Escape e retorno ao acionador nos novos popups.
 
-## Pesquisa de setores e competições
+## Referências de organização
 
 Os agrupamentos são uma síntese para equipes pequenas, não uma estrutura oficial obrigatória. Gestão/patrocínios e integração/testes foram agrupados para evitar dezenas de departamentos.
 
-| Modalidade | Sugestões adotadas | Fontes primárias |
+| Modalidade | Agrupamentos pesquisados | Fontes primárias |
 | --- | --- | --- |
 | Satélites / OBSAT prática | Estruturas; eletrônica e energia; software embarcado; comunicação; carga útil; testes e integração; gestão e patrocínios | [OBSAT: construção, programação e testes](https://wiki.obsat.org.br/books/modalidade-pratica/page/fase-2-construa-programe-teste-seu-satelite) |
 | Foguetes | Aerodinâmica e estruturas; propulsão; aviônica; recuperação; carga útil; operações e testes; gestão | [NASA Student Launch](https://www.nasa.gov/learning-resources/nasa-student-launch/), [NASA: recuperação](https://www.nasa.gov/wp-content/uploads/2023/09/nasa-sl-2024-arw-recovery-systems-508.pdf), [equipe estudantil da Michigan](https://news.engin.umich.edu/2025/06/student-designed-engine-for-future-two-story-rocket-passes-final-engineering-milestone/) |
@@ -25,8 +25,8 @@ Os agrupamentos são uma síntese para equipes pequenas, não uma estrutura ofic
 | Fórmula SAE | Chassi; suspensão e direção; powertrain; elétrica e eletrônica; aerodinâmica; freios e ergonomia; gestão | [Colorado School of Mines: subsistemas](https://orgs.mines.edu/fsae/subsystems/), [SAE Brasil: classes Combustão e Elétrica](https://saebrasil.org.br/visao-geral/usp-sao-carlos-e-fei-sao-campeas-da-competicao-formula-sae-brasil-2026/) |
 | Baja | Chassi e segurança; suspensão e direção; powertrain; freios; elétrica e instrumentação; fabricação e testes; gestão | [Nebraska Racing: subsistemas](https://nebraskaracing.unl.edu/baja/subsystems/) |
 
-OBSAT teórica recebe estudos, pesquisa e gestão. LASC oferece as modalidades Rocket, Satellite e Lander confirmadas na [visão geral de 2026](https://www.lasc.space/2026-lasc/overview); Lander usa a sugestão genérica de engenharia, sem impor uma organização ainda não pesquisada. Categorias de apogeu/motor não foram inventadas. AeroDesign e Fórmula usam classes verificadas. Novas opções do catálogo não criam requisitos ou datas automaticamente: a documentação oficial continua sendo a referência.
+A [visão geral de 2026 da LASC](https://www.lasc.space/2026-lasc/overview) também foi consultada durante a pesquisa. Esses agrupamentos não são estruturas obrigatórias nem um catálogo ativo da aplicação; a documentação oficial de cada projeto continua sendo a referência.
 
 ## Verificação
 
-`tests/organizationLayout.test.ts` cobre conteúdo preservado, cartões sem sobreposição, IDs repetidos entre projetos, defaults por modalidade e compatibilidade de dados antigos. Os scripts `test:visual:organization` e `test:visual:teams` cobrem os formulários reais, persistência de classe/setores, perfil único por rota, convite/aceite, popup de permissões, organograma dentro da janela, teclado, exportação e telas pequenas. Usam dados temporários e IA desativada.
+`tests/organizationLayout.test.ts` cobre conteúdo preservado, cartões sem sobreposição e IDs repetidos entre projetos. `npm run test:visual` valida equipes, contatos, edição autorizada de cargo, perfil, rotas e versões desktop/mobile com armazenamento temporário e sem chamadas a modelos externos. Testes da API cobrem convites, revisão independente e revogação de permissões.

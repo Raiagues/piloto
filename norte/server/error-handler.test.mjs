@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { buildApp } from './app.mjs';
-import { VALIDATION_DOCUMENTS_MISSING_MESSAGE } from './validation-documents.mjs';
 
 for (const serveStatic of [false, true]) {
   test(`production API errors remain sanitized with serveStatic=${serveStatic}`, async t => {
@@ -39,12 +38,6 @@ for (const serveStatic of [false, true]) {
     assert.ok(!failed.body.includes('private database'));
     assert.ok(!failed.body.includes('/internal/path'));
 
-    app.missionStore.health = async () => { throw Object.assign(new Error('internal corpus file location'), {
-      statusCode: 503, code: 'VALIDATION_DOCUMENTS_MISSING'
-    }); };
-    const unavailable = await app.inject('/api/health');
-    assert.equal(unavailable.statusCode, 503);
-    assert.deepEqual(unavailable.json(), { error: 'VALIDATION_DOCUMENTS_MISSING', message: VALIDATION_DOCUMENTS_MISSING_MESSAGE });
-    assert.ok(!unavailable.body.includes('internal corpus file location'));
+
   });
 }

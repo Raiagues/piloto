@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const E=require('../experiments.js');
+const E=require('../meetings/web/experiments.js');
 const batch=(values,expected={type:'noul',value:true,minProbability:.8})=>({input:{expected:{q:expected}},runs:values.map(noul=>({status:'done',output:{response:{answers:{q:{type:'noul',noul}}}}}))});
 test('overview evaluates answer and confidence independently, including simultaneous failures',()=>{
   const b=batch([.95,.65,.1]),before=E.clone(b),c=E.questionChecks(b,'q');

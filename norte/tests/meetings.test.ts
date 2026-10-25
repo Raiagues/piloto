@@ -3,7 +3,7 @@ import { meetingFrameURL, mergeContributions, participantIsPresent } from "../sr
 
 describe("meeting client", () => {
   it("builds authenticated meeting links without interpolating user paths", () => {
-    expect(meetingFrameURL("meeting-1", "beam")).toBe("/meeting/meeting-1?meeting=meeting-1#simulacao");
+    expect(meetingFrameURL("meeting-1", "archive")).toBe("/meeting/meeting-1?meeting=meeting-1#reuniao");
     expect(meetingFrameURL("../other", "meeting")).toContain("/meeting/..%2Fother?");
   });
   it("repeated contribution pages keep one copy in server sequence order", () => {

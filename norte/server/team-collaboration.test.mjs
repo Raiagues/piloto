@@ -7,10 +7,8 @@ import { join } from 'node:path';
 import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
-import { createInitialData, createValidationProject, normalizeStoredData } from './data-store.mjs';
-import { projectOrganization, teamOrganization } from '../shared/organization-tree.mjs';
-import { recordActivity } from './team-activity.mjs';
-import { assertPreviewEnvironment, seedTeamPreview } from '../scripts/seed-team-preview.mjs';
+import { normalizeStoredData } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 
 async function fixture(t, pg = false, configured = true) {
   const directory = await mkdtemp(join(tmpdir(), 'norte-teams-'));
@@ -192,29 +190,6 @@ test('project leaders cannot administer the parent team or edit another project;
   assert.equal((await request(member, 'DELETE', '/projects/first-project')).statusCode, 403);
 });
 
-test('visits and activity return only scoped aggregates and cap repeat views', async t => {
-  const f = await fixture(t), { request, captain, member, outsider, team } = f;
-  await f.accept(member, await f.invite());
-  const p = { ...createValidationProject(), id: 'activity-project', name: 'Activity project' }; p.context.teamId = team.id; p.context.assignments = [{ memberId: captain.memberId, roleId: 'captain', sectorId: '' }];
-  const r = await request(captain, 'POST', '/projects', p); assert.equal(r.statusCode, 201, r.body);
-  for (const actor of [captain, member, outsider, outsider]) assert.equal((await request(actor, 'POST', `/teams/${team.id}/visit`)).statusCode, 200);
-  assert.equal((await request(outsider, 'POST', `/projects/${p.id}/visit`)).statusCode, 403);
-  for (const actor of [member, member]) assert.equal((await request(actor, 'POST', `/projects/${p.id}/visit`)).statusCode, 200);
-  const artifact = await request(captain, 'POST', '/artifacts', { scope: 'project', ownerId: p.id, kind: 'document', label: 'Test notes', documentText: 'Team notes' }); assert.equal(artifact.statusCode, 201);
-  assert.equal((await request(captain, 'PATCH', `/artifacts/${artifact.json().artifact.id}`, { documentText: 'Updated notes', expectedRevision: 0 })).statusCode, 200);
-  assert.equal((await request(outsider, 'GET', `/teams/${team.id}/insights`)).statusCode, 403);
-  assert.equal((await request(member, 'GET', `/teams/${team.id}/insights`)).statusCode, 403);
-  const insights = (await request(captain, 'GET', `/teams/${team.id}/insights`)).json();
-  assert.equal(insights.visits.total, 1); assert.equal(insights.visits.unique, 1); assert.equal(insights.visits.days.length, 30);
-  assert.equal(insights.members.find(m => m.memberId === member.memberId).accesses, 1);
-  assert.equal(insights.members.find(m => m.memberId === captain.memberId).artifactCreated, 1);
-  assert.equal(insights.members.find(m => m.memberId === captain.memberId).artifactEdited, 1);
-  assert.doesNotMatch(JSON.stringify(insights.visits), /userId|email|secret|visitors|token|ipAddress/);
-  assert.doesNotMatch(JSON.stringify(f.app.missionStore.read().teamStats), new RegExp(outsider.id));
-  await f.app.missionStore.update(data => { recordActivity(data, member.id, p.id, 'access', Date.now() + 32 * 86400_000); });
-  assert.equal(f.app.missionStore.read().activity.length, 1, 'bounded retention');
-});
-
 test('public project summaries are opt-in and contain no private hierarchy or artifacts', async t => {
   const f = await fixture(t), { request, captain, outsider, team } = f;
   const p = { ...createValidationProject(), id: 'public-project', name: 'Public title' }; p.context.teamId = team.id; p.context.publicSummary = true; p.context.assignments = [{ memberId: captain.memberId, roleId: 'captain', sectorId: '' }];
@@ -244,27 +219,6 @@ test('legacy invitations and artifacts survive migration without giving unverifi
   assert.ok(!after.teams.find(t => t.id === team.id).memberIds.includes(legacy.memberId));
   assert.deepEqual((await request(captain, 'GET', '/teams')).json().teams.find(t => t.id === team.id).joinRequests, []);
   await f.accept(legacy, await f.invite(legacy));
-});
-
-test('controlled sample preserves existing users, is idempotent, uses test addresses and one deterministic hierarchy', async () => {
-  assert.throws(() => assertPreviewEnvironment({ NODE_ENV: 'production', NORTE_ALLOW_TEAM_PREVIEW: '1' }));
-  assert.throws(() => assertPreviewEnvironment({ NODE_ENV: 'test', DATABASE_URL: 'postgres://remote', NORTE_ALLOW_TEAM_PREVIEW: '1' }));
-  assertPreviewEnvironment({ NODE_ENV: 'test', NORTE_ALLOW_TEAM_PREVIEW: '1' });
-  const data = createInitialData(); data.environment = 'team-preview-test'; data.users.push({ id: 'sample-owner', memberId: 'sample-member', active: true, email: 'sample@example.test', name: 'Sample', nickname: 'sample', emailVerifiedAt: null }); data.members.push({ id: 'sample-member', accountId: 'sample-owner', displayName: 'Sample' });
-  await assert.rejects(seedTeamPreview(data, 'missing@example.test'));
-  const seeded = await seedTeamPreview(data, 'sample@example.test');
-  assert.deepEqual(seeded.users[0], data.users[0]);
-  assert.ok(seeded.users.slice(1).every(u => u.isTestAccount && u.email.endsWith('@example.test')));
-  assert.deepEqual(await seedTeamPreview(seeded, 'sample@example.test'), seeded);
-  const team = seeded.teams.find(t => t.testFixture), projects = Object.values(seeded.workspace.projects).filter(p => p.document.testFixture).map(r => r.document);
-  assert.equal(projects.length, 3); assert.equal(seeded.artifacts.length, 9);
-  const tree = teamOrganization(team, seeded.members, projects.map(p => ({ id: p.id, name: p.name, organization: projectOrganization(p, seeded.members) })));
-  assert.equal(tree.children[0].name, 'Sample'); assert.equal(tree.children[0].children.length, 3);
-  assert.equal(tree.children[0].children[1].children[0].name, 'Luna · TESTE');
-  const sectors = tree.children[0].children[0].children[0].children;
-  assert.equal(sectors[0].name, 'Aviônica'); assert.ok(sectors[0].children[0].name.includes('Luna'));
-  assert.doesNotMatch(JSON.stringify(tree), /subsystem|component|artifact|Documentação/);
-  assert.equal(data.users.length, 1, 'source unchanged');
 });
 
 test('changing a project team cannot carry members from another team; standalone projects cannot add unrelated profiles', async t => {

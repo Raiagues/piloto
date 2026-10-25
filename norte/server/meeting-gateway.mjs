@@ -1,4 +1,3 @@
-import { withPreparedExampleSummaries } from '../scripts/meeting-example-summaries.mjs';
 /** Same-origin facade for the private Python meeting engine. No browser identity is forwarded. */
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
@@ -6,16 +5,18 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createGunzip } from 'node:zlib';
 import { meetingError } from './meeting-service.mjs';
+import { registerMeetingObservability } from './meeting-observability.mjs';
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url));
+const ROOT = fileURLToPath(new URL('../../meetings/web/', import.meta.url));
+const TOKENS = fileURLToPath(new URL('../src/styles/tokens.css', import.meta.url));
 const fail = (status, code, message) => { throw meetingError(status, code, message); };
-const API_GET = new Set(['health', 'records', 'ai/aliases']);
-const API_POST = new Set(['classify', 'relations', 'typed-relations', 'minutes', 'records', 'ai/events', 'ai/resolve', 'ai/memory/query', 'ai/blocks/review', 'ai/blocks/feedback']);
-const ASSETS = new Set(('styles.css memory-flow.css memory-flow.js memory-page.js relation-worker.js app.js transcription.js speech-windows.js classifier.js workspace.js experiments.js automation.js lab.js classifier-config.json memory-v2.js gemini-minutes.js gemini-minutes.css meeting-room.js meeting-room.css meeting-canvas.js meeting-canvas.css meeting-session.js meeting-commands.js meeting-hierarchy.js meeting-evidence.js meeting-state.js meeting-review.js beam-engine.js beam-commands.js beam-workspace.js beam-workspace.css meeting-beam.js meeting-beam.css meeting-speech.js meeting-document.js meeting-amendments.js account.css remote-storage.js ai-client.js ai-observatory.js ai-observatory.css meeting-blocks.js meeting-blocks.css typed-relations.js typed-relations-page.js meeting-minutes.js meeting-minutes.css relation-map.js relation-map.css memory-storage.js norte-meeting-bridge.js norte-meeting-bridge.css vendor/minutes/jspdf-4.2.1.umd.min.js vendor/minutes/DejaVuSans-2.37.ttf').split(' '));
+const API_GET = new Set(['health', 'records']);
+const API_POST = new Set(['classify', 'relations', 'typed-relations', 'minutes', 'records', 'ai/blocks/review', 'ai/blocks/feedback', 'ai/blocks/learning']);
+const ASSETS = new Set(["base.css", "classifier-transport.js", "experiments.js", "gemini-minutes.css", "gemini-minutes.js", "layout.js", "meeting-amendments.js", "meeting-blocks.css", "meeting-blocks.js", "meeting-canvas.css", "meeting-canvas.js", "meeting-commands.js", "meeting-document.js", "meeting-evidence.js", "meeting-hierarchy.js", "meeting-minutes.css", "meeting-minutes.js", "meeting-review.js", "meeting-room.css", "meeting-room.js", "meeting-session.js", "meeting-speech.js", "meeting-state.js", "memory-flow.js", "memory-storage.js", "memory-v2.js", "norte-meeting-bridge.css", "norte-meeting-bridge.js", "relation-worker.js", "remote-storage.js", "speech-windows.js", "tokens.css", "transcription.js", "typed-relations.js", "vendor/minutes/DejaVuSans-Bold-2.37.ttf", "vendor/minutes/DejaVuSans-2.37.ttf", "vendor/minutes/jspdf-4.2.1.umd.min.js"]);
 const mime = name => name.endsWith('.css') ? 'text/css; charset=utf-8' : name.endsWith('.js') ? 'text/javascript; charset=utf-8' : name.endsWith('.json') ? 'application/json' : 'font/ttf';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const scriptJSON = value => JSON.stringify(value).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
-const viewFields = new Set(('id title createdAt startedAt finishedAt status schemaVersion liveSchemaVersion memorySchemaVersion presentationVersion room_kind input_mode provider threshold calls batch records meeting_events meeting_threads meeting_relations raw_window transcript topic_titles title_edits meeting_commands post_meeting_edits block_edits block_review speech_ledger beam_started beam_open_tabs beam_previous_view beam_view beam_recorded beam_lab beam_commands meeting_metadata project_id project_memory_mode integrated_norte').split(' '));
+const viewFields = new Set(('id title createdAt startedAt finishedAt status schemaVersion liveSchemaVersion memorySchemaVersion presentationVersion room_kind input_mode provider threshold calls batch records meeting_events meeting_threads meeting_relations raw_window transcript topic_titles title_edits meeting_commands post_meeting_edits block_edits block_review classification_learning minutes_document speech_ledger beam_started beam_open_tabs beam_previous_view beam_view beam_recorded beam_lab beam_commands meeting_metadata project_id integrated_norte').split(' '));
 const diagnosticFields = new Set(['request', 'response', 'output', 'storeOutput', 'typeOutput', 'jobs', 'questions', 'config', 'headers', 'authorization', 'project_memory', 'engineFingerprint', 'debug', 'trace', 'stack']);
 function withoutDiagnostics(value) {
   if (Array.isArray(value)) return value.map(withoutDiagnostics);
@@ -39,7 +40,7 @@ function clientRequest(body) {
 function classificationResponse(output, original) {
   const answerFields = new Set(['type', 'noul', 'choice', 'score', 'confidence', 'probabilities']);
   const answers = Object.fromEntries(Object.entries(output.response?.answers || {}).filter(([id]) => Object.hasOwn(original?.questions || {}, id)).map(([id, answer]) => [id, answer && typeof answer === 'object' ? Object.fromEntries(Object.entries(answer).filter(([key]) => answerFields.has(key))) : answer]));
-  return { provider: output.provider, latencyMs: output.latencyMs, request: original, response: { model: output.response?.model, answers } };
+  return { provider: output.provider, latencyMs: output.latencyMs, ...(Number.isSafeInteger(output.learning_version) && output.learning_version >= 0 ? { learningVersion: output.learning_version } : {}), request: original, response: { model: output.response?.model, answers } };
 }
 
 export function signedBridgeHeaders({ method, path, userId, scope, role = 'user', body = '', secret, time = String(Math.floor(Date.now() / 1000)) }) {
@@ -49,9 +50,18 @@ export function signedBridgeHeaders({ method, path, userId, scope, role = 'user'
   return { 'x-norte-bridge-user': userId, 'x-norte-bridge-scope': scope, 'x-norte-bridge-role': role, 'x-norte-bridge-time': time, 'x-norte-bridge-signature': createHmac('sha256', secret).update(canonical).digest('hex') };
 }
 
-export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, access, backendUrl = process.env.NORTE_MEETING_BACKEND_URL || 'http://127.0.0.1:8790', secret = process.env.NORTE_MEETING_BRIDGE_SECRET, fetchImpl = fetch, legacyRoot = ROOT, prepareMeetingRequest }) {
+export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, access, backendUrl = process.env.NORTE_MEETING_BACKEND_URL || 'http://127.0.0.1:8790', secret = process.env.NORTE_MEETING_BRIDGE_SECRET, fetchImpl = fetch, legacyRoot = ROOT }) {
   const backend = new URL(backendUrl);
   if (!['127.0.0.1', 'localhost', '[::1]'].includes(backend.hostname) || backend.protocol !== 'http:' || backend.username || backend.password || backend.pathname !== '/' || backend.search || backend.hash) throw new Error('The private meeting backend must be a loopback HTTP origin.');
+  registerMeetingObservability(app, { store, requireAuth, access, readEngine: async (request, meeting, path, body) => {
+    const method = body ? 'POST' : 'GET', raw = body ? JSON.stringify(body) : '';
+    const headers = { ...signedBridgeHeaders({ method, path, userId: request.auth.user.id, scope: 'meeting:' + meeting.id, body: raw, secret }), ...(body ? { 'content-type': 'application/json' } : {}) };
+    let response;
+    try { response = await fetchImpl(new URL(path, backend), { method, headers, ...(body ? { body: raw } : {}), redirect: 'error', signal: AbortSignal.timeout(15000) }); }
+    catch { fail(503, 'MEETING_ENGINE_UNAVAILABLE', 'O processamento da reunião está indisponível.'); }
+    if (!response.ok) fail(502, 'MEETING_INSPECTION_UNAVAILABLE', 'Não foi possível consultar os registros desta reunião.');
+    return response.json();
+  } });
   async function authenticatedHTML(request, reply) {
     await store.refresh?.();
     try { await requireAuth(request); }
@@ -62,8 +72,8 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     const nonce = randomBytes(18).toString('base64');
     const bootstrap = { meeting: access.publicMeeting(data, meeting, request.auth.user), user: { id: request.auth.user.id, name: request.auth.user.name, nickname: request.auth.user.nickname, role: 'user' }, csrfToken: request.auth.session.csrfToken, apiBase: `/api/meetings/${meeting.id}/legacy`, returnUrl: '/#/meetings' };
     let html = await readFile(resolve(legacyRoot, 'index.html'), 'utf8');
-    html = html.replace('<head>', '<head>\n<base href="/meeting-assets/">\n<script nonce="' + nonce + '">window.NORTE_MEETING_BOOTSTRAP=' + scriptJSON(bootstrap) + ';</script>');
-    html = html.replace('<body data-page="live">', `<body data-page="live" data-auth="on" data-role="user" data-username="${escapeHTML(request.auth.user.nickname)}" data-integrated-meeting="on"><script src="/meeting-assets/norte-meeting-bridge.js"></script>`);
+    html = html.replace('<head>', '<head>\n<base href="/meeting-assets/">\n<script nonce="' + nonce + '">window.NORTE_MEETING_BOOTSTRAP=' + scriptJSON(bootstrap) + ';try{document.documentElement.dataset.theme=parent.document.documentElement.dataset.theme==="dark"?"dark":"light"}catch(e){};</script>');
+    html = html.replace('<body data-page="meeting">', `<body data-page="meeting" data-auth="on" data-role="user" data-username="${escapeHTML(request.auth.user.nickname)}" data-integrated-meeting="on"><script src="/meeting-assets/norte-meeting-bridge.js"></script>`);
     reply.header('cache-control', 'no-store').header('referrer-policy', 'same-origin').header('content-security-policy', `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     return reply.type('text/html; charset=utf-8').send(html);
   });
@@ -71,7 +81,7 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     const name = request.params['*'];
     if (!ASSETS.has(name)) fail(404, 'ASSET_NOT_FOUND', 'Arquivo não encontrado.');
     let content;
-    try { content = await readFile(resolve(legacyRoot, name)); }
+    try { content = await readFile(name === 'tokens.css' ? TOKENS : resolve(legacyRoot, name)); }
     catch (error) { if (error.code === 'ENOENT') fail(404, 'ASSET_NOT_FOUND', 'Arquivo não encontrado.'); throw error; }
     return reply.header('cache-control', 'no-store').type(mime(name)).send(content);
   });
@@ -96,14 +106,18 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
         run.title = meeting.title; body.value = JSON.stringify(run);
       }
     } else if (Object.keys(request.query || {}).length) fail(400, 'INVALID_QUERY', 'Parâmetros não permitidos.');
-    if (body?.session_id !== undefined && body.session_id !== meeting.id || suffix === 'ai/events' && body?.events?.some(row => row.session_id !== meeting.id)) fail(403, 'RECORD_SCOPE', 'Os eventos não pertencem a esta reunião.');
+    if (body?.session_id !== undefined && body.session_id !== meeting.id) fail(403, 'RECORD_SCOPE', 'Os eventos não pertencem a esta reunião.');
     if (meeting.example === 'curated_mock_v1' && meeting.exampleSnapshot) {
       if (request.method !== 'GET') fail(403, 'READONLY_EXAMPLE', 'Este exemplo fictício é somente leitura. Crie uma reunião para usar sua própria transcrição.');
-      if (suffix === 'records') return reply.header('cache-control', 'no-store').send({ value: JSON.stringify(publicMeetingSnapshot(withPreparedExampleSummaries({ ...meeting.exampleSnapshot, title: meeting.title }))), version: 1 });
+      if (suffix === 'records') return reply.header('cache-control', 'no-store').send({ value: JSON.stringify(publicMeetingSnapshot({ ...meeting.exampleSnapshot, title: meeting.title })), version: 1 });
       if (suffix === 'health') return { ready: true, provider: 'official', example: true };
-      if (suffix === 'ai/aliases') return { aliases: [] };
     }
-    if (prepareMeetingRequest && request.method === 'POST' && ['classify', 'relations', 'typed-relations'].includes(suffix)) body = await prepareMeetingRequest({ meeting, user: request.auth.user, body, path, data });
+    if (originalRequest) body = originalRequest;
+    if (suffix === 'classify' && body?.state && typeof body.state === 'object' && !Array.isArray(body.state)) {
+      body = structuredClone(body);
+      delete body.state.meeting_feedback;
+      body.state._norte_meeting_id = meeting.id;
+    }
     await store.refresh?.(); access.requireMeeting(store.read(), request.auth.user, meeting.id, request.method !== 'GET');
     const raw = body === null ? '' : JSON.stringify(body);
     const headers = { ...signedBridgeHeaders({ method: request.method, path, userId: request.auth.user.id, scope: 'meeting:' + meeting.id, body: raw, secret }), ...(request.method === 'POST' ? { 'content-type': 'application/json' } : {}) };
@@ -124,7 +138,7 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     // A copy has a durable seed until its first engine save. Read the engine
     // first so a lost metadata acknowledgement never reopens version zero.
     if (response.ok && suffix === 'records' && request.method === 'GET' && output.value === null && output.version === 0 && meeting.initialSnapshot) {
-      output = { value: JSON.stringify(withPreparedExampleSummaries(meeting.initialSnapshot)), version: 0 };
+      output = { value: JSON.stringify(meeting.initialSnapshot), version: 0 };
     }
     if (response.ok && suffix === 'records' && request.method === 'GET' && typeof output.value === 'string') {
       let snapshot;
@@ -134,7 +148,6 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
         const latest = access.requireMeeting(current, request.auth.user, meeting.id);
         if (latest.initialSnapshot && output.version > (latest.runVersion || 0)) { latest.runVersion = output.version; delete latest.initialSnapshot; }
       });
-      if (meeting.copiedFromExample) snapshot = withPreparedExampleSummaries(snapshot);
       snapshot.title = store.read().meetings[meeting.id].title;
       output = { value: JSON.stringify(meeting.ownerId !== request.auth.user.id ? publicMeetingSnapshot(snapshot) : snapshot), version: output.version };
     }

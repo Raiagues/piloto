@@ -1,6 +1,6 @@
 // Scheduling/integrity tests with controlled transports; no model accuracy claims.
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads,TR=require('../typed-relations.js'),V=require('../memory-v2.js');
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads,TR=require('../meetings/web/typed-relations.js'),V=require('../meetings/web/memory-v2.js');
 const clone=x=>JSON.parse(JSON.stringify(x));
 const deferred=()=>{let resolve;const promise=new Promise(r=>resolve=r);return {promise,resolve};};
 const within=p=>Promise.race([p,new Promise((_,reject)=>{const t=setTimeout(()=>reject(Error('Timed out waiting for incremental processing')),3000);t.unref();})]);

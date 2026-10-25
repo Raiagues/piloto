@@ -115,7 +115,8 @@ class AccountHttpTests(unittest.TestCase):
     def test_pages_require_an_account(self):
         status, headers, _ = self.call('/')
         self.assertEqual((status, headers['Location']), (302, '/login'))
-        self.assertEqual(self.call('/lab.js')[0], 401)
+        self.assertEqual(self.call('/meeting-room.js')[0], 401)
+        self.assertEqual(self.call('/lab.js')[0], 404)
         self.assertEqual(self.call('/api/auth/me')[0], 401)
         self.assertEqual(self.call('/api/classify', {'model': 'jev-latest'})[0], 401)
         status, _, body = self.call('/login')
@@ -154,18 +155,18 @@ class AccountHttpTests(unittest.TestCase):
                 status, headers, _ = self.call('/login?' + urlencode({'next': unsafe}), headers=session)
                 self.assertEqual((status, headers['Location']), (302, '/'))
 
-    def test_roles_decide_menu_and_admin_files(self):
+    def test_roles_use_meeting_entry_and_retired_files_are_unavailable(self):
         _, _, user = self.sign('signup', 'bruno', 'uma-senha-boa')
         _, body, admin = self.sign('login', 'ADMIN', 'admin-senha-1')
         self.assertEqual(body['user']['role'], 'admin')
         page = self.call('/', headers=user)[2].decode()
         self.assertIn('data-auth="on" data-role="user" data-username="bruno"', page)
-        self.assertIn('account.js?v=', page)
+        self.assertIn('data-page="meeting"', page)
         self.assertIn('data-role="admin"', self.call('/index.html', headers=admin)[2].decode())
         for path in ('/manual-test-example.json', '/tests/fixtures/typed-relations-b002.json'):
             self.assertEqual(self.call(path, headers=user)[0], 404)
-            self.assertEqual(self.call(path, headers=admin)[0], 200)
-        for path in ('/lab.js', '/meeting-room.js', '/beam-engine.js', '/remote-storage.js', '/classifier-config.json'):
+            self.assertEqual(self.call(path, headers=admin)[0], 404)
+        for path in ('/meeting-room.js', '/remote-storage.js', '/base.css', '/tokens.css'):
             self.assertEqual(self.call(path, headers=user)[0], 200)
         health = json.loads(self.call('/api/health', headers=user)[2])
         self.assertTrue(health['ready']); self.assertNotIn('TYPESAFE', health['message'])

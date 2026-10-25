@@ -3,12 +3,13 @@
 // recognition (word-by-word interim results, confirmation at pauses, deafness while
 // restarting). Everything else is the production page, server and account storage.
 // Credentials come from the environment and are never written by this script.
-//   NORTE_URL=http://127.0.0.1:8000 NORTE_USER=… NORTE_PASSWORD=… node tests/live-meeting-simulation.cjs --run-live
+// Point NORTE_URL to an isolated standalone meeting worker, never production by default.
+//   NORTE_URL=http://127.0.0.1:8790 NORTE_USER=… NORTE_PASSWORD=… node tests/live-meeting-simulation.cjs --run-live
 // Optional: NORTE_SIGNUP=1 creates the account first; NORTE_SPEED=1.5 speaks faster.
 if(!process.argv.includes('--run-live')){console.log('Use --run-live para simular a reunião com a API configurada (consome créditos).');process.exit(0);}
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:timers/promises');
-const Speech=require('../meeting-speech.js');
+const Speech=require('../meetings/web/meeting-speech.js');
 
 // '/' short hesitation (no confirmation) · '//' pause long enough for the browser to confirm a phrase.
 // [ms] at the start of a turn: silence before it (default 1300 ms).
@@ -77,17 +78,6 @@ const SEPARATE=[
  ['pergunta ao grupo × resumo final',/mais alguma coisa/,/resumindo/],
  ['hipótese do alumínio × comando',/usasse alum[ií]nio/,/norte usa/]
 ];
-const EXPECTED_COMMANDS=[
- ['abrir simulação',c=>c.operations.some(o=>o.type==='open_simulation')],
- ['comprimento 4 m',c=>c.operations.some(o=>o.type==='change_beam'&&o.patch?.L===4)],
- ['força P1 = 25 kN',c=>c.operations.some(o=>o.type==='update_load'&&o.patch?.value===25000)],
- ['altura 30 cm (comando dito em duas partes)',c=>c.operations.some(o=>o.type==='change_section'&&Math.abs(o.patch?.h-.3)<1e-9)],
- ['gráficos',c=>c.operations.some(o=>o.type==='show_graphs')],
- ['comparar antes e depois',c=>c.operations.some(o=>o.type==='compare')],
- ['resultados',c=>c.operations.some(o=>o.type==='show_results')],
- ['alumínio',c=>c.operations.some(o=>o.type==='change_material'&&o.patch?.key==='aluminum')],
- ['volta ao aço',c=>c.operations.some(o=>o.type==='change_material'&&o.patch?.key==='steel')]
-];
 const MIC=`(()=>{
  const mic=window.__mic={spoken:[],lost:[],sessions:0,confirmations:0,instances:[],active:null,done:false,log:[]};
  class SimRecognition{
@@ -125,7 +115,8 @@ const MIC=`(()=>{
 })();`;
 
 (async()=>{
- const base=(process.env.NORTE_URL||'http://127.0.0.1:8000').replace(/\/$/,''),user=process.env.NORTE_USER,password=process.env.NORTE_PASSWORD;
+ assert.ok(process.env.NORTE_URL,'Defina NORTE_URL explicitamente para a sala standalone de diagnóstico.');
+ const base=process.env.NORTE_URL.replace(/\/$/,''),user=process.env.NORTE_USER,password=process.env.NORTE_PASSWORD;
  assert.ok(user&&password,'Defina NORTE_USER e NORTE_PASSWORD.');
  const speed=Number(process.env.NORTE_SPEED||1),title=process.env.NORTE_TITLE||'Revisão de projeto — suporte do motor';
  const out=path.resolve(__dirname,'..','.runtime','simulation');await fs.mkdir(out,{recursive:true});
@@ -150,7 +141,7 @@ const MIC=`(()=>{
   await call('Page.navigate',{url:base+'/login'+(process.env.NORTE_SIGNUP==='1'?'#criar-conta':'')});
   await wait('!!document.querySelector("#authForm")');
   await evaluate(`(()=>{const set=(id,v)=>{const n=document.getElementById(id);n.value=v;n.dispatchEvent(new Event('input',{bubbles:true}));};set('username',${JSON.stringify(user)});set('password',${JSON.stringify(password)});if(document.getElementById('confirm')&&!document.getElementById('signupFields').hidden)set('confirm',${JSON.stringify(password)});document.getElementById('authSubmit').click();})()`);
-  await wait('location.pathname==="/" && document.body.dataset.page==="beam" && window.NorteMeetingRoom?.ready() && !document.querySelector("#roomNew").disabled',90000);
+  await wait('location.pathname==="/" && document.body.dataset.page==="meeting" && window.NorteMeetingRoom?.ready() && !document.querySelector("#roomNew").disabled',90000);
   const role=await evaluate('document.body.dataset.role');console.log('Conta:',user,'·',role);
 
   await click('#roomNew');await click('#roomCreateInstant');
@@ -162,12 +153,11 @@ const MIC=`(()=>{
   const started=Date.now();
   await evaluate(`(window.__speaking=__mic.speak(${JSON.stringify(SCRIPT)},{speed:${speed}}),true)`);
 
-  // Live progress: chunks and commands as the pipeline produces them.
+  // Live progress: classification chunks, preserving original speech.
   const seen=new Set();
   const progress=async()=>{
    const rows=await evaluate(`(()=>{const r=NorteMeetingRoom.snapshot();if(!r)return [];const out=[];
     for(const c of r.batch.cases){const rec=r.records.find(x=>x.id===c.id);out.push({key:'c'+c.id+(rec?.status||''),line:c.id+' '+(rec?.status==='done'?(rec.result.store?rec.result.type:'ignorado'):'…')+(c.source_entry_ids?.length>1?' ['+c.source_entry_ids.length+' pedaços]':'')+' '+c.current_utterance,done:rec?.status==='done'});}
-    for(const b of r.beam_commands||[])out.push({key:'b'+b.id+b.status,line:b.id+' comando '+b.status+' '+(b.operations||[]).map(o=>o.type).join('+')+' ← '+b.text,done:true});
     return out;})()`);
    for(const row of rows)if(row.done&&!seen.has(row.key)){seen.add(row.key);console.log('  ',((Date.now()-started)/1000).toFixed(0).padStart(4)+'s',row.line.slice(0,150));}
   };
@@ -188,18 +178,13 @@ const MIC=`(()=>{
   const run=await evaluate('NorteMeetingRoom.snapshot()'),mic=await evaluate('({spoken:__mic.spoken,lost:__mic.lost,sessions:__mic.sessions,confirmations:__mic.confirmations,stops:__mic.log.length})');
   const confirmed=run.speech_ledger.records.filter(r=>r.status==='final').map(r=>r.text.trim()).join(' ').split(/\s+/).filter(Boolean);
   const chunks=run.batch.cases.map(c=>({id:c.id,text:c.current_utterance,pieces:c.source_entry_ids?.length||1,record:run.records.find(r=>r.id===c.id)}));
-  const commandTexts=(run.beam_commands||[]).map(c=>c.text);
-  const facts=KEY_FACTS.map(([name,pattern])=>{const chunk=chunks.find(c=>pattern.test(c.text)),command=commandTexts.find(t=>pattern.test(t));return {name,ok:!!chunk,stored:!!chunk?.record?.result?.store,type:chunk?.record?.result?.type||null,chunk:chunk?.id||null,text:chunk?.text||command||null};});
-  const fused=SEPARATE.map(([name,a,b])=>({name,ok:!chunks.some(c=>a.test(c.text)&&b.test(c.text))&&!commandTexts.some(t=>a.test(t)&&b.test(t))}));
-  const applied=(run.beam_commands||[]).filter(c=>c.status==='applied');
-  const commands=EXPECTED_COMMANDS.map(([name,match])=>({name,ok:applied.some(match)}));
-  const state=run.beam_lab?.state;
+  const facts=KEY_FACTS.map(([name,pattern])=>{const chunk=chunks.find(c=>pattern.test(c.text));return {name,ok:!!chunk,stored:!!chunk?.record?.result?.store,type:chunk?.record?.result?.type||null,chunk:chunk?.id||null,text:chunk?.text||null};});
+  const fused=SEPARATE.map(([name,a,b])=>({name,ok:!chunks.some(c=>a.test(c.text)&&b.test(c.text))}));
   const cut=chunks.filter(c=>Speech.unfinished(c.text)).map(c=>c.id+': '+c.text);
-  const gate=run.records.flatMap(r=>r.segmentation?.checks||[]).concat((run.beam_commands||[]).flatMap(c=>c.segmentation?.checks||[]));
+  const gate=run.records.flatMap(r=>r.segmentation?.checks||[]);
   const report={title,user,status:run.status,durationSec:Math.round((Date.now()-started)/1000),words:{spoken:mic.spoken.length,confirmed:confirmed.length,lost:mic.lost},microphone:{sessions:mic.sessions,forcedStops:mic.stops,confirmations:mic.confirmations},
    chunks:chunks.length,merged:chunks.filter(c=>c.pieces>1).length,gate:{checks:gate.length,waits:gate.filter(c=>c.wait).length,literal:gate.filter(c=>c.literal).length,errors:gate.filter(c=>c.error).length},
-   keyFacts:facts,separated:fused,commands,hypotheticalNotExecuted:!(run.beam_commands||[]).some(c=>c.status==='applied'&&/usasse/.test(c.text)),
-   finalState:state&&{L:state.L,P1:state.loads.find(l=>l.name==='P1')?.value,h:state.section.h,material:state.material.key},
+   keyFacts:facts,separated:fused,
    possiblyCut:cut,events:run.meeting_events.length,threads:run.meeting_threads.length,calls:run.calls,pageErrors:errors};
   await fs.writeFile(path.join(out,'report.json'),JSON.stringify({...report,chunksDetail:chunks.map(c=>({id:c.id,pieces:c.pieces,type:c.record?.result?.destination,text:c.text,checks:c.record?.segmentation?.checks}))},null,1));
   await shot('reuniao-final');
@@ -211,13 +196,10 @@ const MIC=`(()=>{
   console.log('Chunks',chunks.length,'· juntados pelo Jev',report.merged,'· checagens',gate.length,'(esperou',report.gate.waits+')');
   for(const f of facts)console.log((f.ok?'  OK  ':'  FALHOU ')+f.name.padEnd(36)+(f.ok?' '+f.chunk+' '+(f.stored?f.type:'NÃO ARMAZENADO'):'')+(f.ok?'':'  → '+JSON.stringify(chunks.filter(c=>f.name&&KEY_FACTS.find(k=>k[0]===f.name)[1].source.split('.*').some(part=>new RegExp(part).test(c.text))).map(c=>c.text))));
   for(const f of fused)console.log((f.ok?'  OK  ':'  FALHOU ')+'separados: '+f.name);
-  for(const c of commands)console.log((c.ok?'  OK  ':'  FALHOU ')+'comando: '+c.name);
   console.log('Chunks com mais de 3 pedaços:',chunks.filter(c=>c.pieces>3).map(c=>c.id+'('+c.pieces+')').join(' ')||'nenhum');
-  console.log((report.hypotheticalNotExecuted?'  OK  ':'  FALHOU ')+'hipótese "e se a gente usasse alumínio" não executada');
-  console.log('Estado final da viga:',JSON.stringify(report.finalState));
   if(cut.length)console.log('Possivelmente cortados:',cut);
   if(errors.length)console.log('Erros na página:',errors);
-  const failures=facts.filter(f=>!f.ok||!f.stored).length+fused.filter(f=>!f.ok).length+commands.filter(c=>!c.ok).length+(report.hypotheticalNotExecuted?0:1)+mic.lost.length+(run.status==='done'?0:1);
+  const failures=facts.filter(f=>!f.ok||!f.stored).length+fused.filter(f=>!f.ok).length+mic.lost.length+(run.status==='done'?0:1);
   console.log(failures?'\n'+failures+' problema(s).':'\nTudo certo.');
   process.exitCode=failures?1:0;
  }finally{socket?.close();chrome.kill();await sleep(300);await fs.rm(profile,{recursive:true,force:true}).catch(()=>{});}

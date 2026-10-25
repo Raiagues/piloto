@@ -2,7 +2,7 @@
 // configured Jev proxy. No credentials are read or printed by this script.
 if(!process.argv.includes('--run-live')){console.log('Use --run-live para validar a transcrição com a API configurada.');process.exit(0);}
 const fs=require('node:fs/promises'),assert=require('node:assert/strict');
-const Session=require('../meeting-session.js'),Speech=require('../meeting-speech.js'),Evidence=require('../meeting-evidence.js');
+const Session=require('../meetings/web/meeting-session.js'),Speech=require('../meetings/web/meeting-speech.js'),Evidence=require('../meetings/web/meeting-evidence.js');
 const fixture=require('./fixtures/meeting-thickness-fragments.json'),calls=[];
 async function send(request,provider,lane){
  const endpoint=lane==='threads'?'/api/relations':lane==='relations'?'/api/typed-relations':'/api/classify';

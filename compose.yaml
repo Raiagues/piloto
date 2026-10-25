@@ -1,0 +1,75 @@
+services:
+  norte:
+    build: .
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "8000"
+      NORTE_API_HOST: "0.0.0.0"
+      NORTE_SQLITE_PATH: /app/.runtime/norte.sqlite3
+    volumes:
+      - norte-data:/app/.runtime
+    init: true
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+
+  # Optional local editor. CE is for trusted users; keep it on loopback.
+  overleaf:
+    build: docker/overleaf
+    image: norte-overleaf:6.3.2
+    profiles: [overleaf]
+    env_file:
+      - path: .runtime/overleaf.env
+        required: false
+    ports:
+      - "127.0.0.1:8081:80"
+    environment:
+      OVERLEAF_APP_NAME: Overleaf local
+      OVERLEAF_MONGO_URL: mongodb://overleaf-mongo/sharelatex?replicaSet=overleaf
+      OVERLEAF_REDIS_HOST: overleaf-redis
+      REDIS_HOST: overleaf-redis
+      OVERLEAF_SITE_URL: http://localhost:8081
+      ENABLED_LINKED_FILE_TYPES: project_file,project_output_file
+    volumes:
+      - overleaf-data:/var/lib/overleaf
+    depends_on:
+      overleaf-mongo:
+        condition: service_healthy
+      overleaf-redis:
+        condition: service_started
+    restart: unless-stopped
+    stop_grace_period: 60s
+
+  overleaf-mongo:
+    image: mongo:8.0
+    profiles: [overleaf]
+    command: ["mongod", "--replSet", "overleaf", "--bind_ip_all"]
+    volumes:
+      - overleaf-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "try { if (rs.status().ok !== 1) quit(1); } catch (e) { rs.initiate({_id:'overleaf',members:[{_id:0,host:'overleaf-mongo:27017'}]}); quit(1); }"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    restart: unless-stopped
+
+  overleaf-redis:
+    image: redis:6.2
+    profiles: [overleaf]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - overleaf-redis:/data
+    restart: unless-stopped
+
+volumes:
+  norte-data:
+  overleaf-data:
+  overleaf-mongo:
+  overleaf-redis:

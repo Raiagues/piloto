@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads,V=require('../memory-v2.js');
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads,V=require('../meetings/web/memory-v2.js');
 const {response,chunkOutput,clone}=require('./fixtures/thread-scenarios.cjs');
 
 async function execute(batch,answer=()=>['belongs',.94]) {
@@ -24,7 +24,7 @@ test('V2 exposes a reviewed sample and explicit changes without altering the ori
 });
 
 test('V2 archive questions remain valid after the required candidate identifier is expanded',()=>{
-  const E=require('../experiments.js');
+  const E=require('../meetings/web/experiments.js');
   const req=T.request({event_id:'E003',type:'observation',text:'Return to the first investigation.'},[],[{thread_id:'T001',events:[{event_id:'E001',type:'observation',text:'The first investigation.'}]}],V.threadConfig,'archive');
   assert.doesNotThrow(()=>E.validateConfig(req));
   assert.ok(req.questions.belongs_to_archive_thread__T001.instructions.includes('T001'));

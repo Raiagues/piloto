@@ -86,7 +86,7 @@ try {
   await host.page.getByRole('button', { name: 'Salvar título' }).click();
   await host.page.getByRole('heading', { name: 'Revisão colaborativa editada', exact: true }).waitFor();
   const meeting = Object.values(app.missionStore.read().meetings)[0]; assert.ok(meeting);
-  assert.equal(meeting.memoryMode, 'none'); assert.equal(meeting.participantIds.length, 0);
+  assert.equal(meeting.memoryMode, undefined); assert.equal(meeting.participantIds.length, 0);
   await host.page.getByRole('button', { name: 'Participantes e convites' }).click();
   await host.page.getByLabel('Convidar por nickname').fill('guest_visual');
   await host.page.getByRole('button', { name: 'Enviar convite', exact: true }).click();
@@ -140,10 +140,24 @@ try {
   const denied = await app.inject({ method: 'POST', url: '/api/meetings/' + meeting.id + '/legacy/records', headers: { cookie: actors[1].cookie, 'x-csrf-token': actors[1].csrfToken }, payload: { key, value: JSON.stringify(saved), expected_version: records.get(key).version } }); assert.equal(denied.statusCode, 403);
   assert.equal(await frame.locator('#roomLive').isDisabled(), true);
   assert.equal(await frame.locator('#roomTimer').isVisible(), true);
+  await frame.locator('#roomMinutes:not([disabled])').waitFor();
   assert.equal(await frame.locator('#roomMinutes').isEnabled(), true);
+  assert.equal(await host.page.getByRole('button', { name: 'Voltar à página anterior', exact: true }).count(), 0);
+  await frame.locator('#roomMinutes').click();
+  await host.page.waitForFunction(() => new window.URLSearchParams(window.location.search).get('view') === 'minutes');
+  await frame.locator('.gm-page').waitFor();
+  assert.equal(await frame.locator('#gmDialog').evaluate(node => node.tagName), 'SECTION');
+  await host.page.locator('.meeting-back').click();
+  await frame.locator('.gm-page').waitFor({ state: 'detached' });
+  assert.equal(await host.page.evaluate(() => new window.URLSearchParams(window.location.search).get('meeting')), meeting.id);
+  await host.page.evaluate(() => { const url = new window.URL(window.location.href); url.searchParams.set('view','minutes'); window.history.replaceState(null,'',url); window.dispatchEvent(new window.PopStateEvent('popstate')); });
+  await frame.locator('.gm-page').waitFor();
+  await host.page.locator('.meeting-back').click();
+  await frame.locator('.gm-page').waitFor({ state: 'detached' });
   await host.page.screenshot({ path: '/tmp/norte-integrated-meeting.png', fullPage: true });
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
+  await host.page.locator('.meeting-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
   assert.deepEqual(errors, []);
   console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation and mobile layout.');
 } catch (error) {

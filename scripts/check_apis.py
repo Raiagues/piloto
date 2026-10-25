@@ -47,33 +47,27 @@ def main():
         print('Configuração inválida. Confira nomes, números e formato do .env.')
         return 1
     print('Atas: ' + settings.gemini_model)
-    print('Agentes: ' + settings.ai_agent_provider + ' / ' + (settings.ai_agent_model if settings.ai_agent_provider == 'gemini' else settings.ai_openai_model))
+    print('Classificador: ' + settings.jev_model)
     print(f'Limites diários UTC: {settings.minutes_daily_call_limit} organizações de atas; {settings.ai_daily_call_limit} chamadas de agentes / US$ {settings.ai_daily_budget_usd:.2f}.')
     jev_ok = False
-    if settings.provider == 'official' and settings.api_key:
+    if settings.api_key:
         jev_ok = probe('TypeSafe', 'https://api.typesafe.ai/v1/models', {'Authorization': 'Bearer ' + settings.api_key})
     else:
-        print('TypeSafe: selecione NORTE_PROVIDER=official e configure TYPESAFE_API_KEY.')
+        print('TypeSafe: configure TYPESAFE_API_KEY.')
     google_ok = False
     if settings.gemini_api_key:
         google_ok = probe('Google', 'https://generativelanguage.googleapis.com/v1beta/models', {'x-goog-api-key': settings.gemini_api_key})
     else:
         print('Google: configure GOOGLE_API_KEY.')
-    if settings.ai_agent_provider == 'openai':
-        agent_ok = bool(settings.openai_api_key) and probe('OpenAI', 'https://api.openai.com/v1/models', {'Authorization': 'Bearer ' + settings.openai_api_key})
-    else:
-        agent_ok = google_ok
     if not args.live:
         print('Para confirmar geração e contratos: python3 scripts/check_apis.py --live')
-        return 0 if jev_ok and google_ok and agent_ok else 1
+        return 0 if jev_ok and google_ok else 1
 
-    import ai_runtime
-    import auth
-    import gemini_minutes
+    from meetings.engine import gemini_minutes
     import server
     if jev_ok:
         try:
-            body = {'model': 'jev-latest', 'state': 'Precisamos testar a viga.', 'questions': {
+            body = {'model': settings.jev_model, 'state': 'Precisamos testar a viga.', 'questions': {
                 'test': {'type': 'noul', 'instructions': 'Does the text request a test?'}}}
             result = server.classify(body, settings)
             jev_ok = result['response']['answers']['test']['noul'] >= .5
@@ -92,18 +86,7 @@ def main():
         except gemini_minutes.MinutesError as error:
             google_ok = False
             print(f'Atas: teste falhou ({error.code}, status {error.status}). Confira chave, modelo e cobrança Google.')
-    if agent_ok:
-        store = auth.Store()
-        runtime = ai_runtime.Runtime(store, settings)
-        try:
-            user = store.create_user('diagnostico', 'synthetic-test-password')['id']
-            verdict = runtime.ask_model(user, {'task': 'review_alias', 'text': 'quero abrir a simulação'}, timeout=20)
-            agent_ok = bool(verdict and verdict.get('intent') == ai_runtime.INTENT and verdict.get('confidence', 0) >= .9)
-            print('Agentes: ' + ('interpretação sintética aprovada.' if agent_ok else 'teste não aprovado; confira ativação, tarifas e acesso ao modelo.'))
-        finally:
-            runtime.stop()
-            store.close()
-    return 0 if jev_ok and google_ok and agent_ok else 1
+    return 0 if jev_ok and google_ok else 1
 
 
 if __name__ == '__main__':

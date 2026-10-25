@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { buildApp } from './app.mjs';
-import { createValidationProject } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 
 async function fixture(t, systemAi = { apiKey: '' }) {
   const dir = await mkdtemp(join(tmpdir(), 'norte-delivery-'));
@@ -156,6 +156,8 @@ test('lifecycle switches document packages, preserves manual dates and exports s
  response=await f.action(f.captain,'document.prepare',{taskId:srr.id,templateId:'REQ'});assert.equal(response.statusCode,200,response.body);const doc=response.json().documents[0];assert.match(doc.body,/RASCUNHO/);assert.match(doc.body,/2 W/);assert.match(doc.reference.url,/nasa/);
  assert.equal((await f.action(f.member,'document.prepare',{taskId:srr.id,templateId:'REQ'})).statusCode,403);
  assert.equal((await f.req(f.outsider,'GET',`${f.route}/documents/${doc.id}/export?format=pdf`)).statusCode,404);
+ assert.equal((await f.req(f.outsider,'GET',`${f.route}/documents/${doc.id}/export?format=latex`)).statusCode,404);
+ const latex=await f.req(f.captain,'GET',`${f.route}/documents/${doc.id}/export?format=latex`);assert.equal(latex.statusCode,200);assert.equal(latex.rawPayload.subarray(0,2).toString(),'PK');
  const pdf=await f.req(f.captain,'GET',`${f.route}/documents/${doc.id}/export?format=pdf`);assert.equal(pdf.statusCode,200,pdf.body);assert.equal(pdf.rawPayload.subarray(0,4).toString(),'%PDF');
  response=await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:doc.body+'\nTeam correction.'}});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().documents[0].version,2);
  assert.equal((await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:'stale text'}})).statusCode,409);
@@ -177,8 +179,13 @@ test('lifecycle preview metadata preserves hidden manual reviews, current eviden
   const initial = response.json(), srr = initial.tasks.find(task => task.reviewCode === 'SRR'), mcr = initial.tasks.find(task => task.reviewCode === 'MCR');
   response = await f.action(f.captain, 'task.save', { id: srr.id, item: {
     ...srr, title: 'Private reviewed avionics milestone', sectorId: 'avionics', ownerId: f.reviewer.id,
-    startDate: '2027-04-01', dueDate: '2027-04-03', status: 'done', requirementIds: [requirement.id],
+    startDate: '2027-04-01', dueDate: '2027-04-03', status: 'planned', requirementIds: [requirement.id],
   } });
+  assert.equal(response.statusCode, 200, response.body);
+  const plannedReview = response.json().tasks.find(task => task.id === srr.id);
+  assert.equal((await f.action(f.captain, 'task.request_review', { id: srr.id, reviewers: [f.reviewer.id] })).statusCode, 200);
+  assert.equal((await f.action(f.reviewer, 'task.review', { id: srr.id, version: plannedReview.version, decision: 'approve' })).statusCode, 200);
+  response = await f.action(f.captain, 'task.save', { id: srr.id, item: { ...plannedReview, status: 'done' } });
   assert.equal(response.statusCode, 200, response.body);
   response = await f.action(f.captain, 'document.prepare', { taskId: srr.id, templateId: 'REQ' });
   assert.equal(response.statusCode, 200, response.body);
@@ -236,13 +243,6 @@ test('lifecycle preview metadata preserves hidden manual reviews, current eviden
   assert.deepEqual(restarted.documents, restored.documents);
 });
 
-test('demo lifecycle seeding is idempotent, preserves documentary requirements and never fabricates execution', async t=>{
- const {seedDeliveryDemo}=await import('./delivery-demo.mjs');const f=await fixture(t);await f.saveReq();
- const data=f.app.missionStore.read(),source=structuredClone(data.workspace.projects[f.projectId].document),before=structuredClone(data.workspace.delivery[f.projectId].requirements);
- const audit=seedDeliveryDemo(data,f.projectId,f.captain.id);assert(audit.createdTasks>10);assert(audit.createdDocuments>0);assert.equal(audit.createdTests,1);
- const snapshot=structuredClone(data);assert.equal(seedDeliveryDemo(data,f.projectId,f.captain.id).alreadySeeded,true);assert.deepEqual(data,snapshot);assert.deepEqual(data.workspace.projects[f.projectId].document,source);assert.deepEqual(data.workspace.delivery[f.projectId].requirements,before);assert(data.workspace.delivery[f.projectId].tests.every(t=>t.runs.length===0));assert(data.workspace.delivery[f.projectId].tasks.every(t=>t.status==='planned'));assert(data.workspace.delivery[f.projectId].documents.every(d=>d.status==='draft'&&/datas fictícias/.test(d.body)));
-});
-
 test('assisted review validates literal findings, caches cost and rejects stale analysis after concurrent edits', async t=>{
  let count=0, release, started;const begin=new Promise(r=>{started=r;});let delayed=false;
  const finding={ruleId:'nasa-verifiable',severity:'warning',title:'Definir critério',explanation:'O termo não define uma observação mensurável.',suggestion:'Defina uma condição e um limite com fonte.',start:31,end:42,affectedText:'rapidamente'};
@@ -255,7 +255,7 @@ test('assisted review validates literal findings, caches cost and rejects stale 
  response=await f.req(f.captain,'POST',url,{});assert.equal(response.json().cached,true);assert.equal(count,1);
  await f.saveReq(f.captain,{statement:statement+' Durante a missão.'},r.id);delayed=true;
  const pending=f.req(f.captain,'POST',url,{});await begin;
- await f.saveReq(f.captain,{statement:'O sistema deve enviar dados em até 2 s.'},r.id);release();response=await pending;assert.equal(response.statusCode,409,response.body);assert.match(response.body,/mudaram durante a análise/);assert.equal((await f.read()).requirements[0].analysis.engine,'checklist');assert.equal(count,2);
+ await f.saveReq(f.captain,{statement:'O sistema deve enviar dados em até 2 s.'},r.id);release();response=await pending;assert.equal(response.statusCode,409,response.body);assert.match(response.body,/mudaram durante a análise/);assert.equal((await f.read()).requirements[0].analysis.engine,'not_analyzed');assert.equal(count,2);
 });
 
 test('review milestones cannot close with unapproved linked versions or unexecuted evidence',async t=>{
@@ -266,7 +266,11 @@ test('review milestones cannot close with unapproved linked versions or unexecut
  await f.action(f.captain,'requirement.request_review',{id:r.id,reviewers:[f.reviewer.id]});await f.action(f.reviewer,'requirement.review',{id:r.id,decision:'approve'});
  assert.equal((await f.action(f.captain,'task.save',{item:task})).statusCode,409);
  await f.action(f.captain,'test.result',{id:verification.id,item:{outcome:'passed',result:'1.8 W measured in fixture.',evidenceUrl:'https://example.test/power-report'}});
- response=await f.action(f.captain,'task.save',{item:task});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks[0].status,'done'); const completed=response.json().tasks[0];
+ assert.equal((await f.action(f.captain,'task.save',{item:task})).statusCode,409,'new review cannot be created as completed');
+ response=await f.action(f.captain,'task.save',{item:{...task,status:'planned'}});assert.equal(response.statusCode,200,response.body);const planned=response.json().tasks[0];
+ assert.equal((await f.action(f.captain,'task.request_review',{id:planned.id,reviewers:[f.reviewer.id]})).statusCode,200);
+ response=await f.action(f.reviewer,'task.review',{id:planned.id,version:planned.version,decision:'approve'});assert.equal(response.statusCode,200,response.body);
+ response=await f.action(f.captain,'task.save',{id:planned.id,item:{...planned,status:'done'}});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks[0].status,'done'); const completed=response.json().tasks[0];
  await f.saveReq(f.captain,{statement:'The payload shall consume at most 1 W.'},r.id);const changed=await f.read();assert.equal(changed.tasks[0].status,'blocked');assert.equal(changed.tasks[0].reviewNeedsRevalidation,true);assert.equal((await f.action(f.captain,'task.save',{item:{title:'Dependent handover',status:'done',dependencyIds:[completed.id]}})).statusCode,409);
 });
 
@@ -276,7 +280,6 @@ test('configuration change invalidates test evidence even if requirement wording
  await f.app.missionStore.update(data=>{data.workspace.projects[f.projectId].document.engineeringSystem={entities:[{id:'changed-component',name:'New radio',properties:[{key:'power',value:4,unit:'W'}]}],relations:[],evidence:[],requirements:[]};});
  const state=await f.read();assert.equal(state.tests[0].status,'stale');assert.equal(state.requirements[0].verificationStatus,'pending');assert.equal(state.tests[0].runs.length,1);
 });
-
 
 test('editable lifecycle phases preserve removed phase work and dates, reject stale drag, and enforce leadership and sector ACL',async t=>{
  const f=await fixture(t);let response=await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2026-11-02'});assert.equal(response.statusCode,200,response.body);
@@ -314,4 +317,101 @@ test('standards changes require independent current reviewers, invalidate wordin
  assert.equal((await f.action(f.reviewer,'standards.review',{id:competing,decision:'approve'})).json().error,'PROPOSAL_STALE');
  assert.equal((await f.action(f.captain,'standards.set',{standards:[]})).json().error,'STANDARDS_REVIEW_REQUIRED');
  await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2027-01-01'});assert.deepEqual((await f.read()).standards,['ecss-req']);await f.restart();assert.deepEqual((await f.read()).standards,['ecss-req']);
+});
+
+test('task hierarchy rejects missing parents, self ancestry, mixed cycles and archiving a parent with live children', async t => {
+  const f = await fixture(t);
+  let response = await f.action(f.captain, 'task.save', { item: { title: 'Parent activity', startDate: '2026-01-01', dueDate: '2026-01-10' } });
+  assert.equal(response.statusCode, 200, response.body); const parent = response.json().tasks[0];
+  response = await f.action(f.captain, 'task.save', { item: { title: 'Child activity', parentId: parent.id, startDate: '2026-01-02', dueDate: '2026-01-05' } });
+  assert.equal(response.statusCode, 200, response.body); const child = response.json().tasks.find(row => row.parentId === parent.id);
+  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Missing', parentId: 'another-project-task' } })).statusCode, 400);
+  for (const item of [{ ...parent, parentId: parent.id }, { ...parent, parentId: child.id }, { ...parent, dependencyIds: [child.id] }]) assert.equal((await f.action(f.captain, 'task.save', { id: parent.id, item })).statusCode, 400);
+  assert.equal((await f.action(f.captain, 'task.archive', { id: parent.id })).statusCode, 409);
+  assert.equal((await f.action(f.captain, 'task.archive', { id: child.id })).statusCode, 200);
+  assert.equal((await f.action(f.captain, 'task.archive', { id: parent.id })).statusCode, 200);
+  assert.equal((await f.action(f.captain, 'task.restore', { id: child.id })).statusCode, 400, 'an archived parent cannot become a dangling hierarchy link');
+});
+
+test('rescheduling cascades once through descendants and successors, preserves durations, and undo refuses later edits', async t => {
+  const f = await fixture(t);
+  const save = async item => { const result = await f.action(f.captain, 'task.save', { item }); assert.equal(result.statusCode, 200, result.body); return result.json().tasks.find(task => task.title === item.title); };
+  const parent = await save({ title: 'Parent', startDate: '2026-01-01', dueDate: '2026-01-10' });
+  const child = await save({ title: 'Child', parentId: parent.id, startDate: '2026-01-02', dueDate: '2026-01-04' });
+  const next = await save({ title: 'Successor', dependencyIds: [parent.id], startDate: '2026-01-11', dueDate: '2026-01-15' });
+  const grandchild = await save({ title: 'Grandchild', parentId: child.id, dependencyIds: [parent.id], startDate: '2026-01-03', dueDate: '2026-01-04' });
+  const unrelated = await save({ title: 'Unrelated', startDate: '2026-02-01', dueDate: '2026-02-03' });
+  const before = await f.read();
+  let response = await f.action(f.captain, 'task.reschedule', { id: parent.id, dueDate: '2026-01-20' });
+  assert.equal(response.statusCode, 200, response.body); let moved = response.json();
+  for (const [id, startDate, dueDate] of [[parent.id,'2026-01-11','2026-01-20'],[child.id,'2026-01-12','2026-01-14'],[next.id,'2026-01-21','2026-01-25'],[grandchild.id,'2026-01-13','2026-01-14'],[unrelated.id,'2026-02-01','2026-02-03']]) {
+    const task = moved.tasks.find(task => task.id === id); assert.equal(task.startDate, startDate); assert.equal(task.dueDate, dueDate);
+  }
+  assert.equal(moved.history.at(-1).after.tasks.length, 4);
+  assert.equal((await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }, before)).statusCode, 409, 'undo also requires the latest revision');
+  assert.equal((await f.action(f.reviewer, 'task.undo_reschedule', { id: parent.id })).statusCode, 409, 'another participant cannot undo this movement');
+  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }); assert.equal(response.statusCode, 200, response.body);
+  for (const original of before.tasks) { const task = response.json().tasks.find(task => task.id === original.id); assert.equal(task.startDate, original.startDate); assert.equal(task.dueDate, original.dueDate); }
+  assert.equal((await f.action(f.captain, 'task.undo_reschedule', { id: parent.id })).statusCode, 409);
+  response = await f.action(f.captain, 'task.reschedule', { id: parent.id, dueDate: '2026-01-25' }); assert.equal(response.statusCode, 200, response.body); moved = response.json();
+  const movedChild = moved.tasks.find(task => task.id === child.id);
+  response = await f.action(f.captain, 'task.save', { id: child.id, item: { ...movedChild, title: 'Human correction after moving' } }); assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }); assert.equal(response.statusCode, 409); assert.equal(response.json().error, 'UNDO_CHANGED');
+  assert.equal((await f.read()).tasks.find(task => task.id === child.id).title, 'Human correction after moving');
+});
+
+test('schedule cascades require permission over every moved sector and fail atomically', async t => {
+  const f = await fixture(t);
+  let response = await f.action(f.captain, 'task.save', { item: { title: 'Avionics activity', sectorId: 'avionics', startDate: '2026-01-01', dueDate: '2026-01-03' } }); const parent = response.json().tasks[0];
+  response = await f.action(f.captain, 'task.save', { item: { title: 'Structure child', parentId: parent.id, sectorId: 'structure', startDate: '2026-01-02', dueDate: '2026-01-03' } }); assert.equal(response.statusCode, 200, response.body);
+  const before = await f.read();
+  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10' }); assert.equal(response.statusCode, 403);
+  assert.deepEqual((await f.read()).tasks, before.tasks); assert.equal((await f.read()).revision, before.revision);
+  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10', cascade: false }); assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks.find(task => task.parentId === parent.id).dueDate, '2026-01-03');
+});
+
+test('review completion needs independent approval of the current plan and status changes preserve it', async t => {
+  const f = await fixture(t);
+  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Review', kind: 'review', status: 'done' } })).statusCode, 409);
+  let response = await f.action(f.captain, 'task.save', { item: { title: 'Review', kind: 'review', startDate: '2026-01-01', dueDate: '2026-01-02' } }); assert.equal(response.statusCode, 200, response.body); const review = response.json().tasks[0];
+  assert.equal((await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.captain.id] })).statusCode, 400);
+  response = await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.reviewer.id] }); assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.reviewer, 'task.review', { id: review.id, version: review.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } }); assert.equal(response.statusCode, 200, response.body); const done = response.json().tasks[0];
+  assert.equal(done.approvalStatus, 'approved'); assert.equal(done.version, review.version); assert.equal(done.decisions.length, 1);
+  assert.equal((await f.action(f.captain, 'task.save', { id: review.id, item: { ...done, title: 'Changed plan' } })).statusCode, 409);
+  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...done, title: 'Changed plan', status: 'planned' } }); assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks[0].approvalStatus, 'draft'); assert.equal(response.json().tasks[0].version, review.version + 1); assert.deepEqual(response.json().tasks[0].decisions, []);
+});
+
+test('document approvals require independent reviewers and are invalidated by body or source changes', async t => {
+  const f = await fixture(t), requirement = await f.saveReq();
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' }); const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' }); assert.equal(response.statusCode, 200, response.body); let document = response.json().documents[0];
+  assert.equal((await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.captain.id] })).statusCode, 400);
+  assert.equal((await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] })).statusCode, 200);
+  assert.equal((await f.action(f.captain, 'document.review', { id: document.id, version: document.version, decision: 'approve' })).statusCode, 403);
+  response = await f.action(f.reviewer, 'document.review', { id: document.id, version: document.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().documents[0].status, 'approved');
+  response = await f.action(f.captain, 'document.save', { id: document.id, item: { version: document.version, body: document.body + '\nRevisão da redação.' } }); assert.equal(response.statusCode, 200, response.body); document = response.json().documents[0]; assert.equal(document.status, 'draft'); assert.deepEqual(document.decisions, []);
+  await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] });
+  response = await f.action(f.reviewer, 'document.review', { id: document.id, version: document.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().documents[0].status, 'approved');
+  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, requirement.id);
+  const changed = (await f.read()).documents[0]; assert.equal(changed.status, 'draft'); assert.deepEqual(changed.decisions, []); assert.equal(changed.version, document.version, 'source revalidation does not rewrite the retained document');
+});
+
+test('loss of project access removes document and schedule approval without deleting historical decisions', async t => {
+  const f = await fixture(t);
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' }); const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' }); assert.equal(response.statusCode, 200, response.body); const document = response.json().documents[0];
+  for (const [kind, item] of [['document', document], ['task', review]]) {
+    response = await f.action(f.captain, kind + '.request_review', { id: item.id, reviewers: [f.reviewer.id] }); assert.equal(response.statusCode, 200, response.body);
+    response = await f.action(f.reviewer, kind + '.review', { id: item.id, version: item.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body);
+  }
+  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } }); assert.equal(response.statusCode, 200, response.body);
+  await f.app.missionStore.update(data => { const teamId = data.workspace.projects[f.projectId].document.context.teamId; const team = data.teams.find(team => team.id === teamId); team.memberIds = team.memberIds.filter(id => id !== f.reviewer.memberId); });
+  const state = await f.read(), task = state.tasks.find(task => task.id === review.id);
+  assert.equal(state.documents[0].status, 'draft'); assert.deepEqual(state.documents[0].decisions, []); assert.equal(task.status, 'blocked'); assert.equal(task.approvalStatus, 'draft'); assert.equal(task.reviewNeedsRevalidation, true);
+  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Handover', dependencyIds: [review.id], status: 'done' } })).statusCode, 409);
+  const stored = f.app.missionStore.read().workspace.delivery[f.projectId]; assert.equal(stored.documents[0].decisions.length, 1); assert.equal(stored.tasks.find(task => task.id === review.id).decisions.length, 1);
 });

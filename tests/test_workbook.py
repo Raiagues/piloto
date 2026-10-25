@@ -1,13 +1,12 @@
 """Read-only regression checks against the user's original Jev workbook."""
 import json
 from pathlib import Path
-import subprocess
 import unittest
 import xml.etree.ElementTree as ET
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BOOK = ROOT / 'jev_results_tracker_tests_002_to_007.xlsx'
+BOOK = ROOT / '.runtime' / 'backups' / 'retired-inputs' / 'jev_results_tracker_tests_002_to_007.xlsx'
 NS = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 
 
@@ -17,14 +16,13 @@ def rows(book, number):
              for cell in row} for row in root.findall('.//m:sheetData/m:row', NS)]
 
 
-@unittest.skipUnless(BOOK.exists(), 'Original user workbook not available')
+@unittest.skipUnless(all(path.exists() for path in (BOOK, BOOK.parent / 'full-request.json', BOOK.parent / 'workbook-variants.json')), 'Private workbook and reference fixtures are not available')
 class WorkbookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.example = json.loads((ROOT / 'manual-test-example.json').read_text())
-        cls.options = json.loads(subprocess.check_output([
-            'node', '-e', "console.log(JSON.stringify(require('./automation.js').exampleOptions(require('./manual-test-example.json').questions)))"
-        ], cwd=ROOT, text=True))
+        fixtures = BOOK.parent
+        cls.example = json.loads((fixtures / 'full-request.json').read_text())
+        cls.options = json.loads((fixtures / 'workbook-variants.json').read_text())['options']
 
     def test_all_questions_match_workbook_v2_exactly(self):
         with zipfile.ZipFile(BOOK) as book:

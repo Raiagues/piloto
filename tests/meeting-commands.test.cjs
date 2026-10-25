@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const C=require('../meeting-commands.js');
+const C=require('../meetings/web/meeting-commands.js');
 const clone=value=>JSON.parse(JSON.stringify(value));
 const run=()=>({provider:'official',meeting_threads:[{thread_id:'T001',status:'archived'},{thread_id:'T002',status:'active'}],meeting_events:[],topic_titles:{T001:'Suporte'}});
 function reply(request,choice='rename_topic',probability=.96,confidence=.01) {

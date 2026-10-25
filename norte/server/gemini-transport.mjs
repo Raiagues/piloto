@@ -67,5 +67,5 @@ export async function geminiGenerate({ apiKey, model, body, fetchImpl = fetch, p
     if (!record.retryScheduled) throw failure;
     await wait(delay);
   }
-  throw Object.assign(new Error("The extraction request budget expired. Retry from Project Memory."), { code: "SYSTEM_AI_UNAVAILABLE", category: "provider_timeout", statusCode: 502 });
+  throw Object.assign(new Error("The analysis request budget expired. Run the requirements analysis again."), { code: "SYSTEM_AI_UNAVAILABLE", category: "provider_timeout", statusCode: 502 });
 }

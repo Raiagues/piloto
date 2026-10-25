@@ -1,9 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-global.NorteMinutes=require('../meeting-minutes.js');
-global.NorteMeetingEvidence=require('../meeting-evidence.js');
-global.NorteMeetingHierarchy=require('../meeting-hierarchy.js');
-global.NorteMeetingState=require('../meeting-state.js');
-require('../gemini-minutes.js');
+global.NorteMinutes=require('../meetings/web/meeting-minutes.js');
+global.NorteMeetingEvidence=require('../meetings/web/meeting-evidence.js');
+global.NorteMeetingHierarchy=require('../meetings/web/meeting-hierarchy.js');
+global.NorteMeetingState=require('../meetings/web/meeting-state.js');
+require('../meetings/web/gemini-minutes.js');
 const M=global.NorteGeminiMinutes;
 const edge=(source,target,type,match='not_applicable')=>({source_event_id:source,target_event_id:target,relation_type:type,configuration_match:match,review_state:'confirmed',relation_probability:.99,match_probability:.99});
 function run(){return {id:'document-1',status:'done',meeting_threads:[{thread_id:'T1'}],topic_titles:{T1:'Deformação do suporte'},typed_relation_worker:{status:'done',jobs:[]},meeting_events:[
@@ -13,7 +13,7 @@ function run(){return {id:'document-1',status:'done',meeting_threads:[{thread_id
  {event_id:'E4',thread_id:'T1',type:'test_result',text:'No teste sob 20 N, a deformação excedeu o limite.'},
  {event_id:'E5',thread_id:'T1',type:'test_proposal',text:'Repetir amanhã sob a mesma carga.'}
  ].map(event=>({...event,store_confidence:.99,type_confidence:.99})),meeting_relations:[edge('E2','E1','related_to'),edge('E3','E2','tests'),edge('E4','E3','result_of','exact')]};}
-const A=require('../meeting-amendments.js');
+const A=require('../meetings/web/meeting-amendments.js');
 const blocks=pdf=>pdf.threads.flatMap(thread=>thread.sections.flatMap(section=>section.blocks));
 const printed=pdf=>pdf.threads.map(thread=>thread.title+'\n'+thread.sections.map(section=>section.title+'\n'+section.blocks.map(block=>block.text).join('\n')).join('\n')).join('\n');
 test('current source state is preserved while the PDF separates completed tests and remaining work',()=>{
@@ -54,10 +54,10 @@ test('events at 60% appear in the current document without confirming uncertain 
  assert.equal(source.events.length,5);assert.equal(doc.event_count,5);assert.equal(source.relations.length,0);
  assert.match(printed(M.pdfDocument(doc,{})),/O suporte deforma sob carga|A rigidez pode explicar a deformação/);assert.equal(JSON.stringify(r),before);
 });
-test('unnamed topics are numbered and imported timestamps are not confused with the upload time',()=>{
+test('unnamed topics use a short source excerpt and imported timestamps are not confused with upload time',()=>{
  const r=run();delete r.topic_titles;r.meeting_threads[0].title='Automatically guessed title';r.input_mode='import';r.startedAt='2026-10-06T12:00:00Z';r.finishedAt='2026-10-06T12:00:01Z';r.transcript=[{offsetMs:0},{offsetMs:464000}];
  r.meeting_threads.push({thread_id:'T2'});r.meeting_events.push({event_id:'E6',thread_id:'T2',type:'observation',text:'Outro assunto.',store_confidence:.99,type_confidence:.99});const before=JSON.stringify(r),doc=M.localDocument(r),pdf=M.pdfDocument(doc,{});
- assert.deepEqual(doc.topics.map(topic=>topic.title),['Assunto 1: sem título','Assunto 2: sem título']);assert.deepEqual(pdf.contents.map(item=>item.title),doc.topics.map(topic=>topic.title));
+ assert.deepEqual(doc.topics.map(topic=>topic.title),['O suporte deforma sob carga.','Outro assunto.']);assert.deepEqual(pdf.contents.map(item=>item.title),doc.topics.map((topic,index)=>'Assunto '+(index+1)+': '+topic.title));
  assert.match(doc.metadata.date,/Não informada na transcrição/);assert.match(doc.metadata.time,/Não informado na transcrição/);assert.equal(doc.metadata.duration,'7 min 44 s');assert.equal(doc.metadata.participants,'Não informados');assert.equal(JSON.stringify(r),before);
 });
 test('replacements remain auditable internally but only the current decision and evidence are printed',()=>{
@@ -103,12 +103,20 @@ test('retired events and ungrounded or cross-topic table cells never enter the c
  const doc=M.organizedDocument(r,{topics:[{thread_id:'T1',entries:[{event_id:'E4',text:'Valor antigo 20 N.'},{event_id:'E7',text:'Valor 30 N.'}],tables:[{title:'Inventado',columns:['Carga','Resultado'],rows:[{event_id:'E1',cells:['99 N','aprovado']}]},{title:'Outro assunto',columns:['Carga','Resultado'],rows:[{event_id:'E7',cells:['30 N','']}]},{title:'Antigo',columns:['Carga','Resultado'],rows:[{event_id:'E4',cells:['20 N',''] }]}]}]});
  assert.deepEqual(doc.topics[0].tables,[]);assert.doesNotMatch(printed(M.pdfDocument(doc)),/Valor antigo|Inventado|Outro assunto/);
 });
-test('prepared example summaries and human corrections are presentation only, including PDF', async()=>{
- const {exampleSnapshot}=await import('../norte/scripts/seed-meeting-examples.mjs');
- const r=exampleSnapshot('geral',{id:'mock-summary',title:'Exemplo',projectId:'p'}),before=JSON.stringify(r),doc=M.localDocument(r),text=printed(M.pdfDocument(doc,{}));
- assert.match(text,/Hipótese: imagens sem compressão/);assert.doesNotMatch(text,/Voltando à tela inicial/);assert.equal(JSON.stringify(r),before);
- const e=r.meeting_events.find(e=>e.event_id==='E007');assert.match(M.sourceFor(r).events.find(event=>event.event_id===e.event_id).text,/Voltando à tela inicial/);
- r.block_edits={[e.event_id]:{source:e.text,text:'Hipótese revisada por uma pessoa.'}};
- assert.match(printed(M.pdfDocument(M.organizedDocument(r,{topics:[{thread_id:e.thread_id,entries:[{event_id:e.event_id,text:'Hipótese alterada por IA.'}]}]}),{})),/Hipótese revisada por uma pessoa/);
- e.text='A fonte mudou e não corresponde ao resumo.';assert.doesNotMatch(printed(M.pdfDocument(M.localDocument(r),{})),/Hipótese revisada por uma pessoa|Hipótese: imagens sem compressão/);
+test('human summary corrections are presentation only in the PDF and invalidate on source changes',()=>{
+ const r=run(),e=r.meeting_events[1],original=e.text;
+ r.block_edits={[e.event_id]:{source:original,text:'Hipótese revisada por uma pessoa.'}};
+ assert.match(printed(M.pdfDocument(M.localDocument(r),{})),/Hipótese revisada por uma pessoa/);
+ assert.equal(M.sourceFor(r).events.find(item=>item.event_id===e.event_id).text,original);
+ e.text='A fonte mudou e não corresponde ao resumo.';
+ assert.doesNotMatch(printed(M.pdfDocument(M.localDocument(r),{})),/Hipótese revisada por uma pessoa/);
+});
+
+test('integrated minutes use the meeting record and never import a shared browser cache',async()=>{
+ const storage={getItem(){throw Error('must not read browser storage');},setItem(){throw Error('must not write browser storage');}},r={...run(),integrated_norte:true};
+ assert.equal(M.readDraft(r,'source-1',storage),null);
+ const draft={sourceId:'source-1',doc:{title:'Ata'},reviewed:{},presentationVersion:10};let saved;
+ await M.saveDraft(r,draft,{storage,onUpdate:value=>{saved=structuredClone(value);return true;}});
+ assert.deepEqual(saved.minutes_document,draft);assert.deepEqual(M.readDraft(r,'source-1',storage),draft);assert.equal(M.readDraft(r,'changed-source',storage),null);
+ assert.equal(await M.saveDraft(r,{...draft,doc:{title:'Unauthorized'}},{storage,readOnly:true}),false);assert.equal(r.minutes_document.doc.title,'Ata');
 });

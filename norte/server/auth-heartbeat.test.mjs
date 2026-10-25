@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
-import { createHash, randomBytes } from 'node:crypto';
 import test from 'node:test';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
 import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
-import { DEMO_TTL_MS } from './demo-account.mjs';
 
-const digest = token => createHash('sha256').update(token).digest('hex');
 const cookies = response => [response.headers['set-cookie']].flat().filter(Boolean).map(value => value.split(';')[0]);
 async function fixture(t) {
   const store = await new PostgresDataStore('unused', { pool: createMemoryPostgresPool() }).init();
@@ -21,15 +18,6 @@ async function fixture(t) {
   store.update = (...args) => { writes++; return update(...args); };
   const request = (method = 'POST', url = '/api/auth/heartbeat', headers = actor.headers) => app.inject({ method, url, headers });
   return { app, store, actor, update, request, credentials, writes: () => writes, reset: () => { writes = 0; },
-    async demo() {
-      const token = randomBytes(32).toString('base64url');
-      await update(data => {
-        const user = data.users.find(item => item.id === actor.id);
-        Object.assign(user, { isDemoAccount: true, demoSandboxOwner: true, demoSandboxId: 'demo-heartbeat-fixture', demoResumeTokenHash: digest(token), demoExpiresAt: Date.now() + DEMO_TTL_MS });
-      });
-      actor.headers.cookie += `; norte_demo=${token}`;
-      return token;
-    },
     async staleSession() {
       await update(data => { for (const session of data.sessions.filter(item => item.userId === actor.id)) session.lastSeenAt = new Date(Date.now() - 60_000).toISOString(); });
     }
@@ -66,52 +54,6 @@ test('the recent-heartbeat shortcut still enforces CSRF, logout and account revo
   f.reset();
   assert.equal((await f.request()).statusCode, 401);
   assert.equal(f.writes(), 0);
-});
-
-test('recent demo heartbeat and session reads preserve browser recovery without rewriting the snapshot', async t => {
-  const f = await fixture(t), token = await f.demo();
-  const retained = f.store.read(data => data.users.find(user => user.id === f.actor.id).demoExpiresAt);
-  const session = await f.request('GET', '/api/auth/session');
-  assert.equal(session.statusCode, 200);
-  assert.equal(session.json().authenticated, true);
-  assert.equal(session.json().demoResumeAvailable, true);
-  assert.equal((await f.request()).statusCode, 200);
-  assert.equal(f.writes(), 0);
-  assert.equal(f.store.read(data => data.users.find(user => user.id === f.actor.id).demoExpiresAt), retained);
-  assert.equal((await f.request('POST', '/api/auth/logout')).statusCode, 204);
-  const resumed = await f.request('POST', '/api/auth/demo', { cookie: `norte_demo=${token}` });
-  assert.equal(resumed.statusCode, 200, resumed.body);
-  assert.equal(resumed.json().resumed, true);
-  assert.equal(resumed.json().user.id, f.actor.id);
-});
-
-for (const route of ['/api/auth/session', '/api/auth/heartbeat']) test(`${route} renews older demo retention even with a recent presence timestamp`, async t => {
-  const f = await fixture(t), token = await f.demo();
-  await f.update(data => { data.users.find(user => user.id === f.actor.id).demoExpiresAt = Date.now() + DEMO_TTL_MS - 60_000; });
-  const response = await f.request(route.endsWith('session') ? 'GET' : 'POST', route);
-  assert.equal(response.statusCode, 200);
-  assert.equal(f.writes(), 1);
-  assert(cookies(response).includes(`norte_demo=${token}`));
-  assert(f.store.read(data => data.users.find(user => user.id === f.actor.id).demoExpiresAt) > Date.now() + DEMO_TTL_MS - 5000);
-});
-
-for (const route of ['/api/auth/session', '/api/auth/heartbeat']) test(`${route} repairs missing or invalid demo recovery cookies before considering a skip`, async t => {
-  const f = await fixture(t);
-  await f.demo();
-  for (const invalid of ['', `; norte_demo=${randomBytes(32).toString('base64url')}`]) {
-    f.reset();
-    const headers = { ...f.actor.headers, cookie: f.actor.headers.cookie.split('; norte_demo=')[0] + invalid };
-    const response = await f.request(route.endsWith('session') ? 'GET' : 'POST', route, headers);
-    assert.equal(response.statusCode, 200);
-    assert.equal(f.writes(), 1);
-    const recovery = cookies(response).find(value => value.startsWith('norte_demo='));
-    assert(recovery);
-    const token = recovery.slice('norte_demo='.length);
-    assert.equal(f.store.read(data => data.users.find(user => user.id === f.actor.id).demoResumeTokenHash), digest(token));
-    const repaired = { ...headers, cookie: headers.cookie.split('; norte_demo=')[0] + `; ${recovery}` };
-    assert.equal((await f.request(route.endsWith('session') ? 'GET' : 'POST', route, repaired)).statusCode, 200);
-    assert.equal(f.writes(), 1, 'the repaired credential makes the next request read-only');
-  }
 });
 
 test('a failed heartbeat write does not suppress the next explicit attempt', async t => {

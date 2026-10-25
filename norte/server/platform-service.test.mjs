@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { buildApp } from './app.mjs';
-import { createValidationProject } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 import { base32, totp, validCounter } from './platform-security.mjs';
 
 const password = 'isolated platform acceptance password';
@@ -13,7 +13,7 @@ const cookieOf = response => [response.headers['set-cookie']].flat().filter(Bool
 async function fixture(t, options = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'norte-platform-'));
   const storeFile = join(directory, 'state.json'), platform = { encryptionKey: 'test-only-platform-key-with-more-than-32-characters', ...options.platform };
-  let app = await buildApp({ storeFile, logger: false, ai: { apiKey: '' }, demoAccount: true, ...options, platform });
+  let app = await buildApp({ storeFile, logger: false, ai: { apiKey: '' }, ...options, platform });
   t.after(async () => { await app.close(); await rm(directory, { recursive: true, force: true }); });
   const request = (actor, method, path, payload, headers = {}) => app.inject({ method, url: `/api${path}`, headers: { ...actor?.headers, ...headers }, ...(payload !== undefined ? { payload } : {}) });
   async function account(name) {
@@ -36,7 +36,7 @@ async function fixture(t, options = {}) {
     assert.equal(verified.statusCode, 200, verified.body);
     return { secret, counter, code };
   }
-  return { get app() { return app; }, request, owner, alice, bob, account, login, elevate, storeFile, async restart(key = platform.encryptionKey) { await app.close(); app = await buildApp({ storeFile, logger: false, ai: { apiKey: '' }, demoAccount: true, ...options, platform: { ...platform, encryptionKey: key } }); } };
+  return { get app() { return app; }, request, owner, alice, bob, account, login, elevate, storeFile, async restart(key = platform.encryptionKey) { await app.close(); app = await buildApp({ storeFile, logger: false, ai: { apiKey: '' }, ...options, platform: { ...platform, encryptionKey: key } }); } };
 }
 
 // Interoperability vectors from RFC 6238 Appendix B:
@@ -53,7 +53,7 @@ test('authenticator matches RFC 6238 and rejects malformed, expired and replayed
 
 test('MFA gates global administration, binds enrollment to session, encrypts secrets and rejects replay', async t => {
   const f = await fixture(t), { request, owner, alice } = f;
-  for (const path of ['/platform/admin/people', '/platform/admin/analytics', '/platform/admin/plans', '/platform/admin/technical']) {
+  for (const path of ['/platform/admin/people', '/platform/admin/analytics', '/platform/admin/technical']) {
     assert.equal((await request(null, 'GET', path)).statusCode, 401);
     assert.equal((await request(alice, 'GET', path)).statusCode, 403);
     assert.equal((await request(owner, 'GET', path)).json().error, 'ADMIN_MFA_REQUIRED');
@@ -85,12 +85,10 @@ test('MFA enrollment is unavailable without a persistent key and cannot be enabl
   const f = await fixture(t, { platform: { encryptionKey: '' } });
   assert.equal((await f.request(f.owner, 'GET', '/platform/admin/security')).json().configured, false);
   assert.equal((await f.request(f.owner, 'POST', '/platform/admin/security/enroll', { password })).statusCode, 503);
-  const response = await f.request(null, 'POST', '/auth/demo', {});
-  const demo = { ...response.json().user, headers: { cookie: cookieOf(response), 'x-csrf-token': response.json().csrfToken } };
-  assert.equal((await f.request(demo, 'GET', '/platform/admin/security')).statusCode, 403);
-  assert.equal((await f.request(demo, 'POST', '/platform/plans/requests', {})).json().error, 'DEMO_RESTRICTED');
-  const people = await f.request(demo, 'GET', '/platform/people');
-  assert.equal(people.json().users.some(user => user.id === f.alice.id), false, 'demo directory cannot enumerate permanent accounts');
+  await f.app.missionStore.update(data => { data.users.find(user => user.id === f.alice.id).isDemoAccount = true; });
+  assert.equal((await f.request(f.alice, 'GET', '/platform/admin/security')).statusCode, 403);
+  assert.equal((await f.request(null, 'POST', '/auth/demo', {})).statusCode, 404);
+
 });
 
 test('platform directory exposes presence and public names without exposing emails, credentials or cross-demo users', async t => {
@@ -149,58 +147,6 @@ test('project conversation access is revoked immediately with membership and can
   assert.equal((await request(alice, 'POST', `/platform/conversations/${id}/messages`, { key: randomUUID(), body: 'Stopped after revocation' })).statusCode, 403);
 });
 
-const selection = { kind: 'company', company: 'Engineering fixture', editors: 2, reviewers: 1, viewers: 3 };
-test('plans use server prices, version checks, consent, per-account requests and idempotent manual confirmation', async t => {
-  const f = await fixture(t), { request, owner, alice, bob } = f;
-  const catalog = (await request(null, 'GET', '/platform/plans')).json();
-  assert.equal(catalog.paymentsProcessed, false); assert.ok(catalog.features.includes('meetings_minutes')); assert.ok(catalog.features.includes('document_extraction'));
-  const quoteResponse = await request(alice, 'POST', '/platform/plans/quote', { ...selection, monthlyCents: 1 });
-  assert.equal(quoteResponse.statusCode, 200); const quote = quoteResponse.json().quote;
-  assert.equal(quote.monthlyCents, catalog.catalog.company + 2 * catalog.catalog.editor + catalog.catalog.reviewer);
-  const payload = { key: randomUUID(), selection, consent: true, version: quote.version, expectedCents: quote.monthlyCents };
-  assert.equal((await request(alice, 'POST', '/platform/plans/requests', { ...payload, expectedCents: 1 })).statusCode, 409);
-  assert.equal((await request(alice, 'POST', '/platform/plans/requests', { ...payload, consent: false })).statusCode, 400);
-  const result = await request(alice, 'POST', '/platform/plans/requests', payload);
-  assert.equal(result.statusCode, 200, result.body); let order = result.json().request;
-  const duplicate = await request(alice, 'POST', '/platform/plans/requests', payload); assert.equal(duplicate.json().request.id, order.id);
-  assert.equal((await request(alice, 'POST', '/platform/plans/requests', { ...payload, selection: { ...selection, editors: 3 } })).statusCode, 409);
-  assert.deepEqual((await request(bob, 'GET', '/platform/plans/requests')).json().requests, []);
-  assert.equal((await request(bob, 'POST', `/platform/plans/requests/${order.id}/cancel`, { version: 1 })).statusCode, 404);
-  assert.equal((await request(owner, 'POST', `/platform/admin/plans/${order.id}`, { version: 1, status: 'confirmed', confirm: true })).json().error, 'ADMIN_MFA_REQUIRED');
-  await f.elevate();
-  assert.equal((await request(owner, 'POST', `/platform/admin/plans/${order.id}`, { version: 1, status: 'confirmed', confirm: true })).json().error, 'OFFER_PENDING');
-  const approval = await request(owner, 'POST', '/platform/admin/plans/catalog', { version: catalog.catalog.version, prices: catalog.catalog, approved: true });
-  assert.equal(approval.statusCode, 200, approval.body);
-  assert.equal((await request(owner, 'POST', '/platform/admin/plans/catalog', { version: catalog.catalog.version, prices: catalog.catalog, approved: true })).statusCode, 409);
-  const confirmed = await request(owner, 'POST', `/platform/admin/plans/${order.id}`, { version: order.version, status: 'confirmed', confirm: true });
-  assert.equal(confirmed.statusCode, 200, confirmed.body); order = confirmed.json().request;
-  const entitlement = (await request(alice, 'GET', '/platform/plans/requests')).json().entitlement;
-  assert.equal(entitlement.paymentVerifiedAutomatically, false); assert.equal(entitlement.confirmation, 'manual');
-  assert.ok(Date.parse(entitlement.until) > Date.now() + 29 * 86400000);
-  assert.equal((await request(owner, 'POST', `/platform/admin/plans/${order.id}`, { version: order.version, status: 'confirmed', confirm: true })).statusCode, 409);
-  assert.equal((await request(alice, 'POST', `/platform/plans/requests/${order.id}/cancel`, { version: order.version })).statusCode, 409);
-  await f.restart();
-  assert.equal((await request(alice, 'GET', '/platform/plans/requests')).json().entitlement.until, entitlement.until);
-  assert.equal(f.app.missionStore.read().platform.planRequests.length, 1);
-});
-
-test('catalog changes require renewed customer quote and revoked administrator cannot mutate after admission', async t => {
-  const f = await fixture(t), { request, alice, owner } = f; await f.elevate();
-  const catalog = (await request(null, 'GET', '/platform/plans')).json().catalog;
-  const quote = (await request(alice, 'POST', '/platform/plans/quote', selection)).json().quote;
-  const order = (await request(alice, 'POST', '/platform/plans/requests', { key: randomUUID(), selection, consent: true, version: quote.version, expectedCents: quote.monthlyCents })).json().request;
-  assert.equal((await request(owner, 'POST', '/platform/admin/plans/catalog', { version: catalog.version, prices: { ...catalog, company: catalog.company + 100 }, approved: true })).statusCode, 200);
-  assert.equal((await request(owner, 'POST', `/platform/admin/plans/${order.id}`, { version: order.version, status: 'confirmed', confirm: true })).json().error, 'QUOTE_CHANGED');
-  // A queued request passed HTTP authorization before a concurrent revocation.
-  // Intercept its transaction to model that race without relying on timing.
-  const store = f.app.missionStore, update = store.update.bind(store); let revoke = true;
-  store.update = mutator => update(async data => { if (revoke) { data.users.find(user => user.id === owner.id).accessRole = 'member'; revoke = false; } return mutator(data); });
-  const denied = await request(owner, 'POST', '/platform/admin/plans/catalog', { version: catalog.version + 1, prices: catalog, approved: true });
-  store.update = update;
-  assert.equal(denied.statusCode, 403, denied.body);
-  assert.equal((await request(null, 'GET', '/platform/plans')).json().catalog.company, catalog.company + 100);
-});
-
 test('telemetry requires consent and session proof, strips payload PII, deduplicates and gates analytics', async t => {
   const f = await fixture(t), { request, alice, bob, owner } = f;
   assert.equal((await request(null, 'POST', '/platform/telemetry/session', { consent: false })).statusCode, 400);
@@ -210,21 +156,26 @@ test('telemetry requires consent and session proof, strips payload PII, deduplic
   const session = await request(alice, 'POST', '/platform/telemetry/session', { consent: true });
   assert.equal(session.statusCode, 200, session.body);
   const headers = { cookie: `${alice.headers.cookie}; ${cookieOf(session)}`, 'x-usage-token': session.json().csrfToken };
-  const payload = { key: randomUUID(), page: 'plans', name: 'page_view', options: { kind: 'company', editors: 2, email: 'do-not-store@example.test', document: 'secret content' }, country: 'US', region: 'Spoofed', ip: '192.0.2.42', content: 'secret content', activeSeconds: 9000 };
+  const payload = { key: randomUUID(), page: 'requirements', name: 'page_view', options: { email: 'do-not-store@example.test', document: 'secret content' }, country: 'US', region: 'Spoofed', ip: '192.0.2.42', content: 'secret content', activeSeconds: 9000 };
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', payload)).statusCode, 403);
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', payload, headers)).statusCode, 200);
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', payload, headers)).statusCode, 200);
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', { ...payload, key: randomUUID(), page: '/project/secret-name' }, headers)).statusCode, 400);
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', { ...payload, key: 'email@example.test' }, headers)).statusCode, 400);
-  assert.equal((await request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), page: 'plans', name: 'page_time', activeSeconds: 9000, options: null }, headers)).statusCode, 200);
+  assert.equal((await request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), page: 'requirements', name: 'page_time', activeSeconds: 9000, options: null }, headers)).statusCode, 200);
   const events = f.app.missionStore.read().telemetry.events;
   assert.equal(events.length, 2); assert.equal(events[1].activeSeconds, 60); assert.equal(events[0].country, null);
   assert.doesNotMatch(JSON.stringify(events), /secret content|do-not-store|192\.0\.2\.42|Spoofed|email/);
+  assert.equal((await request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), page: 'requirements', name: 'feature_click', options: { action: 'requirements.analyze', text: 'private requirement' } }, headers)).statusCode, 200);
+  assert.equal((await request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), page: 'requirements', name: 'feature_click', options: { action: 'private requirement' } }, headers)).statusCode, 400);
+  assert.equal((await request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), page: 'plans', name: 'page_view' }, headers)).statusCode, 400);
+  assert.doesNotMatch(JSON.stringify(f.app.missionStore.read().telemetry.events), /private requirement/);
   assert.equal((await request(alice, 'GET', '/platform/admin/analytics')).statusCode, 403);
   assert.equal((await request(owner, 'GET', '/platform/admin/analytics')).json().error, 'ADMIN_MFA_REQUIRED');
   await f.elevate();
   const analytics = (await request(owner, 'GET', '/platform/admin/analytics')).json();
-  assert.equal(analytics.consentedSessions, 1); assert.equal(analytics.pages.find(page => page.page === 'plans').averageActiveSeconds, 60); assert.equal(analytics.funnel.find(step => step.step === 'plans').visitors, 1);
+  assert.deepEqual(analytics.clicks, [{ action: 'requirements.analyze', count: 1 }]);
+  assert.equal(analytics.consentedSessions, 1); assert.equal(analytics.pages.find(page => page.page === 'requirements').averageActiveSeconds, 60); assert.equal(analytics.averageActiveSeconds, 60); assert.equal(analytics.accounts.createdLast30Days, 3);
   const changed = { ...headers, cookie: `${bob.headers.cookie}; ${cookieOf(session)}` };
   assert.equal((await request(null, 'POST', '/platform/telemetry/events', { ...payload, key: randomUUID() }, changed)).json().error, 'USAGE_SESSION_CHANGED');
   assert.equal((await request(null, 'DELETE', '/platform/telemetry/session', undefined, headers)).statusCode, 200);
@@ -261,4 +212,38 @@ test('location headers require the configured upstream secret and cannot be forg
   assert.deepEqual(events.map(event => event.country), [null, null, 'BR']);
   assert.equal(events[2].region, 'São Paulo');
   assert.doesNotMatch(JSON.stringify(events), /test-only-geo-proof/);
+});
+
+test('usage sessions separate account switches and logout while erasure remains account scoped', async t => {
+  const f = await fixture(t);
+  let usageCookie = '';
+  const emit = async (actor, page) => {
+    const cookie = [actor?.headers.cookie, usageCookie].filter(Boolean).join('; ');
+    const session = await f.request(null, 'POST', '/platform/telemetry/session', { consent: true }, { cookie });
+    assert.equal(session.statusCode, 200, session.body);
+    usageCookie = cookieOf(session);
+    const headers = { cookie: [actor?.headers.cookie, usageCookie].filter(Boolean).join('; '), 'x-usage-token': session.json().csrfToken };
+    const event = await f.request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), name: 'page_view', page }, headers);
+    assert.equal(event.statusCode, 200, event.body);
+    return headers;
+  };
+  const aliceHeaders = await emit(f.alice, 'requirements');
+  await emit(null, 'landing');
+  await emit(f.bob, 'home');
+  await emit(f.bob, 'teams');
+  const events = f.app.missionStore.read().telemetry.events;
+  assert.deepEqual(events.map(event => event.userId), [f.alice.id, null, f.bob.id, f.bob.id]);
+  assert.equal(new Set(events.map(event => event.sessionId)).size, 3);
+  assert.equal(events[2].sessionId, events[3].sessionId, 'refreshing the same account preserves its usage session');
+  assert.equal((await f.request(null, 'POST', '/platform/telemetry/events', { key: randomUUID(), name: 'page_view', page: 'requirements' }, aliceHeaders)).statusCode, 403, 'old session proof cannot write after an account switch');
+  await f.elevate();
+  const summary = (await f.request(f.owner, 'GET', '/platform/admin/analytics')).json();
+  assert.equal(summary.consentedSessions, 3);
+  assert.equal(summary.recent.find(session => session.userId === f.alice.id).lastPage, 'requirements');
+  assert.equal(summary.recent.find(session => session.userId === null).lastPage, 'landing');
+  assert.equal(summary.recent.find(session => session.userId === f.bob.id).lastPage, 'teams');
+  assert.equal((await f.request(null, 'POST', '/platform/privacy/erase-usage', {})).statusCode, 401);
+  assert.equal((await f.request(f.alice, 'POST', '/platform/privacy/erase-usage', {}, { 'x-csrf-token': '' })).statusCode, 403);
+  assert.equal((await f.request(f.alice, 'POST', '/platform/privacy/erase-usage', {})).statusCode, 200);
+  assert.deepEqual(f.app.missionStore.read().telemetry.events.map(event => event.userId), [null, f.bob.id, f.bob.id]);
 });

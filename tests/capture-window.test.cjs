@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {CaptureWindow}=require('../speech-windows.js');
+const {CaptureWindow}=require('../meetings/web/speech-windows.js');
 function fixture(){let time=0,sequence=0;const timers=new Map(),calls=[];const window=new CaptureWindow({now:()=>time,schedule:(fn,delay)=>{timers.set(++sequence,{fn,at:time+delay});return sequence;},cancel:id=>timers.delete(id),onBoundary:reason=>calls.push({reason,at:time})});return {window,calls,timers,tick(ms){time+=ms;for(const [id,timer] of [...timers])if(timer.at<=time){timers.delete(id);timer.fn();}}};}
 test('continuous recognition is never stopped on a timer while phrases keep being confirmed',()=>{
  const f=fixture();f.window.start();

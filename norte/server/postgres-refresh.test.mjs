@@ -5,6 +5,7 @@ import pg from 'pg';
 import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
 import { createInitialData } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 import { buildApp } from './app.mjs';
 
 // The same regression suite runs against pg-mem and an explicitly supplied
@@ -52,8 +53,8 @@ test('unchanged PostgreSQL bursts share one revision check without retransferrin
   await store.refresh();
   assert.deepEqual(transferred, [null, null], 'later requests still check PostgreSQL; there is no ACL TTL');
   const selected = store.read(data => ({ teams: data.teams }));
-  selected.teams[0].name = 'caller mutation';
-  assert.notEqual(store.read(data => data.teams[0].name), selected.teams[0].name);
+  selected.teams.push({ id: 'caller mutation' });
+  assert.equal(store.read(data => data.teams.length), 0);
   store.data.expensiveUnrelatedDocument = { get body() { throw new Error('unrelated document was cloned'); } };
   assert.equal(store.read(data => data.users.length), 0, 'small reads do not walk unrelated documents');
   delete store.data.expensiveUnrelatedDocument;
@@ -130,8 +131,9 @@ test('project/team listing sees cross-instance membership and session revocation
   const cookie = registered.headers['set-cookie'].split(';')[0], user = registered.json().user;
   const headers = { cookie };
   const other = await new PostgresDataStore('postgresql://test', { pool }).init();
-  const projectId = store.read(data => data.workspace.project.document.id);
-  await other.update(data => { data.teams[0].memberIds.push(user.memberId); });
+  const project = createValidationProject(); project.context.teamId = 'shared-team';
+  const projectId = project.id;
+  await other.update(data => { data.teams.push({ id: 'shared-team', name: 'Shared', createdBy: 'another-owner', captainMemberId: 'another-member', memberIds: [user.memberId], artifactIds: [], joinRequests: [] }); data.workspace.projects[projectId] = { document: project, revision: 1, createdBy: 'another-owner' }; });
   let projects = await app.inject({ method: 'GET', url: '/api/projects', headers });
   assert.equal(projects.statusCode, 200, projects.body);
   assert(projects.json().projects.some(project => project.id === projectId));

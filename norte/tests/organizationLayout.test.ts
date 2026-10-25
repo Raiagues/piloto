@@ -3,7 +3,6 @@ import { layoutOrganization, organizationEdgePath } from '../src/lib/organizatio
 import { projectOrganization } from '../shared/organization-tree.mjs';
 import { suggestedSectors } from '../shared/project-organization.mjs';
 import { createEmptyProject, normalizeProject } from '../src/lib/projectStore';
-import { referenceProgram, programModality } from '../src/lib/programs';
 import type { OrganizationNode } from '../shared/organization-tree.mjs';
 
 const sector = (id: string): OrganizationNode => ({ id, name: `Sector ${id}`, kind: 'sector', children: [] });
@@ -56,9 +55,5 @@ describe('competition setup', () => {
     expect(normalized.context.categoryId).toBe('micro');
     expect(normalized.engineeringSystem).toEqual(project.engineeringSystem);
     expect(projectOrganization(normalized).children).toHaveLength(1);
-    const modality = programModality(referenceProgram('sae-aerodesign'), 'aircraft');
-    expect(modality?.categories.map(c => c.id)).toEqual(['regular', 'advanced', 'micro']);
-    expect(modality?.requirements).toEqual([]);
-    expect(modality?.phases).toEqual([]);
   });
 });

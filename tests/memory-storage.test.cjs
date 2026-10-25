@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const source = fs.readFileSync(require.resolve('../memory-storage.js'), 'utf8');
+const source = fs.readFileSync(require.resolve('../meetings/web/memory-storage.js'), 'utf8');
 function load(environment = {}) {
   const context = vm.createContext({ module: { exports: {} }, ...environment });
   vm.runInContext(source, context, { filename: 'memory-storage.js' });

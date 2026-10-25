@@ -6,10 +6,8 @@ import { join } from 'node:path';
 import { createMemoryPostgresPool } from './test-support/postgres-memory.mjs';
 import { buildApp } from './app.mjs';
 import { PostgresDataStore } from './postgres-store.mjs';
-import { createValidationProject, normalizeStoredData } from './data-store.mjs';
-import { suggestedSectors, organizationError } from '../shared/project-organization.mjs';
-import { technicalHierarchyError, respectsTechnicalFolders } from '../shared/technical-hierarchy.mjs';
-import { buildSystemPrompt, createSystemAiService } from './system-ai.mjs';
+import { normalizeStoredData } from './data-store.mjs';
+import { createValidationProject } from './test-support/project.mjs';
 import { renderArtifactPdf } from './artifact-pdf.mjs';
 
 async function fixture(t, postgres = false) {
@@ -123,9 +121,9 @@ test('manager delegation, multiple sectors and all alternate write routes enforc
   await save(manager, p => { p.context.folders.find(f => f.id === 'tests').parentId = 'structures'; }, 403);
   await save(member, p => { p.context.folders.push({ id: 'unauthorized', name: 'Tests', parentId: 'avionics' }); }, 403);
   const forbidden = structuredClone(project); forbidden.context.assignments[1].roleId = 'captain';
-  assert.equal((await request(manager, 'PUT', '/workspace/project', forbidden)).statusCode, 403);
-  assert.equal((await request(outsider, 'GET', '/workspace/project')).statusCode, 403);
-  assert.equal((await request(outsider, 'PUT', `/workspace/labs/${project.id}`, { schemaVersion: 1, nodes: [], links: [] })).statusCode, 403);
+  assert.equal((await request(manager, 'PUT', '/workspace/project', forbidden)).statusCode, 404);
+  assert.equal((await request(outsider, 'GET', '/workspace/project')).statusCode, 404);
+  assert.equal((await request(outsider, 'PUT', `/workspace/labs/${project.id}`, { schemaVersion: 1, nodes: [], links: [] })).statusCode, 404);
   await request(member, 'POST', '/auth/logout');
   const loggedIn = await f.app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: member.email, password: 'a long test passphrase for engineering' } });
   member.headers = { cookie: loggedIn.headers['set-cookie'].split(';')[0], 'x-csrf-token': loggedIn.json().csrfToken };
@@ -151,8 +149,8 @@ test('folders prevent cycles, orphaned children and loss of existing content', a
 test('presence expires without deployment, logout closes only that session and users remain admin-only', async t => {
   const f = await fixture(t), { request, owner, captain, member } = f;
   assert.equal((await request(member, 'GET', '/admin/users')).statusCode, 403);
-  assert.equal((await request(member, 'GET', `/projects/${f.project.id}/activity`)).statusCode, 403);
-  assert.equal((await request(captain, 'GET', `/projects/${f.project.id}/activity`)).json().users.length, 3);
+  assert.equal((await request(member, 'GET', `/projects/${f.project.id}/activity`)).statusCode, 404);
+  assert.equal((await request(captain, 'GET', `/projects/${f.project.id}/activity`)).statusCode, 404);
   const adminList = (await request(owner, 'GET', '/admin/users')).json().users;
   assert.equal(adminList.some(u => u.id === member.id), false);
   let list = (await request(captain, 'GET', '/directory/members')).json().members;
@@ -167,25 +165,6 @@ test('presence expires without deployment, logout closes only that session and u
   const offline = (await request(captain, 'GET', '/directory/members')).json().members.find(u => u.id === member.id);
   assert.equal(offline.presence, 'offline'); assert.ok(offline.lastSeenAt);
   assert.equal((await request(member, 'POST', '/auth/heartbeat')).statusCode, 401);
-});
-
-test('typed hierarchy and user-defined folder context constrain Gemini without creating sectors as hardware', async () => {
-  const project = createValidationProject(); project.context.sectors = [{ id: 'sector', name: 'Engenharia' }];
-  project.context.folders = [{ id: 'system', name: 'Test system', parentId: 'sector', technicalKind: 'system' }, { id: 'subsystem', name: 'Test subsystem', parentId: 'system', technicalKind: 'subsystem' }, { id: 'component', name: 'Radio', parentId: 'subsystem', technicalKind: 'component' }];
-  assert.equal(organizationError(project), null);
-  assert.match(buildSystemPrompt(project, []), /technicalStructure/);
-  assert.match(buildSystemPrompt(project, []), /NEVER automatic hardware systems/);
-  const entities = [{ id: 'system', name: 'Test system', kind: 'system' }, { id: 'subsystem', name: 'Test subsystem', kind: 'subsystem', parentId: 'system' }, { id: 'component', name: 'Radio', kind: 'component', parentId: 'subsystem' }];
-  assert.equal(technicalHierarchyError({ entities, relations: [] }), null);
-  assert.match(technicalHierarchyError({ entities: entities.map(e => e.id === 'component' ? { ...e, parentId: 'system' } : e), relations: [] }), /must belong to a subsystem/);
-  assert.match(respectsTechnicalFolders(project, { entities: entities.map(e => e.id === 'component' ? { ...e, kind: 'system' } : e) }), /Radio/);
-  const invalid = entities.map(e => ({ ...e, description: '', properties: [], source: 'inferred', confidence: .5, evidenceRefs: [], ...(e.id === 'component' ? { parentId: 'system' } : {}) }));
-  const artifact = { id: 'source', scope: 'project', ownerId: project.id, label: 'Source', url: `data:text/plain;base64,${Buffer.from('A test system contains a subsystem and a radio.').toString('base64')}` };
-  project.context.projectArtifactIds = ['source'];
-  const service = createSystemAiService({ apiKey: 'test', retryWait: async () => {}, fetch: async () => new Response(JSON.stringify({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: JSON.stringify({ entities: invalid, relations: [], evidence: [], requirements: [] }) }] } }] })) });
-  await assert.rejects(service.generate(project, [artifact]), error => error.code === 'SYSTEM_HIERARCHY_INVALID');
-  assert.equal(suggestedSectors('competition').length, 6);
-  assert.notDeepEqual(suggestedSectors('research'), suggestedSectors('competition'));
 });
 
 test('PDF lays out headings, tables, references and embedded images over multiple pages', async () => {
@@ -244,11 +223,11 @@ test('sector responsibility does not grant administration of global profiles or 
   assert.equal((await request(captain, 'PATCH', `/team/members/${member.memberId}`, { displayName: 'Engineering member' })).statusCode, 200);
 });
 
-test('document templates preserve sector ACL including anonymous, advisor and manager boundaries', async t => {
-  const { applyDocumentFolderTemplate } = await import('../shared/workspace-templates.mjs');
+test('nested document folders preserve sector ACL including anonymous, advisor and manager boundaries', async t => {
+  const withFolder = (project, parentId, name) => ({ ...project, context: { ...project.context, folders: [...project.context.folders, { id: `folder-${parentId}-${name.toLowerCase()}`, parentId, name }] } });
   const f = await fixture(t), { request, captain, manager, member, outsider } = f;
   const project = f.project;
-  const organized = applyDocumentFolderTemplate(project, 'avionics', 'engineering');
+  const organized = withFolder(project, 'avionics', 'Datasheets');
   let response = await request(manager, 'PUT', `/projects/${project.id}`, organized);
   assert.equal(response.statusCode, 200, response.body);
   const stored = response.json().project;
@@ -260,20 +239,21 @@ test('document templates preserve sector ACL including anonymous, advisor and ma
   assert.equal((await request(outsider, 'GET', `/artifacts/${uploaded.json().artifact.id}/pdf`)).statusCode, 404);
   assert.equal((await f.app.inject({ method: 'GET', url: `/api/artifacts/${uploaded.json().artifact.id}/pdf` })).statusCode, 401);
   const current = (await request(captain, 'GET', `/projects/${project.id}`)).json().project;
-  assert.equal((await request(manager, 'PUT', `/projects/${project.id}`, applyDocumentFolderTemplate(current, 'structures', 'simple'))).statusCode, 403);
-  assert.equal((await request(member, 'PUT', `/projects/${project.id}`, applyDocumentFolderTemplate(current, 'avionics', 'simple'))).statusCode, 403);
+  assert.equal((await request(manager, 'PUT', `/projects/${project.id}`, withFolder(current, 'structures', 'Documents'))).statusCode, 403);
+  assert.equal((await request(member, 'PUT', `/projects/${project.id}`, withFolder(current, 'avionics', 'Documents'))).statusCode, 403);
   await f.app.missionStore.update(data => { data.users.find(u => u.id === member.id).accessRole = 'advisor'; });
   assert.equal((await request(member, 'PATCH', `/artifacts/${uploaded.json().artifact.id}`, { label: 'Forbidden advisor edit' })).statusCode, 403);
 });
 
 test('program references point to authorized original artifacts, survive reload and clean up on deletion', async t => {
   const f = await fixture(t), { request, captain, manager, member, outsider } = f;
-  const { ensureProgramReferenceFolder } = await import('../shared/workspace-templates.mjs');
   const pdf = await renderArtifactPdf({ label: 'Mission brief', documentText: '# Mission brief\n\nRequirements for the engineering mission.' });
   const uploaded = await request(captain, 'POST', '/artifacts', file(f.project, 'references', { documentText: undefined, label: 'Mission brief', url: `data:application/pdf;base64,${pdf.toString('base64')}`, fileName: 'mission.pdf', mimeType: 'application/pdf', size: pdf.length }));
   assert.equal(uploaded.statusCode, 201, uploaded.body);
   const id = uploaded.json().artifact.id;
-  let project = ensureProgramReferenceFolder((await request(captain, 'GET', `/projects/${f.project.id}`)).json().project, 'pt');
+  let project = (await request(captain, 'GET', `/projects/${f.project.id}`)).json().project;
+  project.context.folders.push({ id: 'program-references', name: 'Program references', parentId: 'avionics' });
+  project.context.programFolderId = 'program-references';
   project.context.programArtifactIds = [id];
   assert.equal((await request(manager, 'PUT', `/projects/${project.id}`, project)).statusCode, 403);
   const saved = await request(captain, 'PUT', `/projects/${project.id}`, project);

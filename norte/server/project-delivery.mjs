@@ -1,6 +1,7 @@
+import { documentLatexArchive } from './document-latex.mjs';
+import { registerEngineeringAssistant, reserveEngineeringBudget, assistantContextHash } from './engineering-assistant.mjs';
 import { draftDeliveryDocument, deliveryPdf } from './delivery-documents.mjs';
 import { canReviewAccount, isFictionalProfile } from './reviewer-eligibility.mjs';
-import { inspectRequirement } from '../shared/requirement-quality.mjs';
 import { LIFE_DURATIONS, LIFE_PHASES, lifecycleRanges, lifecycleMilestones, reviewDocuments, shiftDate } from '../shared/delivery-lifecycle.mjs';
 import { createRequirementAnalyzer } from './requirement-analysis.mjs';
 import { createHash, randomUUID } from 'node:crypto';
@@ -28,7 +29,7 @@ const statuses = ['planned', 'in_progress', 'blocked', 'done'];
 const empty = () => ({ revision: 0, requirements: [], tests: [], tasks: [], standards: [], history: [], proposals: [], documents: [], analyses: {} });
 const baseline = record => record.document.engineeringSystem?.requirements || [];
 export const deliveryBaselineHash = record => hash({ requirements: baseline(record), evidence: record.document.engineeringSystem?.evidence || [], entities: record.document.engineeringSystem?.entities || [], relations: record.document.engineeringSystem?.relations || [] });
-const content = r => ({ id: r.id, title: r.title, statement: r.statement, sectorId: r.sectorId || '', method: r.method || 'unspecified', entityIds: r.entityIds || [], sourceRefs: r.sourceRefs || [], artifactIds: r.artifactIds || [], parentIds: r.parentIds || [], rationale: r.rationale || '', acceptanceCriteria: r.acceptanceCriteria || '', condition: r.condition || '', ownerId: r.ownerId || '', level: r.level || 'system', criticality: r.criticality || 'normal' });
+const content = r => ({ id: r.id, title: r.title, statement: r.statement, sectorId: r.sectorId || '', method: r.method || 'unspecified', entityIds: r.entityIds || [], sourceRefs: r.sourceRefs || [], artifactIds: r.artifactIds || [], parentIds: r.parentIds || [], rationale: r.rationale || '', acceptanceCriteria: r.acceptanceCriteria || '', condition: r.condition || '', ownerId: r.ownerId || '', level: r.level || 'system', criticality: r.criticality || 'normal', sourceLocator: r.sourceLocator || '', sourceComment: r.sourceComment || '' });
 const contentHash = r => hash(content(r));
 const evidenceHash = (record, refs) => hash((record.document.engineeringSystem?.evidence || []).filter(e => refs.includes(e.id)));
 const requirementSourceHash = (record, r) => hash([projected(r), r.properties || [], r.relatedPropertyRefs || [], r.relatedRelationIds || [], evidenceHash(record, [...(r.sourceRefs || []), ...(r.properties || []).flatMap(p => p.evidenceRefs || [])])]);
@@ -91,30 +92,54 @@ function testStatus(test, requirements, record) {
   if (run.configurationHash !== configurationHash(record) || run.planHash !== hash(testPlan(test)) || test.requirementIds.some(id => !requirements.some(r => r.id === id && !r.archived && run.requirementHashes[id] === r.contentHash))) return 'stale';
   return run.outcome;
 }
-const reviewNeedsRevalidation = (task, requirements, tests) => task?.kind === 'review' && task.status === 'done' && ((task.requirementIds || []).some(id => !requirements.some(r => r.id === id && !r.archived && r.status === 'approved')) || (task.testIds || []).some(id => !tests.some(t => t.id === id && !t.archived && t.status === 'passed')));
-const effectiveTaskStatus = (task, requirements, tests) => reviewNeedsRevalidation(task, requirements, tests) ? 'blocked' : task?.status;
+const reviewNeedsRevalidation = (task, requirements, tests, data, record, access) => task?.kind === 'review' && task.status === 'done' &&
+  ((data && reviewState(task, null, data, requirements, tests, record, access).approvalStatus !== 'approved') || (task.requirementIds || []).some(id => !requirements.some(r => r.id === id && !r.archived && r.status === 'approved')) || (task.testIds || []).some(id => !tests.some(t => t.id === id && !t.archived && t.status === 'passed')));
+const effectiveTaskStatus = (task, requirements, tests, data, record, access) => reviewNeedsRevalidation(task, requirements, tests, data, record, access) ? 'blocked' : task?.status;
 const testPlan = t => ({ title: t.title, method: t.method, procedure: t.procedure, acceptanceCriteria: t.acceptanceCriteria, requirementIds: t.requirementIds, entityIds: t.entityIds, ownerId: t.ownerId, sectorId: t.sectorId, conditions:t.conditions||'', configuration:t.configuration||'', level:t.level||'system', reviewTaskIds:t.reviewTaskIds||[] });
 function visibleMembers(data, record, access) {
-  return data.users.filter(user => user.active !== false && !user.disabled && access(data, user, record)).map(user => ({ id: user.id, memberId: user.memberId, name: user.name, nickname: user.nickname, canReview: canReviewAccount(user), isFictionalProfile: isFictionalProfile(user) }));
+  return data.users.filter(user => user.active !== false && !user.disabled && !isFictionalProfile(user) && access(data, user, record)).map(user => ({ id: user.id, memberId: user.memberId, name: user.name, nickname: user.nickname, canReview: canReviewAccount(user), isFictionalProfile: isFictionalProfile(user) }));
+}
+function taskPlan(item) {
+  return { title:item.title || '', description:item.description || '', kind:item.kind || 'task', phase:item.phase || '', phaseId:item.phaseId || '', parentId:item.parentId || '',
+    startDate:item.startDate || '', dueDate:item.dueDate || '', prepDays:item.prepDays || 0, closeDays:item.closeDays || 0, sectorId:item.sectorId || '', ownerId:item.ownerId || '',
+    dependencyIds:item.dependencyIds || [], requirementIds:item.requirementIds || [], testIds:item.testIds || [], inputArtifactIds:item.inputArtifactIds || [], outputArtifactIds:item.outputArtifactIds || [],
+    reviewCode:item.reviewCode || '', lifecycleProfile:item.lifecycleProfile || '' };
+}
+function taskGraph(tasks) {
+  graphAcyclic(tasks.filter(t => !t.archived).map(t => ({ ...t, predecessors:[...(t.dependencyIds || []), ...(t.parentId ? [t.parentId] : [])] })), 'predecessors');
+}
+function reviewFingerprint(item, requirements, tests) {
+  const plan = item.taskId ? [item.startDate || '', item.dueDate || '', item.dependencyIds || []] : [taskPlan(item)];
+  return hash([item.version || 1, item.body || '', ...plan,
+    requirements.filter(r => !r.archived && (!item.requirementIds?.length || item.requirementIds.includes(r.id))).map(r => [r.id, r.contentHash]),
+    tests.filter(t => !t.archived && (!item.testIds?.length || item.testIds.includes(t.id))).map(t => [t.id, t.version, t.runs.at(-1)?.id])]);
+}
+function reviewState(item, actor, data, requirements, tests, record, access) {
+  const currentHash = reviewFingerprint(item, requirements, tests);
+  const assigned = item.reviewers || [];
+  const reviewers = assigned.filter(id => { const user = data.users.find(u => u.id === id); return canReviewAccount(user) && access(data, user, record); });
+  const decisions = (item.decisions || []).filter(d => reviewers.includes(d.userId) && d.version === (item.version || 1) && d.contentHash === currentHash);
+  const status = item.reviewHash !== currentHash || !reviewers.length || reviewers.length !== assigned.length ? 'draft' : decisions.some(d => d.decision === 'request_changes') ? 'changes_requested' : reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve')) ? 'approved' : 'in_review';
+  return { version: item.version || 1, reviewers, decisions, approvalStatus: status, canReview: status === 'in_review' && canReviewAccount(actor) && reviewers.includes(actor.id) && item.authorId !== actor.id };
 }
 function view(data, record, state, actor, access) {
   const requirements = requirementsOf(record, state, data), project = record.document;
   const tests = state.tests.map(test => ({ ...test, status: testStatus(test, requirements, record), canEdit: canEditSector(project, actor, test.sectorId, record.createdBy) }));
   const today = now().slice(0, 10);
-  const taskView = task => ({ ...task, status:effectiveTaskStatus(task,requirements,tests), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: canEditSector(project, actor, task.sectorId, record.createdBy) });
+  const taskView = task => ({ ...task, ...reviewState(task, actor, data, requirements, tests, record, access), status:effectiveTaskStatus(task,requirements,tests,data,record,access), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests,data,record,access), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests,data,record,access) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests,data,record,access) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: canEditSector(project, actor, task.sectorId, record.createdBy) });
   return {
-    proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: canEditSector(project, actor, requirements.find(r=>r.id===p.requirementId)?.sectorId, record.createdBy)})), documents: state.documents || [], lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
+    proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: canEditSector(project, actor, requirements.find(r=>r.id===p.requirementId)?.sectorId, record.createdBy)})), documents: (state.documents || []).map(document => { const meta = reviewState(document, actor, data, requirements, tests, record, access); const task = state.tasks.find(t => t.id === document.taskId); return {...document,...meta,status:meta.approvalStatus,canEdit:Boolean(task && canEditSector(project,actor,task.sectorId,record.createdBy))}; }), lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
     standardsConfigured: Boolean(state.standardsConfigured || state.standards.length),
     standardsProposals: (state.standardsProposals || []).map(p=>({...p, stale:p.baseHash!==hash(state.standards), canReview:p.reviewers.includes(actor.id)&&p.authorId!==actor.id&&canReviewAccount(actor), status:['merged','cancelled'].includes(p.status)?p.status:p.reviewers.every(id=>visibleMembers(data,record,access).some(m=>m.id===id&&m.canReview)&&p.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':p.decisions.some(d=>d.decision==='request_changes')?'changes_requested':'open'})),
     revision: state.revision, baselineHash: deliveryBaselineHash(record), standards: state.standards, standardOptions: DELIVERY_STANDARDS, standardGroups: DELIVERY_STANDARD_GROUPS,
-    requirements: requirements.map(r => ({ ...r, analysis: {...inspectRequirement(r,state.standards), ...(state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {})}, canEdit: canEditSector(project, actor, r.sectorId, record.createdBy), canReview: canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
+    requirements: requirements.map(r => ({ ...r, analysis: (state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {engine:'not_analyzed',findings:[],checkedRules:[],disclaimer:''}), canEdit: canEditSector(project, actor, r.sectorId, record.createdBy), canReview: canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
     tests, tasks: state.tasks.filter(task => !task.lifecycleProfile || (task.lifecycleProfile === state.lifecycle?.profile && !task.excluded)).map(taskView),
     // Preserve manual dates when previewing another profile or re-enabling a review.
     lifecycleTasks: state.tasks.filter(task => task.lifecycleProfile).map(taskView),
     members: visibleMembers(data, record, access), sectors: project.context.sectors || [],
     entities: (project.engineeringSystem?.entities || []).map(e => ({ id: e.id, name: e.name })),
     evidence: (project.engineeringSystem?.evidence || []).map(e => ({ id: e.id, artifactId: e.artifactId, artifactLabel: e.artifactLabel, locator: e.locator, excerpt: e.excerpt })),
-    artifacts: data.artifacts.filter(a => (a.scope === 'project' && a.ownerId === project.id) || (a.scope === 'team' && a.ownerId === project.context.teamId && project.context.teamArtifactIds.includes(a.id))).map(a => ({ id: a.id, label: a.label || a.name || a.id })),
+    artifacts: data.artifacts.filter(a => (a.scope === 'project' && a.ownerId === project.id) || (a.scope === 'team' && a.ownerId === project.context.teamId && project.context.teamArtifactIds.includes(a.id))).map(a => ({ id: a.id, label: a.label || a.name || a.id, href: a.documentText !== undefined ? `/api/artifacts/${encodeURIComponent(a.id)}/pdf` : a.url?.startsWith('data:') ? `/api/artifacts/${encodeURIComponent(a.id)}/content` : a.url || '' })),
     history: state.history, permissions: { manage: isProjectAdmin(project, actor, record.createdBy), editableSectorIds: (project.context.sectors || []).filter(s => canEditSector(project, actor, s.id, record.createdBy)).map(s => s.id) }
   };
 }
@@ -126,15 +151,17 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     if (!record || !canAccessProject(data, actor, record)) throw fail(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível.');
     return record;
   }
+  registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView:(data,record,actor)=>view(data,record,data.workspace.delivery?.[record.document.id]||empty(),actor,canAccessProject), options: analysisOptions, intelligence });
   app.get('/api/projects/:id/delivery', { preHandler: [requireAuth] }, async request => {
     const data = store.read(), record = recordFor(data, request);
     return view(data, record, data.workspace.delivery?.[record.document.id] || empty(), request.auth.user, canAccessProject);
   });
   app.get('/api/projects/:id/delivery/documents/:documentId/export', {preHandler:[requireAuth]}, async (request,reply)=>{
-    const data=store.read(),record=recordFor(data,request),document=data.workspace.delivery?.[record.document.id]?.documents?.find(d=>d.id===request.params.documentId);
+    const data=store.read(),record=recordFor(data,request),document=view(data,record,data.workspace.delivery?.[record.document.id]||empty(),request.auth.user,canAccessProject).documents.find(d=>d.id===request.params.documentId);
     if(!document)throw fail(404,'DOCUMENT_NOT_FOUND','Documento indisponível.');
     reply.header('Cache-Control','no-store');
-    if(request.query.format==='pdf')return reply.type('application/pdf').header('Content-Disposition',`attachment; filename="${document.id}.pdf"`).send(await deliveryPdf(document));
+    if(request.query.format==='latex')return reply.type('application/zip').header('Content-Disposition',`attachment; filename="${document.id}-v${document.version}.zip"`).send(documentLatexArchive(document));
+    if(request.query.format==='pdf')return reply.type('application/pdf').header('Content-Disposition',`${request.query.inline === '1' ? 'inline' : 'attachment'}; filename="${document.id}.pdf"`).send(await deliveryPdf(document));
     return reply.type('text/markdown; charset=utf-8').header('Content-Disposition',`attachment; filename="${document.id}.md"`).send(document.body);
   });
   app.post('/api/projects/:id/delivery/requirements/:requirementId/analyze',{preHandler:[requireAuth,requireCsrf],bodyLimit:1000,config:{rateLimit:{max:6,timeWindow:'1 minute'}}},async request=>{
@@ -146,7 +173,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     if(state.analyses?.[requirement.id]?.fingerprint===fingerprint)return {analysis:state.analyses[requirement.id],cached:true};
     if(analysisInFlight.has(key))throw fail(409,'ANALYSIS_RUNNING','Esta análise já está em andamento.');analysisInFlight.add(key);
     try {
-      await store.update(data=>{const current=recordFor(data,request),s=data.workspace.delivery?.[current.document.id]||empty(),actor=data.users.find(u=>u.id===request.auth.user.id),r=requirementsOf(current,s).find(r=>r.id===requirement.id&&!r.archived);if(!r||hash([r.contentHash,s.standards])!==fingerprint)throw fail(409,'ANALYSIS_STALE','O requisito mudou antes da análise. Atualize a ficha.');if(!canEditSector(current.document,actor,r.sectorId,current.createdBy)&&!r.reviewers.includes(actor.id))throw fail(403,'FORBIDDEN','A permissão mudou antes da análise.');const today=now().slice(0,10);if(s.analysisBudget?.date!==today)s.analysisBudget={date:today,count:0};if(s.analysisBudget.count>=20)throw fail(429,'ANALYSIS_LIMIT','Limite diário de 20 análises assistidas deste projeto atingido.');s.analysisBudget.count++;data.workspace.delivery||={};data.workspace.delivery[current.document.id]=s;});
+      await store.update(data=>{const current=recordFor(data,request),s=data.workspace.delivery?.[current.document.id]||empty(),actor=data.users.find(u=>u.id===request.auth.user.id),r=requirementsOf(current,s).find(r=>r.id===requirement.id&&!r.archived);if(!r||hash([r.contentHash,s.standards])!==fingerprint)throw fail(409,'ANALYSIS_STALE','O requisito mudou antes da análise. Atualize a ficha.');if(!canEditSector(current.document,actor,r.sectorId,current.createdBy)&&!r.reviewers.includes(actor.id))throw fail(403,'FORBIDDEN','A permissão mudou antes da análise.');reserveEngineeringBudget(s,1);data.workspace.delivery||={};data.workspace.delivery[current.document.id]=s;});
       const analysis=await analyzeRequirement({requirement,standards:state.standards,projectId:record.document.id,corrections:(state.proposals||[]).filter(p=>p.status==='merged').slice(-5).map(p=>({before:p.before,after:p.statement,reason:p.reason}))});
       return await store.update(data=>{const current=recordFor(data,request),s=data.workspace.delivery[current.document.id],r=requirementsOf(current,s).find(r=>r.id===requirement.id&&!r.archived);if(!r||hash([r.contentHash,s.standards])!==fingerprint||deliveryBaselineHash(current)!==deliveryBaselineHash(record))throw fail(409,'ANALYSIS_STALE','O requisito ou suas fontes mudaram durante a análise. Nenhuma sugestão foi aplicada.');if(!canEditSector(current.document,data.users.find(u=>u.id===request.auth.user.id),r.sectorId,current.createdBy)&&!r.reviewers.includes(request.auth.user.id))throw fail(403,'FORBIDDEN','A permissão mudou durante a análise.');s.analyses||={};s.analyses[r.id]={...analysis,contentHash:r.contentHash,standardsHash:hash(s.standards),fingerprint,createdAt:now(),disclaimer:'Sugestões de IA, sem declaração de conformidade. Confira os trechos e a aplicabilidade com os revisores.'};return {analysis:s.analyses[r.id],cached:false};});
     } finally {analysisInFlight.delete(key);}
@@ -202,12 +229,14 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       if (old) editor(old.sectorId);
       const sectorId = text(item.sectorId || '', 'setor', 100); editor(sectorId);
       const method = item.method || 'unspecified'; if (!methods.includes(method)) throw fail(400, 'INVALID_METHOD', 'Método inválido.');
-      eventId = old?.id || `REQ-${randomUUID().slice(0, 8).toUpperCase()}`;
+      eventId = old?.id || item.identifier || `REQ-${randomUUID().slice(0, 8).toUpperCase()}`;
+      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{1,79}$/.test(eventId) || (!old && current.requirements.some(r => r.id === eventId))) throw fail(400, 'INVALID_IDENTIFIER', 'Use um identificador único com letras, números, ponto ou hífen.');
       const source = baseline(record).find(r => r.id === eventId);
       const updated = { ...(state.requirements.find(r => r.id === eventId) || {}), id: eventId, title: text(item.title, 'título', 160, true), statement: text(item.statement, 'enunciado', 1200, true), sectorId, method,
         entityIds: references(item.entityIds, current.entities, 'elementos'), sourceRefs: references(item.sourceRefs, current.evidence, 'fontes'), artifactIds: references(item.artifactIds, current.artifacts, 'documentos'), parentIds: references(item.parentIds, current.requirements.filter(r => !r.archived), 'requisitos de origem'),
         version: (old?.version || 0) + 1, source: old?.source || 'manual', sourceHash: source ? requirementSourceHash(record, source) : null,
         rationale: text(item.rationale || '', 'justificativa', 4000), acceptanceCriteria: text(item.acceptanceCriteria || '', 'critério de aceitação', 4000), condition: text(item.condition || '', 'condição', 2000), ownerId: member(item.ownerId), level: ['system','subsystem','component'].includes(item.level) ? item.level : 'system', criticality: ['normal','high','safety'].includes(item.criticality) ? item.criticality : 'normal',
+        sourceLocator: text(item.sourceLocator ?? old?.sourceLocator ?? '', 'localizador da fonte', 500), sourceComment: text(item.sourceComment ?? old?.sourceComment ?? '', 'comentário da fonte', 8000),
         authorId: actor.id, authorName: actorName, updatedAt: timestamp, reviewers: old?.reviewers || [], decisions: [], comments: old?.comments || [], archived: false, reviewHash: null };
       before = old ? content(old) : null; after = content(updated);
       state.requirements = state.requirements.filter(r => r.id !== eventId).concat(updated);
@@ -277,6 +306,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
         proposal.updatedAt=timestamp;
       }
     } else if (action === 'test.save') {
+      if (body.suggestionRunId) { const run = state.assistantRuns?.find(r => r.id === body.suggestionRunId && r.kind === 'verification' && r.status === 'completed'); if (!run || Object.entries(run.requirementHashes || {}).some(([id, value]) => !current.requirements.some(r => r.id === id && !r.archived && r.contentHash === value))) throw fail(409,'SUGGESTION_STALE','Os requisitos mudaram desde a sugestão. Solicite uma nova proposta.'); }
       const old = body.id ? state.tests.find(t => t.id === body.id) : null;
       if (body.id && !old) throw fail(404, 'TEST_NOT_FOUND', 'Verificação não encontrada.');
       if (old) editor(old.sectorId);
@@ -302,6 +332,29 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
         if (target.requirementIds.some(id => !current.requirements.some(r => r.id === id && !r.archived))) throw fail(409, 'REQUIREMENT_ARCHIVED', 'Atualize os vínculos: há um requisito arquivado ou removido.');
         target.runs.push({ id: randomUUID(), outcome: item.outcome, result, artifactIds, evidenceUrl, userId: actor.id, authorName: actorName, createdAt: timestamp, planHash: hash(testPlan(target)), configurationHash:configurationHash(record), requirementHashes: Object.fromEntries(target.requirementIds.map(id => [id, current.requirements.find(r => r.id === id).contentHash])) });
       }
+    } else if (['document.request_review','document.review','task.request_review','task.review'].includes(action)) {
+      const isDocument = action.startsWith('document.'), target = (isDocument ? state.documents : state.tasks).find(row => row.id === body.id);
+      if (!target || target.archived) throw fail(404, 'REVIEW_RECORD_NOT_FOUND', 'Registro indisponível.');
+      const task = isDocument ? state.tasks.find(t => t.id === target.taskId) : target;
+      if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
+      const currentHash = reviewFingerprint(target, current.requirements, current.tests);
+      before = {status: target.status, reviewers: target.reviewers || [], decisions: target.decisions || []};
+      if (action.endsWith('request_review')) {
+        editor(task.sectorId);
+        const selected = list(body.reviewers, 'revisores');
+        if (!selected.length || selected.includes(target.authorId || record.createdBy) || selected.some(id => !reviewerIds.has(id))) throw fail(400, 'INVALID_REVIEWERS', 'Escolha pelo menos um revisor real, diferente do autor da versão.');
+        target.authorId ||= record.createdBy; target.version ||= 1; target.reviewers = selected; target.decisions = []; target.reviewHash = currentHash;
+        if (isDocument) target.status = 'in_review';
+      } else {
+        const meta = reviewState(target, actor, data, current.requirements, current.tests, record, canAccessProject);
+        if (!meta.canReview) throw fail(403, 'REVIEW_FORBIDDEN', 'A revisão exige uma pessoa atribuída, diferente do autor, na versão atual.');
+        if (body.version !== (target.version || 1)) throw fail(409, 'REVIEW_CHANGED', 'Abra a versão atual antes de revisar.');
+        if (!['approve','request_changes'].includes(body.decision)) throw fail(400,'INVALID_REVIEW','Decisão inválida.');
+        const comment = text(body.comment || '', 'comentário', 4000, body.decision === 'request_changes');
+        target.decisions = (target.decisions || []).filter(d => d.userId !== actor.id).concat({userId:actor.id,authorName:actorName,decision:body.decision,comment,version:target.version || 1,contentHash:currentHash,createdAt:timestamp});
+        if (isDocument) target.status = reviewState(target, actor, data, current.requirements, current.tests, record, canAccessProject).approvalStatus;
+      }
+      eventId=target.id; after={reviewers:target.reviewers,decisions:target.decisions,version:target.version || 1};
     } else if (action === 'task.save') {
       const old = body.id ? state.tasks.find(t => t.id === body.id) : null;
       if (body.id && !old) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.');
@@ -311,22 +364,44 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       const status = item.status || 'planned'; if (!statuses.includes(status)) throw fail(400, 'INVALID_STATUS', 'Situação inválida.');
       const startDate = date(item.startDate || ''), dueDate = date(item.dueDate || ''); if (startDate && dueDate && startDate > dueDate) throw fail(400, 'INVALID_DATE_RANGE', 'O prazo deve ser posterior ao início.');
       const dependencyIds = references(item.dependencyIds, state.tasks.filter(t => !t.archived), 'dependências');
-      if (status === 'done' && dependencyIds.some(id => effectiveTaskStatus(state.tasks.find(t => t.id === id),current.requirements,current.tests) !== 'done')) throw fail(409, 'DEPENDENCIES_OPEN', 'Conclua as dependências antes desta atividade.');
+      const parentId = text(item.parentId ?? old?.parentId ?? '', 'atividade superior', 200);
+      if (parentId && !state.tasks.some(t => t.id === parentId && !t.archived)) throw fail(400, 'INVALID_PARENT', 'Selecione uma atividade superior deste cronograma.');
+      if (status === 'done' && dependencyIds.some(id => effectiveTaskStatus(state.tasks.find(t => t.id === id),current.requirements,current.tests,data,record,canAccessProject) !== 'done')) throw fail(409, 'DEPENDENCIES_OPEN', 'Conclua as dependências antes desta atividade.');
       const prepDays = Number(item.prepDays ?? 0), closeDays = Number(item.closeDays ?? 0);
       if (![prepDays, closeDays].every(n => Number.isInteger(n) && n >= 0 && n <= 365)) throw fail(400, 'INVALID_DURATION', 'Use um período de 0 a 365 dias.');
       const phaseId=text(item.phaseId||'', 'fase',100);if(phaseId&&!current.lifecycleRanges.some(p=>p.id===phaseId))throw fail(400,'INVALID_PHASE','Fase não encontrada.');
-      const updated = { ...(old || {}), phaseId, id: eventId, title: text(item.title, 'título', 200, true), description: text(item.description || '', 'descrição', 8000), phase: text(item.phase || '', 'fase', 100), kind: item.kind === 'review' ? 'review' : 'task', startDate, dueDate, prepDays, closeDays, status, sectorId, ownerId: member(item.ownerId), dependencyIds, requirementIds: references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos'), testIds: references(item.testIds, state.tests.filter(t => !t.archived), 'verificações'), inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'), outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'), archived: old?.archived || false, updatedAt: timestamp, manual: true };
+      const updated = { ...(old || {}), phaseId, parentId, id: eventId, title: text(item.title, 'título', 200, true), description: text(item.description || '', 'descrição', 8000), phase: text(item.phase || '', 'fase', 100), kind: item.kind === 'review' ? 'review' : 'task', startDate, dueDate, prepDays, closeDays, status, sectorId, ownerId: member(item.ownerId), dependencyIds, requirementIds: references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos'), testIds: references(item.testIds, state.tests.filter(t => !t.archived), 'verificações'), inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'), outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'), archived: old?.archived || false, updatedAt: timestamp };
+      const planChanged = !old || hash(taskPlan(old)) !== hash(taskPlan(updated));
+      if (planChanged) Object.assign(updated, { manual:true, version:(old?.version || 0) + 1, authorId:actor.id, authorName:actorName, decisions:[], reviewHash:null });
+      if(updated.kind==='review'&&updated.status==='done'&&(!old||planChanged||reviewState(old,actor,data,current.requirements,current.tests,record,canAccessProject).approvalStatus!=='approved'))throw fail(409,'SCHEDULE_REVIEW_PENDING','Solicite uma revisão independente desta versão do planejamento antes de concluí-la.');
       if(updated.kind==='review'&&updated.status==='done'&&(updated.requirementIds.some(id=>current.requirements.find(r=>r.id===id)?.status!=='approved')||updated.testIds.some(id=>current.tests.find(t=>t.id===id)?.status!=='passed'))) throw fail(409,'REVIEW_EVIDENCE_PENDING','Para concluir esta revisão, aprove as versões dos requisitos vinculados e registre evidência atual de atendimento nas verificações vinculadas.');
-      state.tasks = state.tasks.filter(t => t.id !== eventId).concat(updated); graphAcyclic(state.tasks.filter(t => !t.archived), 'dependencyIds'); before = old; after = updated;
+      state.tasks = state.tasks.filter(t => t.id !== eventId).concat(updated); taskGraph(state.tasks); before = old; after = updated;
     } else if(action==='task.reschedule') {
       const target=state.tasks.find(t=>t.id===body.id);if(!target||target.archived)throw fail(404,'TASK_NOT_FOUND','Atividade não disponível.');editor(target.sectorId);
       const dueDate=date(body.dueDate);if(!dueDate)throw fail(400,'INVALID_DATE','Informe a nova data.');
-      const previous=target.dueDate||target.startDate||dueDate,delta=Math.round((Date.parse(dueDate)-Date.parse(previous))/86400000);before={startDate:target.startDate,dueDate:target.dueDate};
-      target.startDate=target.startDate?shiftDate(target.startDate,delta):dueDate;target.dueDate=dueDate;target.manual=true;target.updatedAt=timestamp;after={startDate:target.startDate,dueDate};
+      if(body.cascade!==undefined&&typeof body.cascade!=='boolean')throw fail(400,'INVALID_CASCADE','A opção de deslocamento deve ser verdadeira ou falsa.');
+      const previous=target.dueDate||target.startDate||dueDate,delta=Math.round((Date.parse(dueDate)-Date.parse(previous))/86400000);
+      if(!delta&&target.dueDate===dueDate)throw fail(400,'UNCHANGED_DATE','A atividade já está nesta data.');
+      taskGraph(state.tasks);
+      const ids=new Set([target.id]),queue=[target.id];
+      if(body.cascade!==false)while(queue.length){const id=queue.shift();for(const task of state.tasks)if(!task.archived&&!ids.has(task.id)&&(task.parentId===id||task.dependencyIds.includes(id))){ids.add(task.id);queue.push(task.id);}}
+      const affected=state.tasks.filter(t=>ids.has(t.id)&&(t.id===target.id||t.startDate||t.dueDate));
+      for(const task of affected)editor(task.sectorId);
+      before={tasks:structuredClone(affected)};
+      for(const task of affected){task.startDate=task.startDate?date(shiftDate(task.startDate,delta)):(task.id===target.id?dueDate:'');task.dueDate=task.id===target.id?dueDate:task.dueDate?date(shiftDate(task.dueDate,delta)):'';task.manual=true;task.updatedAt=timestamp;task.version=(task.version||1)+1;task.authorId=actor.id;task.authorName=actorName;task.reviewHash=null;task.decisions=[];if(task.kind==='review'&&task.status==='done')task.status='blocked';}
+      after={deltaDays:delta,cascade:body.cascade!==false,tasks:structuredClone(affected)};
+    } else if(action==='task.undo_reschedule') {
+      const movement=[...state.history].reverse().find(entry=>entry.action==='task.reschedule'&&entry.subjectId===body.id&&entry.actorId===actor.id);
+      if(!movement?.before?.tasks?.length||!movement?.after?.tasks?.length||state.history.some(entry=>entry.action==='task.undo_reschedule'&&entry.after?.rescheduleId===movement.id))throw fail(409,'UNDO_UNAVAILABLE','Não há um deslocamento seu disponível para desfazer.');
+      for(const saved of movement.after.tasks){const task=state.tasks.find(t=>t.id===saved.id);if(!task||hash(task)!==hash(saved))throw fail(409,'UNDO_CHANGED','Uma atividade envolvida mudou depois do deslocamento. Abra o planejamento atual para ajustá-la.');editor(task.sectorId);}
+      before={tasks:structuredClone(movement.after.tasks)};
+      const restored=movement.before.tasks.map(saved=>({...structuredClone(saved),version:(state.tasks.find(t=>t.id===saved.id).version||1)+1,updatedAt:timestamp,manual:true,authorId:actor.id,authorName:actorName,decisions:[],reviewHash:null,status:saved.kind==='review'&&saved.status==='done'?'blocked':saved.status}));
+      state.tasks=state.tasks.map(task=>restored.find(saved=>saved.id===task.id)||task);taskGraph(state.tasks);
+      after={rescheduleId:movement.id,tasks:structuredClone(restored)};
     } else if (action === 'task.archive'  || action === 'task.restore') {
       const target = state.tasks.find(t => t.id === body.id); if (!target) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.'); editor(target.sectorId);
-      if (action === 'task.archive' && state.tasks.some(t => !t.archived && t.dependencyIds.includes(target.id))) throw fail(409, 'TASK_IN_USE', 'Remova as dependências antes de arquivar.');
-      target.archived = action === 'task.archive'; graphAcyclic(state.tasks.filter(t => !t.archived), 'dependencyIds');
+      if (action === 'task.archive' && state.tasks.some(t => !t.archived && (t.dependencyIds.includes(target.id)||t.parentId===target.id))) throw fail(409, 'TASK_IN_USE', 'Remova as dependências e os subitens antes de arquivar.');
+      before=structuredClone(target);target.archived = action === 'task.archive';target.updatedAt=timestamp;target.version=(target.version||1)+1;target.reviewHash=null;target.decisions=[];if(target.kind==='review'&&target.status==='done')target.status='blocked';taskGraph(state.tasks);after=structuredClone(target);
     } else if(action==='lifecycle.configure') {
       admin();const profile=body.profile;
       if(!Object.hasOwn(LIFE_PHASES,profile)) throw fail(400,'INVALID_PROFILE','Perfil inválido.');
@@ -352,20 +427,32 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
       for(const definition of definitions) {
         const old=state.tasks.find(t=>t.lifecycleProfile===profile&&t.reviewCode===definition.id);
         if(old){old.excluded=!selected.includes(definition.id);old.phaseId=definition.phaseId;old.phase=definition.phaseName;if(!old.manual){old.startDate=definition.date;old.dueDate=definition.date;}continue;}
-        state.tasks.push({id:`TASK-${randomUUID().slice(0,8).toUpperCase()}`,reviewCode:definition.id,lifecycleProfile:profile,lane:definition.lane,phaseIndex:definition.phase,phaseId:definition.phaseId,excluded:!selected.includes(definition.id),title:`${definition.id} · ${definition.title}`,phase:definition.phaseName,description:definition.focus,kind:'review',startDate:definition.date,dueDate:definition.date,prepDays:10,closeDays:7,status:'planned',sectorId:'',ownerId:'',dependencyIds:[],requirementIds:[],testIds:[],inputArtifactIds:[],outputArtifactIds:[],archived:false,updatedAt:timestamp,manual:false});
+        state.tasks.push({id:`TASK-${randomUUID().slice(0,8).toUpperCase()}`,reviewCode:definition.id,lifecycleProfile:profile,lane:definition.lane,phaseIndex:definition.phase,phaseId:definition.phaseId,excluded:!selected.includes(definition.id),title:`${definition.id} · ${definition.title}`,phase:definition.phaseName,description:definition.focus,kind:'review',startDate:definition.date,dueDate:definition.date,prepDays:10,closeDays:7,status:'planned',sectorId:'',ownerId:'',dependencyIds:[],requirementIds:[],testIds:[],inputArtifactIds:[],outputArtifactIds:[],archived:false,updatedAt:timestamp,manual:false,version:1,authorId:actor.id,authorName:actorName,reviewers:[],decisions:[]});
       }
       after=lifecycle;
     } else if(action==='document.prepare') {
       const task=current.tasks.find(t=>t.id===body.taskId);if(!task)throw fail(404,'TASK_NOT_FOUND','Revisão indisponível.');editor(task.sectorId);
-      const definitions=reviewDocuments(task.lifecycleProfile||state.lifecycle?.profile||'custom',task.reviewCode||'');
+      const profile = body.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
+      if (!['nasa','ecss','custom'].includes(profile)) throw fail(400,'INVALID_PROFILE','Modelo inválido.');
+      const definitions=reviewDocuments(profile,task.reviewCode||'');
       const definition=definitions.find(d=>d.id===body.templateId);if(!definition)throw fail(400,'INVALID_DOCUMENT','Documento não pertence ao pacote desta revisão.');
       const existing=state.documents.find(d=>d.taskId===task.id&&d.templateId===definition.id);if(existing)throw fail(409,'DOCUMENT_EXISTS','O rascunho já está preparado; abra sua versão atual.');
-      const document={id:`DOC-${randomUUID().slice(0,8).toUpperCase()}`,taskId:task.id,templateId:definition.id,title:definition.title,flow:definition.flow,reference:definition.reference,body:draftDeliveryDocument(definition,project,current.requirements,current.tests,task),status:'draft',version:1,authorId:actor.id,authorName:actorName,createdAt:timestamp,updatedAt:timestamp,sourceRevision:state.revision};
+      const document={id:`DOC-${randomUUID().slice(0,8).toUpperCase()}`,taskId:task.id,templateId:definition.id,profile,code:definition.code,kind:definition.kind,maturity:definition.maturity,title:definition.title,flow:definition.flow,reference:definition.reference,body:draftDeliveryDocument(definition,project,current.requirements,current.tests,task),status:'draft',version:1,authorId:actor.id,authorName:actorName,createdAt:timestamp,updatedAt:timestamp,sourceRevision:state.revision};
       state.documents.push(document);eventId=document.id;after={title:document.title,version:1};
     } else if(action==='document.save') {
-      const document=state.documents.find(d=>d.id===body.id),task=state.tasks.find(t=>t.id===document?.taskId);if(!document||!task)throw fail(404,'DOCUMENT_NOT_FOUND','Documento indisponível.');editor(task.sectorId);
-      if(item.version!==document.version)throw fail(409,'DOCUMENT_CHANGED','O documento mudou; abra a versão atual.');
-      before={body:document.body,version:document.version};document.body=text(item.body,'conteúdo do documento',150000,true);document.version++;document.status='draft';document.updatedAt=timestamp;eventId=document.id;after={body:document.body,version:document.version};
+      if (body.suggestionRunId) { const run=state.assistantRuns?.find(r=>r.id===body.suggestionRunId && r.kind==='document' && r.status==='completed'); if(!run || run.input.taskId!==item.taskId || run.input.templateId!==item.templateId || run.fingerprint!==assistantContextHash(record,state,'document',{hash,requirementsOf,deliveryBaselineHash})) throw fail(409,'SUGGESTION_STALE','A base do documento mudou. Gere uma nova minuta antes de salvar.'); }
+      let document=state.documents.find(d=>d.id===body.id);
+      if (body.id && !document) throw fail(404,'DOCUMENT_NOT_FOUND','Documento indisponível.');
+      const task=state.tasks.find(t=>t.id===(document?.taskId || item.taskId) && !t.archived);if(!task)throw fail(404,'TASK_NOT_FOUND','Revisão indisponível.');editor(task.sectorId);
+      if (!document) {
+        const profile=item.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
+        if(!['nasa','ecss','custom'].includes(profile))throw fail(400,'INVALID_PROFILE','Modelo inválido.');
+        const definition=reviewDocuments(profile,task.reviewCode||'').find(d=>d.id===item.templateId);
+        if(!definition)throw fail(400,'INVALID_DOCUMENT','Modelo não pertence ao pacote desta revisão.');
+        if(state.documents.some(d=>d.taskId===task.id && d.templateId===definition.id))throw fail(409,'DOCUMENT_EXISTS','Já existe um documento deste modelo; abra e edite sua versão atual.');
+        document={id:`DOC-${randomUUID().slice(0,8).toUpperCase()}`,taskId:task.id,templateId:definition.id,profile,code:definition.code,kind:definition.kind,maturity:definition.maturity,title:text(item.title || definition.title,'título',200,true),flow:definition.flow,reference:definition.reference,body:'',version:0,createdAt:timestamp};state.documents.push(document);
+      } else if(item.version!==document.version)throw fail(409,'DOCUMENT_CHANGED','O documento mudou; abra a versão atual.');
+      before={body:document.body,version:document.version};document.body=text(item.body,'conteúdo do documento',150000,true);document.version++;document.status='draft';document.updatedAt=timestamp;document.authorId=actor.id;document.authorName=actorName;document.decisions=[];document.reviewHash=null;document.sourceRevision=state.revision;eventId=document.id;after={body:document.body,version:document.version};
     } else if (action === 'schedule.template') {
       admin(); const start = date(body.startDate); if (!start) throw fail(400, 'INVALID_DATE', 'Selecione a data inicial.');
       if (!['nasa', 'ecss', 'custom'].includes(body.profile)) throw fail(400, 'INVALID_PROFILE', 'Perfil inválido.');

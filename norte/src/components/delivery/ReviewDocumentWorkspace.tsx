@@ -1,0 +1,16 @@
+import { useEffect, useState } from 'react';
+import { FileCheck2, FileText, FolderOpen } from 'lucide-react';
+import type { DeliveryState } from '../../lib/projectDelivery';
+import { DocumentWorkspace, documentLocation } from './DocumentWorkspace';
+import { ReviewDocuments } from './ReviewDocuments';
+
+export function ReviewDocumentWorkspace({projectId,data,busy,error,mutate,pt,onPlanning}:{projectId:string;data:DeliveryState;busy:boolean;error:string;mutate:(action:string,payload:Record<string,unknown>)=>Promise<boolean>;pt:boolean;onPlanning?:()=>void}){
+  const [reviewId,setReviewId]=useState(()=>new URL(window.location.href).searchParams.get('review')||''),[documentId,setDocumentId]=useState(()=>new URL(window.location.href).searchParams.get('document')||'');
+  useEffect(()=>{const restore=()=>{const url=new URL(window.location.href);setReviewId(url.searchParams.get('review')||'');setDocumentId(url.searchParams.get('document')||'');};window.addEventListener('popstate',restore);return()=>window.removeEventListener('popstate',restore);},[]);
+  const reviews=data.tasks.filter(task=>task.kind==='review'&&!task.archived&&!task.excluded),document=data.documents.find(item=>item.id===documentId);
+  const chosen=reviews.find(task=>task.id===(document?.taskId||reviewId))||reviews[0];
+  const selectDocument=(id:string)=>{setDocumentId(id);const taskId=data.documents.find(item=>item.id===id)?.taskId;documentLocation(projectId,id,taskId);};
+  const selectReview=(id:string)=>{setReviewId(id);setDocumentId('');documentLocation(projectId,'',id);};
+  if(!reviews.length)return <div className="document-empty"><FileCheck2 size={32}/><h3>{pt?'Defina a primeira revisão':'Define the first review'}</h3><p>{pt?'Os documentos serão organizados pelos marcos que a equipe escolher.':'Documents follow the milestones chosen by your team.'}</p>{onPlanning?<button onClick={onPlanning}>{pt?'Abrir planejamento':'Open planning'}</button>:<a href="#/schedule">{pt?'Abrir planejamento':'Open planning'} →</a>}</div>;
+  return <div className="review-document-workspace"><aside className="document-review-tree" aria-label={pt?'Revisões e documentos':'Reviews and documents'}>{reviews.map(review=>{const saved=data.documents.filter(item=>item.taskId===review.id);return <section key={review.id}><button aria-pressed={chosen?.id===review.id&&!documentId} onClick={()=>selectReview(review.id)}><FolderOpen size={15}/><span>{review.title}</span><small>{saved.length}</small></button>{saved.map(item=><button className="document-tree-item" aria-current={documentId===item.id?'page':undefined} key={item.id} onClick={()=>selectDocument(item.id)}><FileText size={13}/><span>{item.title}</span></button>)}</section>;})}</aside><div className="document-review-main">{documentId?<DocumentWorkspace projectId={projectId} data={data} activeId={documentId} onSelect={selectDocument} onClose={()=>selectReview(chosen.id)} busy={busy} error={error} mutate={mutate} pt={pt}/>:<><header className="document-review-heading"><FileCheck2 size={18}/><div><h2>{chosen.title}</h2>{chosen.dueDate&&<small>{chosen.dueDate}</small>}</div></header><ReviewDocuments key={chosen.id} projectId={projectId} data={data} task={chosen} busy={busy} error={error} mutate={mutate} pt={pt} onOpenDocument={selectDocument}/></>}</div></div>;
+}

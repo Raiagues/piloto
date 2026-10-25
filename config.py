@@ -2,9 +2,8 @@
 from dataclasses import dataclass, field
 import os
 import math
+import re
 from pathlib import Path
-import subprocess
-import sys
 
 ROOT = Path(__file__).resolve().parent
 
@@ -16,6 +15,7 @@ class Settings:
     gemini_api_key: str = field(default='', repr=False)
     openai_api_key: str = field(default='', repr=False)
     gemini_model: str = 'gemini-3.8-flash'
+    jev_model: str = 'jev-1.13.0'
     minutes_input_usd_per_million: float | None = None
     minutes_output_usd_per_million: float | None = None
     minutes_daily_call_limit: int = 50
@@ -44,6 +44,21 @@ class Settings:
     jev_usd_per_request: float | None = None
 
 
+PLACEHOLDER_KEYS = ('COLE_SUA_CHAVE_AQUI', 'SUA_CHAVE_AQUI')
+
+
+def single_key(environ, values, names):
+    """Same alias policy as norte/server/ai-keys.mjs. The process environment overrides
+    the .env file as a whole for this credential; inside one origin, empty means absent
+    and two aliases with different values are a configuration error (values never shown)."""
+    def filled(source):
+        return {name: source[name].strip() for name in names if source.get(name, '').strip() and source[name].strip() not in PLACEHOLDER_KEYS}
+    found = filled(environ) or filled(values)
+    if len(set(found.values())) > 1:
+        raise ValueError(' e '.join(found) + ' estão preenchidas com valores diferentes. Mantenha somente uma delas no .env.')
+    return next(iter(found.values()), '')
+
+
 def load_settings(path=None, environ=None):
     path = ROOT / '.env' if path is None else Path(path)
     environ = os.environ if environ is None else environ
@@ -56,7 +71,7 @@ def load_settings(path=None, environ=None):
             if '=' not in line: raise ValueError(f'.env: linha {number} inválida; use NOME=valor.')
             name, value = line.split('=', 1)
             name, value = name.strip(), value.strip()
-            if name not in ('NORTE_PROVIDER', 'TYPESAFE_API_KEY', 'JEV_API_KEY', 'JEV_KEY_API', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_MODEL',
+            if name not in ('NORTE_PROVIDER', 'TYPESAFE_API_KEY', 'JEV_API_KEY', 'JEV_KEY_API', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_MODEL', 'JEV_MODEL',
                             'DATABASE_URL', 'ADMIN_USERNAME', 'ADMIN_PASSWORD', 'SIGNUP_CODE', 'ALLOWED_HOSTS',
                             'MINUTES_INPUT_USD_PER_MILLION', 'MINUTES_OUTPUT_USD_PER_MILLION', 'MINUTES_DAILY_CALL_LIMIT',
                             'AI_AGENTS_ENABLED', 'AI_EXTERNAL_REVIEW_ENABLED', 'AI_AUTO_PUBLISH', 'AI_AGENT_MODEL', 'AI_DAILY_BUDGET_USD',
@@ -67,12 +82,11 @@ def load_settings(path=None, environ=None):
             if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"): value = value[1:-1]
             values[name] = value
     provider = environ.get('NORTE_PROVIDER', values.get('NORTE_PROVIDER', 'official')).strip()
-    if provider not in ('official', 'local'): raise ValueError('NORTE_PROVIDER deve ser official ou local.')
-    key = next((source[name].strip() for source in (environ, values) for name in ('TYPESAFE_API_KEY', 'JEV_API_KEY', 'JEV_KEY_API') if source.get(name, '').strip()), '')
-    if key in ('COLE_SUA_CHAVE_AQUI', 'SUA_CHAVE_AQUI'): key = ''
+    if provider != 'official': raise ValueError('NORTE_PROVIDER deve ser official; o classificador local foi retirado.')
+    key = single_key(environ, values, ('TYPESAFE_API_KEY', 'JEV_API_KEY', 'JEV_KEY_API'))
     if key and (not key.isascii() or any(ord(c) <= 32 or ord(c) == 127 for c in key)):
         raise ValueError('Chave inválida no .env: remova espaços e quebras de linha.')
-    gemini_key = next((source[name].strip() for source in (environ, values) for name in ('GEMINI_API_KEY', 'GOOGLE_API_KEY') if source.get(name, '').strip()), '')
+    gemini_key = single_key(environ, values, ('GOOGLE_API_KEY', 'GEMINI_API_KEY'))
     model = environ.get('GEMINI_MODEL', values.get('GEMINI_MODEL', 'gemini-3.8-flash')).strip()
     text = lambda name, default='': environ.get(name, values.get(name, default)).strip()
     def number(name, default=None, integer=False, minimum=0, maximum=1000000):
@@ -91,7 +105,9 @@ def load_settings(path=None, environ=None):
     hosts = tuple(dict.fromkeys(host.strip().lower() for value in hosts for host in value.split(',') if host.strip()))
     agent_provider = text('AI_AGENT_PROVIDER', 'gemini')
     if agent_provider not in ('gemini', 'openai'): raise ValueError('AI_AGENT_PROVIDER deve ser gemini ou openai.')
-    return Settings(provider=provider, api_key=key, gemini_api_key=gemini_key, gemini_model=model,
+    jev_model = text('JEV_MODEL', 'jev-1.13.0') or 'jev-1.13.0'
+    if not re.fullmatch(r'jev-(latest|preview|\d+\.\d+\.\d+)', jev_model): raise ValueError('JEV_MODEL deve ser jev-latest, jev-preview ou uma versão como jev-1.13.0.')
+    return Settings(provider=provider, api_key=key, gemini_api_key=gemini_key, gemini_model=model, jev_model=jev_model,
                     minutes_input_usd_per_million=number('MINUTES_INPUT_USD_PER_MILLION'),
                     minutes_output_usd_per_million=number('MINUTES_OUTPUT_USD_PER_MILLION'),
                     minutes_daily_call_limit=number('MINUTES_DAILY_CALL_LIMIT', 50, integer=True, maximum=10000),
@@ -119,11 +135,8 @@ def setup():
         with path.open('x', encoding='utf8') as output: output.write((ROOT / '.env.example').read_text(encoding='utf8'))
         path.chmod(0o600)
     settings = load_settings()
-    if settings.provider == 'local':
-        subprocess.run([sys.executable, str(ROOT / 'scripts/setup_model.py')], check=True)
-    else:
-        print('Jev oficial selecionado. Nenhum modelo local será baixado ou iniciado.')
-        print('Chave configurada.' if settings.api_key else 'Cole sua chave em TYPESAFE_API_KEY no arquivo .env e execute ./start.')
+    print('JEV oficial selecionado.')
+    print('Chave configurada.' if settings.api_key else 'Configure TYPESAFE_API_KEY no arquivo .env para classificar as reuniões.')
     if not settings.admin_password:
         print('Defina ADMIN_PASSWORD no arquivo .env para criar a conta admin (usuário: ' + settings.admin_username + ').')
 

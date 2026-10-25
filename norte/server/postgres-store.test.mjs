@@ -25,12 +25,12 @@ test("the PostgreSQL adapter persists accounts, sessions and workspace data", as
   const cookie = registration.headers["set-cookie"].split(";")[0];
   const project = { schemaVersion: 2, id: "mission-postgres", name: "Postgres project", board: { nodes: [], links: [] } };
   const saved = await app.inject({
-    method: "PUT",
-    url: "/api/workspace/project",
+    method: "POST",
+    url: "/api/projects",
     headers: { cookie, "x-csrf-token": registration.json().csrfToken },
     payload: project
   });
-  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.statusCode, 201);
 
   const health = await app.inject({ method: "GET", url: "/api/health" });
   assert.deepEqual(health.json(), { status: "ok", version: "1.0.0", revision: /^[a-f0-9]{40}$/.test(process.env.RENDER_GIT_COMMIT || "") ? process.env.RENDER_GIT_COMMIT : null, pid: process.pid, supervisorPid: process.ppid, storage: "postgresql", engineering: { configured: false, model: "gemini-3.5-flash-lite" } });

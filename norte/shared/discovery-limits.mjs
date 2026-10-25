@@ -1,4 +1,0 @@
-export const HYPOTHESIS_MAX_LENGTH = 6000;
-export const HYPOTHESIS_TITLE_LENGTH = 220;
-export const CLARIFICATION_MAX_TURNS = 6;
-export const RELATED_CARD_LIMIT = 8;

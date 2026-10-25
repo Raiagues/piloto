@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),T=require('../relation-worker.js').threads;
+const F=require('../meetings/web/memory-flow.js'),T=require('../meetings/web/relation-worker.js').threads;
 const {response,chunkOutput,clone}=require('./fixtures/thread-scenarios.cjs');
 const batch=(ids,expected_threads={})=>({batch_id:'CONFIDENCE',cases:ids.map(id=>({id,current_utterance:'Input '+id,expected_store_memory:true,expected_event_type:'observation'})),expected_threads});
 const reply=(req,choice,p=.94)=>response(req,Object.fromEntries(Object.keys(req.questions).map(id=>[id,choice])),p);

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const F=require('../memory-flow.js'),R=require('../relation-worker.js');
+const F=require('../meetings/web/memory-flow.js'),R=require('../meetings/web/relation-worker.js');
 const fixture=require('./fixtures/memory-b001.json');
 const positiveFixture=require('./fixtures/memory-b001-positive-relations.json');
 const clone=value=>JSON.parse(JSON.stringify(value));

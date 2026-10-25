@@ -1,4 +1,1 @@
-# Preserve exact public source bytes; SHA-256 is checked before ingestion.
-project-documents/quetzal-1/originals/** -text -whitespace
-project-documents/quetzal-1/extracted/** -text -whitespace
-project-documents/quetzal-1/licenses/** -text -whitespace
+# No special attributes are required by the active application.

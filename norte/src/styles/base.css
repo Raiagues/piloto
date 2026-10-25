@@ -1,0 +1,24 @@
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--norte-border-strong) var(--norte-surface); }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: var(--norte-surface); }
+*::-webkit-scrollbar-thumb { background: var(--norte-border-strong); border: 2px solid var(--norte-surface); border-radius: 8px; }
+html, body, #root { width: 100%; height: 100%; min-height: 100%; margin: 0; background: var(--norte-bg); color: var(--norte-text); }
+body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; overflow: hidden; overscroll-behavior: none; }
+:where(button, input, select, textarea) { font: inherit; color: inherit; }
+:where(button, [role="button"]) { cursor: pointer; }
+:where(button, [role="button"]):disabled { cursor: not-allowed; }
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--norte-accent); outline-offset: 3px; }
+:where(input, textarea)::placeholder { color: var(--norte-text-muted); opacity: 1; }
+:where(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--norte-accent); }
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) { background: var(--norte-surface); border: 1px solid var(--norte-border-strong); border-radius: var(--norte-radius); }
+:where(button.primary, a.primary) { background: var(--norte-accent); color: var(--norte-on-accent); border: 1px solid transparent; }
+:where(button.primary, a.primary):hover:not(:disabled) { background: var(--norte-accent-hover); }
+a { color: var(--norte-link); }
+.auth-status-screen { display: grid; place-items: center; align-content: center; min-height: 100dvh; gap: 13px; text-align: center; background: var(--norte-bg); color: var(--norte-text); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+
+@keyframes auth-spin {
+  to { transform: rotate(360deg); }
+}
