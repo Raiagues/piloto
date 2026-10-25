@@ -171,7 +171,7 @@ body.public-view #root {
 .landing-requirements {
   background: var(--norte-surface);
   border: 1px solid var(--norte-border);
-  border-radius: 7px;
+  border-radius:var(--norte-radius);
   box-shadow: 0 18px 50px var(--norte-shadow);
   overflow: hidden;
   min-width: 0

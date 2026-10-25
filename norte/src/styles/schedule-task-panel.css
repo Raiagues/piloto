@@ -6,7 +6,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--norte-border);
-  border-radius: 8px;
+  border-radius:var(--norte-radius);
   background: var(--norte-surface);
   overflow: hidden;
   color: var(--norte-text);
@@ -239,7 +239,7 @@
   top: 65px;
   right: 8px;
   bottom: 8px;
-  border-radius: 8px;
+  border-radius:var(--norte-radius);
   width: calc(100vw - var(--mission-sidebar-collapsed) - 16px);
 }
 .planning-layout.with-detail .schedule-board {

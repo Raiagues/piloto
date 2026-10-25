@@ -77,13 +77,17 @@ export function registerMeetingGateway(app, { store, requireAuth, requireCsrf, a
     reply.header('cache-control', 'no-store').header('referrer-policy', 'same-origin').header('content-security-policy', `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self' blob:; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'`);
     return reply.type('text/html; charset=utf-8').send(html);
   });
-  app.get('/meeting-assets/*', { preHandler: [async request => { await store.refresh?.(); await requireAuth(request); }] }, async (request, reply) => {
+  // Only public application files live here; meeting HTML and data keep their ACL.
+  app.get('/meeting-assets/*', async (request, reply) => {
     const name = request.params['*'];
     if (!ASSETS.has(name)) fail(404, 'ASSET_NOT_FOUND', 'Arquivo não encontrado.');
     let content;
     try { content = await readFile(name === 'tokens.css' ? TOKENS : resolve(legacyRoot, name)); }
     catch (error) { if (error.code === 'ENOENT') fail(404, 'ASSET_NOT_FOUND', 'Arquivo não encontrado.'); throw error; }
-    return reply.header('cache-control', 'no-store').type(mime(name)).send(content);
+    const etag = '"' + createHash('sha256').update(content).digest('hex') + '"';
+    reply.header('cache-control', 'public, max-age=0, must-revalidate').header('etag', etag).type(mime(name));
+    const matches = request.headers['if-none-match']?.split(',').some(value => value.trim() === '*' || value.trim().replace(/^W\//, '') === etag);
+    return matches ? reply.code(304).send() : reply.send(content);
   });
   async function proxy(request, reply) {
     const suffix = request.params['*'];

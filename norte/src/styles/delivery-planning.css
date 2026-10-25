@@ -87,7 +87,7 @@
   background: var(--norte-surface-muted);
   color: var(--norte-text);
   border: 1px solid var(--norte-border);
-  border-radius: 3px;
+  border-radius:var(--norte-radius);
   padding: 8px;
   font: inherit
 }
@@ -97,7 +97,7 @@
   background: var(--norte-surface-muted);
   color: var(--norte-text);
   border: 1px solid var(--norte-border);
-  border-radius: 3px;
+  border-radius:var(--norte-radius);
   padding: 8px;
   font: inherit
 }
@@ -195,7 +195,7 @@
 .delivery-standards-button b {
   background: var(--norte-accent);
   color: var(--norte-on-accent);
-  border-radius: 2px;
+  border-radius:var(--norte-radius);
   padding: 1px 4px;
   font-size: 10px
 }

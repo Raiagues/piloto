@@ -121,7 +121,7 @@
   appearance: none;
   overflow: hidden;
   border: 0;
-  border-radius: 3px;
+  border-radius:var(--norte-radius);
   color: var(--norte-accent);
   background: var(--norte-border);
   accent-color: var(--norte-accent);
@@ -131,11 +131,11 @@
 }
 .schedule-review-progress progress::-webkit-progress-value {
   background: var(--norte-accent);
-  border-radius: 3px;
+  border-radius:var(--norte-radius);
 }
 .schedule-review-progress progress::-moz-progress-bar {
   background: var(--norte-accent);
-  border-radius: 3px;
+  border-radius:var(--norte-radius);
 }
 .schedule-review-progress > small {
   color: var(--norte-text-muted);

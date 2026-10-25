@@ -198,7 +198,7 @@ test('legacy gateway signs server-derived identity, narrows records, enforces ho
   assert.equal(JSON.parse((await f.request(f.guest, 'GET', path + '/records?key=' + encodeURIComponent(key))).json().value).title, 'Título editado no cabeçalho');
 });
 
-test('meeting HTML keeps bootstrap safe, assets are allowlisted, and login return preserves record reference', async t => {
+test('meeting HTML keeps bootstrap private while allowlisted assets revalidate without database access', async t => {
   const f = await fixture(t), m = await f.create(f.host, { title: '</script><script>alert(1)</script>' });
   let refreshes = 0; f.app.missionStore.refresh = async () => { refreshes++; };
   const html = await f.app.inject({ method: 'GET', url: `/meeting/${m.id}`, headers: f.host.headers });
@@ -207,14 +207,34 @@ test('meeting HTML keeps bootstrap safe, assets are allowlisted, and login retur
   assert.ok(html.body.indexOf('norte-meeting-bridge.js') > html.body.indexOf('<body'));
   assert.ok(html.body.indexOf('norte-meeting-bridge.js') < html.body.indexOf('speech-windows.js'));
   assert.match(html.headers['content-security-policy'], /nonce-/);
+  assert.equal(html.headers['cache-control'], 'no-store');
   const anonymous = await f.app.inject({ method: 'GET', url: `/meeting/${m.id}?event=E001` });
   assert.equal(anonymous.statusCode, 302); assert.match(anonymous.headers.location, /event=E001/);
-  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/server.py', headers: f.host.headers })).statusCode, 404);
-  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/base.css', headers: f.host.headers })).statusCode, 200);
-  assert.equal(refreshes, 4);
+  for (const name of ['server.py', 'index.html', '.env', 'unknown.js', '%2e%2e/server.py']) {
+    assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/' + name })).statusCode, 404);
+  }
+  const assets = ['base.css', 'meeting-room.js', 'vendor/minutes/DejaVuSans-Bold-2.37.ttf'];
+  for (const name of assets) {
+    const asset = await f.app.inject({ method: 'GET', url: '/meeting-assets/' + name });
+    assert.equal(asset.statusCode, 200);
+    assert.equal(asset.headers['cache-control'], 'public, max-age=0, must-revalidate');
+    assert.equal(asset.headers.etag, '"' + createHash('sha256').update(asset.rawPayload).digest('hex') + '"');
+    assert.equal(asset.headers['set-cookie'], undefined);
+    assert.doesNotMatch(asset.body, /window\.NORTE_MEETING_BOOTSTRAP\s*=/);
+    for (const privateValue of [secret, f.host.id, m.id, f.host.headers['x-csrf-token']]) assert.equal(asset.body.includes(privateValue), false);
+    for (const validator of [asset.headers.etag, '"older", W/' + asset.headers.etag, '*']) {
+      const cached = await f.app.inject({ method: 'GET', url: '/meeting-assets/' + name, headers: { 'if-none-match': validator } });
+      assert.equal(cached.statusCode, 304); assert.equal(cached.body, ''); assert.equal(cached.headers.etag, asset.headers.etag);
+    }
+    assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/' + name, headers: { 'if-none-match': '"outdated"' } })).statusCode, 200);
+  }
+  assert.equal(refreshes, 2, 'static requests never refresh the database');
+  assert.equal((await f.app.inject({ method: 'GET', url: `/api/meetings/${m.id}/legacy/records?key=norte.meeting-room.session.v2.${m.id}` })).statusCode, 401);
+  assert.equal(f.calls.length, 0, 'anonymous requests never reach the private worker');
   f.app.missionStore.refresh = () => f.app.missionStore.update(data => { data.users.find(user => user.id === f.host.id).active = false; });
   assert.equal((await f.app.inject({ method: 'GET', url: `/meeting/${m.id}`, headers: f.host.headers })).statusCode, 302);
-  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/base.css', headers: f.host.headers })).statusCode, 401);
+  assert.equal((await f.app.inject({ method: 'GET', url: '/meeting-assets/base.css', headers: f.host.headers })).statusCode, 200);
+  assert.equal((await f.request(f.host, 'GET', `/meetings/${m.id}/legacy/health`)).statusCode, 401);
 });
 
 test('private project context never returns in classifier echoes; guests see no processing archive and host can resume', async t => {

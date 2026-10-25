@@ -12,7 +12,7 @@
 .meeting-observability summary {cursor:pointer;color:var(--norte-text-secondary)}
 .observability-counts {display:flex;gap:24px;flex-wrap:wrap;margin:22px 0}
 .observability-counts strong {font-size:21px}
-.observability-workspace {display:grid;grid-template-columns:250px minmax(0,1fr);border:1px solid var(--norte-border);border-radius:10px;background:var(--norte-surface);overflow:hidden}
+.observability-workspace {display:grid;grid-template-columns:250px minmax(0,1fr);border:1px solid var(--norte-border);border-radius:var(--norte-radius);background:var(--norte-surface);overflow:hidden}
 .observability-workspace>aside {border-right:1px solid var(--norte-border);max-height:750px;overflow:auto}
 .observability-workspace>aside>button {width:100%;display:grid;gap:4px;text-align:left;border:0;border-bottom:1px solid var(--norte-border);border-radius:0;padding:14px}
 .observability-workspace>aside>button span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
@@ -23,8 +23,8 @@
 .observability-map span {display:flex;align-items:center;gap:8px}
 .observability-map button {white-space:nowrap;padding:12px}
 .meeting-observability details {padding:12px 0;border-bottom:1px solid var(--norte-border)}
-.meeting-observability pre {white-space:pre-wrap;overflow-wrap:anywhere;background:var(--norte-surface-muted);padding:14px;border-radius:6px;font-size:12px;line-height:1.6;max-height:520px;overflow:auto}
-.observability-memories,.observability-validation {margin-top:24px;padding:22px;background:var(--norte-surface);border:1px solid var(--norte-border);border-radius:10px}
+.meeting-observability pre {white-space:pre-wrap;overflow-wrap:anywhere;background:var(--norte-surface-muted);padding:14px;border-radius:var(--norte-radius);font-size:12px;line-height:1.6;max-height:520px;overflow:auto}
+.observability-memories,.observability-validation {margin-top:24px;padding:22px;background:var(--norte-surface);border:1px solid var(--norte-border);border-radius:var(--norte-radius)}
 .observability-memories article {border-left:2px solid var(--norte-accent);padding:10px 15px;margin-top:15px}
 .observability-memories blockquote {margin:8px 0;color:var(--norte-text-secondary)}
 .observability-validation li {margin:10px 0;line-height:1.6}

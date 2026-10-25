@@ -39,6 +39,8 @@ Sugestões de verificação indicam método, critério e vínculo ao requisito. 
 
 `tokens.css` é a fonte das cores, tipografia e superfícies. O tema claro é aplicado antes de montar a interface. A sala recebe o tema do documento pai antes de pintar e usa os mesmos tokens. Folhas por funcionalidade acompanham o carregamento sob demanda; não há uma sequência de temas globais antigos sobrescrevendo a página.
 
+Scripts, estilos e fontes da sala são arquivos públicos de uma lista fechada em `/meeting-assets/`; usam ETag por conteúdo e revalidação HTTP, sem consultar o banco a cada arquivo. O HTML com os dados de entrada da sala permanece autenticado e sem cache, assim como suas APIs continuam sujeitas às permissões da reunião.
+
 ## Privacidade e autoridade
 
 Senhas usam Argon2id; cookies de sessão são HttpOnly. Escritas exigem CSRF e origem válida. O bootstrap administrativo de produção exige segredo privado, e métricas globais exigem TOTP. Ser administrador não ignora a autorização de uma equipe, reunião ou conversa.
