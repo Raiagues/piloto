@@ -41,6 +41,8 @@ Sugestões de verificação indicam método, critério e vínculo ao requisito. 
 
 Scripts, estilos e fontes da sala são arquivos públicos de uma lista fechada em `/meeting-assets/`; usam ETag por conteúdo e revalidação HTTP, sem consultar o banco a cada arquivo. O HTML com os dados de entrada da sala permanece autenticado e sem cache, assim como suas APIs continuam sujeitas às permissões da reunião.
 
+A sala pré-carrega seus módulos em paralelo, mantendo a ordem de execução. A consulta ao serviço de processamento habilita a gravação, mas não bloqueia a leitura dos registros salvos. Reabrir uma reunião como anfitrião ou participante aceito não repete a escrita de entrada; o HTML e cada API continuam verificando o acesso atual.
+
 ## Privacidade e autoridade
 
 Senhas usam Argon2id; cookies de sessão são HttpOnly. Escritas exigem CSRF e origem válida. O bootstrap administrativo de produção exige segredo privado, e métricas globais exigem TOTP. Ser administrador não ignora a autorização de uma equipe, reunião ou conversa.

@@ -9,6 +9,11 @@ function clone(value) {
   return structuredClone(value);
 }
 
+function textCharacters(value) {
+  if (typeof value === 'string') return value.length;
+  return value && typeof value === 'object' ? Object.values(value).reduce((sum, item) => sum + textCharacters(item), 0) : 0;
+}
+
 // pg already removes failed idle clients from the pool. The error event still
 // needs a listener: otherwise a temporary database restart terminates Node.
 function handleIdleConnectionError() {}
@@ -35,7 +40,15 @@ async function transaction(pool, work) {
     }),
     disconnected
   ]);
-  const query = (...args) => wait(() => client.query(...args));
+  const query = async (...args) => {
+    const started = performance.now();
+    try { return await wait(() => client.query(...args)); }
+    finally {
+      const durationMs = Math.round(performance.now() - started);
+      // Operational timing only: never log SQL parameters or document contents.
+      if (process.env.RENDER && durationMs >= 500) console.info(JSON.stringify({ event: 'norte_postgres_slow_query', operation: args[0].split(/\s+/u).slice(0, 2).join(' '), durationMs }));
+    }
+  };
   try {
     await query("BEGIN");
     const result = await work({ query, wait });
@@ -112,6 +125,7 @@ export class PostgresDataStore {
       return { data, revision, updatedAtToken };
     });
     Object.assign(this, snapshot);
+    if (process.env.RENDER) console.info(JSON.stringify({ event: 'norte_storage_loaded', users: this.data.users.length, projects: Object.keys(this.data.workspace.projects).length, artifacts: this.data.artifacts.length, textCharactersBySection: Object.fromEntries(Object.entries(this.data).map(([name, value]) => [name, textCharacters(value)])), legacyProject: !!this.data.workspace.project }));
     return this;
   }
 

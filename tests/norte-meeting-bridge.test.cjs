@@ -75,3 +75,29 @@ test('participants open only the server materialized view without classification
   const host = fixture(), hostApi = bridge.create(host.root, host.bootstrap);
   assert.throws(() => hostApi.view(snapshot), /retomada/);
 });
+
+test('opening reads contributions immediately and defers presence writes until the first interval', async t => {
+  let now = 1_000_000, tick;
+  t.mock.method(Date, 'now', () => now);
+  const f = fixture();
+  f.root.setInterval = callback => { tick = callback; };
+  f.root.fetch = async (url, init = {}) => {
+    f.requests.push({ url, init });
+    return new Response(JSON.stringify({ contributions: [], cursor: 0 }));
+  };
+  const api = bridge.create(f.root, f.bootstrap), errors = [];
+  api.attach({ accepting: () => false, notice: message => errors.push(message) });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.requests.length, 1);
+  assert.match(f.requests[0].url, /\/contributions\?after=0$/);
+  now += 24_999;
+  await tick();
+  assert.equal(f.requests.filter(request => request.init.method === 'POST').length, 0);
+  now += 2;
+  await tick();
+  const presence = f.requests.filter(request => request.init.method === 'POST');
+  assert.equal(presence.length, 1);
+  assert.match(presence[0].url, /\/presence$/);
+  assert.equal(presence[0].init.headers.get('x-csrf-token'), 'token');
+  assert.deepEqual(errors, []);
+});

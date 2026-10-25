@@ -24,6 +24,8 @@ function openPage(){
  ];
  // Signed in: meetings live in the account (server database) instead of this browser.
  if(document.body.dataset.auth==='on')dependencies.push(['NorteRemoteStorage','remote-storage.js?v=20261015-2']);
+ // Fetch together; evaluate in dependency order below.
+ for(const [name,file] of dependencies){if(!window[name]){const link=document.createElement('link');link.rel='modulepreload';link.href=new URL(file,document.baseURI).href;document.head.append(link);}}
  for(const [name,file] of dependencies){if(!window[name])await import('./'+file);if(!window[name])throw Error('Não foi possível carregar a página de reunião.');}
  await initialize();
  })().catch(error=>{boot=null;for(const id of ['roomNotice','roomLibraryNotice']){const notice=document.getElementById(id);if(notice){notice.hidden=false;notice.textContent=error.message+' Reabra esta página para tentar novamente.';}}});
@@ -472,7 +474,7 @@ window.NorteMeetingRoom={isRunning,snapshot,whenIdle:()=>controller?.done||Promi
 controls();
 if(inAccount)$('roomSave').textContent='Na sua conta';
 try{db=integrated?integrated.storage:inAccount?await NorteRemoteStorage.open():await NorteMemoryStorage.open();history=JSON.parse(await db.read(INDEX)||'[]');}catch(error){notice(cleanError(error));}
-initialized=true;renderLibrary();transcriptPanel(transcriptPreference());renderView();render();zoomLabel();await checkHealth();
+initialized=true;renderLibrary();transcriptPanel(transcriptPreference());renderView();render();zoomLabel();void checkHealth();
 if(integrated){
  const transcriptTools=$('roomTranscriptPanel').querySelector('.log-toolbar');
  transcriptTools.append($('roomImport'));$('roomImport').title='Importar uma transcrição para esta reunião';$('roomImport').querySelector('small')?.remove();

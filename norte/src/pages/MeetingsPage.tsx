@@ -33,17 +33,22 @@ export function MeetingsPage({ projects, activeProjectId, language }: { projects
   }, [auth.api]);
   const open = useCallback(async (meeting: MeetingSummary) => {
     if (activeCapture.current) { setError(pt ? "Encerre a reunião antes de abrir outra." : "Finish the meeting before opening another."); return; }
-    const response = await auth.api<{ meeting: MeetingSummary }>(`/meetings/${encodeURIComponent(meeting.id)}/join`, { method: "POST", body: "{}" });
+    const alreadyJoined = meeting.ownerId === auth.user?.id || meeting.participants.some(person => person.userId === auth.user?.id);
+    const response = alreadyJoined ? { meeting } : await auth.api<{ meeting: MeetingSummary }>(`/meetings/${encodeURIComponent(meeting.id)}/join`, { method: "POST", body: "{}" });
     const url = new URL(window.location.href); if (url.searchParams.get("meeting") !== meeting.id) { url.searchParams.delete("event"); url.searchParams.delete("view"); } url.searchParams.set("meeting", meeting.id); history.replaceState(null, "", url);
     setError(""); setNotice(""); setPeopleOpen(false); setEditingTitle(false); activeCapture.current = false; setRoomView(url.searchParams.get("view") === "minutes" ? "minutes" : "canvas"); setFrameSrc(meetingFrameURL(meeting.id, meeting.roomKind)); setSelected(response.meeting);
     window.dispatchEvent(new CustomEvent("norte:workspace-item", {detail:{label:meeting.title,href:location.pathname+location.search+location.hash}}));
-  }, [auth.api, pt]);
-  useEffect(() => { let alive = true; void refresh().then(async () => {
+  }, [auth.api, auth.user?.id, pt]);
+  useEffect(() => { let alive = true;
     const id = new URLSearchParams(window.location.search).get("meeting");
-    if (!id || !/^[A-Za-z0-9_.:-]{1,160}$/.test(id)) return;
-    const response = await auth.api<{ meeting: MeetingSummary }>(`/meetings/${encodeURIComponent(id)}`);
-    if (alive) await open(response.meeting);
-  }).catch(reason => { if (alive) fail(reason); }).finally(() => { if (alive) setLoading(false); }); return () => { alive = false; }; }, [refresh, auth.api, open, fail]);
+    const openLinked = async () => {
+      if (!id || !/^[A-Za-z0-9_.:-]{1,160}$/.test(id)) return;
+      const response = await auth.api<{ meeting: MeetingSummary }>(`/meetings/${encodeURIComponent(id)}`);
+      if (alive) await open(response.meeting);
+    };
+    void Promise.all([refresh(), openLinked()]).catch(reason => { if (alive) fail(reason); }).finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [refresh, auth.api, open, fail]);
   useEffect(() => {
     const navigate = () => {
       if (!location.hash.startsWith("#/meetings")) return;

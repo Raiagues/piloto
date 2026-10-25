@@ -10,12 +10,14 @@ import { buildApp } from '../server/app.mjs';
 // Real React, Fastify accounts/ACLs and embedded meeting UI. The private engine
 // is simulated so this acceptance run spends no provider credits.
 const directory = await mkdtemp(join(tmpdir(), 'norte-meetings-browser-'));
-const records = new Map(), calls = [], errors = [];
+const records = new Map(), calls = [], errors = [], joinRequests = [];
+let releaseInitialHealth, healthPending = false, healthReleased = false;
+const initialHealth = new Promise(resolve => { releaseInitialHealth = resolve; });
 const json = (value, status = 200) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json' } });
 const engine = async (url, options) => {
   const parsed = new URL(url), input = options.body ? JSON.parse(options.body) : null;
   calls.push({ path: parsed.pathname, input, scope: options.headers['x-norte-bridge-scope'] });
-  if (parsed.pathname === '/api/health') return json({ ready: true, provider: 'official', engine: 'jev-latest' });
+  if (parsed.pathname === '/api/health') { if (!healthReleased) { healthPending = true; await initialHealth; } return json({ ready: true, provider: 'official', engine: 'jev-latest' }); }
   if (parsed.pathname === '/api/records') {
     const key = options.method === 'GET' ? parsed.searchParams.get('key') : input.key;
     const record = records.get(key) || { value: null, version: 0 };
@@ -53,6 +55,7 @@ try {
     const context = await browser.newContext({ viewport: { width: 1512, height: 1000 }, permissions: ['microphone'] });
     const split = actor.cookie.indexOf('='); await context.addCookies([{ name: actor.cookie.slice(0, split), value: actor.cookie.slice(split + 1), url: origin }]);
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => { if (request.method() === 'POST' && /^\/api\/meetings\/[^/]+\/join$/.test(new URL(request.url()).pathname)) joinRequests.push({ userId: actor.user.id, path: new URL(request.url()).pathname }); });
     await page.addInitScript(() => {
       window.localStorage.setItem('norte-language', 'pt');
       // Speech recognition is stubbed independently; peer audio remains actual WebRTC.
@@ -70,6 +73,9 @@ try {
   await host.page.getByRole('button', { name: 'Criar e abrir', exact: true }).click();
   const frame = host.page.frameLocator('.meetings-frame');
   await frame.locator('#roomText').waitFor({ timeout: 30_000 });
+  await host.page.waitForFunction(() => Boolean(document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id));
+  assert.equal(healthPending, true); assert.equal(healthReleased, false, 'the room and its record open before processing health completes');
+  healthReleased = true; releaseInitialHealth();
   assert.equal(await frame.locator('#roomTitle').isVisible(), false);
   assert.equal(await frame.locator('#roomSessionBar').isVisible(), false);
   assert.equal(await frame.locator('#roomTranscriptPanel').isVisible(), true);
@@ -87,6 +93,7 @@ try {
   await host.page.getByRole('heading', { name: 'Revisão colaborativa editada', exact: true }).waitFor();
   const meeting = Object.values(app.missionStore.read().meetings)[0]; assert.ok(meeting);
   assert.equal(meeting.memoryMode, undefined); assert.equal(meeting.participantIds.length, 0);
+  assert.equal(joinRequests.length, 0, 'creating and opening one’s own meeting does not repeat join');
   await host.page.getByRole('button', { name: 'Participantes e convites' }).click();
   await host.page.getByLabel('Convidar por nickname').fill('guest_visual');
   await host.page.getByRole('button', { name: 'Enviar convite', exact: true }).click();
@@ -96,6 +103,7 @@ try {
   await guest.page.getByRole('button', { name: 'Aceitar e abrir' }).click();
   const guestFrame = guest.page.frameLocator('.meetings-frame');
   await guestFrame.locator('#roomText').waitFor({ timeout: 30_000 });
+  assert.equal(joinRequests.length, 0, 'an accepted private participant can open without another join write');
   assert.equal(await guestFrame.locator('#roomTitle').getAttribute('readonly'), '');
   assert.equal(await guestFrame.locator('#roomLive').isVisible(), true);
   assert.equal(await guestFrame.locator('#roomLive').isDisabled(), true);
@@ -158,12 +166,38 @@ try {
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
   await host.page.locator('.meeting-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
+  for (const page of [host.page, guest.page]) {
+    await page.goto(origin + '/norte/?meeting=' + meeting.id + '#/meetings', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, meeting.id);
+  }
+  assert.equal(joinRequests.length, 0, 'owner and accepted participant deep links avoid join writes');
+
+  const injectAs = (actor, method, url, payload) => app.inject({ method, url, headers: { cookie: actor.cookie, 'x-csrf-token': actor.csrfToken }, ...(payload === undefined ? {} : { payload }) });
+  const teamResponse = await injectAs(actors[0], 'POST', '/api/teams', { name: 'Opening validation team' }); assert.equal(teamResponse.statusCode, 201, teamResponse.body);
+  const team = teamResponse.json().team;
+  const invitationResponse = await injectAs(actors[0], 'POST', `/api/teams/${team.id}/invitations`, { nickname: actors[1].user.nickname }); assert.equal(invitationResponse.statusCode, 201, invitationResponse.body);
+  assert.equal((await injectAs(actors[1], 'POST', `/api/invitations/${invitationResponse.json().invitation.id}/respond`, { decision: 'accept' })).statusCode, 200);
+  const teamMeetingResponse = await injectAs(actors[0], 'POST', '/api/meetings', { title: 'First team entry', scope: 'team', teamId: team.id }); assert.equal(teamMeetingResponse.statusCode, 201, teamMeetingResponse.body);
+  const teamMeeting = teamMeetingResponse.json().meeting;
+  assert.equal(teamMeeting.participants.some(person => person.userId === actors[1].user.id), false);
+  const teamURL = origin + '/norte/?meeting=' + teamMeeting.id + '#/meetings';
+  await guest.page.goto(teamURL, { waitUntil: 'domcontentloaded' });
+  await guest.page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, teamMeeting.id);
+  const teamJoins = () => joinRequests.filter(request => request.userId === actors[1].user.id && request.path === `/api/meetings/${teamMeeting.id}/join`);
+  assert.equal(teamJoins().length, 1, 'an eligible team member joins on the first entry');
+  assert(app.missionStore.read().meetings[teamMeeting.id].participantIds.includes(actors[1].user.id));
+  await guest.page.goto(teamURL, { waitUntil: 'domcontentloaded' });
+  await guest.page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, teamMeeting.id);
+  assert.equal(teamJoins().length, 1, 'reopening the team meeting does not repeat join');
+  assert.equal((await injectAs(actors[2], 'GET', `/api/meetings/${teamMeeting.id}`)).statusCode, 404);
+  const deniedHTML = await injectAs(actors[2], 'GET', `/meeting/${teamMeeting.id}`); assert.equal(deniedHTML.statusCode, 404); assert.doesNotMatch(deniedHTML.body, /NORTE_MEETING_BOOTSTRAP/);
+  assert.equal((await injectAs(actors[2], 'POST', `/api/meetings/${teamMeeting.id}/join`, {})).statusCode, 404);
   assert.deepEqual(errors, []);
-  console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation and mobile layout.');
+  console.log('PASS: two-way real WebRTC packets, self/host mute and consent release, title editor, transcript chat, authenticated Norte meeting, memory off, consent invite, two accounts, host-only processing, contribution once, guest live state, persistence, isolation, mobile layout, owner/accepted-participant deep links without join writes, one first team join and denied outsider HTML/API.');
 } catch (error) {
   if (hostPage) await hostPage.screenshot({ path: '/tmp/norte-integrated-meeting-failure.png', fullPage: true }).catch(() => {});
   for (const [index, context] of (browser?.contexts() || []).entries()) for (const page of context.pages()) {
     console.error('Audio state', index, await page.evaluate(() => ({ row: document.querySelector('.meeting-audio-controls')?.outerHTML, peers: (window.__audioPeers || []).map(peer => ({ connection: peer.connectionState, ice: peer.iceConnectionState, signaling: peer.signalingState })) })).catch(() => null));
   }
   console.error('Browser errors:', errors); throw error;
-} finally { await browser?.close(); await vite?.close(); await app.close(); await rm(directory, { recursive: true, force: true }); }
+} finally { releaseInitialHealth(); await browser?.close(); await vite?.close(); await app.close(); await rm(directory, { recursive: true, force: true }); }

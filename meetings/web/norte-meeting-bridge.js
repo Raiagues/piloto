@@ -147,7 +147,7 @@
       } catch (error) { hooks.notice(error.message); }
       finally { polling = false; }
     }
-    function attach(value) { hooks = value; void poll(); timer = root.setInterval(poll, 2500); }
+    function attach(value) { hooks = value; lastHeartbeat = Date.now(); void poll(); timer = root.setInterval(poll, 2500); }
     async function contribute(text, clientId) {
       const result = await body(await request('/api/meetings/' + encodeURIComponent(config.meeting.id) + '/contributions', { method: 'POST', body: JSON.stringify({ text, clientId }) }));
       displayed.set(result.contribution.id, result.contribution); hooks?.pending?.([...displayed.values()]); void poll(); return result.contribution;
