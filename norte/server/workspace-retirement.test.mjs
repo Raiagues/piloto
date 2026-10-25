@@ -97,6 +97,21 @@ test('mixed real teams retain their real ACL and never become demo-only deletion
   assert.deepEqual(plan.teamMembershipChanges, [{ id: 'real-team', removeMemberIds: ['mf'] }]);
 });
 
+test('empty unowned team stubs retire only with all their explicitly selected projects', () => {
+  const data = fixture();
+  data.teams.push({ id: 'legacy-stub', createdBy: null, memberIds: [] }, { id: 'independent-empty', memberIds: [] });
+  data.workspace.projects.satellite.document.context.teamId = 'legacy-stub';
+  const result = apply(data);
+  assert(result.plan.remove.teams.includes('legacy-stub'));
+  assert(result.data.teams.some(team => team.id === 'independent-empty'));
+  assert(result.data.teams.some(team => team.id === 'empty-real-team'));
+  const kept = apply(data, { keepProject: 'lyle', removeProjectIds: ['demo-project'] });
+  assert(kept.data.teams.some(team => team.id === 'legacy-stub'));
+  const partiallySelected = structuredClone(data);
+  partiallySelected.workspace.projects.unselected = { createdBy: 'admin', document: { id: 'unselected', context: { teamId: 'legacy-stub' } } };
+  assert(apply(partiallySelected).data.teams.some(team => team.id === 'legacy-stub'));
+});
+
 test('repeat retirement with the same explicit target list is a no-op after a fresh review', () => {
   const first = apply(fixture()).data, second = apply(first);
   assert.deepEqual(second.data, first);

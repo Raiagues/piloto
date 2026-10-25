@@ -198,7 +198,7 @@ class MinutesTests(unittest.TestCase):
         class Response:
             def __enter__(self):return self
             def __exit__(self,*a):pass
-            def read(self,n):return json.dumps({'modelVersion':'gemini-test','candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(document())}]}}]}).encode()
+            def read(self,n):return json.dumps({'modelVersion':'gemini-test','candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(compact_document())}]}}]}).encode()
         error=HTTPError('https://generativelanguage.googleapis.com',503,'Unavailable',{},BytesIO())
         with patch.object(G.HTTP,'open',side_effect=[error,Response()]) as send,patch.object(G,'RETRY_DELAY_SECONDS',0):
             result=G.generate(source(),Settings(gemini_api_key='private-key'))
@@ -246,13 +246,19 @@ class MinutesTests(unittest.TestCase):
         class Response:
             def __enter__(self):return self
             def __exit__(self,*a):pass
-            def read(self,n):return json.dumps({'modelVersion':'gemini-test','candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(document())}]}}]}).encode()
+            def read(self,n):return json.dumps({'modelVersion':'gemini-test','candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(compact_document())}]}}]}).encode()
         with patch.object(G.HTTP,'open',return_value=Response()) as send:
             d=G.generate(source(),Settings(gemini_api_key='private-key'))
             req=send.call_args.args[0]
             self.assertNotIn('private-key',req.full_url);self.assertEqual(req.headers['X-goog-api-key'],'private-key');self.assertEqual(d['model'],'gemini-test')
             self.assertIn('gemini-3.8-flash:generateContent', req.full_url)
             self.assertEqual(json.loads(req.data)['generationConfig']['thinkingConfig'], {'thinkingLevel': 'medium'})
+        # Old saved minutes remain readable, but new provider output must use the current contract.
+        invalid={'candidates':[{'finishReason':'STOP','content':{'parts':[{'text':json.dumps(document())}]}}]}
+        with patch.object(G,'_request',return_value=invalid):
+            with self.assertRaises(G.MinutesError) as caught:G.generate(source(),Settings(gemini_api_key='private-key'))
+        self.assertEqual(caught.exception.code,'invalid_document')
+        self.assertNotIn('private-key',json.dumps(caught.exception.response()))
         with self.assertRaises(G.MinutesError):G.generate(source(),Settings())
 if __name__=='__main__':unittest.main()
 

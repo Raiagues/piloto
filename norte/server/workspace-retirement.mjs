@@ -98,7 +98,9 @@ function prepare(original, { keepProject, removeProjectIds = [] } = {}) {
     const memberIds = array(team.memberIds), realIds = memberIds.filter(id => !remove.members.has(id));
     const retainsProject = retainedProjects.some(([, record]) => record.document?.context?.teamId === team.id);
     const realCreator = team.createdBy && !remove.users.has(team.createdBy);
-    if (team.id !== keepTeam && !retainsProject && !realCreator && realIds.length === 0 && (demo(team) || (memberIds.length > 0 && memberIds.every(id => remove.members.has(id))))) remove.teams.add(team.id);
+    const ownedProjects = Object.entries(projects).filter(([, record]) => record.document?.context?.teamId === team.id);
+    const emptyRetiredScope = memberIds.length === 0 && ownedProjects.length > 0 && ownedProjects.every(([id]) => remove.projects.has(id));
+    if (team.id !== keepTeam && !retainsProject && !realCreator && realIds.length === 0 && (demo(team) || (memberIds.length > 0 && memberIds.every(id => remove.members.has(id))) || emptyRetiredScope)) remove.teams.add(team.id);
     else {
       const removedIds = memberIds.filter(id => remove.members.has(id));
       if (team.id === keepTeam && (demo(team) || removedIds.length || remove.users.has(team.createdBy) || remove.members.has(team.captainMemberId) || array(team.adminMemberIds).some(id => remove.members.has(id)))) block('KEPT_PROJECT_DEMO_ACL', 'team', team.id, removedIds);
