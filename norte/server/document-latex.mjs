@@ -1,6 +1,6 @@
 import { zipSync, strToU8 } from 'fflate';
 
-const symbols = { '≥': '\\ensuremath{\\geq}', '≤': '\\ensuremath{\\leq}', '±': '\\ensuremath{\\pm}', '→': '\\ensuremath{\\rightarrow}', '×': '\\ensuremath{\\times}', '°': '\\ensuremath{^\\circ}' };
+const symbols = { '≥': '\\ensuremath{\\geq}', '≤': '\\ensuremath{\\leq}', '±': '\\ensuremath{\\pm}', '→': '\\ensuremath{\\rightarrow}', '×': '\\ensuremath{\\times}', '°': '\\textdegree{}' };
 const escaped = value => String(value ?? '').replace(/[\\{}$&#_%~^≥≤±→×°]/gu, char => (symbols[char] || { '\\': '\\textbackslash{}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}' }[char] || `\\${char}`));
 const inline = value => escaped(value).replace(/\*\*([^*]+)\*\*/gu, '\\textbf{$1}').replace(/`([^`]+)`/gu, '\\texttt{$1}');
 
