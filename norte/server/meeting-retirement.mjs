@@ -3,7 +3,9 @@ import { createHash } from 'node:crypto';
 const TABLES = [
   'norte_users', 'norte_sessions', 'norte_records', 'ai_jobs', 'ai_usage',
   'ai_block_memory', 'ai_block_requests', 'ai_block_uses', 'ai_block_feedback',
-  'ai_block_evaluations', 'ai_meeting_learning'
+  'ai_block_evaluations', 'ai_meeting_learning',
+  // Retired worker tables: backup/removal only; never created by the app.
+  'ai_events', 'ai_proposals', 'ai_evaluations', 'ai_aliases'
 ];
 const digest = value => createHash('sha256').update(value).digest('hex');
 const quoted = name => '"' + name.replaceAll('"', '""') + '"';

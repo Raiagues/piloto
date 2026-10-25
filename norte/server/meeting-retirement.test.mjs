@@ -20,8 +20,9 @@ const users = [
   ['5', bridge('project:retired-meeting')],
   ...removed.map((id, index) => [removedUsers[index], bridge(`meeting:${id}`)])
 ];
+const legacyTables = ['ai_events', 'ai_proposals', 'ai_evaluations', 'ai_aliases'];
 const childTables = ['norte_sessions', 'norte_records', 'ai_jobs', 'ai_usage', 'ai_block_memory',
-  'ai_block_requests', 'ai_block_uses', 'ai_block_feedback', 'ai_block_evaluations', 'ai_meeting_learning'];
+  'ai_block_requests', 'ai_block_uses', 'ai_block_feedback', 'ai_block_evaluations', 'ai_meeting_learning', ...legacyTables];
 const tables = ['norte_users', ...childTables];
 const globals = ['ai_budget', 'ai_minutes_budget', 'reference_entries'];
 
@@ -105,6 +106,7 @@ test('PostgreSQL retirement plan selects only exact removed meeting namespaces a
   }
   assert.ok(plan.payload.tables.norte_users.some(row => row.includes('9007199254740993')));
   assert.ok(plan.payload.tables.norte_records.some(row => row.includes('9007199254740995')));
+  for (const table of legacyTables) assert.equal(plan.payload.tables[table].length, removedUsers.length, `${table} is backed up before retirement`);
   assert.deepEqual(await f.snapshot(), before, 'planning must not alter original rows');
   const repeated = await planMeetingRetirement(f.query, [...removed].reverse());
   assert.equal(repeated.fingerprint, plan.fingerprint, 'input ordering does not change the reviewed plan');
@@ -134,6 +136,10 @@ test('PostgreSQL retirement backs up before deleting and preserves native, retai
     assert.deepEqual(await f.rows(table), before[table].filter(row => !plan.payload.tables[table].includes(row)), table);
   }
   for (const table of globals) assert.deepEqual(await f.rows(table), before[table]);
+  for (const table of legacyTables) {
+    assert.deepEqual((await f.query(`SELECT user_id::text FROM ${table} ORDER BY user_id`)).rows.map(row => row.user_id), ['1', '2', '3', '4', '5'],
+      `${table} preserves native, retained, orphan, user and project namespaces`);
+  }
   const backup = (await f.query('SELECT payload FROM retirement_test_backups WHERE id = $1', ['confirmed'])).rows[0].payload;
   assert.deepEqual(backup, plan.payload, 'committed backup keeps the unparsed row JSON, including large integer literals');
 });
