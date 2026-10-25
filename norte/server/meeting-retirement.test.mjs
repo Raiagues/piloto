@@ -207,7 +207,16 @@ test('PostgreSQL retirement blocks an unknown cascading dependency instead of lo
   let backedUp = false;
   await assert.rejects(applyMeetingRetirement(f.query, removed, {
     expectedFingerprint: plan.fingerprint, backup: async () => { backedUp = true; }
-  }), { code: 'RETIREMENT_UNKNOWN_FOREIGN_KEY' });
+  }), error => {
+    assert.equal(error.code, 'RETIREMENT_UNKNOWN_FOREIGN_KEY');
+    assert.deepEqual(error.retirementDetails, { unknownReferences: [{
+      table: 'future_meeting_data', schema: f.schema, column: 'user_id',
+      referencedTable: 'norte_users', referencedColumn: 'id', columnCount: 1
+    }] });
+    const diagnostic = JSON.stringify(error);
+    assert.doesNotMatch(diagnostic, /Must survive|unknown-row|9007199254740993|test-only-hash|Original preserved|"payload"/u);
+    return true;
+  });
   await f.query('ROLLBACK');
   assert.equal(backedUp, false, 'an unreviewed dependency blocks the operation before backup and deletion');
   assert.deepEqual(await f.snapshot(Object.keys(before)), before);

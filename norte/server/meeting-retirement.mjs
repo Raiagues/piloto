@@ -43,10 +43,16 @@ async function snapshot(query, removedIds, lock = false) {
     JOIN pg_catalog.pg_attribute parent_column ON parent_column.attrelid = parent.oid AND parent_column.attnum = foreign_key.confkey[1]
     WHERE foreign_key.contype = 'f' AND parent_ns.nspname = current_schema()
       AND parent.relname = ANY($1::text[])`, [tables]);
-  if (references.rows.some(row => row.table_schema !== row.active_schema || !tables.includes(row.table_name)
+  const unknownReferences = references.rows.filter(row => row.table_schema !== row.active_schema || !tables.includes(row.table_name)
     || row.referenced_table !== 'norte_users' || row.column_name !== 'user_id'
-    || row.referenced_column !== 'id' || row.column_count !== 1)) {
-    throw failure('RETIREMENT_UNKNOWN_FOREIGN_KEY', 'An unrecognized foreign key prevents safe meeting retirement.');
+    || row.referenced_column !== 'id' || row.column_count !== 1);
+  if (unknownReferences.length) {
+    const error = failure('RETIREMENT_UNKNOWN_FOREIGN_KEY', 'An unrecognized foreign key prevents safe meeting retirement.');
+    error.retirementDetails = { unknownReferences: unknownReferences.map(row => ({
+      table: row.table_name, schema: row.table_schema, column: row.column_name,
+      referencedTable: row.referenced_table, referencedColumn: row.referenced_column, columnCount: row.column_count
+    })) };
+    throw error;
   }
   const names = ids.map(id => 'bridge.' + digest('meeting:' + id).slice(0, 25));
   const users = tables.includes('norte_users') && names.length

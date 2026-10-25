@@ -16,7 +16,7 @@ if (process.env.NORTE_WORKSPACE_RETIREMENT) {
     }
   } catch (error) {
     // Maintenance failure must not disclose state or prevent ordinary access.
-    console.error(JSON.stringify({ event: 'norte_workspace_retirement_failed', code: error.code || 'RETIREMENT_FAILED' }));
+    console.error(JSON.stringify({ event: 'norte_workspace_retirement_failed', code: error.code || 'RETIREMENT_FAILED', ...(error.retirementDetails ? { details: error.retirementDetails } : {}) }));
   }
 }
 
