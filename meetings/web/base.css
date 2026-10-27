@@ -24,7 +24,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 :where(button:hover:not(:disabled)) { background: var(--norte-surface-raised); }
 button:disabled { cursor: default; opacity: .5; }
 button svg { width: 18px; height: 18px; flex: none; }
-:where(input, textarea, select) { background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--norte-radius); padding: 8px; }
+:where(input, textarea, select) { background: var(--norte-field); border: 1px solid transparent; border-radius: var(--norte-radius); padding: 8px; }
 :where(input, textarea)::placeholder { color: var(--norte-text-muted); }
 a { color: var(--norte-link); text-decoration: underline; }
 :focus-visible { outline: 2px solid var(--norte-accent); outline-offset: 3px; }
@@ -37,15 +37,15 @@ a { color: var(--norte-link); text-decoration: underline; }
 .meeting-title { display: grid; gap: 4px; }
 .meeting-title input { background: transparent; font-size: 18px; border: 0; }
 .meeting-title time { font-size: 11px; color: var(--muted); }
-.log-shell { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid var(--line); }
-.log-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.log-shell { min-width: 0; min-height: 0; overflow: hidden; border: 1px solid transparent; }
+.log-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px; border-bottom: 1px solid var(--norte-divider); background: var(--panel); }
 .log-toolbar h2 { margin: 0; font-size: 12px; }
 .resize-handle { position: relative; cursor: row-resize; touch-action: none; min-height: 9px; background: var(--bg); }
 .resize-handle::after { content: ""; display: block; width: 40px; height: 3px; background: var(--line-strong); position: absolute; top: 3px; left: calc(50% - 20px); }
 body[data-resizing] { user-select: none; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 99; }
 .toast:empty { display: none; }
-dialog { border: 1px solid var(--line); color: var(--text); background: var(--panel); }
+dialog { border: 1px solid transparent; color: var(--text); background: var(--panel); }
 dialog::backdrop { background: var(--norte-overlay); }
 .room-toolbar { display: flex; align-items: center; justify-content: space-between; background: var(--panel); }
 .room-transcript-panel { display: grid; grid-template-rows: auto minmax(0, 1fr); background: var(--panel); }

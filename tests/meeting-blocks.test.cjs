@@ -16,9 +16,14 @@ test('changed source, new context or new title evidence invalidates stale overla
  assert.equal(Canvas.build(r).topics[0].columns.details[0].display_text,undefined);
  const next=run();next.block_review=overlay(next);next.meeting_events.push({event_id:'E2',thread_id:'T1',type:'decision',text:'Outra decisão.'});
  assert.equal(Blocks.valid(next.block_review.blocks.E1,next,'block','E1'),true);
- assert.equal(Blocks.valid(next.block_review.titles.T1,next,'title','T1'),false);
+ assert.equal(Blocks.valid(next.block_review.titles.T1,next,'title','T1'),true,'a title written from the first event holds until the topic reaches three');
  next.meeting_events.unshift({event_id:'E0',thread_id:'T1',type:'observation',text:'Contexto anterior diferente.'});
  assert.equal(Blocks.valid(next.block_review.blocks.E1,next,'block','E1'),false);
+ assert.equal(Blocks.valid(next.block_review.titles.T1,next,'title','T1'),false,'the opening of the topic changed');
+ const two=run();two.meeting_events.push({event_id:'E2',thread_id:'T1',type:'decision',text:'Outra decisão.'});two.block_review=overlay(two);
+ assert.equal(Blocks.valid(two.block_review.titles.T1,two,'title','T1'),true,'an older title covering the whole topic stays valid');
+ two.meeting_events.push({event_id:'E3',thread_id:'T1',type:'decision',text:'Mais uma decisão.'});
+ assert.equal(Blocks.valid(two.block_review.titles.T1,two,'title','T1'),false,'two events are not a title span once the topic grows');
 });
 test('late responses cannot paint another meeting',async()=>{
  let current=run(),resolve;const first=current;

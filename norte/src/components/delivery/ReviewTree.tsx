@@ -93,11 +93,7 @@ export function ReviewTree({ editingEnabled = false, projectId, data, pt, busy, 
                     <span><small>{pt ? 'Requisito' : 'Requirement'}</small>{requirement?.title || task.requirementIds[index]}</span>
                     <small>{requirement ? deliveryStatus(requirement.status, pt) : (pt ? 'Indisponível' : 'Unavailable')}<ChevronRight size={13} aria-hidden="true" /></small>
                   </button>)}
-                  {tests.map((test, index) => <button key={task.testIds[index]} onClick={() => openDeliveryRecord('verification', task.testIds[index])}>
-                    <span><small>{pt ? 'Verificação' : 'Verification'}</small>{test?.title || task.testIds[index]}</span>
-                    <small>{test ? deliveryStatus(test.status, pt) : (pt ? 'Indisponível' : 'Unavailable')}<ChevronRight size={13} aria-hidden="true" /></small>
-                  </button>)}
-                  {!total && <p>{pt ? 'Ainda não há requisitos ou verificações vinculados.' : 'No requirements or verifications linked yet.'}</p>}
+                  {!total && <p>{pt ? 'Ainda não há requisitos vinculados.' : 'No requirements linked yet.'}</p>}
                 </div>
                 {editingEnabled && task.canEdit && <button className="schedule-review-link-action" disabled={busy} onClick={() => onEdit(task.id)}>{pt ? 'Vincular critérios' : 'Link criteria'}<ChevronRight size={13} aria-hidden="true" /></button>}
               </section>

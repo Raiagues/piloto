@@ -52,7 +52,9 @@ const saveKey=id=>'norte.meeting-room.session.v2.'+id;
 const cleanError=e=>String(e?.message||e||'Não foi possível concluir a operação.').replace(/Gemini(?: Pro)?|TypeSafe|Jev(?: oficial)?/gi,'serviço');
 const canvas=NorteMeetingCanvas.create({canvas:$('roomCanvas'),board:$('roomBoard'),onRename:renameTopic,onInspect:inspectEvidence,canEdit:canWrite,onReview:(kind,id)=>{if(canWrite())blockAgents?.edit(kind,id);}});
 const blockStatus=el('small','room-block-status');blockStatus.setAttribute('role','status');$('roomSave').parentElement.append(blockStatus);
-const blockAgents=canWrite()?NorteMeetingBlocks.create({automatic:inAccount,getRun:()=>canWrite()?current:null,onUpdate:()=>render(),onSave:save,onStatus:status=>{blockStatus.textContent=({pending:'Revisando blocos…',waiting:'Próxima revisão em instantes',ready:'Revisão dos blocos concluída',disabled:'Revisão automática desativada',error:'Revisão indisponível; falas preservadas'})[status]||'';}}):null;
+// Notes and titles are written in the background after each save of a running
+// meeting; the server keeps going topic by topic. There is no manual trigger.
+const blockAgents=canWrite()?NorteMeetingBlocks.create({automatic:inAccount,getRun:()=>canWrite()?current:null,onUpdate:()=>render(),onSave:save,onStatus:status=>{document.body.dataset.editorial=status;blockStatus.textContent=({pending:'Organizando tópicos…',waiting:'Organizando tópicos…',disabled:'Organização automática desativada',error:'Organização indisponível; falas preservadas'})[status]||'';}}):null;
 NorteLayout.bind({id:'#roomTranscriptDivider',host:'#roomWorkspace',property:'--room-canvas-height',initial:()=>roomKind()==='beam'?78:integrated?60:70,axis:()=> 'y',min:25,max:85,pixels:()=>[200,100],gutter:12});
 function notice(message=''){for(const id of ['roomNotice','roomLibraryNotice']){const target=$(id);if(target){target.textContent=message;target.hidden=!message;}}}
 async function checkHealth(){try{const r=await fetch('/api/health',{signal:AbortSignal.timeout(5000)});const data=await r.json();ready=!!data.ready;provider=data.provider||'official';if(!ready)notice('A conexão de processamento não está pronta. Confira o serviço antes de começar.');}catch(_){ready=false;notice('Não foi possível conectar. Verifique se o serviço está aberto.');}controls();return ready;}
@@ -129,10 +131,10 @@ function controls(){
  const running=isRunning();
  if(running!==reportedRunning){reportedRunning=running;window.dispatchEvent(new CustomEvent('norte:meeting-running',{detail:{running}}));}
  if(listening!==reportedCapture){reportedCapture=listening;window.dispatchEvent(new CustomEvent('norte:meeting-capture',{detail:{recording:listening}}));}
- const active=!!controller&&!current?.finishedAt,draft=current?.status==='draft'||integrated?.host&&current?.status==='interrupted';
+ const active=!!controller&&!current?.finishedAt,draft=current?.status==='draft'||integrated?.host&&['interrupted','done'].includes(current?.status);
  $('roomImport').disabled=running||!draft;
  $('roomLive').disabled=!current||starting||closing||micStopping||(!draft&&!active)||active&&!['live','text'].includes(mode);
- $('roomLiveLabel').textContent=micStopping?'Pausando…':listening?'Pausar':active&&mode==='live'?'Retomar':current&&!draft&&!active?(['interrupted','stopped'].includes(current.status)?'Interrompida':'Concluída'):'Gravar';
+ $('roomLiveLabel').textContent=micStopping?'Pausando…':listening?'Pausar':active&&mode==='live'?'Retomar':current&&!draft&&!active?(['interrupted','stopped'].includes(current.status)?'Interrompida':'Concluída'):integrated&&['interrupted','done'].includes(current?.status)&&!active?'Continuar gravação':'Gravar';
  $('roomLive').classList.toggle('is-recording',listening);$('roomLive').setAttribute('aria-pressed',String(listening));
  $('roomMinutes').disabled=!current?.meeting_events.length||active||closing||['running','finishing'].includes(current?.status);
  $('roomNew').disabled=running||!initialized;$('roomCreateInstant').disabled=running||!initialized;$('roomBack').disabled=running;
@@ -141,7 +143,7 @@ function controls(){
  $('roomMic').hidden=true;
  $('roomFinish').hidden=!active||!['live','text'].includes(mode);$('roomFinish').disabled=closing;
  $('roomStop').hidden=!active||['live','text'].includes(mode);$('roomStop').disabled=closing;
- const canType=integrated?!!current&&!['done','completed','ended','finished','stopped'].includes(current.status)&&!starting&&!closing:!!controller?.accepting||roomKind()==='beam'&&draft&&!starting&&!closing;
+ const canType=integrated?!!current&&!starting&&!closing&&(integrated.host||!['done','completed','ended','finished','stopped'].includes(current.status)):!!controller?.accepting||roomKind()==='beam'&&draft&&!starting&&!closing;
  $('roomSend').disabled=!canType;$('roomText').disabled=!canType;
  $('roomLanguage').disabled=listening||closing;
  if(integrated){
@@ -150,11 +152,19 @@ function controls(){
   if(!canWrite())for(const id of ['roomImport','roomLive','roomMic','roomFinish','roomStop'])$(id).disabled=true;
   const start=$('roomIntegratedStartText');if(start){start.hidden=!canWrite()||active||!current||!['draft','interrupted'].includes(current.status);start.disabled=starting||closing;start.textContent=current?.status==='interrupted'?'Retomar por texto':'Iniciar por texto';}
  }
- updateTimer();
+ updateTimer();reportControls();
+}
+let reportedControls='';
+function reportControls(){
+ if(!integrated||window.parent===window)return;
+ const state=(id)=>({hidden:$(id).hidden,disabled:$(id).disabled});
+ const value={live:{...state('roomLive'),label:$('roomLiveLabel').textContent,recording:listening,host:canWrite()},timer:{text:$('roomTimer').textContent,hidden:$('roomTimer').hidden},finish:state('roomFinish'),stop:state('roomStop'),minutes:state('roomMinutes'),importing:state('roomImport'),status:current?.status||'',statusText:statusText(),started:$('roomStarted').textContent};
+ const signature=JSON.stringify(value);if(signature===reportedControls)return;reportedControls=signature;
+ window.parent.postMessage({type:'norte:meeting-controls',meetingId:current?.id||integrated.meeting.id,controls:value},location.origin);
 }
 function updateTimer(){
  const timer=$('roomTimer'),meta=current?.meeting_metadata||{},imported=current?.input_mode==='import';
- const start=Date.parse(imported?meta.started_at:current?.startedAt),end=imported?Date.parse(meta.ended_at):current?.finishedAt?Date.parse(current.finishedAt):Date.now();
+ const start=Date.parse(imported?meta.started_at:current?.continued_at||current?.startedAt),end=imported?Date.parse(meta.ended_at):current?.finishedAt?Date.parse(current.finishedAt):Date.now();
  const duration=imported&&Number.isFinite(meta.duration_ms)&&meta.duration_ms>=0?meta.duration_ms:Number.isFinite(start)&&Number.isFinite(end)&&end>=start?end-start:null;
  timer.hidden=imported&&(meta.duration_unknown===true||duration===null);
  const seconds=duration===null?0:Math.floor(duration/1000);
@@ -168,6 +178,8 @@ function renderBoard(){
  renderAttention(projection.state||(current?NorteMeetingState.build(current):null));
 }
 let attentionSignature='';
+// Phones start with the review summaries folded so the canvas keeps its height.
+const foldReview=!!window.matchMedia?.('(max-width:560px)').matches;let alertsOpen=!foldReview;if(foldReview)$('roomPending').open=false;
 function focusEntry(id,topicId){
  canvas.focusTopic(topicId);
  const card=[...$('roomBoard').querySelectorAll('[data-event-id]')].find(n=>n.dataset.eventId===id);
@@ -178,13 +190,14 @@ function focusEntry(id,topicId){
 function renderAttention(state){
  const alerts=(state?.alerts||[]).filter(item=>item.kind!=='pending'),pending=state?.pending||[];
  $('roomReviewRail').hidden=!alerts.length&&!pending.length;document.querySelector('.room-canvas-panel').classList.toggle('has-review',!!alerts.length||!!pending.length);
- const signature=JSON.stringify([current?.id,alerts,pending.map(e=>[e.id,e.text,e.status,e.reasons,e.topic_id]),state?.topics.map(t=>[t.id,t.title])]);
+ // The same name as the canvas: a person's title, then a valid suggested one.
+ const topicName=id=>{const explicit=current?.topic_titles?.[id]||current?.meeting_threads?.find(t=>t.thread_id===id)?.title,suggestion=current?.block_review?.titles?.[id];return explicit||(NorteMeetingBlocks.valid(suggestion,current,'title',id)?suggestion.text:state?.topics.find(t=>t.id===id)?.title)||'Assunto sem título';};
+ const signature=JSON.stringify([current?.id,alerts,pending.map(e=>[e.id,e.text,e.status,e.reasons,e.topic_id]),state?.topics.map(t=>[t.id,topicName(t.id)])]);
  if(signature===attentionSignature)return;attentionSignature=signature;
  const stack=$('roomAlerts');stack.replaceChildren();stack.hidden=!alerts.length;
- const topicName=id=>state?.topics.find(t=>t.id===id)?.title||'Assunto sem título';
  const explain=(entry,issues)=>{if(entry)focusEntry(entry.id,entry.topic_id);inspectEvidence({eventIds:[...new Set([entry?.id,...issues.flatMap(i=>i.event_ids||[])].filter(Boolean))],relationIds:[...new Set(issues.flatMap(i=>i.relation_ids||[]))],issues});};
  if(alerts.length){
-  const list=el('details','room-alert-list');list.open=true;
+  const list=el('details','room-alert-list');list.open=alertsOpen;list.addEventListener('toggle',()=>{alertsOpen=list.open;});
   list.append(el('summary','room-alert-heading',alerts.length+(alerts.length===1?' atenção necessária':' atenções necessárias')));
   const items=el('div','room-alert-items');
   for(const alert of alerts){
@@ -311,7 +324,7 @@ function render(){renderFrame=0;renderBoard();renderTranscript();controls();}
 function changed(run,change){current=run;if(change.phase==='command'&&change.command?.message){if(change.command.status==='applied')notice('');else if(change.command.renamed)window.dispatchEvent(new CustomEvent('norte:notice',{detail:change.command.message}));else notice(change.command.message);}if(change.phase==='error'||change.phase==='stopped')notice(cleanError(change.error||run.error||'Um trecho não pôde ser processado. A transcrição foi preservada.'));if(change.phase==='stopped'&&listening)stopMic();if(!renderFrame)renderFrame=requestAnimationFrame(render);saveSoon();}
 function draft(title='Nova reunião'){
  const stamp=new Date().toISOString(),id=crypto.randomUUID();
- return {room_kind:roomKind(),schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:2,id,title,provider,threshold:.6,questions:NorteMemoryFlow.validateQuestions(NorteMemoryV2.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:null,status:'draft',batch:{batch_id:id,cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
+ return {room_kind:roomKind(),schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:3,id,title,provider,threshold:.6,questions:NorteMemoryFlow.validateQuestions(NorteMemoryV2.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:null,status:'draft',batch:{batch_id:id,cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
 }
 async function createInstant(){
  if(integrated)return;
@@ -371,7 +384,7 @@ async function showLibrary(){
  }finally{starting=false;controls();}
 }
 async function begin(nextMode){
- if(!canWrite()||isRunning()||!(current?.status==='draft'||integrated&&current?.status==='interrupted'))return false;
+ if(!canWrite()||isRunning()||!(current?.status==='draft'||integrated&&['interrupted','done'].includes(current?.status)))return false;
  starting=true;controls();
  if(!await checkHealth()){starting=false;controls();return false;}
  const previous=current;
@@ -381,6 +394,8 @@ async function begin(nextMode){
   current=controller.run;
   current.room_kind=previous.room_kind||'meeting';for(const key of ['beam_started','beam_open_tabs','beam_previous_view'])if(previous[key]!==undefined)current[key]=previous[key];if(previous.beam_view)current.beam_view=previous.beam_view;if(previous.beam_recorded)current.beam_recorded=previous.beam_recorded;if(previous.beam_lab)current.beam_lab=previous.beam_lab;if(previous.beam_commands)current.beam_commands=previous.beam_commands;
   current.id=previous.id;current.batch.batch_id=previous.id;current.createdAt=previous.createdAt;current.input_mode=nextMode;
+  // A continued meeting times only the new session; the original duration stays in its metadata.
+  if(previous.status!=='draft')current.continued_at=new Date().toISOString();
   if(integrated){current.project_id=integrated.meeting.projectId;current.integrated_norte=true;}
   return true;
  }catch(error){controller=null;current=previous;notice(cleanError(error));return false;}
@@ -397,6 +412,8 @@ function reportView(view){if(integrated)window.parent.postMessage({type:'norte:m
 function openMinutes(){if(!current||isRunning()||!current.meeting_events.length)return;reportView('minutes');NorteGeminiMinutes.open(current,{readOnly:!canWrite(),onExplore:inspectEvidence,onClose:()=>reportView('canvas'),onUpdate:async run=>{if(current?.id!==run.id)return;current=run;controller=null;render();return await save();}});}
 $('roomMinutes').onclick=openMinutes;
 window.addEventListener('message',event=>{if(!integrated||event.source!==window.parent||event.origin!==location.origin||event.data?.meetingId!==current?.id||event.data?.type!=='norte:meeting-view')return;if(event.data.view==='canvas')document.querySelector('#gmDialog')?.close();else if(event.data.view==='minutes')openMinutes();});
+// The Norte meeting bar sends the same actions as the room's own buttons; each keeps its gating.
+window.addEventListener('message',event=>{if(!integrated||event.source!==window.parent||event.origin!==location.origin||event.data?.type!=='norte:meeting-command'||event.data.meetingId!==(current?.id||integrated.meeting.id))return;if(event.data.command==='refresh'){reportedControls='';reportControls();return;}const target=({live:'roomLive',finish:'roomFinish',stop:'roomStop',minutes:'roomMinutes',import:'roomImport'})[event.data.command];if(target&&!$(target).disabled&&!$(target).hidden)$(target).click();});
 $('roomImport').onclick=()=>{$('roomImportDialog').showModal();$('roomImportText').focus();};$('roomImportClose').onclick=()=>$('roomImportDialog').close();let filename='transcricao.txt';
 async function loadFile(file){if(!file)return;if(file.size>2_000_000){$('roomImportError').textContent='O arquivo é grande demais. Use uma transcrição de até 500 mil caracteres.';return;}try{const text=await file.text();Session.parseTranscriptEntries(text,file.name);filename=file.name;$('roomImportText').value=text;$('roomFileLabel').textContent=file.name;$('roomImportError').textContent='';}catch(e){$('roomImportError').textContent=cleanError(e);}}
 $('roomImportText').oninput=()=>{filename='transcricao.txt';$('roomImportError').textContent='';};
@@ -404,7 +421,8 @@ $('roomFile').onchange=()=>loadFile($('roomFile').files[0]);$('roomDrop').ondrag
 $('roomImportForm').onsubmit=async e=>{e.preventDefault();let parts;try{parts=Session.parseTranscriptEntries($('roomImportText').value,filename);}catch(error){$('roomImportError').textContent=cleanError(error);return;}$('roomImportSubmit').disabled=true;try{if(!await begin('import'))return;for(const part of parts)appendTurn(part,'import');current.import_filename=filename;$('roomImportDialog').close();await controller.close();await save();}catch(error){notice(cleanError(error));controller?.stop(error);}finally{$('roomImportSubmit').disabled=false;render();}};
 $('roomTextForm').onsubmit=async e=>{e.preventDefault();const text=$('roomText').value.trim();if(!text)return;
  if(integrated){
-  if(integrated.host&&['draft','interrupted'].includes(current?.status)&&!await begin('text'))return;
+  // The account accepts contributions once the continued run is saved as running.
+  if(integrated.host&&['draft','interrupted','done'].includes(current?.status)&&!controller?.accepting){if(!await begin('text'))return;if(!await save())return;}
   if(pendingTyped?.text!==text)pendingTyped={text,clientId:crypto.randomUUID()};
   $('roomSend').disabled=true;
   try{await integrated.contribute(text,pendingTyped.clientId);$('roomText').value='';pendingTyped=null;notice('');}catch(error){notice(cleanError(error));}finally{controls();}return;
@@ -415,7 +433,7 @@ function ingestSpeech(event){if(!ledger||!current)return;ledger.ingest(event.res
  const interim=ledger.records.filter(r=>r.status==='interim').map(r=>r.text).join(' ');$('roomInterim').textContent=interim.trim().split(/\s+/u).slice(-18).join(' ');
  recognitionWindow?.activity(!!interim.trim());if(interim.trim())controller?.heard?.();current.speech_ledger=ledger.snapshot();saveSoon();}
 function launchRecognition(){if(!listening||micStopping||recognition)return;const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;const instance=new Recognition();recognition=instance;instance.lang=$('roomLanguage').value;instance.continuous=true;instance.interimResults=true;ledger.beginRun();
- const capture=new NorteWindows.CaptureWindow({onBoundary:()=>{
+ const capture=new NorteWindows.CaptureWindow({maxPendingMs:10000,onBoundary:()=>{
   if(instance!==recognition)return;
   // Keep accepting the final result after stop; never promote an interim guess.
   recognitionDeadline=setTimeout(()=>{if(instance!==recognition)return;try{instance.abort();}catch(_){}setTimeout(()=>{if(instance===recognition)instance.onend();},0);},6000);

@@ -162,10 +162,17 @@ function parseTranscriptEntries(text,name='transcricao.txt'){
  return entries;
 }
 function applyTitles(run){for(const t of run.meeting_threads)if(run.topic_titles?.[t.thread_id])t.title=run.topic_titles[t.thread_id];}
+// Memory v3 classifies each chunk with the three chunks before it, so replies
+// ('Não dá.') and references ('esses 300 km') are not judged in isolation.
+function recentContext(run,index=run.batch.cases.length){
+ const cases=run.batch.cases.slice(Math.max(0,index-3),index);if(!cases.length)return null;
+ return cases.map(item=>{const speaker=run.transcript.find(entry=>entry.chunk_id===item.id)?.speaker,text=item.current_utterance;
+  return {...(typeof speaker==='string'&&speaker.trim()&&speaker.length<=120?{speaker}:{}),text:text.length>500?'…'+text.slice(-499):text};});
+}
 function create({provider='official',title='Nova reunião',send,onChange=()=>{},now=Date.now,seed=null,commandHandler=null,continuation=false}={}){
  if(typeof send!=='function')throw Error('Transporte da reunião ausente.');
  const stamp=new Date(now()).toISOString(),id=root.crypto?.randomUUID?.()||'meeting-'+now()+'-'+Math.random().toString(16).slice(2);
- const run=seed?restore(seed):{schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:2,id,title,provider,threshold:.6,questions:F.validateQuestions(V.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:stamp,status:'running',batch:{batch_id:id.slice(0,80),cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
+ const run=seed?restore(seed):{schemaVersion:1,liveSchemaVersion:1,memorySchemaVersion:3,id,title,provider,threshold:.6,questions:F.validateQuestions(V.questions),questionVersion:'memory-v2',createdAt:stamp,startedAt:stamp,status:'running',batch:{batch_id:id.slice(0,80),cases:[]},records:[],calls:0,meeting_events:[],meeting_threads:[],meeting_relations:[],raw_window:[],transcript:[],topic_titles:{},meeting_commands:[]};
  if(seed&&run.provider!==provider)throw Error('A revisão deve usar o mesmo provedor da reunião.');
  run.status='running';delete run.finishedAt;
  let queue=[],busy=false,closed=false,halted=false,finishing=false,thread,typed,resolveDone,threadWaiters=[],cancelCalls=new Set(),nextSpeech=null,lastHeard=0;
@@ -187,7 +194,9 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
   if(output?.provider!==provider)throw Object.assign(Error('A resposta veio de outro provedor.'),{stopBatch:true});
   return output;
  }catch(e){if(e.stopBatch)stop(e);throw e;}};
- thread=T.start(run,{schemaVersion:5,config:V.threadConfig,version:'memory-v2',send:transport('threads'),onChange:threadChange,resume:!!seed});
+ // A draft (or a saved meeting from before topics v6) keeps its own versions.
+ const topics=!run.thread_worker&&run.memorySchemaVersion>=3;
+ thread=T.start(run,{schemaVersion:topics?6:5,config:topics?T.topicDefaults:V.threadConfig,version:topics?'topics-v6':'memory-v2',send:transport('threads'),onChange:threadChange,resume:!!seed});
  typed=TR.start(run,{streaming:true,config:TR.defaults,version:'typed-v2',send:transport('relations'),onChange:()=>notify({phase:'relations'}),resume:!!seed});
  typed.done.catch(stop);
  async function finish(){if(finishing||busy||queue.length||!closed)return;finishing=true;
@@ -280,12 +289,21 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
      notify({phase:'command',command});continue;
     }
     if(halted){for(const source of sources)source.status='interrupted';break;}
-    const item={id:'C'+String(run.records.length+1).padStart(4,'0'),current_utterance:utterance,...(entry.speechContext?{speech_context:entry.speechContext}:{}),...(sources.length>1?{source_entry_ids:sources.map(s=>s.id)}:{})};run.batch.cases.push(item);
+    const v3=run.memorySchemaVersion>=3,context=v3?recentContext(run):null;
+    const item={id:'C'+String(run.records.length+1).padStart(4,'0'),current_utterance:utterance,...(!v3&&entry.speechContext?{speech_context:entry.speechContext}:{}),...(context?{recent_context:context}:{}),...(sources.length>1?{source_entry_ids:sources.map(s=>s.id)}:{})};run.batch.cases.push(item);
     const record={id:item.id,status:'running',stage:'store',startedAt:entry.receivedAt,receivedOffsetMs:entry.offsetMs,...(checks.length?{segmentation:{version:gate.version,checks}}:{})};run.records.push(record);for(const source of sources)source.chunk_id=item.id;
     try{
-     const req=F.request(item,'store',run.questions);run.calls++;record.storeOutput=await transport('chunks')(req,provider);E.validateOutput(record.storeOutput,{state:req.state,config:req});
-     const gate=record.storeOutput.response.answers.should_store_memory,store=E.predicted(gate);let type=null,typeProbability=null;
-     if(store&&!halted){const req=F.request(item,'type',run.questions);run.calls++;record.stage='type';record.typeOutput=await transport('chunks')(req,provider);E.validateOutput(record.typeOutput,{state:req.state,config:req});type=E.predicted(record.typeOutput.response.answers.event_type);typeProbability=E.probabilityOf(record.typeOutput.response.answers.event_type,type);}
+     let gate,store,type=null,typeProbability=null;
+     if(v3){
+      // One call answers retention and type; the type is used only when retained.
+      const req=F.request(item,'memory',run.questions);run.calls++;record.memoryOutput=await transport('chunks')(req,provider);E.validateOutput(record.memoryOutput,{state:req.state,config:req});
+      const answers=record.memoryOutput.response.answers;gate=answers.should_store_memory;store=E.predicted(gate);
+      if(store){type=E.predicted(answers.event_type);typeProbability=E.probabilityOf(answers.event_type,type);}
+     }else{
+      const req=F.request(item,'store',run.questions);run.calls++;record.storeOutput=await transport('chunks')(req,provider);E.validateOutput(record.storeOutput,{state:req.state,config:req});
+      gate=record.storeOutput.response.answers.should_store_memory;store=E.predicted(gate);
+      if(store&&!halted){const req=F.request(item,'type',run.questions);run.calls++;record.stage='type';record.typeOutput=await transport('chunks')(req,provider);E.validateOutput(record.typeOutput,{state:req.state,config:req});type=E.predicted(record.typeOutput.response.answers.event_type);typeProbability=E.probabilityOf(record.typeOutput.response.answers.event_type,type);}
+     }
      if(halted){record.status='interrupted';for(const source of sources)source.status='interrupted';break;}
      record.result={store,type,storeProbability:E.probabilityOf(gate,store),typeProbability,destination:store?type:'ignore'};record.status='done';record.timestamp=new Date(now()).toISOString();record.stage=record.result.destination;for(const source of sources)source.status='done';
      Object.assign(run,F.memoryState(run));T.syncMemory(run);if(store)thread.enqueue(run.meeting_events.at(-1));notify({phase:'memory'});
@@ -339,13 +357,17 @@ function create({provider='official',title='Nova reunião',send,onChange=()=>{},
 }
 function restore(saved){
  const run=copy(saved);
- if(!run||run.liveSchemaVersion!==1||!['official','local'].includes(run.provider)||!Array.isArray(run.records)||!Array.isArray(run.transcript)||!Array.isArray(run.batch?.cases)||run.records.length!==run.batch.cases.length||run.transcript.length>MAX_CHUNKS||run.records.length>MAX_CHUNKS)throw Error('Reunião salva inválida.');
+ if(!run||run.liveSchemaVersion!==1||run.memorySchemaVersion!==undefined&&![1,2,3].includes(run.memorySchemaVersion)||!['official','local'].includes(run.provider)||!Array.isArray(run.records)||!Array.isArray(run.transcript)||!Array.isArray(run.batch?.cases)||run.records.length!==run.batch.cases.length||run.transcript.length>MAX_CHUNKS||run.records.length>MAX_CHUNKS)throw Error('Reunião salva inválida.');
  const sourceIds=new Set();let sourceLength=0;
  for(const entry of run.transcript){if(!entry||typeof entry.id!=='string'||sourceIds.has(entry.id)||typeof entry.text!=='string'||!entry.text.trim())throw Error('Origem da transcrição inválida.');sourceIds.add(entry.id);sourceLength+=entry.text.length;E.validateState({current_utterance:entry.text});transcriptMeta(entry);}
  if(sourceLength>MAX_TEXT)throw Error('A transcrição salva excede o limite da reunião.');
  run.questions=F.validateQuestions(run.questions);
  const recordIds=new Set();
- for(let i=0;i<run.records.length;i++){const r=run.records[i],item=run.batch.cases[i];if(!r||!item||typeof item.id!=='string'||r.id!==item.id||recordIds.has(r.id)||typeof item.current_utterance!=='string'||!item.current_utterance.trim()||!['done','error','interrupted','running','queued'].includes(r.status))throw Error('Origem da memória inválida.');recordIds.add(r.id);E.validateState({current_utterance:item.current_utterance});for(const stage of ['store','type']){const out=r[stage+'Output'];if(out){if(out.provider!==run.provider)throw Error('Provedor da memória inválido.');const request=F.request(item,stage,run.questions);E.validateOutput(out,{state:request.state,config:request});}}
+ const v3=run.memorySchemaVersion>=3;
+ for(let i=0;i<run.records.length;i++){const r=run.records[i],item=run.batch.cases[i];if(!r||!item||typeof item.id!=='string'||r.id!==item.id||recordIds.has(r.id)||typeof item.current_utterance!=='string'||!item.current_utterance.trim()||!['done','error','interrupted','running','queued'].includes(r.status))throw Error('Origem da memória inválida.');recordIds.add(r.id);E.validateState({current_utterance:item.current_utterance});
+  if(v3&&(r.storeOutput||r.typeOutput||item.speech_context!==undefined||JSON.stringify(item.recent_context??null)!==JSON.stringify(recentContext(run,i))))throw Error('Contexto da memória inválido.');
+  if(!v3&&(r.memoryOutput||item.recent_context!==undefined))throw Error('Origem da memória inválida.');
+  for(const stage of v3?['memory']:['store','type']){const out=r[stage+'Output'];if(out){if(out.provider!==run.provider)throw Error('Provedor da memória inválido.');const request=F.request(item,stage,run.questions);E.validateOutput(out,{state:request.state,config:request});}}
   if(item.source_entry_ids!==undefined){
    const ids=item.source_entry_ids,positions=Array.isArray(ids)?ids.map(id=>run.transcript.findIndex(entry=>entry.id===id)):[];
    // Pieces joined by the Jev continuation check carry its audit and its own (wider) limits.
@@ -355,7 +377,7 @@ function restore(saved){
    const sources=positions.map(position=>run.transcript[position]);
    if(sources.some((entry,index)=>entry.chunk_id!==item.id||!(gated?['microphone']:['microphone','import']).includes(entry.source)||index&&(entry.source!==sources[0].source||entry.speaker!==sources[0].speaker||entry.offsetMs<sources[index-1].offsetMs||entry.offsetMs-sources[index-1].offsetMs>maxStartGap))||sources.map(entry=>entry.text).join(' ')!==item.current_utterance)throw Error('Origem das janelas de fala não corresponde ao trecho classificado.');
   }
-  if(r.status==='done'){if(!r.storeOutput)throw Error('Classificação de memória ausente.');const gate=r.storeOutput.response.answers.should_store_memory,store=E.predicted(gate);if(store&&!r.typeOutput)throw Error('Classificação do ponto ausente.');const answer=store?r.typeOutput.response.answers.event_type:null,type=store?E.predicted(answer):null;r.result={store,type,storeProbability:E.probabilityOf(gate,store),typeProbability:store?E.probabilityOf(answer,type):null,destination:store?type:'ignore'};}else if(['running','queued'].includes(r.status))r.status='interrupted';
+  if(r.status==='done'){if(!(v3?r.memoryOutput:r.storeOutput))throw Error('Classificação de memória ausente.');const answers=v3?r.memoryOutput.response.answers:null,gate=v3?answers.should_store_memory:r.storeOutput.response.answers.should_store_memory,store=E.predicted(gate);if(store&&!v3&&!r.typeOutput)throw Error('Classificação do ponto ausente.');const answer=store?(v3?answers.event_type:r.typeOutput.response.answers.event_type):null,type=store?E.predicted(answer):null;r.result={store,type,storeProbability:E.probabilityOf(gate,store),typeProbability:store?E.probabilityOf(answer,type):null,destination:store?type:'ignore'};}else if(['running','queued'].includes(r.status))r.status='interrupted';
  }
  Object.assign(run,F.memoryState(run));if(run.thread_worker){run.thread_worker=T.restore(run.thread_worker,run);T.syncMemory(run);}if(run.typed_relation_worker){run.typed_relation_worker=TR.restore(run.typed_relation_worker,run);TR.syncMemory(run);}
  if(['running','finishing'].includes(run.status))run.status='interrupted';for(const entry of run.transcript)if(['processing','queued'].includes(entry.status))entry.status='interrupted';applyTitles(run);return run;

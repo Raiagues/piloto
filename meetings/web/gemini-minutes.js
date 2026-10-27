@@ -11,8 +11,9 @@ function evidenceFor(run){
 }
 function explicitTitle(run,id,ordinal=1){
  const manual=String(run.topic_titles?.[id]||'').trim();if(manual)return manual;
+ // A suggested title stays valid for the opening span it was written for, as on the canvas.
  const suggestion=run.block_review?.titles?.[id],events=(run.meeting_events||[]).filter(e=>e.thread_id===id);
- if(suggestion?.text&&suggestion.basis?.length===events.length&&suggestion.basis.every(b=>events.some(e=>e.event_id===b.id&&e.text===b.text)))return suggestion.text;
+ if(suggestion?.text&&api('NorteMeetingBlocks','meeting-blocks.js').valid(suggestion,run,'title',id))return suggestion.text;
  if(!id||id==='unassigned')return 'Pontos a organizar';
  const original=String(events[0]?.text||'').trim();if(original)return original.length<=64?original:original.slice(0,64).replace(/\s+\S*$/,'')+'…';
  return 'Assunto '+ordinal;
@@ -32,7 +33,9 @@ const amendments=()=>api('NorteMeetingAmendments','meeting-amendments.js');
 const presentation=()=>api('NorteMeetingDocument','meeting-document.js');
 function sourceFor(run){
  const trusted=evidenceFor(run).run,d=root.NorteMinutes.buildDocument(trusted),human=amendments().source?.(run),state=amendments().build(run).state;
- const events=(human?.events||d.source.events).filter(e=>state.byId[e.event_id]?.current!==false).map(e=>({...e,thread_id:e.thread_id||''})),ids=new Set(events.map(e=>e.event_id));
+ // A person's edit on the canvas is an input for the minutes; the spoken text stays the evidence.
+ const editor=api('NorteMeetingBlocks','meeting-blocks.js');
+ const events=(human?.events||d.source.events).filter(e=>state.byId[e.event_id]?.current!==false).map(e=>{const manual=editor.manual(run,e.event_id);return {...e,thread_id:e.thread_id||'',...(manual&&manual.text!==e.text?{human_summary:manual.text}:{})};}),ids=new Set(events.map(e=>e.event_id));
  const relations=(human?.relations||d.source.relations).filter(r=>ids.has(r.source_event_id||r.source_id)&&ids.has(r.target_event_id||r.target_id));
  return {run_id:d.source.run_id,batch_id:d.source.batch_id,events,relations,run_status:d.source.run_status,relation_status:d.source.relation_status,post_meeting_edits:[],extraction_warnings:[],threads:[...(trusted.meeting_threads?.map((t,index)=>({thread_id:t.thread_id,title:explicitTitle(run,t.thread_id,index+1)}))||[]),...(events.some(e=>e.thread_id==='')?[{thread_id:'',title:'Pontos a organizar'}]:[])]};
 }

@@ -65,6 +65,7 @@ def validate_source(body):
         if not isinstance(e,dict) or not isinstance(e.get('event_id'),str) or not e['event_id'] or e['event_id'] in ids: raise ValueError('IDs de evento inválidos.')
         if not isinstance(e.get('text'),str) or not e['text'].strip() or len(e['text'])>30000: raise ValueError('Texto de evento inválido.')
         if not isinstance(e.get('type'),str) or not (e.get('thread_id') is None or isinstance(e['thread_id'],str)): raise ValueError('Classificação inválida.')
+        if 'human_summary' in e and (not isinstance(e['human_summary'],str) or not e['human_summary'].strip() or len(e['human_summary'])>240): raise ValueError('Correção humana inválida.')
         ids.add(e['event_id'])
     if not isinstance(source.get('relations',[]),list): raise ValueError('Relações inválidas.')
     for r in source.get('relations',[]):
@@ -165,7 +166,9 @@ def _check_entry_text(text,event):
     Detailed values may be omitted from the short overlay, but not invented or
     moved to another unit. The complete source remains available by reference.
     """
-    original=_plain(event['text']);candidate=_plain(text)
+    # A human canvas correction may legitimately restate a value or unit.
+    correction=event.get('human_summary') if isinstance(event.get('human_summary'),str) else ''
+    original=_plain(' '.join(filter(None,[event['text'],correction])));candidate=_plain(text)
     if not candidate or len(candidate)>180:
         raise ValueError('Cada registro deve ter uma síntese curta.')
     if not set(NUMBER.findall(candidate))<=set(NUMBER.findall(original)):
@@ -229,7 +232,12 @@ def _finalize_entries(document,source):
         for table in topic['tables']:
             table['title']=_plain(table['title']);table['columns']=[_plain(c) for c in table['columns']]
             labels=[table['title'],*table['columns']]
-            if any(not label or NUMBER.search(label) for label in labels):
+            # A label may name a value only as said in the rows it heads; a
+            # calculated or borrowed number still rejects the table.
+            said=set()
+            for row in table['rows']:
+                if row.get('event_id') in events: said.update(NUMBER.findall(_plain(events[row['event_id']]['text'])))
+            if any(not label or not set(NUMBER.findall(label))<=said for label in labels):
                 raise ValueError('Use títulos e colunas genéricos, sem valores calculados.')
             if len(set(c.casefold() for c in table['columns']))!=len(table['columns']):
                 raise ValueError('A tabela tem colunas duplicadas.')

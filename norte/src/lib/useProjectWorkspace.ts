@@ -117,7 +117,7 @@ export function useProjectWorkspace(language: Language) {
       url.searchParams.delete('delivery-record');
       url.searchParams.delete('document');
       window.history.replaceState(null, '', url);
-      window.location.hash = '#/requirements';
+      window.location.hash = '#/project';
     } catch (reason) {
       if (request !== navigation.current || window.location.hash !== startingHash) return;
       if (!canRetainReadCache(reason)) {
@@ -133,7 +133,7 @@ export function useProjectWorkspace(language: Language) {
     navigation.current++; const next = accept(response.project);
     setProjects(items => [summary(next), ...items.filter(item => item.id !== next.id)]);
     void refreshTeams().catch(() => setTeamError(true));
-    setError(''); failedOpen.current = ''; window.location.hash = '#/requirements';
+    setError(''); failedOpen.current = ''; window.location.hash = '#/project';
   }
 
   async function deleteProject(id: string) {

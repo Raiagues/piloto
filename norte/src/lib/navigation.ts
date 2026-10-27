@@ -19,3 +19,15 @@ export function goBack(fallback = '#/') {
   if (currentIndex > 0) window.history.back();
   else window.location.hash = fallback;
 }
+
+/** A page with its own inner level (an open meeting, an open document) can claim the header's back button. */
+type BackHandler = () => boolean;
+let backHandler: BackHandler | null = null;
+export function claimBack(handler: BackHandler) {
+  backHandler = handler;
+  return () => { if (backHandler === handler) backHandler = null; };
+}
+export function navigateBack(fallback = '#/') {
+  if (backHandler?.()) return;
+  goBack(fallback);
+}

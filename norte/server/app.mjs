@@ -585,7 +585,7 @@ export async function buildApp(options = {}) {
     return { presence: online ? "online" : "offline", lastSeenAt: user.lastSeenAt || user.lastLoginAt || null };
   }
   registerInvitations(app, { store, requireAuth, requireCsrf, mailer: options.mailer });
-  registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions: systemAiOptions, intelligence });
+  registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions: systemAiOptions, intelligence, readOnly: options.deliveryReadOnly ?? process.env.NORTE_DELIVERY_READ_ONLY === "1" });
   registerPlatformRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, presence, getSessionUser, production, ...options.platform });
   const meetingAccess = registerMeetings(app, { store, requireAuth, requireCsrf, canAccessProject });
   registerMeetingGateway(app, { store, requireAuth, requireCsrf, access: meetingAccess, ...options.meetingGateway });

@@ -21,7 +21,7 @@
 }
 .delivery-workspace button {
   font: inherit;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface-muted);
   color: var(--norte-text);
@@ -36,7 +36,7 @@
 }
 .delivery-dialog button {
   font: inherit;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface-muted);
   color: var(--norte-text);
@@ -78,8 +78,8 @@
 .delivery-workspace input {
   font: inherit;
   color: var(--norte-text);
-  background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  background: var(--norte-field);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 9px 11px;
   min-width: 0;
@@ -88,8 +88,8 @@
 .delivery-workspace select {
   font: inherit;
   color: var(--norte-text);
-  background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  background: var(--norte-field);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 9px 11px;
   min-width: 0;
@@ -99,7 +99,7 @@
   font: inherit;
   color: var(--norte-text);
   background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 9px 11px;
   min-width: 0;
@@ -108,8 +108,8 @@
 .delivery-dialog select {
   font: inherit;
   color: var(--norte-text);
-  background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  background: var(--norte-field);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 9px 11px;
   min-width: 0;
@@ -118,8 +118,8 @@
 .delivery-dialog textarea {
   font: inherit;
   color: var(--norte-text);
-  background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  background: var(--norte-field);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 9px 11px;
   min-width: 0;
@@ -145,7 +145,7 @@
   font-size: 12px
 }
 .delivery-table-wrap {
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   overflow: auto;
   background: var(--norte-surface)
@@ -164,12 +164,12 @@
   font-weight: 500;
   background: var(--norte-surface-muted);
   padding: 13px 16px;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   white-space: nowrap
 }
 .delivery-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   vertical-align: top
 }
 .delivery-table tr:last-child td {
@@ -177,16 +177,6 @@
 }
 .delivery-table tr:hover td {
   background: var(--norte-surface-raised)
-}
-.delivery-table .delivery-row-link {
-  padding: 0;
-  background: none;
-  border: 0;
-  display: block;
-  max-width: 470px;
-  text-align: left;
-  font-weight: 500;
-  line-height: 1.45
 }
 .delivery-table td small {
   display: block;
@@ -238,21 +228,6 @@
   background: color-mix(in srgb,var(--norte-warning) 12%,var(--norte-surface));
   color: var(--norte-warning)
 }
-.delivery-stats {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--norte-border);
-  padding-bottom: 16px;
-  font-size: 12px;
-  color: var(--norte-text-secondary)
-}
-.delivery-stats strong {
-  display: block;
-  color: var(--norte-text);
-  margin-bottom: 4px;
-  font-weight: 500;
-  font-size: 20px
-}
 .delivery-empty {
   border: 1px dashed var(--norte-border-strong);
   padding: 38px 24px;
@@ -293,7 +268,7 @@
   max-height: 90dvh;
   overflow: auto;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border-strong);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   color: var(--norte-text);
   box-shadow: 0 25px 90px var(--norte-shadow)
@@ -304,12 +279,12 @@
   justify-content: space-between;
   gap: 20px;
   padding: 18px 22px;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   position: sticky;
   top: 0;
   background: var(--norte-surface);
   z-index: 2;
-  border-bottom-color: var(--norte-border)
+  border-bottom-color: transparent
 }
 .delivery-dialog h2 {
   font-size: 17px;
@@ -351,11 +326,11 @@
   display: flex;
   gap: 10px;
   justify-content: flex-end;
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   padding-top: 16px
 }
 .delivery-multiselect {
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 12px;
   margin: 0;
@@ -397,7 +372,7 @@
   margin: 0
 }
 .delivery-detail section {
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   padding-top: 16px
 }
 .delivery-detail .delivery-actions {
@@ -417,7 +392,7 @@
 }
 .delivery-comment {
   padding: 12px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius)
 }
 .delivery-comment small {
@@ -431,15 +406,6 @@
 }
 .delivery-detail a {
   color: var(--norte-link)
-}
-.delivery-tabs {
-  display: flex;
-  gap: 5px
-}
-.delivery-tabs button[aria-pressed=true] {
-  border-color: transparent;
-  color: var(--norte-accent);
-  background: var(--norte-accent-soft)
 }
 .delivery-inline-error {
   color: var(--norte-danger);
@@ -532,14 +498,6 @@
 }
 .delivery-dialog .delivery-inline-error {
   white-space: normal
-}
-.delivery-workspace .delivery-row-link {
-  padding: 0;
-  background: transparent;
-  border: 0;
-  text-align: left;
-  justify-content: flex-start;
-  line-height: 1.5
 }
 .delivery-workspace .primary:hover {
   background: var(--norte-accent-hover)
@@ -694,7 +652,7 @@
 }
 .proposal-card {
   padding: 18px 0;
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   display: flex;
   flex-direction: column;
   gap: 14px
@@ -711,7 +669,7 @@
   display: grid;
   gap: 1px;
   background: var(--norte-border);
-  border: 1px solid var(--norte-border)
+  border: 1px solid transparent
 }
 .proposal-diff>div {
   padding: 12px 15px;
@@ -757,7 +715,7 @@
 }
 .review-document {
   padding: 13px 0;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -791,32 +749,6 @@
   min-height: 50vh;
   font: 12px/1.7 monospace
 }
-.coverage-filter {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 12px;
-  margin: 20px 0
-}
-.coverage-test {
-  padding: 0 0 12px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px
-}
-.coverage-test button {
-  background: transparent;
-  padding: 0;
-  text-align: left;
-  justify-content: flex-start
-}
-.coverage-test a {
-  color: var(--norte-link)
-}
-.coverage-matrix .delivery-stats strong {
-  font-size: 18px
-}
 
 @media (max-width:700px) {
 .delivery-form-grid {
@@ -840,10 +772,6 @@
 .delivery-toolbar input[type=search] {
   width: 100%
 }
-.delivery-stats {
-  gap: 16px;
-  flex-wrap: wrap
-}
 .delivery-table td {
   padding: 10px
 }
@@ -855,8 +783,5 @@
 }
 .delivery-toolbar>p {
   flex-basis: 100%
-}
-.delivery-stats strong {
-  font-size: 20px
 }
 }

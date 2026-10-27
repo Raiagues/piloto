@@ -12,8 +12,8 @@ function transport(request,provider,lane){
  assert.equal(provider,'official');assert.ok(!JSON.stringify(request).includes('expected_'));
  if(lane==='review')return reply(request,{missing_information:'sufficient'});
  if(lane==='commands')return reply(request,{command_type:'conversation'});
- if(lane==='chunks')return request.questions.should_store_memory?reply(request,{should_store_memory:!request.state.current_utterance.startsWith('Ignorar')}):reply(request,{event_type:request.state.current_utterance.startsWith('HIP')?'hypothesis':request.state.current_utterance.startsWith('TESTE')?'test_proposal':request.state.current_utterance.startsWith('RESULTADO')?'test_result':'observation'},request.state.current_utterance==='RESULTADO deu 40.'?.55:.97);
- if(lane==='threads')return reply(request,()=> 'belongs');
+ if(lane==='chunks')return reply(request,{should_store_memory:!request.state.current_utterance.startsWith('Ignorar'),event_type:request.state.current_utterance.startsWith('HIP')?'hypothesis':request.state.current_utterance.startsWith('TESTE')?'test_proposal':request.state.current_utterance.startsWith('RESULTADO')?'test_result':'observation'},request.state.current_utterance==='RESULTADO deu 40.'?.55:.97);
+ if(lane==='threads')return reply(request,id=>id==='topic_assignment'?request.state.current_topic_id||'new_topic':'belongs');
  if(lane==='relations')return reply(request,id=>{
   if(id.startsWith('configuration_match'))return 'exact';
   const target=request.state.candidates.find(candidate=>candidate.event_id===id.split('__')[1]);
@@ -54,7 +54,7 @@ test('sufficient review reruns the normal workers, preserves originals and assig
  assert.deepEqual(source.records,before.records);assert.deepEqual(source.transcript,before.transcript);assert.deepEqual(revised.records.slice(0,4),before.records);assert.deepEqual(revised.transcript.slice(0,4),before.transcript);assert.equal(revised.records.length,5);assert.equal(revised.transcript.length,5);
  assert.equal(revised.transcript.at(-1).source,'review');assert.equal(revised.transcript.at(-1).sourceId,item.id);assert.equal(revised.transcript.at(-1).sourceText,item.text);assert.match(revised.transcript.at(-1).text,/Esclarecimento fornecido pelo participante:/);
  const addition=revised.meeting_events.at(-1);assert.equal(addition.event_id,'E005');assert.equal(addition.thread_id,'T001');assert.equal(addition.type,'test_result');assert.ok(revised.meeting_relations.some(r=>r.source_event_id===addition.event_id&&r.target_event_id==='E003'&&r.relation_type==='result_of'));
- assert.ok(calls.some(([, ,lane])=>lane==='review'));assert.ok(calls.some(([, ,lane])=>lane==='threads'));assert.ok(calls.some(([, ,lane])=>lane==='relations'));assert.equal(calls.filter(([, ,lane])=>lane==='chunks').length,2);assert.ok(calls.filter(([, ,lane])=>lane==='chunks').every(([r])=>r.state.current_utterance.includes('Esclarecimento')));
+ assert.ok(calls.some(([, ,lane])=>lane==='review'));assert.ok(calls.some(([, ,lane])=>lane==='threads'));assert.ok(calls.some(([, ,lane])=>lane==='relations'));assert.equal(calls.filter(([, ,lane])=>lane==='chunks').length,1);assert.ok(calls.filter(([, ,lane])=>lane==='chunks').every(([r])=>r.state.current_utterance.includes('Esclarecimento')));
  assert.equal(Evidence.project(revised).excluded.some(e=>e.id===item.id),false);assert.equal(Evidence.project(revised).run.meeting_events.some(e=>e.event_id==='E004'),false);assert.ok(Evidence.project(revised).run.meeting_events.some(e=>e.event_id==='E005'));
  const restored=Session.restore(clone(revised));assert.deepEqual(restored.meeting_events,revised.meeting_events);assert.deepEqual(restored.meeting_relations,revised.meeting_relations);assert.deepEqual(restored.review_recoveries,revised.review_recoveries);assert.equal(Evidence.project(restored).excluded.some(e=>e.id===item.id),false);
  let duplicateCalls=0;await assert.rejects(()=>Review.recover(revised,item,'',{send:async()=>{duplicateCalls++;throw Error('Should not call');}}),/não está mais/);assert.equal(duplicateCalls,0);assert.equal(revised.records.length,5);
@@ -94,7 +94,8 @@ test('invalid or oversized feedback and stale source IDs never issue a classifie
 
 test('a failed recovery before creating a record cannot reuse an older trusted record to claim inclusion',async()=>{
  const initial=await meeting(),continuation=Session.create({seed:initial,send:async(...args)=>transport(...args)});continuation.append('A deformação continua acima do limite.');const run=await continuation.close(),item=excluded(run),before=run.records.length;
- const result=await Review.recover(run,item,'O valor corresponde ao ensaio L1.',{send:async(req,provider,lane)=>lane==='commands'?{...transport(req,provider,lane),provider:'local'}:transport(req,provider,lane)});
+ // Mentioning north routes the clarification through the command check first, which fails here.
+ const result=await Review.recover(run,item,'O valor corresponde ao ensaio L1, no lado norte da bancada.',{send:async(req,provider,lane)=>lane==='commands'?{...transport(req,provider,lane),provider:'local'}:transport(req,provider,lane)});
  assert.equal(result.status,'needs_details');assert.equal(result.run.records.length,before);assert.ok(Evidence.project(result.run).excluded.some(e=>e.id===item.id));assert.equal(result.run.review_recoveries.at(-1).event_id,null);assert.equal(result.run.review_recoveries.at(-1).record_id??null,null);
 });
 

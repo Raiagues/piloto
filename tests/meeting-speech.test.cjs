@@ -54,10 +54,14 @@ test('punctuated speech handles lowercase ASR, decimal numbers, abbreviations an
  const text='O suporte tem 3.5 mm. O Dr. João pediu outro teste. temperatura: 24,5 °C. A. Costa confirmou.';
  assert.deepEqual(Speech.split(text),['O suporte tem 3.5 mm.','O Dr. João pediu outro teste.','temperatura: 24,5 °C.','A. Costa confirmou.']);lossless(text,Speech.segment(text));
 });
-test('a long test proposal retains every number, unit and condition in bounded slices with explicit continuation context',()=>{
+test('a written sentence stays one point, and only an overlong one splits into clauses with every value intact',()=>{
  const text='Vamos testar a viga de 6 m sob 10 kN, com engaste à esquerda, seção de 120 mm por 240 mm e material aço mantendo o mesmo apoio para comparar com o caso anterior.';
- const parts=Speech.entries({text});assert.ok(parts.length>1);assert.equal(parts.map(p=>p.text).join(' '),text);assert.ok(parts.every(p=>p.text.split(/\s+/).length<=18));
- assert.ok(parts.slice(1).every(p=>p.speechContext&&text.includes(p.speechContext)));
+ assert.deepEqual(Speech.entries({text}).map(p=>p.text),[text],'a requirement or proposal is not cut away from its own values');
+ const requirement='Pra começar, o Lyle está com um requisito preliminar de transportar 550 kg de carga útil e atender a um alcance de pelo menos 300 km. Quero saber o que falta antes de aprovar isso.';
+ assert.deepEqual(Speech.split(requirement),['Pra começar, o Lyle está com um requisito preliminar de transportar 550 kg de carga útil e atender a um alcance de pelo menos 300 km.','Quero saber o que falta antes de aprovar isso.']);
+ const long=text.slice(0,-1)+', e depois repetir a medição com o novo sensor instalado na ponta para conferir se a deflexão continua igual.';
+ const parts=Speech.entries({text:long});assert.ok(parts.length>1);assert.equal(parts.map(p=>p.text).join(' '),long);assert.ok(parts.every(p=>p.text.split(/\s+/).length<=24));
+ assert.ok(parts.slice(1).every(p=>p.speechContext&&long.includes(p.speechContext)));
  for(const value of ['6 m','10 kN','120 mm','240 mm'])assert.ok(parts.some(p=>p.text.includes(value)),value+' must not split');
  const compound='Norte, mude a força P1 para 12 kN e a posição para 4 metros e mostre o gráfico de momento';
  assert.deepEqual(Speech.split(compound),[compound]);
@@ -114,7 +118,7 @@ test('segmented live speech uses the existing memory workers and restores its ex
  const source=actual+' '+command,received=[],session=Session.create({commandHandler:async text=>{received.push(text);return Speech.isCommand(text)?{consumed:true,status:'applied',message:'Comando aplicado.'}:null;},send:async(request,provider,lane)=>{
   const answers=Object.fromEntries(Object.entries(request.questions).map(([id,q])=>{
    if(q.type==='noul')return [id,{type:'noul',noul:request.state.current_utterance.startsWith('Oi gente')?.03:.98}];
-   const choice=id==='command_type'?'conversation':id==='event_type'?'observation':id.startsWith('relation_type')?'none':id.startsWith('configuration_match')?'not_applicable':'belongs';
+   const choice=id==='command_type'?'conversation':id==='event_type'?'observation':id==='topic_assignment'?request.state.current_topic_id||'new_topic':id.startsWith('relation_type')?'none':id.startsWith('configuration_match')?'not_applicable':'belongs';
    assert.ok(Object.hasOwn(q.criteria,choice),'fixture choice '+id);return [id,{type:'choice',choice,confidence:.1,probabilities:Object.fromEntries(Object.keys(q.criteria).map(key=>[key,key===choice?.98:.02/(Object.keys(q.criteria).length-1)]))}];
   }));return {request,provider,latencyMs:1,response:{model:'segmentation-fixture',answers}};
  }});
@@ -123,7 +127,8 @@ test('segmented live speech uses the existing memory workers and restores its ex
  assert.equal(received.at(-1),command,'the parser receives the literal addressed command, not a rewritten one');
  assert.equal(run.transcript.at(-1).status,'command');assert.equal(run.transcript[0].sourceText,source);assert.equal(run.transcript.map(e=>e.text).join(' '),source);
  const restored=Session.restore(run);assert.equal(restored.transcript[0].sourceText,source);assert.equal(restored.transcript.at(-1).text,command);assert.equal(restored.meeting_events.length,run.meeting_events.length);
- const continuation=run.records[1].storeOutput.request;assert.equal(continuation.state.current_utterance,run.transcript[1].text);assert.equal(continuation.state.speech_context.preceding_words,run.transcript[0].text);assert.match(continuation.questions.should_store_memory.instructions,/ONLY information newly stated or completed in current_utterance/);
+ // The previous piece reaches the classifier as recent context, never as content to classify.
+ const continuation=run.records[1].memoryOutput.request;assert.equal(continuation.state.current_utterance,run.transcript[1].text);assert.deepEqual(continuation.state.recent_context,[{speaker:'Você',text:run.transcript[0].text}]);assert.match(continuation.questions.event_type.instructions,/Never take values, facts, tests or decisions from recent_context/);
 });
 
 test('the reported paragraph cannot survive as one chunk even without known discourse markers',()=>{

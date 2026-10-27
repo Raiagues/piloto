@@ -1,6 +1,6 @@
 import '../styles/features/account.css';
 import { useEffect, useRef, useState } from "react";
-import { Bell, Copy, Camera, Check, LoaderCircle, LogOut, Settings2, ShieldCheck, UsersRound, ContactRound, Building2, ChevronDown, X, MessageSquare, Sun, Moon } from "lucide-react";
+import { Bell, Copy, Camera, Check, LoaderCircle, LogOut, Settings2, ShieldCheck, UsersRound, ContactRound, Building2, ChevronDown, X, MessageSquare, Sun, Moon, LifeBuoy } from "lucide-react";
 import { ApiError, useAuth } from "../lib/auth";
 import { accessRoleLabel } from "../lib/team";
 import type { Language } from "../lib/types";
@@ -147,9 +147,11 @@ export function UserBadge({ connectedLabel, compact = false, language: preferred
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/invitations"; }}><Bell size={16} />{language === "pt" ? "Convites" : "Invitations"} ({invitationCount})</button>
             <div className="account-menu-role">{accessRoleLabel(user.accessRole, language)}</div>
             <button type="button" onClick={() => void openProfile()}><Settings2 aria-hidden="true" />{language === "pt" ? "Ver e editar perfil" : "View and edit profile"}</button>
-            <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/people"; }}><ContactRound aria-hidden="true" />{language === "pt" ? "Contatos" : "Contacts"}</button>
+            <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/people"; }}><ContactRound aria-hidden="true" />{language === "pt" ? "Pessoas" : "People"}</button>
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/messages"; }}><MessageSquare aria-hidden="true" />{language === "pt" ? "Mensagens" : "Messages"}</button>
             <button type="button" onClick={() => { setOpen(false); window.location.hash = "#/teams"; }}><UsersRound aria-hidden="true" />{language === "pt" ? "Minhas equipes" : "My teams"}</button>
+            <button type="button" className="account-menu-theme" onClick={() => { setOpen(false); toggleTheme(); }}>{theme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}{language === "pt" ? (theme === "dark" ? "Usar tema claro" : "Usar tema escuro") : (theme === "dark" ? "Use light theme" : "Use dark theme")}</button>
+            <button type="button" onClick={() => { setOpen(false); window.dispatchEvent(new Event("norte:open-chat")); }}><LifeBuoy aria-hidden="true" />{language === "pt" ? "Ajuda e feedback" : "Help and feedback"}</button>
             {user.accessRole === 'owner_admin' && <button type="button" onClick={() => { setOpen(false); window.location.hash = '#/admin/users'; }}><ShieldCheck />{language === 'pt' ? 'Administrar usuários' : 'Manage users'}</button>}
             {<button type="button" onClick={() => void logout()}><LogOut aria-hidden="true" />{language === "pt" ? "Sair" : "Sign out"}</button>}
           </div>

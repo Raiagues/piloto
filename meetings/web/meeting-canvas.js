@@ -7,6 +7,8 @@
   'use strict';
   const relationLabels={tests:'avalia',result_of:'resultado de',depends_on:'depende de',affects:'afeta',based_on:'baseia-se em',supports:'sustenta',contradicts:'contradiz',supersedes:'substitui'};
   const statusLabels={active:'Registrado',registered:'Registrado',open:'Aberto',completed:'Concluído',review:'Revisar',conflict:'Conflito',error:'Erro',superseded:'Substituído'};
+  // Mirrors the editorial eligibility (EDITORIAL_MIN) in meetings/engine/block_agents.py.
+  const editorialDraft=text=>typeof text==='string'&&text.length>=60&&text.length<=4000;
   function meetingState(){
     if(root.NorteMeetingState)return root.NorteMeetingState;
     if(typeof require==='function'){try{return require('./meeting-state.js');}catch(error){if(error.code!=='MODULE_NOT_FOUND')throw error;}}
@@ -18,18 +20,28 @@
     const right=a.left<b.left,start=right?a.right:a.left,end=right?b.left:b.right,middle=(start+end)/2;
     return {path:Math.abs(a.y-b.y)<1?`M ${start} ${a.y} H ${end}`:`M ${start} ${a.y} H ${middle} V ${b.y} H ${end}`,labelX:middle,labelY:(a.y+b.y)/2,anchor:'middle'};
   }
+  // The validated synthesis of a generated minutes document belongs to the exact source text.
+  function minutesSummaries(run){
+    const found=new Map(),seen=new WeakSet();
+    const visit=value=>{if(!value||typeof value!=='object'||seen.has(value))return;seen.add(value);
+      const event=value.event&&typeof value.event==='object'?value.event:value,id=event.event_id;
+      if(typeof id==='string'&&typeof value.display_text==='string'&&value.display_text.trim()&&typeof event.text==='string'&&!found.has(id))found.set(id,{text:value.display_text.trim(),source:event.text});
+      for(const child of Object.values(value))if(child&&typeof child==='object')visit(child);};
+    visit(run?.minutes_document?.doc?.topics);return found;
+  }
   function build(sourceRun) {
     const editor=root.NorteMeetingBlocks || (typeof require==='function' ? require('./meeting-blocks.js') : null);
     const hierarchy=root.NorteMeetingHierarchy || (typeof require==='function' ? require('./meeting-hierarchy.js') : null);
     const evidence=root.NorteMeetingEvidence || (typeof require==='function' ? require('./meeting-evidence.js') : null);
     if(!hierarchy||!evidence)throw Error('A organização dos assuntos ainda não está disponível.');
     const amendments=root.NorteMeetingAmendments||(typeof require==='function'?require('./meeting-amendments.js'):null),revised=sourceRun.post_meeting_edits?.length?amendments?.build(sourceRun):null;
-    const projected=evidence.project(revised?.source||sourceRun),run=projected.run,sharedState=revised?.state||meetingState()?.build(sourceRun),original=hierarchy.build(run),nodes=new Map(),review=[],edges=[],seen=new Set();
+    const projected=evidence.project(revised?.source||sourceRun),run=projected.run,sharedState=revised?.state||meetingState()?.build(sourceRun),original=hierarchy.build(run),nodes=new Map(),review=[],edges=[],seen=new Set(),minutes=minutesSummaries(sourceRun);
     const visit=node=>{
       const issues=(projected.diagnostics?.events?.[node.id]||[]).map(issue=>({...issue,event_ids:[node.id],relation_ids:[]}));
       nodes.set(node.id,{...node,event:{...node.event},parent_id:null,parent_relation_id:null,children:[],links:[],review:issues});
-      const suggestion=sourceRun.block_review?.blocks?.[node.id];
+      const suggestion=sourceRun.block_review?.blocks?.[node.id],summary=minutes.get(node.id);
       if(editor?.valid(suggestion,sourceRun,'block',node.id)){nodes.get(node.id).display_text=suggestion.text;nodes.get(node.id).editorial=suggestion.origin;}
+      else if(summary&&summary.source===node.text){nodes.get(node.id).display_text=summary.text;nodes.get(node.id).editorial='minutes';}
       const manual=editor?.manual(sourceRun,node.id);if(manual){nodes.get(node.id).display_text=manual.text;nodes.get(node.id).editorial='human';}
       review.push(...issues);for(const child of node.children)visit(child);
     };
@@ -101,7 +113,7 @@
     if (!canvas || !board || !canvas.contains(board)) throw Error('Informe o canvas e seu quadro de assuntos.');
     const document = canvas.ownerDocument;
     const view = document.defaultView || root;
-    const expanded = new Set(), collapsed = new Set(), warnings = new Set(), known = new Set(),extraOpen=new Set();
+    const expanded = new Set(), collapsed = new Set(), warnings = new Set(), known = new Set(),extraClosed=new Set();
     let zoom = 1, signature = '', runId = null, clusters = null, frame = 0, drag = null, fitted = false, destroyed = false, pendingFit = false, topicCount = 0;
     let svg=null,links=[],spaceHeld=false,pointerInside=false,suppressClickUntil=0,connectionsVisible=true,projection=null;
     const padding={left:600,right:600,top:600,bottom:600};
@@ -116,6 +128,9 @@
     const icon = (text, label, className) => {
       const button = element('button',className,text);button.type='button';button.title=label;button.setAttribute('aria-label',label);return button;
     };
+    // The pill is visible only while the editorial agent works (body[data-editorial]).
+    const organizing = label => { const pill=element('span','mc-organizing');pill.title=label;pill.setAttribute('role','status');pill.append(element('i'),element('span','',label));return pill; };
+    const organized = (origin) => { const mark=element('span','mc-organized'+(origin==='human'?' human':''));mark.title=origin==='human'?'Texto editado por uma pessoa; a fala original continua preservada':origin==='minutes'?'Síntese validada da ata; a fala original continua preservada':'Texto organizado a partir da fala original';mark.setAttribute('aria-label',mark.title);mark.setAttribute('role','img');return mark; };
 
     function updateGrid() {
       // Keep the same grid family without turning the overview into a dense
@@ -245,15 +260,23 @@
         const explore=icon('Ver detalhes','Abrir detalhes da classificação','mc-inspect');explore.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.review}));content.append(explore);
         detail.append(content);detail.addEventListener('toggle',() => detail.open ? warnings.add(node.id) : warnings.delete(node.id));header.append(detail);
       }
+      const draft=!node.editorial&&editorialDraft(node.text);card.classList.toggle('mc-draft',draft);
+      // Unorganized speech shows as written; the topic, not every card, says it is being organized.
+      if(node.editorial)header.append(organized(node.editorial));
       card.append(header);
-      if(onReview&&canEdit()){const edit=icon('', 'Editar resumo do bloco','mc-editorial');edit.innerHTML='<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="m10.5 2.5 3 3-8 8-3.5.5.5-3.5zM9 4l3 3" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';edit.onclick=()=>onReview('block',node.id);header.append(edit);}
+      if(onReview&&canEdit()){const edit=icon('', 'Editar texto do bloco','mc-editorial');edit.innerHTML='<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="m10.5 2.5 3 3-8 8-3.5.5.5-3.5zM9 4l3 3" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';edit.onclick=()=>onReview('block',node.id);header.append(edit);}
       const read=element('button','mc-node-text'),copy=element('span','mc-node-copy'),more=element('span','mc-text-toggle','Ver detalhes');
       const text=node.display_text??node.text,points=text.split(/\n+/).map(line=>line.trim().replace(/^[•-]\s*/,'' )).filter(Boolean);
       if(node.editorial&&points.length>1){const list=element('ul','mc-node-points');for(const point of points)list.append(element('li','',point));copy.append(list);}
       else copy.textContent=text;
       copy.classList.toggle('mc-node-excerpt',!node.editorial&&text.length>180);
       read.type='button';read.setAttribute('aria-label','Mostrar registro completo: '+node.text);more.setAttribute('aria-hidden','true');
-      read.append(copy,more);read.addEventListener('click',()=>onInspect({kind:'event',event_id:node.id,issues:node.inspection.issues,eventIds:[...node.inspection.eventIds],relationIds:[...node.inspection.relationIds]}));
+      // Editing happens where the text is read: a double-click (or the pencil) opens the block
+      // editor, so a single click waits briefly before opening the record details.
+      const editable=onReview&&canEdit();let pending=0;
+      const inspect=()=>onInspect({kind:'event',event_id:node.id,issues:node.inspection.issues,eventIds:[...node.inspection.eventIds],relationIds:[...node.inspection.relationIds]});
+      read.append(copy,more);read.addEventListener('click',event=>{if(!editable){inspect();return;}view.clearTimeout(pending);if(event.detail<2)pending=view.setTimeout(inspect,260);});
+      if(editable){read.title='Clique para ver detalhes · duplo clique para editar';read.addEventListener('dblclick',event=>{event.preventDefault();view.clearTimeout(pending);onReview('block',node.id);});}
       card.append(read);
       if (node.children.length) {
         const children=element('div','room-node-children');children.hidden=collapsed.has(node.id);
@@ -285,7 +308,7 @@
         const header=element('header','room-topic-head'),name=element('div','room-topic-name');
         header.append(element('span','room-topic-index',String(index+1).padStart(2,'0')));
         const first=Object.values(topic.columns).flat()[0]?.text||'',excerpt=first.length>64?first.slice(0,64).replace(/\s+\S*$/,'')+'…':first;const placeholder=topic.id?excerpt||'Assunto '+(index+1):'Pontos a organizar';
-        const title=element('h2',topic.title?'':'mc-title-placeholder',topic.title||placeholder);title.title=topic.title||placeholder;name.append(title);header.append(name);
+        const title=element('h2',topic.title?'':'mc-title-placeholder',topic.title||placeholder);title.title=topic.title||placeholder;name.append(title);if(!topic.title&&topic.id)name.append(organizing('Organizando o título'));header.append(name);
         header.addEventListener('click',event=>{if(zoom<.28&&!event.target.closest('button'))focusTopic(topic.id);});
         if (topic.id&&canEdit()) {
           const edit=icon('✎',topic.title?'Renomear '+topic.title:'Definir nome do assunto','room-edit-title');edit.addEventListener('click',()=>onRename(topic.id,topic.title||''));header.append(edit);
@@ -300,10 +323,11 @@
         }
         cluster.append(header,body);
         if(topic.columns.details.length){
-          const detail=element('details','mc-topic-details');detail.open=extraOpen.has(topic.id)||!columnCount;
+          // Decisions and requirements are often what a meeting is for: shown unless closed.
+          const detail=element('details','mc-topic-details');detail.open=!extraClosed.has(topic.id);
           detail.append(element('summary','','Decisões, critérios e outros registros · '+topic.columns.details.length));
           const list=element('div','mc-detail-nodes');for(const node of topic.columns.details)list.append(nodeCard(node));detail.append(list);
-          detail.addEventListener('toggle',()=>{detail.open?extraOpen.add(topic.id):extraOpen.delete(topic.id);schedule();});cluster.append(detail);
+          detail.addEventListener('toggle',()=>{detail.open?extraClosed.delete(topic.id):extraClosed.add(topic.id);schedule();});cluster.append(detail);
         }
         clusters.append(cluster);
       }
@@ -314,7 +338,7 @@
     }
     function reset() {
       if(frame)view.cancelAnimationFrame(frame);frame=0;signature='';runId=null;clusters=null;fitted=false;pendingFit=false;topicCount=0;
-      expanded.clear();collapsed.clear();warnings.clear();known.clear();extraOpen.clear();drag=null;svg=null;links=[];projection=null;canvas.classList.remove('mc-panning');
+      expanded.clear();collapsed.clear();warnings.clear();known.clear();extraClosed.clear();drag=null;svg=null;links=[];projection=null;canvas.classList.remove('mc-panning');
       for(const side of ['left','right','top','bottom'])padding[side]=600;applyPadding();
       board.replaceChildren();zoom=1;board.style.zoom='1';canvas.scrollLeft=0;canvas.scrollTop=0;updateGrid();announceZoom();
     }

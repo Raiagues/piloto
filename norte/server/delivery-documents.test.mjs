@@ -8,6 +8,8 @@ test('document drafts preserve traceability and make missing evidence explicit',
   assert.match(body,/\| REQ-1 · v2 \| SRC-1, SYS-1 \| PENDENTE \| PENDENTE \|/);
   assert.match(body,/≤ 35 °C/);assert.match(body,/PENDENTE — definir critério/);
   assert.doesNotMatch(body,/Execuções registradas: [1-9]/);
+  const spec=draftDeliveryDocument({title:'Especificação',content:'requirements'}, {name:'Projeto de teste'}, [{id:'REQ-2',title:'Massa',statement:'A massa deve ser ≤ 2 kg.',version:1,status:'in_review',method:'unspecified'}], [], null);
+  assert.match(spec,/Situação de revisão: Em revisão/);assert.match(spec,/Método: A definir/);assert.doesNotMatch(spec,/in_review|unspecified/);
 });
 
 test('PDF preserves engineering symbols, long tables, version metadata and review decisions across pages', async () => {

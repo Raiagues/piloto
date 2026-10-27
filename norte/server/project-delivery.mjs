@@ -122,17 +122,18 @@ function reviewState(item, actor, data, requirements, tests, record, access) {
   const status = item.reviewHash !== currentHash || !reviewers.length || reviewers.length !== assigned.length ? 'draft' : decisions.some(d => d.decision === 'request_changes') ? 'changes_requested' : reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve')) ? 'approved' : 'in_review';
   return { version: item.version || 1, reviewers, decisions, approvalStatus: status, canReview: status === 'in_review' && canReviewAccount(actor) && reviewers.includes(actor.id) && item.authorId !== actor.id };
 }
-function view(data, record, state, actor, access) {
+function view(data, record, state, actor, access, readOnly = false) {
   const requirements = requirementsOf(record, state, data), project = record.document;
-  const tests = state.tests.map(test => ({ ...test, status: testStatus(test, requirements, record), canEdit: canEditSector(project, actor, test.sectorId, record.createdBy) }));
+  const can = sectorId => !readOnly && canEditSector(project, actor, sectorId, record.createdBy);
+  const tests = state.tests.map(test => ({ ...test, status: testStatus(test, requirements, record), canEdit: can(test.sectorId) }));
   const today = now().slice(0, 10);
-  const taskView = task => ({ ...task, ...reviewState(task, actor, data, requirements, tests, record, access), status:effectiveTaskStatus(task,requirements,tests,data,record,access), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests,data,record,access), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests,data,record,access) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests,data,record,access) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: canEditSector(project, actor, task.sectorId, record.createdBy) });
+  const taskView = task => ({ ...task, ...reviewState(task, actor, data, requirements, tests, record, access), ...(readOnly ? { canReview: false } : {}), status:effectiveTaskStatus(task,requirements,tests,data,record,access), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests,data,record,access), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests,data,record,access) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests,data,record,access) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: can(task.sectorId) });
   return {
-    proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: canEditSector(project, actor, requirements.find(r=>r.id===p.requirementId)?.sectorId, record.createdBy)})), documents: (state.documents || []).map(document => { const meta = reviewState(document, actor, data, requirements, tests, record, access); const task = state.tasks.find(t => t.id === document.taskId); return {...document,...meta,status:meta.approvalStatus,canEdit:Boolean(task && canEditSector(project,actor,task.sectorId,record.createdBy))}; }), lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
+    proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: !readOnly && canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: can(requirements.find(r=>r.id===p.requirementId)?.sectorId)})), documents: (state.documents || []).map(document => { const meta = reviewState(document, actor, data, requirements, tests, record, access); const task = state.tasks.find(t => t.id === document.taskId); return {...document,...meta,...(readOnly?{canReview:false}:{}),status:meta.approvalStatus,canEdit:Boolean(task && can(task.sectorId))}; }), lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
     standardsConfigured: Boolean(state.standardsConfigured || state.standards.length),
-    standardsProposals: (state.standardsProposals || []).map(p=>({...p, stale:p.baseHash!==hash(state.standards), canReview:p.reviewers.includes(actor.id)&&p.authorId!==actor.id&&canReviewAccount(actor), status:['merged','cancelled'].includes(p.status)?p.status:p.reviewers.every(id=>visibleMembers(data,record,access).some(m=>m.id===id&&m.canReview)&&p.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':p.decisions.some(d=>d.decision==='request_changes')?'changes_requested':'open'})),
+    standardsProposals: (state.standardsProposals || []).map(p=>({...p, stale:p.baseHash!==hash(state.standards), canReview:!readOnly&&p.reviewers.includes(actor.id)&&p.authorId!==actor.id&&canReviewAccount(actor), status:['merged','cancelled'].includes(p.status)?p.status:p.reviewers.every(id=>visibleMembers(data,record,access).some(m=>m.id===id&&m.canReview)&&p.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':p.decisions.some(d=>d.decision==='request_changes')?'changes_requested':'open'})),
     revision: state.revision, baselineHash: deliveryBaselineHash(record), standards: state.standards, standardOptions: DELIVERY_STANDARDS, standardGroups: DELIVERY_STANDARD_GROUPS,
-    requirements: requirements.map(r => ({ ...r, analysis: (state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {engine:'not_analyzed',findings:[],checkedRules:[],disclaimer:''}), canEdit: canEditSector(project, actor, r.sectorId, record.createdBy), canReview: canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
+    requirements: requirements.map(r => ({ ...r, analysis: (state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {engine:'not_analyzed',findings:[],checkedRules:[],disclaimer:''}), canEdit: can(r.sectorId), canReview: !readOnly && canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
     tests, tasks: state.tasks.filter(task => !task.lifecycleProfile || (task.lifecycleProfile === state.lifecycle?.profile && !task.excluded)).map(taskView),
     // Preserve manual dates when previewing another profile or re-enabling a review.
     lifecycleTasks: state.tasks.filter(task => task.lifecycleProfile).map(taskView),
@@ -140,10 +141,12 @@ function view(data, record, state, actor, access) {
     entities: (project.engineeringSystem?.entities || []).map(e => ({ id: e.id, name: e.name })),
     evidence: (project.engineeringSystem?.evidence || []).map(e => ({ id: e.id, artifactId: e.artifactId, artifactLabel: e.artifactLabel, locator: e.locator, excerpt: e.excerpt })),
     artifacts: data.artifacts.filter(a => (a.scope === 'project' && a.ownerId === project.id) || (a.scope === 'team' && a.ownerId === project.context.teamId && project.context.teamArtifactIds.includes(a.id))).map(a => ({ id: a.id, label: a.label || a.name || a.id, href: a.documentText !== undefined ? `/api/artifacts/${encodeURIComponent(a.id)}/pdf` : a.url?.startsWith('data:') ? `/api/artifacts/${encodeURIComponent(a.id)}/content` : a.url || '' })),
-    history: state.history, permissions: { manage: isProjectAdmin(project, actor, record.createdBy), editableSectorIds: (project.context.sectors || []).filter(s => canEditSector(project, actor, s.id, record.createdBy)).map(s => s.id) }
+    history: state.history, permissions: { readOnly, manage: !readOnly && isProjectAdmin(project, actor, record.createdBy), editableSectorIds: readOnly ? [] : (project.context.sectors || []).filter(s => can(s.id)).map(s => s.id) }
   };
 }
-export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions = {}, intelligence }) {
+export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions = {}, intelligence, readOnly = false }) {
+  // Test deployments can show requirements, schedule and documents without accepting edits.
+  const refuseReadOnly = () => { if (readOnly) throw fail(423, 'DELIVERY_READ_ONLY', 'Requisitos, cronograma e documentos estão em modo de leitura nesta versão de teste.'); };
   const analyzeRequirement = createRequirementAnalyzer(analysisOptions, intelligence), analysisInFlight = new Set();
   function recordFor(data, request) {
     const actor=data.users.find(u=>u.id===request.auth.user.id&&u.active);if(!actor)throw fail(401,'AUTH_REQUIRED','Entre novamente.');
@@ -151,10 +154,10 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     if (!record || !canAccessProject(data, actor, record)) throw fail(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível.');
     return record;
   }
-  registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView:(data,record,actor)=>view(data,record,data.workspace.delivery?.[record.document.id]||empty(),actor,canAccessProject), options: analysisOptions, intelligence });
+  registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView:(data,record,actor)=>view(data,record,data.workspace.delivery?.[record.document.id]||empty(),actor,canAccessProject,readOnly), refuseReadOnly, options: analysisOptions, intelligence });
   app.get('/api/projects/:id/delivery', { preHandler: [requireAuth] }, async request => {
     const data = store.read(), record = recordFor(data, request);
-    return view(data, record, data.workspace.delivery?.[record.document.id] || empty(), request.auth.user, canAccessProject);
+    return view(data, record, data.workspace.delivery?.[record.document.id] || empty(), request.auth.user, canAccessProject, readOnly);
   });
   app.get('/api/projects/:id/delivery/documents/:documentId/export', {preHandler:[requireAuth]}, async (request,reply)=>{
     const data=store.read(),record=recordFor(data,request),document=view(data,record,data.workspace.delivery?.[record.document.id]||empty(),request.auth.user,canAccessProject).documents.find(d=>d.id===request.params.documentId);
@@ -165,6 +168,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     return reply.type('text/markdown; charset=utf-8').header('Content-Disposition',`attachment; filename="${document.id}.md"`).send(document.body);
   });
   app.post('/api/projects/:id/delivery/requirements/:requirementId/analyze',{preHandler:[requireAuth,requireCsrf],bodyLimit:1000,config:{rateLimit:{max:6,timeWindow:'1 minute'}}},async request=>{
+    refuseReadOnly();
     const data=store.read(),record=recordFor(data,request),state=data.workspace.delivery?.[record.document.id]||empty();
     const requirement=requirementsOf(record,state).find(r=>r.id===request.params.requirementId&&!r.archived);
     if(!requirement)throw fail(404,'REQUIREMENT_NOT_FOUND','Requisito indisponível.');
@@ -179,6 +183,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     } finally {analysisInFlight.delete(key);}
   });
   app.post('/api/projects/:id/delivery/actions', { preHandler: [requireAuth, requireCsrf], bodyLimit: 128 * 1024, config: { rateLimit: { max: 90, timeWindow: '1 minute' } } }, async request => store.update(data => {
+    refuseReadOnly();
     const record = recordFor(data, request), project = record.document, actor = data.users.find(u => u.id === request.auth.user.id);
     const body = request.body;
     if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, 'INVALID_DELIVERY', 'Ação inválida.');
@@ -186,7 +191,7 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     state.proposals ||= []; state.documents ||= []; state.analyses ||= {}; state.standardsProposals ||= [];
     if (body.expectedRevision !== state.revision || body.expectedBaselineHash !== deliveryBaselineHash(record)) throw fail(409, 'DELIVERY_CHANGED', 'O projeto mudou em outra aba. Atualize antes de salvar.');
     const members = visibleMembers(data, record, canAccessProject), memberIds = new Set(members.map(m => m.id)), reviewerIds = new Set(members.filter(m => m.canReview).map(m => m.id));
-    const current = view(data, record, state, actor, canAccessProject), action = text(body.action, 'ação', 80, true), item = body.item || {};
+    const current = view(data, record, state, actor, canAccessProject, readOnly), action = text(body.action, 'ação', 80, true), item = body.item || {};
     const references = (ids, choices, field) => { const parsed = list(ids || [], field); if (parsed.some(id => !choices.some(v => v.id === id))) throw fail(400, 'INVALID_LINK', `Referência inválida: ${field}.`); return parsed; };
     const member = value => { const id = text(value || '', 'responsável', 200); if (id && !memberIds.has(id)) throw fail(400, 'INVALID_MEMBER', 'Selecione um participante deste projeto.'); return id; };
     const editor = sectorId => { if (sectorId && !project.context.sectors.some(s => s.id === sectorId)) throw fail(400, 'INVALID_SECTOR', 'Setor inexistente.'); if (!canEditSector(project, actor, sectorId, record.createdBy)) throw fail(403, 'FORBIDDEN', 'Você não pode editar os registros deste setor.'); };
@@ -465,6 +470,6 @@ export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, c
     state.revision++;
     state.history.push({ id: randomUUID(), revision: state.revision, action, subjectId: eventId, actorId: actor.id, actorName, createdAt: timestamp, ...(action.startsWith('proposal.')?{requirementId:state.proposals.find(p=>p.id===eventId)?.requirementId}:{}), before, after });
     data.workspace.delivery ||= {}; data.workspace.delivery[project.id] = state;
-    return view(data, record, state, actor, canAccessProject);
+    return view(data, record, state, actor, canAccessProject, readOnly);
   }));
 }

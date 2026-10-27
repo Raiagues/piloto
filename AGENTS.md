@@ -4,7 +4,7 @@ Leia README.md e docs/architecture.md antes de alterar fluxos entre serviços. U
 
 ## Escopo
 
-O produto ativo contém contas, equipes, contatos, mensagens, requisitos, verificação, cronograma, documentos, reuniões e administração. Não reintroduza planos comerciais, comunidade, memória de projeto, concepção, ideias ou laboratório de simulação sem solicitação explícita.
+O produto ativo contém contas, equipes, contatos, mensagens, visão geral do projeto (com documentos), requisitos, cronograma, reuniões e administração. A tela de verificação foi retirada; seus dados continuam preservados no servidor. Não reintroduza planos comerciais, comunidade, memória de projeto, concepção, ideias ou laboratório de simulação sem solicitação explícita.
 
 A instalação começa vazia. Fixtures ficam nos testes; seeds são comandos explícitos. Não invente pessoas, evidências, execuções ou aprovações. Preserve os documentos originais do usuário e os registros existentes durante migrações.
 

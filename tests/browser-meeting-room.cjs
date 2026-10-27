@@ -31,8 +31,10 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
    if(['/api/classify','/api/relations','/api/typed-relations'].includes(pathname)){
     let raw='';for await(const part of req)raw+=part;const body=JSON.parse(raw);requests.push({url:pathname,body});
     assert.equal(JSON.stringify(body).includes('expected_'),false,'model requests must not contain fixture labels');
-    if(!gateHeld&&body.state.utterance===utterances[7]){gateHeld=true;await gate;}
-    if(body.state.utterance==='Cancelar antes da resposta.'){cancelHeld=true;await cancellationGate;}
+    // Plain speech skips the command question, so hold whichever request reads it first.
+    const said=body.state.utterance??body.state.current_utterance;
+    if(!gateHeld&&said===utterances[7]){gateHeld=true;await gate;}
+    if(said==='Cancelar antes da resposta.'){cancelHeld=true;await cancellationGate;}
     const answers=Object.fromEntries(Object.entries(body.questions).map(([id,q])=>{
      if(q.type==='noul')return [id,{type:'noul',noul:.98}];
      const current=body.state.current_event,target=body.state.candidates?.find(item=>item.event_id===id.split('__')[1]);let choice;
@@ -41,6 +43,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
      if(id==='command_completion')choice=/\d/.test(body.state.next_utterance||'')?'completes':'separate';
      if(id==='speech_status')choice='finished';
      else if(id==='event_type')choice=attentionTypes[attentionText.indexOf(body.state.current_utterance)]||types[utterances.indexOf(body.state.current_utterance)]||'observation';
+     else if(id==='topic_assignment')choice=body.state.topics.find(topic=>subject(topic.events[0].text)===subject(current.text))?.topic_id||'new_topic';
      else if(id==='belongs_to_active_thread')choice=subject(current.text)===subject(body.state.active_thread.events[0].text)?'belongs':'does_not_belong';
      else if(id.startsWith('belongs_to_archive_thread__')){
       const candidate=body.state.candidate_threads.find(item=>item.thread_id===id.split('__')[1]);choice=subject(current.text)===subject(candidate.events[0].text)?'belongs':'does_not_belong';
@@ -167,11 +170,11 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.ok(await evaluate(`(()=>{const columns=[...document.querySelectorAll('.room-topic:first-child .mc-column')].map(node=>node.getBoundingClientRect());return columns.length===3&&columns.every(node=>Math.abs(node.top-columns[0].top)<1)&&columns[0].right<columns[1].left&&columns[1].right<columns[2].left;})()`),'problems, hypotheses and tests remain side by side');
   assert.ok(await evaluate(`(()=>{const svg=document.querySelector('#roomBoard .mc-edges'),r=svg.getBoundingClientRect();return [...svg.querySelectorAll('path[marker-end]')].every(path=>{const p=path.getBoundingClientRect();return path.getTotalLength()>0&&p.left>=r.left&&p.right<=r.right&&p.top>=r.top&&p.bottom<=r.bottom;});})()`),'edge paths fit the actual rendered SVG viewport, unaffected by icon sizing rules');
   const beforeCanvas=JSON.stringify((await snapshot()).meeting_events);
-  await click('.mc-node-text');assert.equal(await visible('.room-diagnostics'),true,'card opens its full source in a detail dialog');await evaluate('document.querySelector(".room-diagnostics").close()');
+  await click('.mc-node-text');await wait('!!document.querySelector(".room-diagnostics")');assert.equal(await visible('.room-diagnostics'),true,'card opens its full source in a detail dialog');await evaluate('document.querySelector(".room-diagnostics").close()');
   assert.equal(await visible('.room-pan-hint'),false);
   assert.equal(await evaluate('document.querySelector("#roomCounts").textContent'),'2 assuntos');
   assert.ok(await evaluate(`(()=>{const topics=[...document.querySelectorAll('.room-topic')].map(n=>n.getBoundingClientRect());return topics[1].left>topics[0].right&&Math.abs(topics[1].top-topics[0].top)<1;})()`),'topics sit side by side');
-  assert.match(await evaluate('document.querySelectorAll(".room-topic-name h2")[1].textContent'),/Norte.*assunto.*é/,'unnamed topic teaches the voice command rather than copying a sentence');
+  assert.deepEqual(await evaluate('(()=>{const name=document.querySelectorAll(".room-topic-name")[1];return {draft:name.querySelector("h2").classList.contains("mc-title-placeholder"),organizing:!!name.querySelector(".mc-organizing")};})()'),{draft:true,organizing:true},'an unnamed topic shows a draft title until it is named or organized');
   await click('#roomCounts');assert.equal(await visible('#roomTopicsMenu'),true);assert.equal(await evaluate('document.querySelectorAll(".room-topic-menu-entry").length'),2);await click('#roomCounts');
   await evaluate('document.querySelectorAll(".room-edit-title")[1].click()');assert.equal(await evaluate('document.querySelector("#roomRenameValue").value'),'');
   await evaluate('document.querySelector("#roomRenameValue").value="Caixa do sensor";document.querySelector("#roomRenameForm").requestSubmit()');
@@ -207,7 +210,7 @@ const {spawn}=require('node:child_process'),{setTimeout:sleep}=require('node:tim
   assert.equal((await snapshot()).meeting_events.length,7);assert.equal(requests.length,callsBeforeReopen,'reopening stored meetings never repeats inference');
   if(await evaluate('NorteMeetingRoom.view()==="library"'))await openSaved(finished.id);
   assert.equal((await snapshot()).id,finished.id);
-  await click('#roomMinutes');await wait('document.querySelector("#gmDialog")?.open');assert.equal(requests.filter(item=>item.url==='/api/minutes').length,0);
+  await click('#roomMinutes');await wait('document.querySelector("#gmDialog")?.hasAttribute("open")');assert.equal(requests.filter(item=>item.url==='/api/minutes').length,0);
   assert.match(await evaluate('document.querySelector(".gm-paper").textContent'),/Deformação do suporte/);assert.ok(await evaluate('document.querySelector(".gm-node-test_proposal") && document.querySelector(".gm-node-test_result")'),'tests and results remain present in their own concise sections');assert.doesNotMatch(await evaluate('document.querySelector("#gmDialog").textContent'),/Gemini|gerad[oa] por IA/);
   assert.equal(await evaluate('document.querySelectorAll(".gm-source-id,.gm-history").length'),0,'event IDs and discussion-history controls are absent from the document');
   await click('.gm-contents a');

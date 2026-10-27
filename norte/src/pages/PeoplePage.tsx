@@ -4,6 +4,7 @@ import { MessageSquare, Search } from 'lucide-react';
 import { combinePeoplePages, PEOPLE_PAGE_SIZE } from '../lib/peopleDirectory';
 import type { PeopleDirectoryPage } from '../lib/peopleDirectory';
 import { useAuth } from '../lib/auth';
+import { timeAgo } from '../lib/i18n';
 import type { Language } from '../lib/types';
 import '../styles/features/teams.css';
 export type PlatformPerson = { id: string; name: string; nickname: string; institution?: string; presence: 'online' | 'offline'; lastSeenAt: string | null; email?: string; demoAccount?: boolean; active?: boolean };
@@ -40,7 +41,7 @@ export function PeoplePage({ language }: { language: Language }) {
     <section className="platform-card people-directory"><table><thead><tr><th>{pt ? 'Contato' : 'Contact'}</th><th>{pt ? 'Disponibilidade' : 'Availability'}</th><th>{pt ? 'Último acesso' : 'Last active'}</th><th /></tr></thead><tbody>{people.filter(person => person.active !== false).map(person => <tr key={person.id}>
       <td><div className="contact-identity"><span className="contact-avatar" aria-hidden="true">{person.name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase()}</span><span><strong>{person.name}</strong><small>@{person.nickname}</small></span></div></td>
       <td><span className={`platform-presence ${person.presence}`}>{person.presence === 'online' ? 'Online' : 'Offline'}</span></td>
-      <td data-label={pt ? 'Último acesso' : 'Last active'}>{person.lastSeenAt ? new Date(person.lastSeenAt).toLocaleString(pt ? 'pt-BR' : 'en') : '—'}</td>
+      <td data-label={pt ? 'Último acesso' : 'Last active'}>{person.presence === 'online' ? (pt ? 'Agora' : 'Now') : person.lastSeenAt ? <time dateTime={person.lastSeenAt} title={new Date(person.lastSeenAt).toLocaleString(pt ? 'pt-BR' : 'en', { dateStyle: 'medium', timeStyle: 'short' })}>{timeAgo(person.lastSeenAt, language)}</time> : '—'}</td>
       <td>{person.id !== user?.id && <a className="platform-secondary" href={`#/messages?with=${encodeURIComponent(person.id)}`}><MessageSquare size={15} />{pt ? 'Conversar' : 'Message'}</a>}</td>
     </tr>)}</tbody></table>{!people.length && loading !== 'initial' && !error && <p className="platform-empty">{pt ? 'Nenhum contato encontrado.' : 'No contacts found.'}</p>}</section>
     {people.length < total && <div className="platform-directory-footer"><button className="platform-secondary" type="button" disabled={Boolean(loading)} onClick={() => actions.current.more()}>{loading === 'more' ? (pt ? 'Carregando…' : 'Loading…') : (pt ? 'Carregar mais' : 'Load more')}</button></div>}

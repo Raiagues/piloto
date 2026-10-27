@@ -1,6 +1,27 @@
-.recent-work { display: flex; align-items: center; gap: 4px; padding: 6px 22px; overflow-x: auto; background: var(--norte-surface); border-bottom: 1px solid var(--norte-border); }
-.recent-work > span { font-size: 10px; color: var(--norte-text-muted); padding-right: 10px; }
-.recent-work > div { display: flex; flex-shrink: 0; align-items: center; background: var(--norte-surface-muted); }
-.recent-work button { display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px; border: 0; background: transparent; color: var(--norte-text-secondary); font-size: 11px; cursor: pointer; }
-.recent-work button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
-.recent-work button:hover { color: var(--norte-accent); }
+/* Recently opened work: a header popover; Home reuses the same list. */
+.recent-work { position: relative; }
+.recent-popover { position: absolute; z-index: 1200; top: calc(100% + 10px); right: -6px; width: min(380px, calc(100vw - 16px)); padding: 8px; border: 1px solid transparent; border-radius: var(--norte-radius-panel); background: var(--norte-surface); box-shadow: var(--norte-shadow-popover); animation: norte-pop 140ms var(--norte-ease); }
+.recent-popover > header { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 8px; color: var(--norte-text); font-size: 12.5px; }
+.recent-popover > header button { padding: 3px 6px; border: 0; border-radius: var(--norte-radius); background: transparent; color: var(--norte-link); font-size: 11px; cursor: pointer; }
+.recent-popover > header button:hover { background: var(--norte-surface-muted); }
+.recent-empty { margin: 4px 6px 8px; color: var(--norte-text-muted); font-size: 12px; line-height: 1.5; }
+.recent-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.recent-list li { position: relative; display: flex; align-items: center; border-radius: var(--norte-radius); }
+.recent-list li:hover { background: var(--norte-surface-muted); }
+.recent-open { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; padding: 7px 34px 7px 6px; border: 0; background: transparent; color: var(--norte-text); text-align: left; cursor: pointer; }
+.recent-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 32px; border-radius: var(--norte-radius); background: var(--norte-surface-muted); color: var(--norte-text-secondary); }
+.recent-list li:hover .recent-icon { background: var(--norte-surface); }
+.recent-list [data-kind="meeting"] .recent-icon { background: color-mix(in srgb, var(--norte-violet) 14%, var(--norte-surface)); color: var(--norte-violet); }
+.recent-list [data-kind="minutes"] .recent-icon { background: color-mix(in srgb, var(--norte-success) 14%, var(--norte-surface)); color: var(--norte-success); }
+.recent-list [data-kind="requirement"] .recent-icon { background: var(--norte-accent-soft); color: var(--norte-accent); }
+.recent-list [data-kind="document"] .recent-icon, .recent-list [data-kind="review"] .recent-icon { background: color-mix(in srgb, var(--norte-warning) 14%, var(--norte-surface)); color: var(--norte-warning); }
+.recent-copy { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.recent-copy strong { overflow: hidden; font-size: 12.5px; font-weight: 560; text-overflow: ellipsis; white-space: nowrap; }
+.recent-copy small { overflow: hidden; color: var(--norte-text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.recent-flag { flex: 0 0 auto; max-width: 110px; overflow: hidden; padding: 2px 7px; border-radius: var(--norte-radius-pill); background: var(--norte-surface-muted); color: var(--norte-text-secondary); font-size: 10px; font-style: normal; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.recent-flag.unsaved { background: color-mix(in srgb, var(--norte-warning) 16%, var(--norte-surface)); color: var(--norte-warning); }
+.recent-forget { position: absolute; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--norte-radius); background: transparent; color: var(--norte-text-muted); opacity: 0; cursor: pointer; transition: opacity 120ms ease; }
+.recent-list li:hover .recent-forget, .recent-forget:focus-visible { opacity: 1; }
+.recent-forget:hover { background: var(--norte-surface); color: var(--norte-text); }
+.recent-list li:hover .recent-flag { visibility: hidden; }
+@media (hover: none) { .recent-forget { opacity: 1; } .recent-list li .recent-flag { margin-right: 22px; } .recent-list li:hover .recent-flag { visibility: visible; } }

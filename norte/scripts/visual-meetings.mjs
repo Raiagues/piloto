@@ -129,22 +129,26 @@ try {
   await guestFrame.locator('#roomText').waitFor({ timeout: 30_000 });
   assert.equal(joinRequests.length, 0, 'an accepted private participant can open without another join write');
   assert.equal(await guestFrame.locator('#roomTitle').getAttribute('readonly'), '');
-  assert.equal(await guestFrame.locator('#roomLive').isVisible(), true);
-  assert.equal(await guestFrame.locator('#roomLive').isDisabled(), true);
+  // The Norte meeting bar shows the guest the live state; only the host gets the recording button.
+  assert.equal(await guest.page.locator('.meeting-record').count(), 0);
+  await guest.page.locator('.meeting-record-status').waitFor();
+  assert.equal(await frame.locator('#meetingHeader').isVisible(), false, 'the room has no second header row');
   await guestFrame.locator('#roomText').fill('A estrutura do satélite usa alumínio.');
   await guestFrame.locator('#roomSend').click();
   await frame.locator('#roomText').fill('Precisamos revisar a estrutura e a alimentação.');
   await frame.locator('#roomSend').click();
-  await host.page.getByRole('button', { name: 'Entrar no áudio', exact: true }).click();
-  await guest.page.getByRole('button', { name: 'Entrar no áudio', exact: true }).click();
+  await host.page.getByRole('button', { name: 'Entrar no áudio da equipe', exact: true }).click();
+  await guest.page.getByRole('button', { name: 'Entrar no áudio da equipe', exact: true }).click();
   for (const page of [host.page, guest.page]) {
     await page.locator('[data-audio-connected="1"]').waitFor({ timeout: 30000 });
     await page.waitForFunction(async () => { for (const peer of window.__audioPeers) { for (const report of (await peer.getStats()).values()) if (report.type === 'inbound-rtp' && report.kind === 'audio' && report.bytesReceived > 0) return true; } return false; }, { timeout: 15000 });
   }
-  assert.equal(await guest.page.locator('.meeting-audio-controls').getAttribute('data-recording'), 'false', 'typed messages do not start voice capture');
-  await frame.locator('#roomLive').click();
+  assert.equal(await guest.page.locator('.meeting-bar-center').getAttribute('data-recording'), 'false', 'typed messages do not start voice capture');
+  const record = host.page.locator('.meeting-record');
+  assert.equal(await record.evaluate(button => { const bar = button.closest('.meeting-bar').getBoundingClientRect(), box = button.getBoundingClientRect(); return Math.abs(box.left + box.width / 2 - (bar.left + bar.width / 2)) < bar.width * .2; }), true, 'recording sits in the middle of the meeting bar');
+  await record.click();
   await guest.page.locator('[data-recording="true"]').waitFor({ timeout: 10000 });
-  await frame.locator('#roomLive').click();
+  await record.click();
   await guest.page.locator('[data-recording="false"]').waitFor({ timeout: 10000 });
   await guest.page.getByRole('button', { name: 'Silenciar microfone', exact: true }).click();
   assert.equal(await guest.page.evaluate(() => window.__audioPeers.every(peer => peer.getSenders().every(sender => !sender.track || !sender.track.enabled))), true);
@@ -162,7 +166,7 @@ try {
   await host.page.getByRole('button', { name: 'Sair do áudio', exact: true }).click();
   await host.page.waitForFunction(() => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.meeting_events?.some(event => event.text.includes('alumínio')), { timeout: 30_000 });
   await guest.page.waitForFunction(() => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.meeting_events?.some(event => event.text.includes('alumínio')), { timeout: 30_000 });
-  await frame.locator('#roomFinish').click();
+  await host.page.getByRole('button', { name: 'Encerrar', exact: true }).click();
   await host.page.waitForFunction(() => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.status === 'done');
   const key = 'norte.meeting-room.session.v2.' + meeting.id;
   const saved = JSON.parse(records.get(key).value);
@@ -170,26 +174,29 @@ try {
   assert.equal(calls.some(call => call.input?.state?.project_memory), false, 'memory-off sends no project context');
   const outsider = await app.inject({ method: 'GET', url: '/api/meetings/' + meeting.id, headers: { cookie: actors[2].cookie } }); assert.equal(outsider.statusCode, 404);
   const denied = await app.inject({ method: 'POST', url: '/api/meetings/' + meeting.id + '/legacy/records', headers: { cookie: actors[1].cookie, 'x-csrf-token': actors[1].csrfToken }, payload: { key, value: JSON.stringify(saved), expected_version: records.get(key).version } }); assert.equal(denied.statusCode, 403);
-  assert.equal(await frame.locator('#roomLive').isDisabled(), true);
-  assert.equal(await frame.locator('#roomTimer').isVisible(), true);
-  await frame.locator('#roomMinutes:not([disabled])').waitFor();
-  assert.equal(await frame.locator('#roomMinutes').isEnabled(), true);
-  assert.equal(await host.page.getByRole('button', { name: 'Voltar à página anterior', exact: true }).count(), 0);
-  await frame.locator('#roomMinutes').click();
+  // A concluded meeting can be continued by its host; the minutes replace the old back button on the right.
+  await host.page.getByRole('button', { name: /Continuar gravação/ }).waitFor();
+  assert.equal(await host.page.locator('.meeting-record time').isVisible(), true);
+  await host.page.locator('.meeting-minutes-button:not([disabled])').waitFor();
+  assert.equal(await host.page.locator('.meeting-back').count(), 0);
+  assert.equal(await host.page.locator('.app-header-back').count(), 1, 'back lives in the application header');
+  assert.ok(await host.page.locator('.meeting-avatar').first().evaluate(node => window.getComputedStyle(node).borderRadius === '50%'), 'participant bubbles are round');
+  await host.page.locator('.meeting-minutes-button').click();
   await host.page.waitForFunction(() => new window.URLSearchParams(window.location.search).get('view') === 'minutes');
   await frame.locator('.gm-page').waitFor();
   assert.equal(await frame.locator('#gmDialog').evaluate(node => node.tagName), 'SECTION');
-  await host.page.locator('.meeting-back').click();
+  await host.page.locator('.app-header-back').click();
   await frame.locator('.gm-page').waitFor({ state: 'detached' });
   assert.equal(await host.page.evaluate(() => new window.URLSearchParams(window.location.search).get('meeting')), meeting.id);
   await host.page.evaluate(() => { const url = new window.URL(window.location.href); url.searchParams.set('view','minutes'); window.history.replaceState(null,'',url); window.dispatchEvent(new window.PopStateEvent('popstate')); });
   await frame.locator('.gm-page').waitFor();
-  await host.page.locator('.meeting-back').click();
+  await host.page.locator('.meeting-minutes-button').click();
   await frame.locator('.gm-page').waitFor({ state: 'detached' });
+  assert.equal(await host.page.evaluate(() => document.querySelector('.app-content').scrollHeight <= document.querySelector('.app-content').clientHeight + 1), true, 'the open meeting fits the viewport without page scrolling');
   await host.page.screenshot({ path: '/tmp/norte-integrated-meeting.png', fullPage: true });
   await host.page.setViewportSize({ width: 390, height: 844 }); await host.page.screenshot({ path: '/tmp/norte-integrated-meeting-mobile.png', fullPage: true });
   assert.equal(await host.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), true);
-  await host.page.locator('.meeting-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
+  await host.page.locator('.app-header-back').click();await host.page.locator('.meetings-list').waitFor();assert.equal(await host.page.evaluate(() => window.location.hash), '#/meetings');
   const imported = JSON.parse(records.get(key).value);
   imported.input_mode = 'import'; imported.meeting_metadata = { ...imported.meeting_metadata, duration_unknown: true };
   records.set(key, { value: JSON.stringify(imported), version: records.get(key).version + 1 });
@@ -203,10 +210,11 @@ try {
     await page.waitForFunction(id => document.querySelector('.meetings-frame')?.contentWindow?.NorteMeetingRoom?.snapshot()?.id === id, meeting.id);
   }
   assert.equal(joinRequests.length, 0, 'owner and accepted participant deep links avoid join writes');
-  assert.equal(await frame.locator('#roomTimer').isVisible(), false, 'an imported meeting with unknown duration never shows processing time as meeting duration');
+  await host.page.locator('.meeting-record').waitFor();
+  assert.equal(await host.page.locator('.meeting-record time').count(), 0, 'an imported meeting with unknown duration never shows processing time as meeting duration');
   assert.deepEqual(await host.page.evaluate(() => document.querySelector('.meetings-frame').contentWindow.NorteMeetingRoom.snapshot().meeting_metadata), imported.meeting_metadata);
   await frame.locator('#mc-direct-arrow path').waitFor({ state: 'attached' });
-  await frame.locator('#roomMinutes:not([disabled])').click();
+  await host.page.locator('.meeting-minutes-button:not([disabled])').click();
   await frame.locator('.gm-page').waitFor();
   assert.equal(await frame.locator('#gmPDF').isEnabled(), true);
   for (const theme of ['light', 'dark']) {
@@ -244,7 +252,7 @@ try {
     document.documentElement.dataset.theme = 'light';
     window.dispatchEvent(new window.CustomEvent('norte:theme-change', { detail: { theme: 'light' } }));
   });
-  await host.page.locator('.meeting-back').click();
+  await host.page.locator('.app-header-back').click();
   await frame.locator('.gm-page').waitFor({ state: 'detached' });
   // Cover the editorial agent's 3.5-second debounce after reopening saved content.
   await new Promise(resolve => setTimeout(resolve, 4200));
@@ -329,7 +337,7 @@ try {
 } catch (error) {
   if (hostPage) await hostPage.screenshot({ path: '/tmp/norte-integrated-meeting-failure.png', fullPage: true }).catch(() => {});
   for (const [index, context] of (browser?.contexts() || []).entries()) for (const page of context.pages()) {
-    console.error('Audio state', index, await page.evaluate(() => ({ row: document.querySelector('.meeting-audio-controls')?.outerHTML, peers: (window.__audioPeers || []).map(peer => ({ connection: peer.connectionState, ice: peer.iceConnectionState, signaling: peer.signalingState })) })).catch(() => null));
+    console.error('Audio state', index, await page.evaluate(() => ({ row: document.querySelector('.meeting-bar-center')?.outerHTML, peers: (window.__audioPeers || []).map(peer => ({ connection: peer.connectionState, ice: peer.iceConnectionState, signaling: peer.signalingState })) })).catch(() => null));
   }
   console.error('Browser errors:', errors); throw error;
 } finally { releaseInitialHealth(); await browser?.close(); await vite?.close(); await app.close(); await rm(directory, { recursive: true, force: true }); }

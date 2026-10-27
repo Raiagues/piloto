@@ -256,3 +256,16 @@ test('source-matched editorial summary never replaces evidence or a human correc
  assert.equal(allNodes(Canvas.build(r)).find(n=>n.id===e.event_id).display_text,'Revisão humana preservada.');
  e.text='Fonte corrigida.';assert.equal(allNodes(Canvas.build(r)).find(n=>n.id===e.event_id).display_text,undefined);
 });
+
+test('a generated minutes synthesis is shown only for the exact spoken text it summarized',()=>{
+  const source=run(),spoken=source.meeting_events[0].text;
+  source.minutes_document={sourceId:'mn1-test',doc:{topics:[{id:'T001',current:{open_points:[{id:'E1',event:{event_id:'E1',text:spoken},display_text:'Suporte deforma acima do esperado.'},{id:'E2',event:{event_id:'E2',text:'Outra versão da fala.'},display_text:'Não pertence a esta fala.'}]}}]}};
+  const doc=Canvas.build(source);
+  assert.equal(find(doc,'E1').display_text,'Suporte deforma acima do esperado.');
+  assert.equal(find(doc,'E1').editorial,'minutes');
+  assert.equal(find(doc,'E1').text,spoken,'the original speech remains the record');
+  assert.equal(find(doc,'E2').display_text,undefined,'a synthesis of different text is ignored');
+  source.block_edits={E1:{text:'Correção humana do suporte.',source:spoken,at:'2026-10-26T12:00:00.000Z'}};
+  assert.equal(find(Canvas.build(source),'E1').display_text,'Correção humana do suporte.','a person\'s edit wins over the minutes synthesis');
+  assert.equal(find(Canvas.build(source),'E1').editorial,'human');
+});

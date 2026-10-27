@@ -58,7 +58,7 @@
 }
 .planning-settings {
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   max-height: calc(100dvh - 215px);
   overflow: auto;
@@ -86,7 +86,7 @@
   min-width: 0;
   background: var(--norte-surface-muted);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius:var(--norte-radius);
   padding: 8px;
   font: inherit
@@ -96,7 +96,7 @@
   min-width: 0;
   background: var(--norte-surface-muted);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius:var(--norte-radius);
   padding: 8px;
   font: inherit
@@ -171,7 +171,7 @@
   bottom: 30px;
   padding: 4px;
   background: var(--norte-surface-raised);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   font-size: 11px;
   font-style: normal;
   box-shadow: 0 2px 12px var(--norte-shadow)
@@ -182,7 +182,7 @@
 }
 .planning-review-tree>article {
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   overflow: hidden
 }
@@ -208,14 +208,14 @@
 .standards-options {
   max-height: 340px;
   overflow: auto;
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   margin: 10px 0
 }
 .standards-options>div {
   display: flex;
   align-items: center;
   gap: 8px;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   padding: 10px 2px
 }
 .standards-options label {
@@ -247,7 +247,7 @@
   margin-top: 18px
 }
 .standards-proposals>article {
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   padding: 12px 0;
   display: grid;
   gap: 8px;
@@ -271,7 +271,7 @@
   width: 100%;
   background: var(--norte-surface-muted);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border)
+  border: 1px solid transparent
 }
 .delivery-dialog .planning-settings {
   max-height: none;

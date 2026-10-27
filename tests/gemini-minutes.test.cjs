@@ -60,6 +60,14 @@ test('unnamed topics use a short source excerpt and imported timestamps are not 
  assert.deepEqual(doc.topics.map(topic=>topic.title),['O suporte deforma sob carga.','Outro assunto.']);assert.deepEqual(pdf.contents.map(item=>item.title),doc.topics.map((topic,index)=>'Assunto '+(index+1)+': '+topic.title));
  assert.match(doc.metadata.date,/Não informada na transcrição/);assert.match(doc.metadata.time,/Não informado na transcrição/);assert.equal(doc.metadata.duration,'7 min 44 s');assert.equal(doc.metadata.participants,'Não informados');assert.equal(JSON.stringify(r),before);
 });
+test('a suggested title written for the opening events of a topic names it in the minutes until a person renames it',()=>{
+ const r=run();delete r.topic_titles;const basis=n=>r.meeting_events.slice(0,n).map(e=>({id:e.event_id,text:e.text,type:e.type,thread_id:e.thread_id}));
+ r.block_review={blocks:{},titles:{T1:{text:'Rigidez e deformação do suporte',basis:basis(3)}}};
+ assert.equal(M.localDocument(r).topics[0].title,'Rigidez e deformação do suporte','a span of 3 of the 5 events is a valid basis');
+ r.block_review.titles.T1.basis=basis(2);assert.equal(M.localDocument(r).topics[0].title,'O suporte deforma sob carga.','2 events is not a title span');
+ r.block_review.titles.T1.basis=basis(3);r.meeting_events[1].text='Texto alterado.';assert.equal(M.localDocument(r).topics[0].title,'O suporte deforma sob carga.','changed speech invalidates the title');
+ r.meeting_events[1].text='A rigidez pode explicar a deformação.';r.topic_titles={T1:'Nome dado pela equipe'};assert.equal(M.localDocument(r).topics[0].title,'Nome dado pela equipe');
+});
 test('replacements remain auditable internally but only the current decision and evidence are printed',()=>{
  const r=run();r.meeting_events.push(...[{event_id:'E6',thread_id:'T1',type:'decision',text:'Adotar a configuração inicial.'},{event_id:'E7',thread_id:'T1',type:'decision',text:'Adotar a configuração revisada.'},{event_id:'E8',thread_id:'T1',type:'requirement',text:'A deformação deve ficar abaixo de 2 mm.'}].map(e=>({...e,store_confidence:.99,type_confidence:.99})));
  r.meeting_relations.push(edge('E7','E6','supersedes'),edge('E7','E4','based_on'),edge('E7','E5','affects'),edge('E4','E8','contradicts'));
@@ -119,4 +127,14 @@ test('integrated minutes use the meeting record and never import a shared browse
  await M.saveDraft(r,draft,{storage,onUpdate:value=>{saved=structuredClone(value);return true;}});
  assert.deepEqual(saved.minutes_document,draft);assert.deepEqual(M.readDraft(r,'source-1',storage),draft);assert.equal(M.readDraft(r,'changed-source',storage),null);
  assert.equal(await M.saveDraft(r,{...draft,doc:{title:'Unauthorized'}},{storage,readOnly:true}),false);assert.equal(r.minutes_document.doc.title,'Ata');
+});
+test('a person\'s block edit on the canvas reaches the minutes source without replacing the spoken text',()=>{
+ require('../meetings/web/meeting-blocks.js');global.NorteMeetingBlocks=require('../meetings/web/meeting-blocks.js');
+ const r=run(),before=global.NorteMinutes.fingerprint(M.sourceFor(r));
+ assert.equal(M.sourceFor(r).events.find(e=>e.event_id==='E4').human_summary,undefined);
+ r.block_edits={E4:{text:'Sob 20 N a deformação passou do limite.',source:r.meeting_events[3].text,at:'2026-10-26T12:00:00.000Z'}};
+ const event=M.sourceFor(r).events.find(e=>e.event_id==='E4');
+ assert.equal(event.human_summary,'Sob 20 N a deformação passou do limite.');assert.equal(event.text,'No teste sob 20 N, a deformação excedeu o limite.');
+ assert.notEqual(global.NorteMinutes.fingerprint(M.sourceFor(r)),before,'an edit invalidates a previously generated minutes document');
+ r.block_edits.E4.source='Outra fala.';assert.equal(M.sourceFor(r).events.find(e=>e.event_id==='E4').human_summary,undefined,'an edit for different speech is ignored');
 });

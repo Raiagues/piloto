@@ -257,11 +257,11 @@ test('private project context never returns in classifier echoes; guests see no 
   const written = await f.request(f.host, 'POST', path + '/records', { key, expected_version: 0, value: JSON.stringify(run) });
   assert.equal(written.statusCode, 200, written.body);
   const host = JSON.parse((await f.request(f.host, 'GET', path + '/records?key=' + encodeURIComponent(key))).json().value);
-  assert.equal(host.debug.request, 'archive-only'); assert.ok(host.records[0].storeOutput);
+  assert.equal(host.debug.request, 'archive-only'); assert.ok(host.records[0].memoryOutput, 'memory v3 keeps one combined classifier answer');
   assert.doesNotThrow(() => Session.restore(host));
   const archived = f.records.get('meeting:' + m.id).value;
   const shared = JSON.parse((await f.request(f.guest, 'GET', path + '/records?key=' + encodeURIComponent(key))).json().value);
-  assert.doesNotMatch(JSON.stringify(shared), /"(?:request|response|storeOutput|typeOutput|jobs|debug|project_memory)"|archive-only/);
+  assert.doesNotMatch(JSON.stringify(shared), /"(?:request|response|memoryOutput|storeOutput|typeOutput|jobs|debug|project_memory)"|archive-only/);
   assert.deepEqual(shared.meeting_events, run.meeting_events);
   assert.deepEqual(shared.transcript.map(({ id, text, source, chunk_id }) => ({ id, text, source, chunk_id })), run.transcript.map(({ id, text, source, chunk_id }) => ({ id, text, source, chunk_id })));
   assert.equal(Hierarchy.build(Bridge.readView(shared, m.id)).topics.length, 1);

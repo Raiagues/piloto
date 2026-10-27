@@ -11,19 +11,19 @@
 .policy-page p, .policy-page li { font-size: 14px; line-height: 1.8; color: var(--norte-text-secondary); }
 .policy-page ul { padding-left: 22px; }
 .policy-page li { padding-left: 3px; margin: 9px 0; }
-.policy-page section { margin-top: 36px; padding-top: 26px; border-top: 1px solid var(--norte-border); }
+.policy-page section { margin-top: 36px; padding-top: 26px; border-top: 1px solid var(--norte-divider); }
 .policy-page section > a { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
 .policy-page .policy-version { font-size: 12px; color: var(--norte-text-muted); margin: 0 0 30px; }
 .policy-providers { display: grid; gap: 12px; margin: 24px 0; }
-.policy-providers article { padding: 20px; background: var(--norte-surface); border: 1px solid var(--norte-border); border-radius: var(--norte-radius-panel); }
+.policy-providers article { padding: 20px; background: var(--norte-surface); border: 1px solid transparent; border-radius: var(--norte-radius-panel); }
 .policy-providers small { display: block; color: var(--norte-text-muted); font-size: 11px; }
 .policy-providers p { font-size: 13px; margin-bottom: 10px; }
 .policy-providers code { font-size: 11px; color: var(--norte-text-muted); overflow-wrap: anywhere; }
 .policy-page .policy-reference { margin-top: 38px; font-size: 12px; }
 .policy-page [role="alert"] { padding: 12px 16px; background: var(--norte-accent-soft); color: var(--norte-danger); border-radius: var(--norte-radius); }
-.policy-page .usage-privacy { display: grid; gap: 14px; margin: 22px 0; padding: 20px; background: var(--norte-surface); border: 1px solid var(--norte-border); border-radius: var(--norte-radius-panel); }
+.policy-page .usage-privacy { display: grid; gap: 14px; margin: 22px 0; padding: 20px; background: var(--norte-surface); border: 1px solid transparent; border-radius: var(--norte-radius-panel); }
 .policy-page .usage-privacy label { display: flex; gap: 9px; align-items: flex-start; font-size: 13px; line-height: 1.7; }
-.policy-page .usage-privacy button { justify-self: start; border: 1px solid var(--norte-border); border-radius: var(--norte-radius); padding: 8px 12px; background: var(--norte-surface-muted); font-size: 12px; }
+.policy-page .usage-privacy button { justify-self: start; border: 1px solid transparent; border-radius: var(--norte-radius); padding: 8px 12px; background: var(--norte-surface-muted); font-size: 12px; }
 @media (max-width: 600px) {
   .policy-page { padding: 22px 20px 60px; }
   .policy-page > header { gap: 16px; padding-bottom: 22px; }

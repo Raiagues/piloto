@@ -88,7 +88,9 @@ class ConciseMinutesTests(unittest.TestCase):
         table={'title':'Condições do ensaio','columns':['Condição','Valor'],
             'rows':[{'event_id':'E2','cells':['Testar sob','20 N']}]}
         d['topics'][0]['tables']=[table];G.finalize(d,s)
-        for mode in ['new_value','other_event','other_thread','calculation','missing_column','duplicate','empty','heading']:
+        # A value said in the cited row may name the table; any other number may not.
+        named=copy.deepcopy(d);named['topics'][0]['tables'][0]['title']='Ensaio sob 20 N';G.finalize(named,s)
+        for mode in ['new_value','other_event','other_thread','calculation','missing_column','duplicate','empty','heading','title']:
             with self.subTest(mode=mode):
                 changed=copy.deepcopy(d);t=changed['topics'][0]['tables'][0];row=t['rows'][0]
                 if mode=='new_value':row['cells'][1]='30 N'
@@ -99,6 +101,7 @@ class ConciseMinutesTests(unittest.TestCase):
                 if mode=='duplicate':t['rows'].append(copy.deepcopy(row))
                 if mode=='empty':row['cells']=['','']
                 if mode=='heading':t['columns'][1]='Limite 30 N'
+                if mode=='title':t['title']='Ensaio sob 7 mm'
                 with self.assertRaises(ValueError):G.finalize(changed,s)
 
     def test_table_cannot_quote_positive_fragment_from_negated_outcome(self):
@@ -187,6 +190,12 @@ class MinutesTests(unittest.TestCase):
     def test_input_validation_and_no_source_mutation(self):
         s=source();before=copy.deepcopy(s);G.validate_source({'source':s});G.finalize(document(),s);self.assertEqual(s,before)
         s['events'].append(s['events'][0])
+        with self.assertRaises(ValueError):G.validate_source({'source':s})
+    def test_human_canvas_correction_is_accepted_as_minutes_input(self):
+        event={'event_id':'E1','type':'observation','text':'O suporte deforma com cinco newtons.','human_summary':'O suporte deforma sob 5 N.'}
+        self.assertEqual(G._check_entry_text('Suporte deforma sob 5 N.',event),'Suporte deforma sob 5 N.')
+        with self.assertRaises(ValueError):G._check_entry_text('Suporte deforma sob 6 N.',event)
+        s=source();s['events'][0]['human_summary']='';
         with self.assertRaises(ValueError):G.validate_source({'source':s})
     def test_titles_are_preserved_from_user_metadata_only(self):
         s=source();s['threads']=[{'thread_id':'T1','title':'Título escolhido pela equipe'}]

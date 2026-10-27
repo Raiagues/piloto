@@ -22,7 +22,7 @@ async function fixture(t, systemAi = { apiKey: '' }) {
   const read = async (actor = captain) => { const r = await req(actor, 'GET', route); assert.equal(r.statusCode, 200, r.body); return r.json(); };
   const action = async (actor, action, payload = {}, expected = null) => { const state = expected || await read(actor); return req(actor, 'POST', `${route}/actions`, { action, ...payload, expectedRevision: state.revision, expectedBaselineHash: state.baselineHash }); };
   const saveReq = async (actor = captain, item = {}, id) => { const response = await action(actor, 'requirement.save', { ...(id ? { id } : {}), item: { title: 'Power requirement', statement: 'The payload shall consume at most 2 W.', sectorId: 'avionics', method: 'analysis', entityIds: [], sourceRefs: [], artifactIds: [], parentIds: [], ...item } }); assert.equal(response.statusCode, 200, response.body); return response.json().requirements.find(r => id ? r.id === id : r.title === (item.title || 'Power requirement')); };
-  return { get app() { return app; }, req, read, action, saveReq, route, projectId: p.id, captain, reviewer, member, outsider, globalAdmin, restart: async () => { await app.close(); app = await buildApp({ logger: false, storeFile: join(dir, 'data.json'), ai: { apiKey: '' }, systemAi }); } };
+  return { get app() { return app; }, req, read, action, saveReq, route, projectId: p.id, captain, reviewer, member, outsider, globalAdmin, restart: async (options = {}) => { await app.close(); app = await buildApp({ ...options, logger: false, storeFile: join(dir, 'data.json'), ai: { apiKey: '' }, systemAi }); } };
 }
 
 test('delivery is project scoped, CSRF protected, sector limited and persists across restart', async t => {
@@ -414,4 +414,25 @@ test('loss of project access removes document and schedule approval without dele
   assert.equal(state.documents[0].status, 'draft'); assert.deepEqual(state.documents[0].decisions, []); assert.equal(task.status, 'blocked'); assert.equal(task.approvalStatus, 'draft'); assert.equal(task.reviewNeedsRevalidation, true);
   assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Handover', dependencyIds: [review.id], status: 'done' } })).statusCode, 409);
   const stored = f.app.missionStore.read().workspace.delivery[f.projectId]; assert.equal(stored.documents[0].decisions.length, 1); assert.equal(stored.tasks.find(task => task.id === review.id).decisions.length, 1);
+});
+
+test('a read-only test deployment shows delivery records but refuses every delivery write', async t => {
+  const f = await fixture(t), saved = await f.saveReq();
+  await f.restart({ deliveryReadOnly: true });
+  const state = await f.read();
+  assert.equal(state.permissions.readOnly, true);
+  assert.equal(state.permissions.manage, false);
+  assert.deepEqual(state.permissions.editableSectorIds, []);
+  assert.equal(state.requirements.find(item => item.id === saved.id).canEdit, false, 'the record stays readable without edit controls');
+  for (const [action, payload] of [['requirement.save', { item: { title: 'New', statement: 'The payload shall weigh at most 2 kg.', sectorId: 'avionics', method: 'test', level: 'system', artifactIds: [], parentIds: [], sourceRefs: [], entityIds: [] } }], ['requirement.comment', { id: saved.id, comment: 'Read only.' }], ['standards.set', { standards: [] }], ['task.save', { item: { title: 'Task' } }]]) {
+    const response = await f.action(f.captain, action, payload, state);
+    assert.equal(response.statusCode, 423, action);
+    assert.equal(response.json().code || response.json().error, 'DELIVERY_READ_ONLY');
+  }
+  assert.equal((await f.req(f.captain, 'POST', `${f.route}/requirements/${saved.id}/analyze`, {})).statusCode, 423);
+  assert.equal((await f.req(f.captain, 'POST', `${f.route}/assistant-runs`, { kind: 'requirements', assisted: false })).statusCode, 423);
+  assert.deepEqual((await f.read()).requirements, state.requirements, 'refused writes leave the records untouched');
+  // Meetings and teams remain editable in the same deployment.
+  const meeting = await f.req(f.captain, 'POST', '/meetings', { title: 'Read-only delivery check', scope: 'private', projectId: f.projectId });
+  assert.equal(meeting.statusCode, 201, meeting.body);
 });

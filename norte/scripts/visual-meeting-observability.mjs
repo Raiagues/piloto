@@ -71,12 +71,13 @@ try {
   await page.goto(origin + '/#/admin/meetings', { waitUntil: 'networkidle' }); await page.getByRole('heading', { name: 'Fluxo das reuniões', exact: true }).waitFor();
   const detail = page.locator('.observability-detail'), map = page.locator('.observability-map');
   await detail.getByRole('heading', { name: 'Texto recebido', exact: true }).waitFor(); assert.ok((await detail.innerText()).includes(source));
-  await map.getByRole('button', { name: 'Classificação', exact: true }).click(); await detail.getByRole('heading', { name: 'Classificação', exact: true }).waitFor();
-  for (const token of ['current_utterance', 'Perguntas e critérios', 'Classificações retornadas', 'event_type', 'observation']) assert.ok((await detail.innerText()).includes(token), token); assert.match(await detail.innerText(), /fixture-jev-no-network/);
+  // Memory v3 answers the filter and the event type in one recorded call.
+  await map.getByRole('button', { name: 'Filtro e classificação', exact: true }).click(); await detail.getByRole('heading', { name: 'Filtro e classificação', exact: true }).waitFor();
+  for (const token of ['current_utterance', 'Perguntas e critérios', 'Classificações retornadas', 'should_store_memory', 'event_type', 'observation']) assert.ok((await detail.innerText()).includes(token), token); assert.match(await detail.innerText(), /fixture-jev-no-network/);
   await page.screenshot({ path: '/tmp/norte-meeting-observability-classification.png', fullPage: true });
   await map.getByRole('button', { name: 'Blocos', exact: true }).click(); await detail.getByRole('heading', { name: 'Blocos produzidos', exact: true }).waitFor(); assert.ok((await detail.innerText()).includes(source));
   await page.locator('.observability-workspace>aside>button').nth(1).click(); await detail.getByRole('heading', { name: 'Texto recebido', exact: true }).waitFor(); assert.ok((await detail.innerText()).includes(speeches[1].current_utterance));
-  await map.getByRole('button', { name: 'Assunto', exact: true }).click(); assert.match(await detail.innerText(), /belongs_to_active_thread|active_thread/);
+  await map.getByRole('button', { name: 'Assunto', exact: true }).click(); assert.match(await detail.innerText(), /topic_assignment/);
   const memory = page.locator('.observability-memories');
   await memory.getByText('Janela transitória de fala', { exact: true }).click(); await memory.getByText('Correções humanas para o JEV · v1', { exact: true }).click(); await memory.locator('summary').filter({ hasText: 'Resumos editoriais' }).click();
   assert.match(await memory.innerText(), /human_example|human · v2|original_label/); assert.ok((await memory.innerText()).includes(source));

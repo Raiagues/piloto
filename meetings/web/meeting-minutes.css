@@ -2,7 +2,7 @@
 }
 /* Source-review workspace shares the platform's dark document palette. */
 .mn-dialog { --mn-bg: var(--norte-surface); --mn-panel: var(--norte-surface); --mn-text: var(--norte-text); --mn-muted: var(--norte-text-secondary); --mn-accent: var(--norte-link); --mn-line: var(--norte-border); }
-.mn-dialog { width: min(1320px,96vw); max-width: 96vw; height: min(94vh,1100px); max-height: 94vh; padding: 0; border: 1px solid var(--line-strong); border-radius: 0; background: var(--mn-bg); color: var(--mn-text); color-scheme: inherit; box-shadow: 0 24px 90px var(--norte-shadow); font: 13px/1.7 "Norte Document", "DejaVu Sans", Arial, sans-serif; overflow: hidden; }
+.mn-dialog { width: min(1320px,96vw); max-width: 96vw; height: min(94vh,1100px); max-height: 94vh; padding: 0; border: 1px solid transparent; border-radius: var(--norte-radius); background: var(--mn-bg); color: var(--mn-text); color-scheme: inherit; box-shadow: 0 24px 90px var(--norte-shadow); font: 13px/1.7 "Norte Document", "DejaVu Sans", Arial, sans-serif; overflow: hidden; }
 .mn-dialog *, .mn-dialog *::before, .mn-dialog *::after { box-sizing: border-box; }
 .mn-dialog[open] { display: flex; flex-direction: column; }
 .mn-dialog::backdrop { background: var(--norte-overlay); backdrop-filter: none; }
@@ -10,7 +10,7 @@
 .mn-header, .mn-notice { flex-shrink: 0; }
 .mn-header h2 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: 0; }
 .mn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.mn-button { border: 1px solid var(--mn-line); background: var(--norte-surface-muted); color: var(--norte-text); border-radius: 0; padding: 8px 11px; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.4; border-color: transparent; }
+.mn-button { border: 1px solid var(--mn-line); background: var(--norte-surface-muted); color: var(--norte-text); border-radius: var(--norte-radius); padding: 8px 11px; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.4; border-color: transparent; }
 .mn-button:hover:not(:disabled) { background: var(--norte-surface-raised); border-color: transparent; }
 .mn-button:focus-visible, .mn-dialog textarea:focus-visible, .mn-dialog input:focus-visible, .mn-dialog select:focus-visible { outline: 2px solid var(--mn-accent); outline-offset: 3px; }
 .mn-button:disabled { opacity: .55; cursor: progress; }
@@ -26,7 +26,7 @@
 .mn-thread:first-child h3 { margin-top: 0; padding-top: 0; border-top: 0; }
 .mn-paper h4 { font-size: 11px; font-weight: 500; color: var(--norte-text-secondary); margin: 24px 0 10px; }
 .mn-topics { padding-left: 18px; margin: 0; }
-.mn-block { position: relative; padding: 8px 10px 24px; margin: 5px -10px; border: 1px solid transparent; border-radius: 0; }
+.mn-block { position: relative; padding: 8px 10px 24px; margin: 5px -10px; border: 1px solid transparent; border-radius: var(--norte-radius); }
 .mn-block:hover { background: var(--norte-surface-raised); border-color: var(--mn-line); }
 .mn-topics .mn-block::marker { color: var(--norte-text-secondary); font-size: 10px; }
 .mn-block-label { font-size: 10px; font-weight: 500; color: var(--norte-text-secondary); letter-spacing: .04em; margin-bottom: 7px; }
@@ -42,16 +42,16 @@
 .mn-sidebar h3 { font-size: 14px; font-weight: 500; margin: 0; }
 .mn-muted { font-size: 12px; color: var(--mn-muted); line-height: 1.7; }
 .mn-local-note { font-size: 11px; line-height: 1.7; color: var(--norte-text-secondary); padding-bottom: 18px; border-bottom: 1px solid var(--mn-line); }
-.mn-composer { display: grid; gap: 8px; background: var(--norte-surface); padding: 13px; border: 1px solid var(--norte-border); border-radius: 0; margin: 15px 0; }
+.mn-composer { display: grid; gap: 8px; background: var(--norte-surface); padding: 13px; border: 1px solid transparent; border-radius: var(--norte-radius); margin: 15px 0; }
 .mn-composer[hidden] { display: none; }
-.mn-dialog input, .mn-dialog textarea, .mn-dialog select { box-sizing: border-box; width: 100%; border: 1px solid var(--norte-border); border-radius: 0; padding: 9px; font: inherit; font-size: 12px; background: var(--norte-bg); color: var(--mn-text); }
+.mn-dialog input, .mn-dialog textarea, .mn-dialog select { box-sizing: border-box; width: 100%; border: 1px solid transparent; border-radius: var(--norte-radius); padding: 9px; font: inherit; font-size: 12px; background: var(--norte-field); color: var(--mn-text); }
 .mn-dialog input::placeholder, .mn-dialog textarea::placeholder { color: var(--norte-text-secondary); }
 .mn-dialog textarea { resize: vertical; min-height: 90px; }
 .mn-anchor-label { font-size: 11px; line-height: 1.7; color: var(--norte-text); margin: 0; max-height: 115px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
-.mn-comment { border: 1px solid var(--mn-line); background: var(--norte-surface); border-radius: 0; margin: 12px 0; padding: 12px; }
+.mn-comment { border: 1px solid var(--mn-line); background: var(--norte-surface); border-radius: var(--norte-radius); margin: 12px 0; padding: 12px; }
 .mn-comment-meta { font-size: 10px; color: var(--norte-text-secondary); line-height: 1.6; margin-bottom: 8px; }
 .mn-comment-content { font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--norte-text); }
-.mn-quote { display: block; width: 100%; text-align: left; font-size: 11px; line-height: 1.6; border: none; border-left: 2px solid var(--norte-border); background: var(--norte-surface); padding: 7px 9px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 130px; overflow: auto; }
+.mn-quote { display: block; width: 100%; text-align: left; font-size: 11px; line-height: 1.6; border: none; border-left: 2px solid var(--norte-divider); background: var(--norte-surface); padding: 7px 9px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 130px; overflow: auto; }
 .mn-quote:disabled { cursor: default; opacity: 1; }
 .mn-small { font-size: 10px; padding: 4px 7px; }
 .mn-resolved { opacity: .68; }

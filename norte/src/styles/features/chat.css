@@ -1,7 +1,3 @@
-body:has(.meeting-open) .chat-launcher {
-  bottom: 100px;
-  padding: 8px 12px;
-}
 .messages-page {
   padding-top: 24px;
   padding-bottom: 30px
@@ -37,13 +33,13 @@ body:has(.meeting-open) .chat-launcher {
   background: var(--norte-surface);
   box-shadow: 0 4px 20px color-mix(in srgb,var(--norte-shadow) 40%,transparent);
   display: grid;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   overflow: hidden
 }
 .messages-page .conversation-list {
   padding: 15px 10px;
   background: color-mix(in srgb,var(--norte-surface-muted) 30%,var(--norte-surface));
-  border-right: 1px solid var(--norte-border);
+  border-right: 1px solid var(--norte-divider);
   overflow: auto
 }
 .messages-page .conversation-search {
@@ -52,7 +48,7 @@ body:has(.meeting-open) .chat-launcher {
   gap: 8px;
   padding: 0 10px;
   margin: 0 3px 16px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface)
 }
@@ -159,7 +155,7 @@ body:has(.meeting-open) .chat-launcher {
   align-items: center;
   gap: 12px;
   padding: 16px 22px;
-  border-bottom: 1px solid var(--norte-border)
+  border-bottom: 1px solid var(--norte-divider)
 }
 .chat-thread>header strong {
   font-size: 14px;
@@ -189,14 +185,14 @@ body:has(.meeting-open) .chat-launcher {
   padding: 13px 15px;
   background: var(--norte-surface);
   border-radius: var(--norte-radius);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   overflow-wrap: anywhere;
   box-shadow: 0 1px 2px var(--norte-shadow)
 }
 .chat-log article.own {
   align-self: flex-end;
   background: color-mix(in srgb,var(--norte-accent-soft) 65%,var(--norte-surface));
-  border-color: color-mix(in srgb,var(--norte-accent) 12%,var(--norte-border));
+  border-color: color-mix(in srgb,var(--norte-accent) 12%,transparent);
   border-radius: var(--norte-radius)
 }
 .chat-log article>small {
@@ -255,7 +251,7 @@ body:has(.meeting-open) .chat-launcher {
   place-items: center;
   width: 60px;
   height: 60px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface);
   color: var(--norte-accent);
@@ -282,14 +278,14 @@ body:has(.meeting-open) .chat-launcher {
   flex-direction: column;
   gap: 0;
   align-items: stretch;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface);
   overflow: hidden
 }
 .chat-composer:focus-within { border-color: var(--norte-accent); }
 .chat-composer:focus-within {
-  border-color: var(--norte-border-strong);
+  border-color: transparent;
   box-shadow: 0 0 0 2px color-mix(in srgb,var(--norte-accent) 6%,transparent)
 }
 .chat-draft {
@@ -361,7 +357,7 @@ body:has(.meeting-open) .chat-launcher {
   justify-content: space-between;
   gap: 10px;
   padding: 7px 12px;
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   background: color-mix(in srgb,var(--norte-surface-muted) 40%,var(--norte-surface));
   color: var(--norte-text-secondary);
   font-size: 10px;
@@ -375,7 +371,7 @@ body:has(.meeting-open) .chat-launcher {
   position: relative;
   max-width: 100%;
   width: fit-content;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-bg);
   overflow: hidden
@@ -392,7 +388,7 @@ body:has(.meeting-open) .chat-launcher {
   justify-content: space-between;
   gap: 20px;
   padding: 4px 6px;
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
   background: var(--norte-surface)
 }
 .chat-inline-image figcaption button {
@@ -429,8 +425,8 @@ body:has(.meeting-open) .chat-launcher {
   padding: 13px;
   text-align: left;
   color: var(--norte-text);
-  background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  background: var(--norte-surface-muted);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   text-decoration: none;
   font-size: 12px
@@ -443,7 +439,7 @@ body:has(.meeting-open) .chat-launcher {
   text-align: left;
   color: var(--norte-text);
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   text-decoration: none;
   font-size: 12px
@@ -464,23 +460,45 @@ body:has(.meeting-open) .chat-launcher {
 }
 .chat-launcher {
   position: fixed;
-  right: 22px;
+  right: 18px;
   bottom: 18px;
   z-index: 42;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 17px;
+  gap: 0;
+  height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--norte-radius-pill);
   background: var(--norte-surface);
-  color: var(--norte-text);
+  color: var(--norte-text-secondary);
   font-size: 12px;
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius);
-  box-shadow: 0 4px 20px var(--norte-shadow)
+  font-weight: 560;
+  box-shadow: var(--norte-shadow-popover);
+  cursor: pointer;
+  transition: color 140ms var(--norte-ease), border-color 140ms var(--norte-ease)
+}
+/* The help button stays compact and opens its label only on intent. */
+.chat-launcher span {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: max-width 200ms var(--norte-ease), margin 200ms var(--norte-ease)
+}
+.chat-launcher:hover span, .chat-launcher:focus-visible span {
+  max-width: 160px;
+  margin-left: 8px
 }
 .chat-launcher:hover {
-  border-color: var(--norte-border-strong);
-  background: var(--norte-surface-muted)
+  border-color: transparent;
+  color: var(--norte-accent)
+}
+body:has(.meeting-open) .chat-launcher, body:has(.requirement-inspector) .chat-launcher {
+  display: none
+}
+@media (max-width: 760px) {
+  .chat-launcher { display: none }
 }
 .chat-widget {
   position: fixed;
@@ -492,7 +510,7 @@ body:has(.meeting-open) .chat-launcher {
   display: flex;
   flex-direction: column;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   box-shadow: 0 16px 65px var(--norte-shadow);
   overflow: hidden
@@ -503,7 +521,7 @@ body:has(.meeting-open) .chat-launcher {
   gap: 7px;
   padding: 14px 10px 14px 8px;
   justify-content: space-between;
-  border-bottom: 1px solid var(--norte-border)
+  border-bottom: 1px solid var(--norte-divider)
 }
 .chat-widget-head>div {
   display: flex;
@@ -591,7 +609,7 @@ body:has(.meeting-open) .chat-launcher {
   max-height: calc(100dvh - 48px);
   overflow: auto;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 20px;
   color: var(--norte-text);
@@ -602,7 +620,7 @@ body:has(.meeting-open) .chat-launcher {
   max-height: calc(100dvh - 48px);
   overflow: auto;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   color: var(--norte-text);
   box-shadow: 0 20px 80px var(--norte-shadow);
@@ -651,7 +669,7 @@ body:has(.meeting-open) .chat-launcher {
   touch-action: none;
   cursor: crosshair;
   background: #fff;
-  border: 1px solid var(--norte-border)
+  border: 1px solid transparent
 }
 .sketch-tools {
   display: flex;
@@ -709,7 +727,7 @@ body:has(.meeting-open) .chat-launcher {
 .chat-tutorial-example {
   padding: 16px;
   background: var(--norte-bg);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   margin: 20px 0
 }
@@ -726,7 +744,7 @@ body:has(.meeting-open) .chat-launcher {
   position: relative;
   padding: 20px;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius)
 }
 .tutorial-field {
@@ -768,13 +786,6 @@ body:has(.meeting-open) .chat-launcher {
 }
 }
 
-@media (max-width:640px) {
-body:has(.meeting-open) .chat-launcher {
-  bottom: 120px;
-  right: 16px;
-  font-size: 11px;
-}
-}
 
 @media (max-width:600px) {
 .messages-page {
@@ -803,7 +814,7 @@ body:has(.meeting-open) .chat-launcher {
   max-height: 150px;
   padding: 9px 10px;
   border-right: 0;
-  border-bottom: 1px solid var(--norte-border)
+  border-bottom: 1px solid var(--norte-divider)
 }
 .messages-page .conversation-search {
   margin: 0 0 8px

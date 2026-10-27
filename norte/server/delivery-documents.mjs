@@ -2,6 +2,9 @@ import PDFDocument from 'pdfkit';
 import { fileURLToPath } from 'node:url';
 
 const pending = 'PENDENTE';
+// Drafts are issued in Portuguese with the interface wording; stored values keep their codes.
+const LABELS = { draft: 'Rascunho', in_review: 'Em revisão', approved: 'Aprovado', changes_requested: 'Alterações solicitadas', archived: 'Arquivado', planned: 'Planejado', in_progress: 'Em andamento', blocked: 'Bloqueado', done: 'Concluído', passed: 'Atendeu ao critério', failed: 'Não atendeu', inconclusive: 'Inconclusivo', unspecified: 'A definir', test: 'Ensaio', analysis: 'Análise', inspection: 'Inspeção', demonstration: 'Demonstração', simulation: 'Simulação' };
+const label = value => value ? LABELS[value] || value : pending;
 const list = values => (values || []).filter(Boolean).join(', ') || pending;
 const cell = value => String(value ?? pending).replace(/\|/gu, '/').replace(/\r?\n/gu, ' ');
 const table = (head, rows) => [`| ${head.join(' | ')} |`, `| ${head.map(() => '---').join(' | ')} |`, ...rows.map(row => `| ${row.map(cell).join(' | ')} |`)];
@@ -12,14 +15,14 @@ export function draftDeliveryDocument(definition, project, requirements, tests, 
  if(definition.reference) lines.push('## Referência de estrutura',`${definition.reference.title} · ${definition.reference.section}`,definition.reference.url,'');
  lines.push('## Objetivo e escopo',task?.description||'PENDENTE — registrar objetivo, limites e configuração abrangida.','');
  if(['traceability','verification-matrix'].includes(definition.content)) {
-   lines.push('## Matriz de rastreabilidade',...table(['Requisito / versão','Origem / requisito superior','Método','Verificações / situação'],activeRequirements.map(requirement=>[`${requirement.id} · v${requirement.version}`,list([...(requirement.sourceRefs||[]),...(requirement.artifactIds||[]),...(requirement.parentIds||[])]),requirement.method||pending,list(activeTests.filter(test=>test.requirementIds?.includes(requirement.id)).map(test=>`${test.id}: ${test.status||'planned'}`))])), '');
+   lines.push('## Matriz de rastreabilidade',...table(['Requisito / versão','Origem / requisito superior','Método','Verificações / situação'],activeRequirements.map(requirement=>[`${requirement.id} · v${requirement.version}`,list([...(requirement.sourceRefs||[]),...(requirement.artifactIds||[]),...(requirement.parentIds||[])]),label(requirement.method),list(activeTests.filter(test=>test.requirementIds?.includes(requirement.id)).map(test=>`${test.id}: ${label(test.status||'planned')}`))])), '');
  }
  if(['requirements','traceability','analysis','verification-matrix'].includes(definition.content)) {
    if(!activeRequirements.length)lines.push('PENDENTE — nenhum requisito registrado para este escopo.','');
-   for(const requirement of activeRequirements)lines.push(`## ${requirement.id} · ${requirement.title} · v${requirement.version}`,requirement.statement,`Situação de revisão: ${requirement.status}`,`Método: ${requirement.method || 'a definir'}`,`Condição: ${requirement.condition || pending}`,`Critério: ${requirement.acceptanceCriteria || 'PENDENTE — definir critério de aceitação'}`,`Origem: ${list([...(requirement.sourceRefs||[]),...(requirement.artifactIds||[])])}`,`Requisito superior: ${list(requirement.parentIds)}`,`Localização na fonte: ${requirement.sourceLocator || pending}`,'');
+   for(const requirement of activeRequirements)lines.push(`## ${requirement.id} · ${requirement.title} · v${requirement.version}`,requirement.statement,`Situação de revisão: ${label(requirement.status)}`,`Método: ${label(requirement.method || 'unspecified')}`,`Condição: ${requirement.condition || pending}`,`Critério: ${requirement.acceptanceCriteria || 'PENDENTE — definir critério de aceitação'}`,`Origem: ${list([...(requirement.sourceRefs||[]),...(requirement.artifactIds||[])])}`,`Requisito superior: ${list(requirement.parentIds)}`,`Localização na fonte: ${requirement.sourceLocator || pending}`,'');
  } else if(['verification-plan','verification-results'].includes(definition.content)) {
    if(!activeTests.length)lines.push('PENDENTE — nenhuma verificação planejada para este escopo.','');
-   for(const test of activeTests)lines.push(`## ${test.id} · ${test.title}`,`Requisitos: ${list(test.requirementIds)}`,`Método: ${test.method || pending}`,`Responsável: ${test.ownerId || pending}`,`Configuração / condições: ${test.conditions || pending}`,`Procedimento: ${test.procedure || pending}`,`Critério: ${test.acceptanceCriteria || pending}`,`Execuções registradas: ${test.runs?.length || 0}`,...(test.runs||[]).map(run=>`${run.createdAt}: ${run.outcome} — ${run.result}. Evidências: ${list(run.artifactIds)} ${run.evidenceUrl||''}`),'');
+   for(const test of activeTests)lines.push(`## ${test.id} · ${test.title}`,`Requisitos: ${list(test.requirementIds)}`,`Método: ${label(test.method)}`,`Responsável: ${test.ownerId || pending}`,`Configuração / condições: ${test.conditions || pending}`,`Procedimento: ${test.procedure || pending}`,`Critério: ${test.acceptanceCriteria || pending}`,`Execuções registradas: ${test.runs?.length || 0}`,...(test.runs||[]).map(run=>`${run.createdAt}: ${label(run.outcome)} — ${run.result}. Evidências: ${list(run.artifactIds)} ${run.evidenceUrl||''}`),'');
  } else if(['architecture','preliminary','detailed'].includes(definition.content)) {
    for(const entity of project.engineeringSystem?.entities||[])lines.push(`## ${entity.id} · ${entity.name}`,`${entity.kind}; origem: ${list(entity.evidenceRefs)}`,entity.description||'', '');
  } else {

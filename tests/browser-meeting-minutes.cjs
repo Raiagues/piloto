@@ -36,7 +36,8 @@ function pdfNavigation(buffer,filename,{allowExternal=false}={}){
   assert.equal(await evaluate('document.querySelector("#mnDialog").open'),true);assert.equal(requests.some(r=>r.includes('jspdf')),false,'PDF engine lazy loads while the preview shares its document font');
   assert.equal(await evaluate('document.querySelector(".mn-thread h3").textContent'),'Discussão T001');
   const documentTheme=await evaluate('(()=>{const css=getComputedStyle(document.querySelector(".mn-paper"));return {background:css.backgroundColor,font:css.fontFamily};})()');
-  assert.equal(documentTheme.background,'rgb(243, 244, 244)','document preview starts in the platform light theme');assert.match(documentTheme.font,/Norte Document.*sans-serif/,'preview uses the PDF sans-serif font');
+  const lightSurface=(await fs.readFile(path.resolve(__dirname,'../norte/src/styles/tokens.css'),'utf8')).match(/--norte-surface:\s*#([0-9a-f]{6})/i)[1];
+  assert.equal(documentTheme.background,'rgb('+[0,2,4].map(i=>parseInt(lightSurface.slice(i,i+2),16)).join(', ')+')','document preview starts in the platform light theme');assert.match(documentTheme.font,/Norte Document.*sans-serif/,'preview uses the PDF sans-serif font');
   assert.equal(await evaluate('document.querySelectorAll(".mn-paper .mn-topics > li").length'),80);
   assert.deepEqual(await evaluate('[...document.querySelectorAll(".mn-paper .mn-text")].slice(0,3).map(p=>p.textContent)'),[run.meeting_events[0],run.meeting_events[2],run.meeting_events[3]].map(e=>e.text));
   assert.deepEqual(await evaluate('[...document.querySelectorAll(".mn-paper h4")].map(n=>n.textContent)'),['Tópicos de discussão e observações','Follow-ups e pendências']);

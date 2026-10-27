@@ -10,8 +10,9 @@ function fixture(req,provider,lane){
  assert.ok(!JSON.stringify(req).includes('expected_'),'meeting requests never contain fixture labels');
  const text=req.state.current_utterance||req.state.utterance||'';
  if(lane==='commands')return reply(req,{command_type:/^Norte/i.test(text)?/renomeie|título/.test(text)?'rename_topic':'other_command':'conversation'});
- if(lane==='chunks')return reply(req,req.questions.should_store_memory?{should_store_memory:!/^Ignorar/.test(text)}:{event_type:/^HIP/.test(text)?'hypothesis':/^TESTE/.test(text)?'test_proposal':/^RESULTADO/.test(text)?'test_result':'observation'});
- if(lane==='threads')return reply(req,()=> 'belongs');
+ // Memory v3 asks retention and type together; older runs ask them separately.
+ if(lane==='chunks')return reply(req,{should_store_memory:!/^Ignorar/.test(text),event_type:/^HIP/.test(text)?'hypothesis':/^TESTE/.test(text)?'test_proposal':/^RESULTADO/.test(text)?'test_result':'observation'});
+ if(lane==='threads')return reply(req,id=>id==='topic_assignment'?req.state.current_topic_id||'new_topic':'belongs');
  if(lane==='relations')return reply(req,(id)=>{
   if(id.startsWith('configuration_match'))return 'exact';
   const candidate=req.state.candidates.find(c=>c.event_id===id.split('__')[1]),current=req.state.current_event;
@@ -118,8 +119,9 @@ test('stream accepts and drains more than 100 chunks without dropping source, me
  const r=await s.close();assert.equal(r.status,'done',r.error);assert.equal(r.records.length,125);assert.equal(r.meeting_events.length,125);
  assert.deepEqual(r.batch.cases.map(c=>c.current_utterance),utterances);assert.deepEqual(r.meeting_events.map(e=>e.text),utterances);
  assert.equal(r.thread_worker.jobs.length,125);assert.equal(r.typed_relation_worker.jobs.length,125);assert.equal(r.thread_worker.status,'done');assert.equal(r.typed_relation_worker.status,'done');
- assert.equal(r.meeting_commands.length,125);assert.equal(r.calls,250);assert.equal(r.raw_window.length,15);assert.ok(r.transcript.every(t=>t.status==='done'));
- assert.deepEqual(r.questions,V.questions);assert.equal(r.thread_worker.schemaVersion,5);assert.equal(r.typed_relation_worker.schemaVersion,3);assert.ok(!JSON.stringify(r.batch).includes('expected_'));
+ // One memory call per chunk; speech without the wake word needs no command call.
+ assert.equal(r.meeting_commands.length,0);assert.equal(r.calls,125);assert.equal(r.raw_window.length,15);assert.ok(r.transcript.every(t=>t.status==='done'));
+ assert.deepEqual(r.questions,V.questions);assert.equal(r.memorySchemaVersion,3);assert.equal(r.thread_worker.schemaVersion,6);assert.equal(r.typed_relation_worker.schemaVersion,3);assert.ok(!JSON.stringify(r.batch).includes('expected_'));
  assert.ok(sent.some(([, ,lane])=>lane==='relations'));assert.equal(s.accepting,false);assert.throws(()=>s.append('Depois de encerrar.'),/encerrada/);
  const restored=S.restore(r);assert.equal(restored.meeting_events.length,125);assert.deepEqual(restored.meeting_events,r.meeting_events);
 });
@@ -136,13 +138,13 @@ test('commands wait for topics, stay outside memories, and renamed titles surviv
  for(const text of ['O suporte deforma.','Norte, mude o título da thread 1 para Deformação do suporte','HIP a espessura é a causa.','TESTE vamos testar 4 mm.','Norte, corrija o resultado.','RESULTADO o suporte excedeu o limite.'])s.append(text);
  const r=await s.close();assert.equal(r.status,'done');assert.equal(r.records.length,4);assert.equal(r.meeting_events.length,4);assert.equal(r.transcript.filter(e=>e.status==='command').length,2);
  assert.ok(r.meeting_events.every(e=>!e.text.startsWith('Norte')));assert.equal(r.meeting_threads[0].title,'Deformação do suporte');assert.equal(r.topic_titles.T001,'Deformação do suporte');
- assert.equal(r.meeting_commands.find(c=>c.renamed).chunk_id,'S0002');assert.equal(r.meeting_commands.at(-2).status,'unsupported');
+ assert.equal(r.meeting_commands.find(c=>c.renamed).chunk_id,'S0002');assert.equal(r.meeting_commands.length,2);assert.equal(r.meeting_commands.at(-1).status,'unsupported');
  const restored=S.restore(r);assert.equal(restored.meeting_threads[0].title,'Deformação do suporte');assert.deepEqual(restored.meeting_commands,r.meeting_commands);assert.deepEqual(restored.records.map(x=>x.result),r.records.map(x=>x.result));
 });
 test('command service failure is visible and never becomes project memory; next conversation still works',async()=>{
  const s=S.create({send:async(req,provider,lane)=>{if(lane==='commands'&&req.state.utterance.startsWith('Norte'))throw Error('Temporary failure');return fixture(req,provider,lane);}});
  for(const text of ['O suporte deforma.','Norte, renomeie o assunto 1 para Outro título','TESTE vamos testar 4 mm.'])s.append(text);
- const r=await s.close();assert.equal(r.records.length,2);assert.equal(r.meeting_commands[1].status,'classification_error');assert.equal(r.meeting_commands[1].consumed,true);assert.equal(r.topic_titles.T001,undefined);assert.ok(!r.meeting_events.some(e=>e.text.startsWith('Norte')));
+ const r=await s.close();assert.equal(r.records.length,2);assert.equal(r.meeting_commands[0].status,'classification_error');assert.equal(r.meeting_commands[0].consumed,true);assert.equal(r.topic_titles.T001,undefined);assert.ok(!r.meeting_events.some(e=>e.text.startsWith('Norte')));
 });
 test('fatal command error preserves queued transcript without sending it to the memory classifier',async()=>{
  const lanes=[],s=S.create({send:async(req,provider,lane)=>{lanes.push(lane);throw Object.assign(Error('Unavailable'),{stopBatch:true});}});
@@ -161,12 +163,12 @@ test('failed type classification leaves no partial memory and a later successful
  assert.deepEqual(S.restore(r).meeting_events,r.meeting_events);
 });
 test('wrong-provider response stops processing before creating or mutating meeting memory',async()=>{
- const s=S.create({send:async(...args)=>({...fixture(...args),provider:'local'})});s.append('O suporte deforma.');const r=await s.close();assert.equal(r.status,'interrupted');assert.equal(r.meeting_events.length,0);assert.equal(r.records.length,0);
+ const s=S.create({send:async(...args)=>({...fixture(...args),provider:'local'})});s.append('O suporte deforma.');const r=await s.close();assert.equal(r.status,'interrupted');assert.equal(r.meeting_events.length,0);assert.equal(r.records.length,1);assert.equal(r.records[0].status,'error');assert.equal(r.records[0].memoryOutput,undefined);
 });
 test('explicit timestamp and speaker prefixes are removed only for command routing, while original transcript is retained',async()=>{
  const s=S.create({send:async(...args)=>fixture(...args)}),source='[00:12] João: Norte, mude o título da thread 1 para Deformação';
  s.append('O suporte deforma.');s.append(source);s.append('00:15 Maria: Norte, renomeie o assunto 1 para Ensaios de deformação');
- const r=await s.close();assert.equal(r.topic_titles.T001,'Ensaios de deformação');assert.equal(r.transcript[1].text,source);assert.equal(r.records.length,1);assert.equal(r.meeting_commands[1].text,'Norte, mude o título da thread 1 para Deformação');
+ const r=await s.close();assert.equal(r.topic_titles.T001,'Ensaios de deformação');assert.equal(r.transcript[1].text,source);assert.equal(r.records.length,1);assert.equal(r.meeting_commands[0].text,'Norte, mude o título da thread 1 para Deformação');
  assert.deepEqual(S.parseTranscript(source),[source]);
 });
 test('restoring an in-flight snapshot preserves source and completed evidence without resuming classification',async()=>{
@@ -182,8 +184,10 @@ test('restore rebuilds memory from verified outputs and rejects mismatched or du
   r=>r.batch.cases[0].current_utterance='Different source',
   r=>r.records[1].id=r.records[0].id,
   r=>r.transcript[1].id=r.transcript[0].id,
-  r=>r.records[0].storeOutput.provider='local',
-  r=>delete r.records[0].storeOutput
+  r=>r.records[0].memoryOutput.provider='local',
+  r=>delete r.records[0].memoryOutput,
+  r=>r.records[0].storeOutput=r.records[0].memoryOutput,
+  r=>r.batch.cases[1].recent_context[0].text='Contexto alterado'
  ]){const bad=clone(saved);mutate(bad);assert.throws(()=>S.restore(bad));}
 });
 
@@ -249,7 +253,8 @@ test('cancellation settles every worker without waiting for an outstanding trans
    if(lane===blockedLane&&!entered){entered=true;await gate.promise;}
    return fixture(req,provider,lane);
   }});
-  for(const text of ['O suporte deforma.','HIP a rigidez explica a deformação.','TESTE testar o suporte.'])session.append(text);
+  // Only speech addressed to Norte reaches the command lane.
+  for(const text of [...(blockedLane==='commands'?['Norte, renomeie o assunto 1 para Suporte']:[]),'O suporte deforma.','HIP a rigidez explica a deformação.','TESTE testar o suporte.'])session.append(text);
   await until(()=>entered);session.stop();
   const result=await Promise.race([session.done,sleep(300).then(()=>null)]);
   if(!result){gate.resolve();await session.done;assert.fail(blockedLane+' cancellation waited for the remote response');}
@@ -267,7 +272,7 @@ test('a seeded session appends through the normal workers without replaying or m
  const result=await session.close();assert.equal(result.id,seed.id);assert.equal(result.startedAt,seed.startedAt);assert.deepEqual(seed,before);
  assert.deepEqual(result.records.slice(0,3),seed.records);assert.deepEqual(result.transcript.slice(0,3),seed.transcript);assert.deepEqual(result.thread_worker.jobs.slice(0,3),seed.thread_worker.jobs);assert.deepEqual(result.typed_relation_worker.jobs.slice(0,3),seed.typed_relation_worker.jobs);
  assert.equal(result.records.length,4);assert.equal(result.transcript.at(-1).id,'S0004');assert.equal(result.meeting_events.at(-1).event_id,'E004');assert.equal(result.meeting_events.at(-1).thread_id,'T001');
- assert.equal(calls.filter(([, ,lane])=>lane==='chunks').length,2);assert.ok(calls.filter(([, ,lane])=>lane==='chunks').every(([req])=>req.state.current_utterance.startsWith('RESULTADO')));assert.ok(calls.filter(([, ,lane])=>['threads','relations'].includes(lane)).every(([req])=>req.state.current_event.event_id==='E004'));
+ assert.equal(calls.filter(([, ,lane])=>lane==='chunks').length,1);assert.ok(calls.filter(([, ,lane])=>lane==='chunks').every(([req])=>req.state.current_utterance.startsWith('RESULTADO')));assert.ok(calls.filter(([, ,lane])=>['threads','relations'].includes(lane)).every(([req])=>req.state.current_event.event_id==='E004'));
  assert.ok(result.meeting_relations.some(edge=>edge.source_event_id==='E004'&&edge.target_event_id==='E003'&&edge.relation_type==='result_of'));assert.deepEqual(S.restore(result).meeting_events,result.meeting_events);assert.deepEqual(S.restore(result).meeting_relations,result.meeting_relations);
 });
 
@@ -297,7 +302,7 @@ test('short capture windows keep their timestamps while an unfinished numeric pr
  assert.deepEqual(run.transcript.map(entry=>entry.sourceId),['capture-10','capture-11']);assert.deepEqual(run.transcript.map(entry=>entry.segmentId),['window-10','window-11']);
  assert.ok(run.transcript.every(entry=>entry.status==='done'&&entry.chunk_id==='C0001'));
  assert.equal(run.batch.cases[0].current_utterance,first+' '+second);assert.deepEqual(run.batch.cases[0].source_entry_ids,['S0001','S0002']);
- assert.deepEqual(calls.filter(([, ,lane])=>lane==='chunks').map(([request])=>request.state.current_utterance),[first+' '+second,first+' '+second]);
+ assert.deepEqual(calls.filter(([, ,lane])=>lane==='chunks').map(([request])=>request.state.current_utterance),[first+' '+second]);
  assert.equal(run.meeting_events[0].text,first+' '+second);assert.equal(run.meeting_events[0].chunk_id,'C0001');
  assert.deepEqual(restored.batch.cases[0].source_entry_ids,['S0001','S0002']);assert.deepEqual(restored.transcript,run.transcript);assert.deepEqual(restored.meeting_events,run.meeting_events);
 });
@@ -341,7 +346,7 @@ test('stopping during a continuation wait cancels all short windows without send
  assert.throws(()=>session.append('15 MM'),/encerrada/);
 });
 
-test('bounded continuation context belongs only to adjacent speech by the same speaker and source',async()=>{
+test('recent context gives each chunk the three previous chunks with their speakers, never later speech',async()=>{
  const sent=[],session=S.create({send:async(...args)=>{sent.push(clone(args));return fixture(...args);}});
  const rows=[
   ['A viga de referência tem espessura de 10 mm.',{source:'microphone',speaker:'Ana',offsetMs:0}],
@@ -353,11 +358,13 @@ test('bounded continuation context belongs only to adjacent speech by the same s
  ];
  for(const [text,meta] of rows)session.append(text,meta);
  const run=await session.close();assert.equal(run.records.length,rows.length);
- assert.equal(run.batch.cases[1].speech_context,rows[0][0]);assert.equal(run.batch.cases[3].speech_context,rows[2][0]);
- for(const index of [0,2,4,5])assert.equal(run.batch.cases[index].speech_context,undefined,'context leaked into '+index);
- for(const [request,,lane] of sent)if(lane==='chunks'&&request.state.current_utterance===rows[1][0]){
-  assert.deepEqual(request.state.speech_context,{preceding_words:rows[0][0],purpose:'resolve_continuation_only'});
-  assert.equal(request.state.current_utterance,rows[1][0]);
+ assert.equal(run.batch.cases[0].recent_context,undefined);assert.ok(run.batch.cases.every(item=>item.speech_context===undefined));
+ assert.deepEqual(run.batch.cases[1].recent_context,[{speaker:'Ana',text:rows[0][0]}]);
+ assert.deepEqual(run.batch.cases[4].recent_context,rows.slice(1,4).map(([text,meta])=>({speaker:meta.speaker,text})),'a reply keeps the other speaker as context');
+ for(const [request,,lane] of sent)if(lane==='chunks'){
+  const index=rows.findIndex(([text])=>text===request.state.current_utterance);
+  assert.ok(!JSON.stringify(request.state.recent_context||[]).includes(rows[index+1]?.[0]||'\u0000'),'later speech never reaches an earlier chunk');
+  assert.equal(request.state.speech_context,undefined);
  }
  assert.deepEqual(S.restore(run).batch.cases,run.batch.cases);
 });

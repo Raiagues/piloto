@@ -2,13 +2,19 @@
 (function(root,factory){const api=factory(root);if(typeof module==='object'&&module.exports)module.exports=api;else root.NorteMeetingBlocks=api;})(typeof globalThis!=='undefined'?globalThis:this,function(root){
  'use strict';
  const labels={observation:'Observação',hypothesis:'Hipótese',test_proposal:'Teste proposto',test_result:'Resultado de teste',decision:'Decisão',requirement:'Requisito',other:'Tarefa ou outro ponto'};
+ // A title is rewritten when its topic reaches one of these sizes (block_agents.py TITLE_SPANS).
+ const titleSpans=[1,3,6,12,24,48];
  function classification(run,event){return run?.classification_learning?.examples?.find(item=>item.event_id===event.event_id&&item.source===event.text&&Object.hasOwn(labels,item.label))||null;}
  function signature(run){return JSON.stringify([run?.id,run?.meeting_events,run?.topic_titles,run?.meeting_threads,run?.classification_learning?.version]);}
  function valid(entry,run,kind,id){
   if(!entry||typeof entry.text!=='string'||!Array.isArray(entry.basis)||!entry.basis.length)return false;
   const events=run.meeting_events||[];
   if(!entry.basis.every(b=>events.some(e=>e.event_id===b.id&&e.text===b.text&&(e.type||'')===b.type&&e.thread_id===b.thread_id)))return false;
-  if(kind==='title')return events.filter(e=>e.thread_id===id&&e.text?.trim()).length===entry.basis.length;
+  if(kind==='title'){
+   // The basis is the topic's opening: the whole topic or a span of its first events.
+   const group=events.filter(e=>e.thread_id===id&&e.text?.trim());
+   return entry.basis.length<=group.length&&(entry.basis.length===group.length||titleSpans.includes(entry.basis.length))&&entry.basis.every((b,i)=>b.id===group[i].event_id);
+  }
   const event=events.find(e=>e.event_id===id);
   if(!event||entry.source!==event.text)return false;
   const group=events.filter(e=>e.thread_id===event.thread_id&&e.text?.trim()),index=group.indexOf(event);
@@ -76,6 +82,11 @@
    const original=make('details');original.append(make('summary','Fala original'),make('blockquote',source));form.append(heading,make('p','Escreva tópicos curtos. A fala original continua preservada.'),original,label);
    if(automatic){form.append(typeLabel,noteLabel,learningLabel);if(learning?.version){
     const history=make('details'),revert=make('button','Desfazer última orientação');revert.type='button';history.append(make('summary','Orientações desta reunião · versão '+learning.version));
+    // The adapted category descriptions are shown as sent to the classifier.
+    const note=(label,text)=>{const line=make('p');line.className='room-block-guidance';line.append(make('strong',label),make('span',text));history.append(line);};
+    if(learning.summary)note('Classificador ajustado',learning.summary);
+    for(const [label,text] of Object.entries(learning.guidance||{}))note(labels[label]||label,text);
+    if(learning.style)note('Estilo das notas',learning.style);
     for(const entry of learning.examples||[])history.append(make('p',(labels[entry.label]||entry.label)+' · '+(entry.rationale||entry.note||entry.summary||entry.source)));
     revert.onclick=async()=>{revert.disabled=true;try{const result=await request('learning',{session_id:session,action:'revert',version:learning.version,target_version:learning.version-1});if(getRun()?.id===session){getRun().classification_learning=result.learning;onUpdate();await onSave();}dialog.close();}catch(error){status.textContent=error.message;revert.disabled=false;}};history.append(revert);form.append(history);
    }}

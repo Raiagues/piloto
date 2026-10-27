@@ -4,28 +4,28 @@
 .meeting-observability h2 {font-size:17px;display:flex;align-items:center;gap:8px}
 .meeting-observability p {line-height:1.6}
 .meeting-observability>label {display:grid;gap:7px;max-width:550px;font-size:12px;color:var(--norte-text-secondary)}
-.meeting-observability select {width:100%;min-width:0;padding:10px 12px;border:1px solid var(--norte-border-strong);border-radius:var(--norte-radius);background:var(--norte-surface);color:var(--norte-text);font:inherit}
-.meeting-observability button {display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid var(--norte-border);border-radius:var(--norte-radius);background:var(--norte-surface);color:var(--norte-text-secondary);font:inherit;font-size:13px;cursor:pointer}
+.meeting-observability select {width:100%;min-width:0;padding:10px 12px;border:1px solid transparent;border-radius:var(--norte-radius);background:var(--norte-surface);color:var(--norte-text);font:inherit}
+.meeting-observability button {display:inline-flex;align-items:center;gap:7px;padding:9px 12px;border:1px solid transparent;border-radius:var(--norte-radius);background:var(--norte-surface-muted);color:var(--norte-text-secondary);font:inherit;font-size:13px;cursor:pointer}
 .meeting-observability button:hover:not(:disabled) {background:var(--norte-surface-muted)}
 .meeting-observability button:focus-visible,.meeting-observability select:focus-visible {outline:2px solid var(--norte-accent);outline-offset:2px}
 .meeting-observability button:disabled {opacity:.5;cursor:default}
 .meeting-observability summary {cursor:pointer;color:var(--norte-text-secondary)}
 .observability-counts {display:flex;gap:24px;flex-wrap:wrap;margin:22px 0}
 .observability-counts strong {font-size:21px}
-.observability-workspace {display:grid;grid-template-columns:250px minmax(0,1fr);border:1px solid var(--norte-border);border-radius:var(--norte-radius);background:var(--norte-surface);overflow:hidden}
-.observability-workspace>aside {border-right:1px solid var(--norte-border);max-height:750px;overflow:auto}
-.observability-workspace>aside>button {width:100%;display:grid;gap:4px;text-align:left;border:0;border-bottom:1px solid var(--norte-border);border-radius:0;padding:14px}
+.observability-workspace {display:grid;grid-template-columns:250px minmax(0,1fr);border:1px solid transparent;border-radius:var(--norte-radius);background:var(--norte-surface);overflow:hidden}
+.observability-workspace>aside {border-right:1px solid var(--norte-divider);max-height:750px;overflow:auto}
+.observability-workspace>aside>button {width:100%;display:grid;gap:4px;text-align:left;border:0;border-bottom:1px solid var(--norte-divider);border-radius:0;padding:14px}
 .observability-workspace>aside>button span {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
 .meeting-observability button[aria-pressed=true],.meeting-observability button[aria-pressed=true]:hover {background:var(--norte-accent-soft);color:var(--norte-accent)}
 .observability-workspace footer {display:flex;gap:10px;align-items:center;justify-content:center;padding:10px}
 .observability-detail {padding:20px;min-width:0}
-.observability-map {display:flex;gap:8px;align-items:center;overflow:auto;padding-bottom:18px;border-bottom:1px solid var(--norte-border);margin-bottom:18px}
+.observability-map {display:flex;gap:8px;align-items:center;overflow:auto;padding-bottom:18px;border-bottom:1px solid var(--norte-divider);margin-bottom:18px}
 .observability-map span {display:flex;align-items:center;gap:8px}
 .observability-map button {white-space:nowrap;padding:12px}
-.meeting-observability details {padding:12px 0;border-bottom:1px solid var(--norte-border)}
+.meeting-observability details {padding:12px 0;border-bottom:1px solid var(--norte-divider)}
 .meeting-observability pre {white-space:pre-wrap;overflow-wrap:anywhere;background:var(--norte-surface-muted);padding:14px;border-radius:var(--norte-radius);font-size:12px;line-height:1.6;max-height:520px;overflow:auto}
-.observability-memories,.observability-validation {margin-top:24px;padding:22px;background:var(--norte-surface);border:1px solid var(--norte-border);border-radius:var(--norte-radius)}
+.observability-memories,.observability-validation {margin-top:24px;padding:22px;background:var(--norte-surface);border:1px solid transparent;border-radius:var(--norte-radius)}
 .observability-memories article {border-left:2px solid var(--norte-accent);padding:10px 15px;margin-top:15px}
 .observability-memories blockquote {margin:8px 0;color:var(--norte-text-secondary)}
 .observability-validation li {margin:10px 0;line-height:1.6}
-@media(max-width:800px) {.meeting-observability{padding:16px}.observability-workspace{grid-template-columns:1fr}.observability-workspace>aside{max-height:220px;border-right:0;border-bottom:1px solid var(--norte-border)}.meeting-observability>header{align-items:flex-start}}
+@media(max-width:800px) {.meeting-observability{padding:16px}.observability-workspace{grid-template-columns:1fr}.observability-workspace>aside{max-height:220px;border-right:0;border-bottom:1px solid var(--norte-divider)}.meeting-observability>header{align-items:flex-start}}

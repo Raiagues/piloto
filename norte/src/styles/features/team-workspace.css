@@ -1,0 +1,113 @@
+/* Teams as an engineering organization: portfolio, people and allocation. */
+.team-workspace { min-height: 100%; background: var(--norte-bg); color: var(--norte-text); }
+.team-workspace-main { width: min(1320px, 100%); margin: 0 auto; padding: 22px 28px 60px; }
+.team-workspace-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; }
+.team-workspace-layout.with-list { grid-template-columns: 250px minmax(0, 1fr); }
+.team-directory { position: sticky; top: 0; display: grid; gap: 2px; padding: 10px; border: 1px solid transparent; border-radius: var(--norte-radius-panel); background: var(--norte-surface); }
+.team-directory > header { display: flex; align-items: center; justify-content: space-between; padding: 2px 6px 8px; color: var(--norte-text-muted); font-size: 10.5px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; }
+.team-directory > button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 0; border-radius: var(--norte-radius); background: transparent; color: var(--norte-text); text-align: left; cursor: pointer; }
+.team-directory > button:hover { background: var(--norte-surface-muted); }
+.team-directory > button[aria-current="page"] { background: var(--norte-accent-soft); }
+.team-directory > button > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.team-directory strong { overflow: hidden; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.team-directory small { color: var(--norte-text-muted); font-size: 11px; }
+.team-mark.small { width: 32px; height: 32px; flex: 0 0 32px; font-size: 11px; }
+.team-detail { display: grid; gap: 14px; min-width: 0; }
+.team-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: start; padding: 18px 20px; border: 1px solid transparent; border-radius: var(--norte-radius-panel); background: var(--norte-surface); }
+.team-head-copy { display: grid; gap: 6px; min-width: 0; }
+.team-head h1 { margin: 0; font-size: 22px; font-weight: 650; letter-spacing: -.3px; }
+.team-head p { margin: 0; color: var(--norte-text-secondary); font-size: 13px; line-height: 1.55; }
+.team-facts { display: flex; flex-wrap: wrap; gap: 6px 26px; margin: 6px 0 0; }
+.team-facts div { display: grid; gap: 2px; }
+.team-facts dt { color: var(--norte-text-muted); font-size: 11px; }
+.team-facts dd { margin: 0; font-size: 15px; font-weight: 650; }
+.team-facts dd.team-fact-person { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 560; }
+.team-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.team-primary, .team-secondary { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 1px solid transparent; border-radius: var(--norte-radius); background: var(--norte-surface-muted); color: var(--norte-text-secondary); font-size: 12.5px; font-weight: 560; cursor: pointer; transition: border-color 140ms var(--norte-ease), color 140ms var(--norte-ease), background 140ms var(--norte-ease); }
+.team-primary { border-color: transparent; background: var(--norte-accent); color: var(--norte-on-accent); }
+.team-primary:hover { background: var(--norte-accent-hover); }
+.team-secondary:hover { border-color: transparent; color: var(--norte-text); background: var(--norte-surface-raised); }
+.team-secondary.small { height: 30px; padding: 0 10px; font-size: 11.5px; }
+.team-ghost-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: var(--norte-radius); background: transparent; color: var(--norte-text-muted); cursor: pointer; }
+.team-ghost-icon:hover:not(:disabled) { background: var(--norte-surface-muted); color: var(--norte-text); }
+.team-ghost-icon.danger:hover:not(:disabled) { color: var(--norte-danger); }
+.team-ghost-icon:disabled { opacity: .45; cursor: not-allowed; }
+.team-tabs { display: flex; gap: 4px; padding: 0 4px; overflow-x: auto; border-bottom: 1px solid var(--norte-divider); scrollbar-width: none; }
+.team-tabs button { display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; height: 40px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--norte-text-secondary); font-size: 13px; cursor: pointer; }
+.team-tabs button:hover { color: var(--norte-text); }
+.team-tabs button[aria-current="page"] { border-bottom-color: var(--norte-accent); color: var(--norte-accent); font-weight: 600; }
+.team-tabs small { min-width: 18px; padding: 0 5px; border-radius: var(--norte-radius-pill); background: var(--norte-surface-muted); color: var(--norte-text-muted); font-size: 10.5px; line-height: 17px; text-align: center; }
+.team-panel { display: grid; gap: 12px; min-width: 0; padding: 14px 16px 16px; border: 1px solid transparent; border-radius: var(--norte-radius-panel); background: var(--norte-surface); }
+.team-panel-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.team-panel-note { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--norte-text-muted); font-size: 12px; }
+.team-segmented { display: inline-flex; padding: 2px; border: 1px solid transparent; border-radius: var(--norte-radius); background: var(--norte-bg); }
+.team-segmented button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border: 0; border-radius: calc(var(--norte-radius) - 2px); background: transparent; color: var(--norte-text-secondary); font-size: 12.5px; cursor: pointer; }
+.team-segmented button[aria-pressed="true"] { background: var(--norte-surface); color: var(--norte-accent); font-weight: 600; box-shadow: 0 1px 3px var(--norte-shadow); }
+.team-search { display: flex; align-items: center; gap: 8px; width: min(320px, 100%); height: 34px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--norte-radius); background: var(--norte-bg); color: var(--norte-text-muted); }
+.team-search:focus-within { border-color: var(--norte-accent); background: var(--norte-surface); }
+.team-search input { width: 100%; min-height: 0; padding: 0; border: 0 !important; outline: 0; background: transparent !important; color: var(--norte-text); font-size: 12.5px; }
+.team-table-wrap { overflow-x: auto; }
+.team-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.team-table thead th { padding: 8px 10px; border-bottom: 1px solid var(--norte-divider); color: var(--norte-text-muted); font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-align: left; text-transform: uppercase; white-space: nowrap; }
+.team-table td, .team-table tbody th { padding: 11px 10px; border-bottom: 1px solid var(--norte-divider); color: var(--norte-text-secondary); text-align: left; vertical-align: middle; }
+.team-table tbody tr:last-child :is(td, th) { border-bottom: 0; }
+.team-table tbody tr.team-project-row { cursor: pointer; transition: background 120ms ease; }
+.team-table tbody tr.team-project-row:hover td, .team-table tbody tr.team-project-row:focus-visible td { background: var(--norte-surface-muted); }
+.team-table tbody tr.team-project-row:focus-visible { outline: 2px solid var(--norte-accent); outline-offset: -2px; }
+.team-table td:last-child { color: var(--norte-text-muted); }
+.team-project-cell { display: flex; align-items: center; gap: 11px; min-width: 220px; }
+.team-project-cell > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.team-project-cell strong { color: var(--norte-text); font-size: 13px; font-weight: 600; }
+.team-project-cell small { color: var(--norte-text-muted); font-size: 11px; }
+.team-project-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: var(--norte-radius); background: var(--norte-accent-soft); color: var(--norte-accent); }
+.team-person-inline { display: inline-flex; align-items: center; gap: 9px; min-width: 0; color: var(--norte-text); }
+.team-person-inline > span:not(.person-avatar) { display: grid; gap: 1px; min-width: 0; }
+.team-person-inline strong { font-size: 13px; font-weight: 600; }
+.team-person-inline small { color: var(--norte-text-muted); font-size: 11px; }
+.team-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.team-chips em { max-width: 220px; overflow: hidden; padding: 2px 8px; border-radius: var(--norte-radius-pill); background: var(--norte-surface-muted); color: var(--norte-text-secondary); font-size: 11px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.team-chips em.more { background: transparent; color: var(--norte-text-muted); }
+.team-more-bubble { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-left: -6px; border-radius: 50%; background: var(--norte-surface-muted); color: var(--norte-text-secondary); box-shadow: 0 0 0 2px var(--norte-surface); font-size: 13px; line-height: 1; }
+.team-muted { color: var(--norte-text-muted); font-size: 12px; }
+.team-date { white-space: nowrap; }
+.team-badge { padding: 2px 8px; border-radius: var(--norte-radius-pill); background: var(--norte-accent-soft); color: var(--norte-accent); font-size: 10.5px; font-style: normal; font-weight: 600; }
+.team-role { color: var(--norte-text); font-size: 12.5px; font-weight: 600; }
+.team-function { max-width: 360px; margin: 3px 0 0; color: var(--norte-text-muted); font-size: 11.5px; line-height: 1.45; }
+.team-row-actions { white-space: nowrap; text-align: right; }
+.team-row-actions > * { vertical-align: middle; }
+.team-row-actions .team-ghost-icon { margin-left: 4px; }
+.team-matrix thead th button { max-width: 160px; overflow: hidden; padding: 0; border: 0; background: transparent; color: var(--norte-link); font: inherit; letter-spacing: inherit; text-overflow: ellipsis; text-transform: inherit; white-space: nowrap; cursor: pointer; }
+.team-matrix tbody th { position: sticky; left: 0; z-index: 1; min-width: 210px; background: var(--norte-surface); font-weight: 400; }
+.team-matrix td { min-width: 150px; }
+.team-matrix td.allocated { background: color-mix(in srgb, var(--norte-accent) 6%, var(--norte-surface)); }
+.team-allocation { display: grid; gap: 1px; }
+.team-allocation b { color: var(--norte-text); font-size: 12px; font-weight: 600; }
+.team-allocation small { color: var(--norte-text-muted); font-size: 11px; }
+.team-load b { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 6px; border-radius: var(--norte-radius-pill); background: var(--norte-surface-muted); color: var(--norte-text); font-size: 11.5px; }
+.team-empty { display: grid; justify-items: center; gap: 6px; padding: 48px 20px; border: 1px dashed var(--norte-border-strong); border-radius: var(--norte-radius-panel); color: var(--norte-text-muted); font-size: 12.5px; line-height: 1.5; text-align: center; }
+.team-empty.compact { padding: 26px 16px; border-style: dashed; }
+.team-empty strong { color: var(--norte-text); font-size: 14px; }
+.team-empty span { max-width: 440px; }
+.team-empty .team-primary { margin-top: 6px; }
+.team-workspace .team-project-load { border-radius: var(--norte-radius); }
+@media (max-width: 1000px) {
+  .team-workspace-layout.with-list { grid-template-columns: minmax(0, 1fr); }
+  .team-directory { position: static; display: flex; gap: 4px; overflow-x: auto; }
+  .team-directory > header { display: none; }
+  .team-directory > button { flex: 0 0 auto; width: auto; }
+}
+@media (max-width: 760px) {
+  .team-workspace-main { padding: 14px 12px 40px; }
+  .team-head { grid-template-columns: auto minmax(0, 1fr); padding: 14px; }
+  .team-head-actions { grid-column: 1 / -1; justify-content: flex-start; flex-wrap: nowrap; gap: 6px; }
+  .team-head-actions > :is(.team-primary, .team-secondary) { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 10px; white-space: nowrap; }
+  .team-head h1 { font-size: 19px; }
+  .team-panel { padding: 12px; }
+  .team-table:not(.team-matrix) thead { display: none; }
+  .team-table:not(.team-matrix), .team-table:not(.team-matrix) tbody, .team-table:not(.team-matrix) tr { display: block; }
+  .team-table:not(.team-matrix) tr { position: relative; padding: 10px 0; border-bottom: 1px solid var(--norte-divider); }
+  .team-table:not(.team-matrix) td { display: block; padding: 3px 0; border: 0; background: transparent !important; }
+  .team-table:not(.team-matrix) td:last-child:not(.team-row-actions) { position: absolute; top: 18px; right: 0; }
+  .team-table:not(.team-matrix) td.team-row-actions { text-align: left; }
+  .team-project-cell { min-width: 0; }
+}

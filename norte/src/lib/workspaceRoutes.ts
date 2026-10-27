@@ -1,5 +1,5 @@
 export const PROJECT_AREAS = {
-  requirements: '#/requirements', verification: '#/verification', schedule: '#/schedule', documents: '#/documents'
+  project: '#/project', requirements: '#/requirements', schedule: '#/schedule'
 } as const;
 
 export type ProjectArea = keyof typeof PROJECT_AREAS;
@@ -20,6 +20,8 @@ export function workspaceRoute(hash: string): WorkspaceRoute {
 export function workspaceRedirect(hash: string): string | undefined {
   const path = hash.split('?')[0];
   if (['#/study-setup', '#/project-setup', '#/brainstorming', '#/preliminary-design', '#/ideas', '#/ai-comparison', '#/software'].includes(path)) return '#/requirements';
+  // The document library became the project overview; verification was retired from this version.
+  if (['#/documents', '#/verification'].includes(path)) return '#/project';
   if (['#/team', '#/project-team'].includes(path)) return '#/teams';
   if (['#/dashboard', '#/guide', '#/plans'].includes(path)) return '#/';
 }

@@ -16,7 +16,7 @@
   border-radius: var(--norte-radius);
   background: var(--norte-surface);
   width: min(660px, calc(100vw - 36px));
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   box-shadow: 0 22px 65px var(--norte-shadow);
 }
 .profile-dialog > header {
@@ -68,7 +68,7 @@
   align-items: center;
   gap: 18px;
   padding-bottom: 19px;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
 }
 .profile-avatar-editor > div {
   display: grid;
@@ -79,7 +79,7 @@
   overflow: hidden;
   color: var(--norte-link);
   font-size: 18px;
-  border: 1px solid var(--norte-border-strong);
+  border: 1px solid transparent;
   border-radius: 50%;
   background: var(--norte-surface);
 }
@@ -97,7 +97,7 @@
   padding: 0 14px;
   color: var(--norte-text);
   font-size: 12px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface-muted);
   cursor: pointer;
@@ -132,7 +132,7 @@
   color: var(--norte-text);
   font: inherit;
   font-size: 14px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-bg);
 }
@@ -157,9 +157,9 @@
   padding: 0 12px;
   color: var(--norte-text);
   font-size: 12px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
   cursor: pointer;
 }
 .profile-teams button svg {
@@ -188,13 +188,13 @@
   padding: 0 16px;
   color: var(--norte-text-secondary);
   font-size: 12px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: transparent;
   cursor: pointer;
 }
 .profile-dialog footer button.primary {
-  border-color: var(--norte-border-strong);
+  border-color: transparent;
   border: 0;
   background: var(--norte-accent);
   color: var(--norte-on-accent);
@@ -251,7 +251,7 @@
   gap: 9px;
 }
 .profile-organizations details {
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   overflow: hidden;
 }

@@ -16,6 +16,7 @@ ENTRIES: UM PONTO IMPORTANTE POR LINHA
 - Preserve o valor e a unidade quando forem o ponto importante. NUNCA invente números, arredonde, converta unidades ou calcule diferenças, porcentagens, limites, segurança ou um resultado final. Copie valores e unidades exatamente como escritos no próprio evento.
 - Um registro técnico com muitos cálculos pode receber uma frase curta sobre o teste/resultado principal; os valores detalhados podem ir para uma tabela e continuam acessíveis pela referência ao original. Não precisa repetir todos os parâmetros no texto.
 - Não invente responsável, data, consenso, causa, aprovação, prazo ou critério. Não transforme condição desconhecida em comparação conclusiva.
+- Quando um evento trouxer human_summary, ele é a redação corrigida por uma pessoa da equipe no canvas. Use-o como base da entry: ele prevalece sobre a sua síntese, inclusive em valores corrigidos. O text continua sendo a fala original e a evidência.
 - event_id liga a frase ao original. Não inclua IDs, HTML, Markdown, emojis, checkboxes ou descrições do backend dentro de text. Não devolva campos status, completed, classification, summary, points, tests ou actions.
 
 TABELAS GENÉRICAS, SOMENTE QUANDO AJUDAREM

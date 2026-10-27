@@ -1,99 +1,107 @@
+import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronsLeft, ChevronsRight, ExternalLink, FolderKanban, FolderTree, Home, MessageSquare, Plus, UsersRound } from "lucide-react";
 import { Brand } from "./Brand";
-import { FolderKanban, Home, UsersRound, MessageSquare } from "lucide-react";
 import { PROJECT_RAIL, railLabel } from "../lib/projectRail";
+import type { ProjectArea } from "../lib/workspaceRoutes";
+import type { RequirementsOutline } from "../lib/requirementsOutline";
 import type { ProjectSummary } from "../lib/team";
 import type { Language } from "../lib/types";
 
 type Props = {
   language: Language;
   expanded: boolean;
-  homeLabel: string;
-  teamLabel: string;
-  homeActive: boolean;
-  teamActive: boolean;
-  meetingsActive?: boolean;
-  onMeetings?: () => void;
+  route: string;
   projects: ProjectSummary[];
-  projectTeamName: string;
+  teams: { id: string; name: string }[];
   activeProjectId: string;
+  activeProjectName: string;
+  activeTeam: { id: string; name: string } | null;
   loadingProjects?: boolean;
   projectLoadFailed?: boolean;
+  outline?: RequirementsOutline | null;
+  subsystem?: string;
   onToggle: () => void;
-  onHome: () => void;
-  onTeam: () => void;
+  onNavigate: (hash: string) => void;
   onProjectSelect: (projectId: string) => void;
-  activeArea: string | null;
-  onAreaSelect: (area: "documents" | "requirements" | "verification" | "schedule") => void;
+  onAreaSelect: (area: ProjectArea) => void;
+  onSubsystemSelect: (id: string) => void;
 };
 
-function LockIcon() {
-  return <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.2" y="5.1" width="7.6" height="5.1" rx="1" /><path d="M3.8 5.1V3.7a2.2 2.2 0 0 1 4.4 0v1.4" /></svg>;
+/** Global places first, then one project context: its name is plain text until clicked. */
+function ProjectSwitcher({ language, expanded, projects, teams, activeProjectId, activeProjectName, activeTeam, loadingProjects, projectLoadFailed, onExpand, onNavigate, onProjectSelect }: Pick<Props, "language" | "expanded" | "projects" | "teams" | "activeProjectId" | "activeProjectName" | "activeTeam" | "loadingProjects" | "projectLoadFailed" | "onNavigate" | "onProjectSelect"> & { onExpand: () => void }) {
+  const pt = language === "pt", [open, setOpen] = useState(false), root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: Event) => { if (event instanceof KeyboardEvent ? event.key === "Escape" : !root.current?.contains(event.target as Node)) setOpen(false); };
+    document.addEventListener("pointerdown", close); document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  const groups = [...teams.filter(team => projects.some(project => project.teamId === team.id)).map(team => ({ id: team.id, name: team.name, projects: projects.filter(project => project.teamId === team.id) })),
+    ...(projects.some(project => !project.teamId || !teams.some(team => team.id === project.teamId)) ? [{ id: "", name: pt ? "Outros projetos" : "Other projects", projects: projects.filter(project => !project.teamId || !teams.some(team => team.id === project.teamId)) }] : [])];
+  const empty = loadingProjects ? (pt ? "Carregando projetos…" : "Loading projects…") : projectLoadFailed ? (pt ? "Projetos indisponíveis" : "Projects unavailable") : (pt ? "Nenhum projeto ainda" : "No projects yet");
+  const label = pt ? "Trocar projeto" : "Switch project";
+  return <div className="project-switcher" ref={root}>
+    {expanded ? <button type="button" className="project-switcher-trigger" aria-haspopup="listbox" aria-expanded={open} aria-label={`${label}: ${activeProjectName || empty}`} onClick={() => setOpen(value => !value)}>
+      <span className="project-switcher-copy"><strong>{activeProjectName || (projects.length ? (pt ? "Escolha um projeto" : "Choose a project") : empty)}</strong>{activeTeam && <small>{activeTeam.name}</small>}</span>
+      <ChevronDown size={15} aria-hidden="true" />
+    </button> : <button type="button" className="mission-nav-item" title={activeProjectName || label} aria-label={label} onClick={() => { onExpand(); setOpen(true); }}><span className="mission-nav-icon"><FolderKanban aria-hidden="true" /></span></button>}
+    {open && expanded && <div className="project-switcher-menu" role="listbox" aria-label={label}>
+      {groups.length ? groups.map(group => <section key={group.id || "other"}>
+        <header><span>{group.name}</span>{group.id && <a href={`#/teams?team=${encodeURIComponent(group.id)}`} onClick={event => { event.preventDefault(); setOpen(false); onNavigate(`#/teams?team=${encodeURIComponent(group.id)}`); }} title={pt ? "Abrir página da equipe" : "Open team page"}><ExternalLink size={12} aria-hidden="true" />{pt ? "Equipe" : "Team"}</a>}</header>
+        {group.projects.map(project => <button type="button" role="option" aria-selected={project.id === activeProjectId} key={project.id} onClick={() => { setOpen(false); if (project.id !== activeProjectId) onProjectSelect(project.id); else onNavigate("#/project"); }}>
+          <FolderKanban size={15} aria-hidden="true" /><span>{project.name || (pt ? "Projeto sem nome" : "Untitled project")}</span>{project.id === activeProjectId && <Check size={14} aria-hidden="true" />}
+        </button>)}
+      </section>) : <p>{empty}</p>}
+      <footer><button type="button" onClick={() => { setOpen(false); onNavigate("#/new-project"); }}><Plus size={14} aria-hidden="true" />{pt ? "Novo projeto" : "New project"}</button></footer>
+    </div>}
+  </div>;
 }
 
-export function MissionSidebar({ language, expanded, homeLabel, teamLabel, homeActive, teamActive, meetingsActive, onMeetings, projects, projectTeamName, activeProjectId, loadingProjects = false, projectLoadFailed = false, onToggle, onHome, onTeam, onProjectSelect, activeArea, onAreaSelect }: Props) {
-  const stateWords = language === "pt" ? { complete: "Concluída", current: "Fase atual", available: "Disponível", locked: "Ainda não disponível" } : { complete: "Complete", current: "Current phase", available: "Available", locked: "Not available yet" };
-  const contextWords = language === "pt" ? { project: "Projeto ativo", team: "Equipe", noneProject: "Nenhum projeto", noneTeam: "Nenhuma equipe", switcher: "Trocar projeto" } : { project: "Active project", team: "Team", noneProject: "No project", noneTeam: "No team", switcher: "Switch project" };
-
+export function MissionSidebar(props: Props) {
+  const { language, expanded, route, activeProjectId, activeTeam, outline, subsystem = "", onToggle, onNavigate, onAreaSelect, onSubsystemSelect } = props;
+  const pt = language === "pt";
+  const global = [
+    { key: "home", hash: "#/", label: pt ? "Início" : "Home", Icon: Home },
+    { key: "teams", hash: activeTeam ? `#/teams?team=${encodeURIComponent(activeTeam.id)}` : "#/teams", label: pt ? "Equipes" : "Teams", Icon: UsersRound },
+    { key: "meetings", hash: "#/meetings", label: pt ? "Reuniões" : "Meetings", Icon: MessageSquare }
+  ];
+  const showOutline = expanded && route === "requirements" && outline?.projectId === activeProjectId && outline.groups.length > 0;
   return (
     <>
-      <aside className={expanded ? "mission-sidebar expanded" : "mission-sidebar collapsed"} aria-label={language === "pt" ? "Navegação da missão" : "Mission navigation"}>
+      <aside className={expanded ? "mission-sidebar expanded" : "mission-sidebar collapsed"} aria-label={pt ? "Navegação principal" : "Main navigation"}>
         <div className="mission-sidebar-header">
-          <Brand />
-          <button className="mission-sidebar-toggle" type="button" onClick={onToggle} aria-label={expanded ? (language === "pt" ? "Recolher barra lateral" : "Collapse sidebar") : (language === "pt" ? "Expandir barra lateral" : "Expand sidebar")} aria-expanded={expanded}>
-            <svg viewBox="0 0 20 20" aria-hidden="true"><path d={expanded ? "m12.5 5-5 5 5 5" : "m7.5 5 5 5-5 5"} /></svg>
+          <Brand language={language} />
+          <button className="mission-sidebar-toggle" type="button" onClick={onToggle} aria-label={expanded ? (pt ? "Recolher barra lateral" : "Collapse sidebar") : (pt ? "Expandir barra lateral" : "Expand sidebar")} aria-expanded={expanded}>
+            {expanded ? <ChevronsLeft size={17} aria-hidden="true" /> : <ChevronsRight size={17} aria-hidden="true" />}
           </button>
         </div>
-
-        <button className={homeActive ? "mission-sidebar-home active" : "mission-sidebar-home"} type="button" onClick={onHome} title={!expanded ? homeLabel : undefined}>
-          <span className="mission-sidebar-home-icon"><Home aria-hidden="true" /></span>
-          <span className="mission-sidebar-home-label">{homeLabel}</span>
-        </button>
-
-        <button className={teamActive ? "mission-sidebar-home mission-sidebar-team active" : "mission-sidebar-home mission-sidebar-team"} type="button" onClick={onTeam} title={!expanded ? teamLabel : undefined}>
-          <span className="mission-sidebar-home-icon"><UsersRound aria-hidden="true" /></span>
-          <span className="mission-sidebar-home-label">{teamLabel}</span>
-        </button>
-
-        <div className="mission-sidebar-divider" />
-
-        {onMeetings && <button className={meetingsActive ? "mission-sidebar-home active" : "mission-sidebar-home"} type="button" onClick={onMeetings} title={language === "pt" ? "Reuniões" : "Meetings"} aria-current={meetingsActive ? "page" : undefined}>
-          <span className="mission-sidebar-home-icon"><MessageSquare aria-hidden="true" /></span>
-          <span className="mission-sidebar-home-label">{language === "pt" ? "Reuniões" : "Meetings"}</span>
-        </button>}
-
-        {expanded ? <section className="mission-context-switcher" aria-label={contextWords.switcher}>
-          <label><span>{contextWords.project}</span><select value={activeProjectId} onChange={(event) => event.target.value && onProjectSelect(event.target.value)} aria-busy={loadingProjects}><option value="">{loadingProjects ? language === 'pt' ? 'Carregando projetos…' : 'Loading projects…' : projectLoadFailed ? language === 'pt' ? 'Carregamento pendente' : 'Loading incomplete' : projects.length ? language === 'pt' ? 'Escolha um projeto' : 'Choose a project' : contextWords.noneProject}</option>{projects.map((project) => <option value={project.id} key={project.id}>{project.name}</option>)}</select></label>
-          <div className="mission-project-team"><span>{contextWords.team}</span><strong>{projectTeamName || contextWords.noneTeam}</strong></div>
-        </section> : <button className="mission-context-compact" type="button" onClick={onToggle} title={contextWords.switcher} aria-label={contextWords.switcher}><FolderKanban aria-hidden="true" /></button>}
-
-        <div className="mission-sidebar-divider context-divider" />
-
-        <nav className="mission-pipeline" aria-label={language === "pt" ? "Navegação do projeto" : "Project navigation"}>
-          {PROJECT_RAIL.map((item) => {
-            const label = railLabel(item, language);
-            const locked = !activeProjectId;
-            const current = !locked && activeArea === item.area;
-            const state = current ? "current" : locked ? "locked" : "available";
-            const stateLabel = stateWords[state];
-            return (
-              <button className={`mission-phase ${state}`} key={item.key} type="button" aria-current={current ? "page" : undefined} disabled={locked} aria-disabled={locked || current} tabIndex={locked ? -1 : 0}
-                onClick={() => { if (locked || current) return; onAreaSelect(item.area); }}
-                title={label} aria-label={`${label} · ${stateLabel}`}>
-                <span className="mission-phase-rail" />
-                <span className="mission-phase-icon">
-                  <item.Icon aria-hidden="true" />
-                  {locked && <span className="mission-phase-lock"><LockIcon /></span>}
-                </span>
-                <span className="mission-phase-copy">
-                  <span>{label}</span>
-                </span>
-              </button>
-            );
-          })}
+        <nav className="mission-sidebar-scroll" aria-label={pt ? "Áreas" : "Areas"}>
+          <div className="mission-nav-group">
+            {global.map(item => <button key={item.key} type="button" className={route === item.key ? "mission-nav-item active" : "mission-nav-item"} aria-current={route === item.key ? "page" : undefined} title={!expanded ? item.label : undefined} onClick={() => onNavigate(item.hash)}>
+              <span className="mission-nav-icon"><item.Icon aria-hidden="true" /></span><span className="mission-nav-label">{item.label}</span>
+            </button>)}
+          </div>
+          <div className="mission-nav-group mission-project-group">
+            {expanded && <span className="mission-nav-heading">{pt ? "Projeto" : "Project"}</span>}
+            <ProjectSwitcher {...props} onExpand={onToggle} />
+            {PROJECT_RAIL.map(item => {
+              const label = railLabel(item, language), locked = !activeProjectId, current = !locked && route === item.area;
+              return <div key={item.key} className="mission-nav-branch">
+                <button className={`mission-nav-item mission-phase${current ? " active current" : ""}${locked ? " locked" : ""}`} type="button" aria-current={current ? "page" : undefined} disabled={locked}
+                  onClick={() => { if (item.area === "requirements" && current) onSubsystemSelect(""); else onAreaSelect(item.area); }} title={!expanded ? label : locked ? (pt ? "Escolha um projeto primeiro" : "Choose a project first") : undefined}>
+                  <span className="mission-nav-icon"><item.Icon aria-hidden="true" /></span><span className="mission-nav-label">{label}</span>
+                  {item.area === "requirements" && expanded && outline?.projectId === activeProjectId && <small className="mission-nav-count">{outline.total}</small>}
+                </button>
+                {item.area === "requirements" && showOutline && <div className="mission-outline" role="group" aria-label={pt ? "Requisitos por subsistema" : "Requirements by subsystem"}>
+                  <button type="button" aria-current={!subsystem ? "true" : undefined} onClick={() => onSubsystemSelect("")}><FolderTree size={14} aria-hidden="true" /><span>{pt ? "Todos os requisitos" : "All requirements"}</span><small>{outline!.total}</small></button>
+                  {outline!.groups.map(group => <button type="button" key={group.id} aria-current={subsystem === group.id ? "true" : undefined} onClick={() => onSubsystemSelect(group.id)}><span className="mission-outline-dot" aria-hidden="true" /><span>{group.name}</span><small>{group.count}</small></button>)}
+                </div>}
+              </div>;
+            })}
+          </div>
         </nav>
-
       </aside>
-      <button className={expanded ? "mission-sidebar-overlay visible" : "mission-sidebar-overlay"} type="button" aria-label={language === "pt" ? "Recolher barra lateral" : "Collapse sidebar"} onClick={onToggle} />
+      <button className={expanded ? "mission-sidebar-overlay visible" : "mission-sidebar-overlay"} type="button" tabIndex={expanded ? 0 : -1} aria-label={pt ? "Fechar navegação" : "Close navigation"} onClick={onToggle} />
     </>
   );
 }

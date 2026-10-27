@@ -18,7 +18,7 @@
   flex: 0 0 auto;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid var(--norte-border-strong);
+  border: 1px solid transparent;
   background: var(--norte-surface);
   color: var(--norte-link);
   font-weight: 700;
@@ -39,8 +39,8 @@
   font-weight: 700;
   --accent: var(--norte-text-secondary);
   border: 0;
-  color: var(--norte-text-secondary);
-  background: var(--norte-surface-raised);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--norte-surface));
   border-radius: var(--norte-radius);
 }
 .team-mark.large {
@@ -48,211 +48,6 @@
   height: 56px;
   border-radius: var(--norte-radius-panel);
   font-size: 17px;
-}
-.teams-hub-list section > button > span:first-child.team-mark {
-  border-radius: var(--norte-radius-panel);
-}
-.team-overview-head {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.team-overview-head > div {
-  flex: 1;
-  min-width: 0;
-}
-.team-overview-head h2 {
-  margin: 0 0 6px;
-  color: var(--norte-text);
-  font-size: 23px;
-  font-weight: 550;
-}
-.team-overview-head p {
-  margin: 8px 0 0;
-  color: var(--norte-text-muted);
-  font-size: 13px;
-}
-.team-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  color: var(--norte-text-muted);
-  font-size: 11px;
-}
-.team-meta > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.team-meta svg {
-  color: var(--norte-text-muted);
-}
-.teams-hub-heading h1 {
-  margin: 7px 0 6px;
-  letter-spacing: 0;
-  font-size: 30px;
-  font-weight: 550;
-}
-.teams-hub-section-title h3 {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0;
-  margin: 0;
-  font-size: 14px;
-  color: var(--norte-text);
-  font-weight: 550;
-}
-.project-card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 14px;
-  margin: 16px 0 6px;
-}
-.project-card {
-  position: relative;
-  display: grid;
-  gap: 12px;
-  align-content: start;
-  min-height: 158px;
-  padding: 18px 18px 14px;
-  text-align: left;
-  font: inherit;
-  color: var(--norte-text);
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-  background: var(--norte-surface);
-  cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
-  overflow: hidden;
-}
-.project-card::before {
-  display: none;
-}
-.project-card:hover {
-  border-color: var(--norte-border-strong);
-  background: var(--norte-surface-muted);
-}
-.project-card:focus-visible {
-  outline: 2px solid var(--norte-accent);
-  outline-offset: 3px;
-}
-.project-card-type {
-  display: inline-flex;
-  width: fit-content;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  color: var(--norte-text-muted);
-}
-.project-card > strong {
-  font-size: 16.5px;
-  font-weight: 600;
-  line-height: 1.3;
-  letter-spacing: -.01em;
-}
-.project-card-lead {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 13px;
-  color: var(--norte-text);
-}
-.project-card-lead .muted {
-  color: var(--norte-text-muted);
-}
-.project-card-foot {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: auto;
-  padding-top: 6px;
-  color: var(--norte-text-muted);
-  font-size: 11.5px;
-}
-.project-card-foot > svg {
-  color: var(--accent);
-  margin-left: 0;
-}
-.project-card-stats {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-  margin-left: auto;
-}
-.project-card-system {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-left: 7px;
-  border-radius: 50%;
-  background: var(--norte-success);
-  box-shadow: 0 0 0 3px var(--norte-border);
-}
-.project-card.new {
-  align-content: center;
-  justify-items: center;
-  gap: 8px;
-  min-height: 158px;
-  color: var(--norte-text-muted);
-  background: transparent;
-  border-style: dashed;
-}
-.project-card.new::before {
-  display: none;
-}
-.project-card.new:hover {
-  color: var(--norte-link);
-  border-color: var(--norte-link);
-  box-shadow: none;
-}
-.teams-people-section {
-  margin-top: 22px;
-  padding-top: 0;
-  border: 0;
-}
-.people-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-.person-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-  background: var(--norte-surface-muted);
-}
-.person-card > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-.person-card strong {
-  font-size: 14px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.person-card > div > span {
-  color: var(--norte-text-muted);
-  font-size: 12px;
-}
-.person-card-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 3px;
 }
 .chip {
   display: inline-flex;
@@ -269,33 +64,6 @@
   color: var(--norte-warning);
   background: var(--norte-surface);
 }
-.person-remove {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: grid;
-  width: 24px;
-  height: 24px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: var(--norte-radius-panel);
-  background: transparent;
-  color: var(--norte-text-muted);
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity .12s ease;
-}
-.person-card:hover .person-remove {
-  opacity: 1;
-}
-.person-remove:focus-visible {
-  opacity: 1;
-}
-.person-remove:hover {
-  color: var(--norte-danger);
-  background: var(--norte-surface);
-}
 .org-chart-shell {
   position: relative;
   margin-top: 14px;
@@ -304,10 +72,10 @@
   height: 440px;
   min-height: 180px;
   flex: 1;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   overflow: hidden;
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
 }
 .org-chart-lines path {
   fill: none;
@@ -319,7 +87,7 @@
   gap: 8px;
   align-content: start;
   padding: 12px 14px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: var(--norte-surface);
   box-shadow: 0 6px 18px var(--norte-border);
@@ -459,7 +227,7 @@
   width: 30px;
   padding: 0;
   color: var(--norte-text-muted);
-  border-color: var(--norte-border);
+  border-color: transparent;
   background: transparent;
 }
 .org-card-actions button.icon:hover {
@@ -471,7 +239,7 @@
   gap: 8px;
   padding: 10px 12px;
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface-muted);
   overflow-wrap: anywhere;
@@ -483,7 +251,7 @@
   gap: 8px;
   padding: 10px 12px;
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   background: var(--norte-surface-muted);
   overflow-wrap: anywhere;
@@ -499,7 +267,7 @@
   padding-top: 4px;
 }
 .org-card > ul > li.sector + li.sector {
-  border-top: 1px solid var(--norte-border);
+  border-top: 1px solid var(--norte-divider);
 }
 .sector-mark {
   display: inline-grid;
@@ -510,9 +278,6 @@
   border-radius: var(--norte-radius-panel);
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
-}
-.teams-projects-section .org-chart-shell {
-  height: 680px;
 }
 .org-chart-shell .org-card .org-card-person {
   min-height: 30px;
@@ -533,8 +298,8 @@
 .org-chart-shell .org-card {
   --accent: var(--norte-accent);
   background: var(--norte-surface);
-  border-color: var(--norte-border);
-  box-shadow: none;
+  border-color: transparent;
+  box-shadow: var(--norte-shadow-card);
   border-radius: var(--norte-radius-panel);
 }
 .org-chart-shell .org-card > header strong {
@@ -551,92 +316,11 @@
   min-height: 100%;
   background: var(--norte-bg);
 }
-body.teams-window-scroll {
-  overflow-y: auto;
-}
-.teams-hub-heading > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-color: var(--norte-border);
-  min-height: 42px;
-  cursor: pointer;
-  border: 0;
-  background: var(--norte-accent);
-  color: var(--norte-on-accent);
-  border-radius: var(--norte-radius);
-  font-size: 12px;
-  padding: 11px 15px;
-}
-.teams-hub-detail header > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 14px;
-  color: var(--norte-text);
-  font-size: 13px;
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-  background: var(--norte-surface);
-  cursor: pointer;
-}
-.teams-hub-section-title button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--norte-text);
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-  cursor: pointer;
-  min-height: 36px;
-  padding: 0 11px;
-  font-size: 11px;
-  background: transparent;
-}
-.teams-hub-heading button svg {
-  width: 18px;
-  height: 18px;
-}
-.teams-hub-detail button svg {
-  width: 18px;
-  height: 18px;
-}
-.teams-hub-main {
-  margin: 0 auto;
-  padding: 24px 0 56px;
-  width: min(1280px, calc(100% - 56px));
-}
-.teams-hub-heading {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  align-items: center;
-  margin-bottom: 24px;
-}
-.teams-hub-heading span {
-  color: var(--norte-text-secondary);
-  font-size: 11px;
-  font-weight: 720;
-  letter-spacing: 0;
-}
 .teams-dialog header span {
   color: var(--norte-text-secondary);
   font-size: 11px;
   font-weight: 720;
   letter-spacing: 0;
-}
-.teams-hub-heading p {
-  color: var(--norte-text-secondary);
-  font-size: 13px;
-  margin: 10px 0 0;
-  line-height: 1.6;
-}
-.teams-hub-detail header p {
-  margin: 0;
-  color: var(--norte-text-secondary);
-  font-size: 15px;
-  line-height: 1.45;
 }
 .teams-hub-feedback {
   display: flex;
@@ -647,7 +331,7 @@ body.teams-window-scroll {
   padding: 10px 13px;
   color: var(--norte-text);
   font-size: 13px;
-  border-left: 2px solid var(--norte-border);
+  border-left: 2px solid var(--norte-divider);
   background: var(--norte-surface);
 }
 .teams-hub-feedback button {
@@ -670,182 +354,6 @@ body.teams-window-scroll {
   width: 16px;
   height: 16px;
 }
-.teams-hub-layout {
-  display: block;
-  min-width: 0;
-}
-.teams-hub-list {
-  margin-bottom: 28px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.teams-hub-list section {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.teams-hub-list > header {
-  display: grid;
-  gap: 4px;
-  margin: 0 9px 12px;
-  font-size: 11px;
-  color: var(--norte-text-muted);
-}
-.teams-hub-list > header > span {
-  color: var(--norte-text);
-  font-size: 12px;
-  font-weight: 680;
-}
-.teams-hub-list > header > small {
-  color: var(--norte-text-secondary);
-  font-size: 10px;
-}
-.teams-hub-list section + section {
-  margin-top: 28px;
-}
-.teams-hub-list h2 {
-  margin: 0 8px 10px;
-  color: var(--norte-text-secondary);
-  font-size: 11px;
-  font-weight: 720;
-  letter-spacing: 0;
-}
-.teams-hub-list section > button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 38px;
-  padding: 8px 12px;
-  color: var(--norte-text-secondary);
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.teams-hub-list section > button:hover {
-  color: var(--norte-text);
-  background: var(--norte-surface-muted);
-}
-.teams-hub-list section > button.active {
-  color: var(--norte-accent);
-  background: var(--norte-accent-soft);
-}
-.teams-hub-list section > button > span:first-child {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  color: var(--norte-text-secondary);
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-}
-.teams-hub-list section > button svg {
-  width: 18px;
-  height: 18px;
-}
-.teams-hub-list section > button > span:nth-child(2) {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-}
-.teams-hub-list strong {
-  font-size: 13px;
-  font-weight: 500;
-  overflow-wrap: anywhere;
-}
-.teams-hub-list small {
-  color: var(--norte-text-secondary);
-  font-size: 11px;
-}
-.teams-hub-list p {
-  color: var(--norte-text-secondary);
-  font-size: 11px;
-}
-.teams-hub-detail {
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.teams-hub-detail > header {
-  display: flex;
-  align-items: start;
-  gap: 14px;
-  padding-bottom: 24px;
-  border: 0;
-}
-.teams-hub-detail > header > div {
-  flex: 1;
-}
-.teams-hub-detail h2 {
-  margin: 0 0 8px;
-  font-size: 26px;
-  font-weight: 550;
-  letter-spacing: -.3px;
-}
-.teams-hub-detail header > button.icon-only {
-  width: 42px;
-  padding: 0;
-  justify-content: center;
-  color: var(--norte-text-secondary);
-  background: transparent;
-}
-.team-overview-head > .teams-detail-actions {
-  flex: 0 0 auto;
-}
-.teams-detail-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-}
-.teams-detail-actions button.icon-only {
-  display: grid;
-  place-items: center;
-  padding: 0;
-  cursor: pointer;
-  border: 0;
-  background: var(--norte-surface-raised);
-  color: var(--norte-text-secondary);
-  border-radius: var(--norte-radius);
-  width: 34px;
-  height: 34px;
-}
-.teams-detail-actions button.danger {
-  border-color: var(--norte-border);
-  color: var(--norte-danger);
-}
-.teams-detail-actions button.danger:hover {
-  background: var(--norte-surface);
-}
-.teams-projects-section {
-  margin-top: 22px;
-  padding-top: 0;
-  border: 0;
-}
-.teams-project-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.teams-view-toggle {
-  display: flex;
-  gap: 4px;
-}
-.teams-view-toggle button.active {
-  border-color: var(--norte-border);
-  color: var(--norte-text);
-  background: var(--norte-surface-raised);
-}
-.teams-hub-section-title {
-  display: flex;
-  min-height: 42px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
 .teams-dialog-backdrop {
   position: fixed;
   z-index: 1200;
@@ -861,7 +369,7 @@ body.teams-window-scroll {
   gap: 16px;
   padding: 24px;
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: var(--norte-surface);
   box-shadow: 0 26px 70px var(--norte-border);
@@ -912,7 +420,7 @@ body.teams-window-scroll {
   color: var(--norte-text);
   font: inherit;
   font-size: 14px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: var(--norte-surface);
 }
@@ -923,7 +431,7 @@ body.teams-window-scroll {
   color: var(--norte-text);
   font: inherit;
   font-size: 14px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: var(--norte-surface);
   resize: vertical;
@@ -935,7 +443,7 @@ body.teams-window-scroll {
   color: var(--norte-text);
   font: inherit;
   font-size: 14px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: var(--norte-surface);
 }
@@ -947,14 +455,14 @@ body.teams-window-scroll {
   padding: 0 16px;
   color: var(--norte-text-secondary);
   font-size: 13px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   background: transparent;
   cursor: pointer;
 }
 .teams-dialog footer button.primary {
   color: var(--norte-text);
-  border-color: var(--norte-border);
+  border-color: transparent;
   background: var(--norte-surface);
 }
 .collaboration-page {
@@ -962,27 +470,6 @@ body.teams-window-scroll {
   margin: auto;
   padding: 38px 32px 70px;
   color: var(--norte-text);
-}
-.workspace-section-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--norte-border);
-  margin: 8px 0 22px;
-}
-.workspace-section-tabs > button {
-  padding: 12px 0;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: transparent;
-  color: var(--norte-text-muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.workspace-section-tabs > button[aria-current] {
-  border-bottom-color: var(--norte-accent);
-  color: var(--norte-accent);
 }
 .team-invitations button {
   display: inline-flex;
@@ -999,63 +486,6 @@ body.teams-window-scroll {
   font-size: 12px;
   cursor: pointer;
 }
-.teams-directory-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  margin: 0 10px 10px;
-  background: var(--norte-surface-muted);
-  border-radius: var(--norte-radius);
-  color: var(--norte-text-muted);
-}
-.teams-directory-search input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  color: var(--norte-text);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-}
-.team-meta span {
-  color: var(--norte-text-muted);
-  font-size: 11px;
-}
-.teams-view-toggle button {
-  border: 0;
-  border-radius: var(--norte-radius);
-  color: var(--norte-text-secondary);
-  background: transparent;
-}
-.teams-hub-detail .project-card {
-  --project-accent: var(--norte-accent);
-  background: var(--norte-surface);
-  box-shadow: none;
-}
-.teams-hub-detail .project-card-type {
-  color: var(--norte-text-muted);
-}
-.teams-hub-detail .project-card strong {
-  color: var(--norte-text);
-}
-.teams-hub-detail .person-card {
-  border: 1px solid var(--norte-border);
-  border-radius: var(--norte-radius-panel);
-  background: var(--norte-surface-muted);
-}
-.teams-hub-detail .person-card strong {
-  color: var(--norte-text);
-}
-.teams-hub-detail .person-card span {
-  color: var(--norte-text-secondary);
-}
-.teams-hub-detail .chip {
-  color: var(--norte-text-secondary);
-  border: 0;
-  border-radius: var(--norte-radius);
-  background: var(--norte-surface-raised);
-}
 .team-invitations.organization-panel {
   max-width: 800px;
   margin-top: 24px;
@@ -1066,7 +496,7 @@ body.teams-window-scroll {
 .invitation-inbox .organization-panel {
   padding: 22px;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
 }
 .team-invitations h3 {
@@ -1116,7 +546,7 @@ body.teams-window-scroll {
   min-height: 40px;
   background: var(--norte-bg);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border-strong);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 10px;
   max-width: 100%;
@@ -1127,7 +557,7 @@ body.teams-window-scroll {
   min-height: 40px;
   background: var(--norte-bg);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border-strong);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 10px;
   max-width: 100%;
@@ -1151,7 +581,7 @@ body.teams-window-scroll {
   flex-wrap: wrap;
   padding: 16px 0;
   border: 0;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   color: var(--norte-text);
   background: transparent;
 }
@@ -1166,20 +596,10 @@ body.teams-window-scroll {
 }
 .people-page td {
   color: var(--norte-text-secondary);
-  border-color: var(--norte-border);
+  border-color: transparent;
 }
 .people-page td strong {
   color: var(--norte-text);
-}
-.teams-hub-shell .teams-hub-heading h1 {
-  font-size: 30px;
-  font-weight: 550;
-  line-height: 1.25;
-  margin: 10px 0;
-}
-.teams-hub-shell .teams-hub-heading p {
-  font-size: 13px;
-  color: var(--norte-text-secondary);
 }
 .project-access-panel {
   width: min(680px,100%);
@@ -1210,7 +630,7 @@ body.teams-window-scroll {
 .project-access-error {
   padding: 13px 16px;
   background: var(--norte-surface);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius-panel);
   margin: 20px 0
 }
@@ -1224,9 +644,9 @@ body.teams-window-scroll {
   align-items: center;
   gap: 9px;
   padding: 10px 14px;
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   font: inherit;
   font-size: 12px;
@@ -1263,7 +683,7 @@ body.teams-window-scroll {
   gap: 15px;
   background: var(--norte-surface);
   color: var(--norte-text-secondary);
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
   font-size: 12px;
   flex-shrink: 0
 }
@@ -1293,37 +713,16 @@ body.teams-window-scroll {
 }
 .team-project-load button {
   padding: 7px 10px;
-  border: 1px solid var(--norte-border);
-  background: var(--norte-surface);
+  border: 1px solid transparent;
+  background: var(--norte-surface-muted);
   color: var(--norte-text);
   border-radius: var(--norte-radius);
   font: inherit;
   font-size: 12px;
   cursor: pointer
-}
-.teams-projects-section>button {
-  display: inline-flex;
-  align-items: center;
-  padding: 7px 10px;
-  margin: 0 0 12px;
-  border: 1px solid var(--norte-border);
-  background: var(--norte-surface);
-  color: var(--norte-text-secondary);
-  border-radius: var(--norte-radius);
-  font: inherit;
-  font-size: 12px;
-  cursor: pointer
-}
-.teams-projects-section>button:hover {
-  color: var(--norte-text);
-  background: var(--norte-surface-raised)
-}
-.teams-projects-section>button:focus-visible {
-  outline: 2px solid var(--norte-accent);
-  outline-offset: 2px
 }
 .organization-panel {
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 20px;
   background: var(--norte-surface-muted);
@@ -1344,7 +743,7 @@ body.teams-window-scroll {
   width: 100%;
   background: var(--norte-bg);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 10px;
   font: inherit;
@@ -1354,7 +753,7 @@ body.teams-window-scroll {
   width: 100%;
   background: var(--norte-bg);
   color: var(--norte-text);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 10px;
   font: inherit;
@@ -1378,7 +777,7 @@ body.teams-window-scroll {
 }
 .organization-tree li {
   position: relative;
-  border-left: 1px solid var(--norte-border-strong);
+  border-left: 1px solid var(--norte-divider);
   padding: 8px 0 6px 14px;
 }
 .organization-tree li::before {
@@ -1387,13 +786,13 @@ body.teams-window-scroll {
   top: 25px;
   left: 0;
   width: 12px;
-  border-top: 1px solid var(--norte-border-strong);
+  border-top: 1px solid var(--norte-divider);
 }
 .organization-tree .org-team > details > summary {
-  border-color: var(--norte-border-strong);
+  border-color: transparent;
 }
 .organization-tree .org-project > details > summary {
-  border-color: var(--norte-border-strong);
+  border-color: transparent;
 }
 .organization-tree.hierarchy > ul {
   min-width: 350px;
@@ -1419,9 +818,9 @@ body.teams-window-scroll {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
   color: var(--norte-link);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 8px 12px;
   cursor: pointer;
@@ -1433,9 +832,9 @@ body.teams-window-scroll {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
   color: var(--norte-link);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 8px 12px;
   cursor: pointer;
@@ -1447,9 +846,9 @@ body.teams-window-scroll {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  background: var(--norte-surface);
+  background: var(--norte-surface-muted);
   color: var(--norte-link);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   border-radius: var(--norte-radius);
   padding: 8px 12px;
   cursor: pointer;
@@ -1469,7 +868,7 @@ body.teams-window-scroll {
   align-items: center;
   gap: 12px;
   padding: 16px;
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   background: var(--norte-surface);
 }
 .invite-person > div {
@@ -1494,12 +893,6 @@ body.teams-window-scroll {
 }
 .invitation-list small {
   color: var(--norte-text-muted);
-}
-.teams-hub-detail > details {
-  margin-top: 20px;
-}
-.teams-hub-detail details > summary {
-  cursor: pointer;
 }
 .organization-tree.hierarchy .org-team > details > ul > .org-responsibility > details > ul {
   display: flex;
@@ -1529,7 +922,7 @@ body.teams-window-scroll {
   padding: 4px 7px;
   min-height: 26px;
   background: var(--norte-surface-muted);
-  border: 1px solid var(--norte-border);
+  border: 1px solid transparent;
   color: var(--norte-text-secondary);
   border-radius: var(--norte-radius);
   font-size: 10px;
@@ -1552,50 +945,10 @@ body.teams-window-scroll {
   inset: 0;
   pointer-events: none;
 }
-.person-professional-role {
-  color: var(--norte-text);
-  font-size: 12px;
-  margin-top: 6px;
-}
-.person-professional-function {
-  color: var(--norte-text-muted);
-  font-size: 12px;
-  line-height: 1.5;
-  margin: 5px 0;
-  white-space: pre-wrap;
-}
-.person-edit-role {
-  grid-column: 1 / -1;
-  justify-self: start;
-  font-size: 11px;
-  padding: 5px 8px;
-  display: inline-flex;
-  gap: 6px;
-  align-items: center;
-}
-
-@media (max-width:1050px) {
-.teams-hub-main {
-  width: min(900px, calc(100% - 48px));
-}
-.teams-hub-layout {
-  grid-template-columns: 270px minmax(0, 1fr);
-}
-}
 
 @media (max-width:900px) {
-.teams-hub-layout {
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 18px;
-}
 .team-invitations form {
   grid-template-columns: 1fr;
-}
-.teams-hub-shell .teams-hub-layout {
-  grid-template-columns: 210px minmax(0, 1fr);
-}
-.teams-hub-shell .teams-hub-detail {
-  padding: 18px;
 }
 }
 
@@ -1615,10 +968,6 @@ body.teams-window-scroll {
 .organization-tree.hierarchy .org-project > details > ul > li > details > ul {
   display: block;
 }
-.teams-hub-section-title {
-  flex-wrap: wrap;
-  gap: 10px;
-}
 .organization-tree.hierarchy .org-team > details > ul > .org-responsibility > details > ul {
   display: block;
 }
@@ -1630,78 +979,9 @@ body.teams-window-scroll {
 }
 }
 
-@media (max-width:720px) {
-.teams-hub-main {
-  width: calc(100% - 28px);
-  padding-top: 30px;
-}
-.teams-hub-heading {
-  display: grid;
-  align-items: start;
-}
-.teams-hub-heading > button {
-  justify-self: end;
-}
-.teams-hub-heading h1 {
-  font-size: 32px;
-}
-.teams-hub-layout {
-  grid-template-columns: 1fr;
-}
-.teams-hub-detail > header {
-  flex-wrap: wrap;
-}
-}
-
 @media (max-width:650px) {
 .collaboration-page {
   padding: 24px 16px 65px;
-}
-.teams-hub-main {
-  width: calc(100% - 30px);
-  padding-top: 24px;
-}
-.teams-hub-layout {
-  grid-template-columns: 1fr;
-}
-.teams-hub-list section {
-  max-height: 180px;
-  overflow: auto;
-}
-.teams-hub-heading {
-  align-items: start;
-  gap: 14px;
-}
-.teams-hub-heading h1 {
-  font-size: 26px;
-}
-.teams-hub-heading > button {
-  font-size: 0;
-  padding: 10px;
-}
-.teams-hub-heading > button svg {
-  width: 19px;
-  height: 19px;
-}
-.workspace-section-tabs {
-  gap: 22px;
-}
-.teams-hub-detail > .team-overview-head {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 12px;
-  padding-bottom: 12px;
-}
-.team-overview-head .team-mark.large {
-  width: 44px;
-  height: 44px;
-}
-.team-overview-head > .teams-detail-actions {
-  grid-column: 2;
-  justify-self: end;
-}
-.team-overview-head .team-meta {
-  gap: 9px 12px;
 }
 .people-page {
   padding: 26px 18px 55px;
@@ -1734,7 +1014,7 @@ body.teams-window-scroll {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px 8px;
   padding: 17px 0;
-  border-bottom: 1px solid var(--norte-border);
+  border-bottom: 1px solid var(--norte-divider);
 }
 .people-page tbody tr:last-child {
   border-bottom: 0;
@@ -1763,27 +1043,9 @@ body.teams-window-scroll {
 .people-page td strong {
   overflow-wrap: anywhere;
 }
-.teams-hub-shell .teams-hub-heading h1 {
-  font-size: 26px;
-}
-.teams-hub-shell .teams-hub-layout {
-  grid-template-columns: 1fr;
-}
-.teams-hub-shell .teams-hub-toolbar > button {
-  font-size: 12px;
-  background: var(--norte-accent);
-  color: var(--norte-on-accent);
-  border-color: transparent;
-}
 }
 
 @media (max-width:440px) {
-.teams-hub-detail h2 {
-  font-size: 23px;
-}
-.teams-detail-actions {
-  width: auto;
-}
 .teams-dialog {
   max-height: calc(100dvh - 20px);
   padding: 18px 15px;

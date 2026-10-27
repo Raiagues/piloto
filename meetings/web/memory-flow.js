@@ -72,8 +72,29 @@
     return E.clone(value);
   }
   function typesFor(questionSet = questions) { return Object.keys(questionSet.event_type.criteria); }
+  // Memory v3 asks retention and type in one call and gives both the speech
+  // just before the chunk, so replies and references are not judged blind.
+  const CONTEXT_NOTE = ' recent_context is the speech just before current_utterance, oldest first; it may hold the start of a sentence that current_utterance completes, and the completed act keeps its type. Never take values, facts, tests or decisions from recent_context.';
+  function recentContext(value) {
+    if (!Array.isArray(value) || !value.length || value.length > 3) throw Error('Contexto recente da fala inválido.');
+    return value.map(entry => {
+      if (!entry || typeof entry.text !== 'string' || !entry.text.trim() || entry.text.length > 500 || Object.keys(entry).some(key => !['speaker', 'text'].includes(key)) || entry.speaker !== undefined && (typeof entry.speaker !== 'string' || !entry.speaker.trim() || entry.speaker.length > 120)) throw Error('Contexto recente da fala inválido.');
+      return { ...(entry.speaker ? { speaker: entry.speaker } : {}), text: entry.text };
+    });
+  }
   function request(item, stage, questionSet = questions) {
-    if (!['store', 'type'].includes(stage)) throw Error('Etapa inválida.');
+    if (!['store', 'type', 'memory'].includes(stage)) throw Error('Etapa inválida.');
+    if (stage === 'memory') {
+      if (item.speech_context !== undefined) throw Error('Na memória v3 a continuação da fala vai em recent_context.');
+      const state = { current_utterance: item.current_utterance };
+      const store = E.clone(questionSet.should_store_memory), type = E.clone(questionSet.event_type);
+      if (item.recent_context !== undefined) {
+        state.recent_context = recentContext(item.recent_context);
+        type.instructions = type.instructions.replace('using only this text.', 'using this text; recent_context only resolves its references and replies.') + CONTEXT_NOTE;
+        store.instructions += ' Use recent_context only to resolve references and replies.' + CONTEXT_NOTE + ' Reporting a fault in a past test is substantive even when its cause and measurement are omitted.';
+      }
+      return { model: 'jev-latest', state, questions: { should_store_memory: store, event_type: type } };
+    }
     const id = stage === 'store' ? 'should_store_memory' : 'event_type';
     const state = { current_utterance: item.current_utterance }, question = E.clone(questionSet[id]);
     if (item.speech_context !== undefined) {
@@ -132,13 +153,13 @@
       const item = run.batch.cases.find(item => item.id === record.id);
       const chunk = T.chunkFor(run,record.id), timestamp = chunk.timestamp;
       raw_window.push(chunk);
-      if (raw_window.length > (run.memorySchemaVersion===2?15:4)) raw_window.shift();
+      if (raw_window.length > (run.memorySchemaVersion>=2?15:4)) raw_window.shift();
       if (record.status !== 'done' || !record.result?.store) continue;
       meeting_events.push({
         event_id: 'E' + String(meeting_events.length + 1).padStart(3, '0'),
         chunk_id: item.id, timestamp, type: record.result.type, text: item.current_utterance,
         status: initialEventStatus(record.result.type),
-        ...(run.memorySchemaVersion===2?{thread_id:threadIds.get('E'+String(meeting_events.length+1).padStart(3,'0')) || null}:{store_confidence:record.result.storeProbability,type_confidence:record.result.typeProbability}),
+        ...(run.memorySchemaVersion>=2?{thread_id:threadIds.get('E'+String(meeting_events.length+1).padStart(3,'0')) || null}:{store_confidence:record.result.storeProbability,type_confidence:record.result.typeProbability}),
         ...(run.thread_worker?.schemaVersion>=2?{thread_assignment_state:threadIds.get('E'+String(meeting_events.length+1).padStart(3,'0'))?'assigned':'pending'}:{})
       });
     }
@@ -444,7 +465,7 @@
         thread_assignment_policy:run?.thread_worker?run.thread_worker.schemaVersion>=4?'confidence_gated_archive_fallback':run.thread_worker.schemaVersion>=2?'confidence_gated':'legacy_choice_only':null,
         thread_assignment_threshold:run?.thread_worker?.schemaVersion>=2?T.assignmentThreshold:null,
         thread_assignment_operator:run?.thread_worker?.schemaVersion>=2?'>=':null,
-        raw_window_limit:run?.memorySchemaVersion===2 || !run?15:4,thread_context_limit:run?.thread_worker?.schemaVersion>=5?8:5,anchor_policy:'all_assigned_events'
+        raw_window_limit:run?.memorySchemaVersion>=2 || !run?15:4,thread_context_limit:run?.thread_worker?.schemaVersion>=5?8:5,anchor_policy:'all_assigned_events'
       },
       summary: {
         total_chunks: input.cases.length, processed_chunks: (run?.records || []).filter(r=>['done','error'].includes(r.status)).length,

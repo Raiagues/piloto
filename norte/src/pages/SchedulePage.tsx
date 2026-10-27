@@ -6,7 +6,7 @@ import { documentLocation } from '../components/delivery/DocumentWorkspace';
 import { useEffect, useState } from 'react';
 import { Plus, CalendarDays, Check, ListChecks, Undo2, X, Pencil, CheckCheck, FileText } from 'lucide-react';
 import { ProjectAreaShell } from '../components/ProjectAreaShell';
-import type { RailNavigation } from '../components/ProjectHeader';
+import type { RailNavigation } from '../components/ProjectAreaShell';
 import type { MissionProject } from '../lib/projectStore';
 import type { Language } from '../lib/types';
 import { useProjectDelivery, deliveryStatus, selectedDeliveryRecord } from '../lib/projectDelivery';

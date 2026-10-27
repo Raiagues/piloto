@@ -63,7 +63,7 @@ export function validateVerificationSuggestions(output, requirements) {
 export function assistantContextHash(record, state, kind, {hash, requirementsOf, deliveryBaselineHash}) {
   return hash([record.document.name, record.document.setup?.statement, deliveryBaselineHash(record), requirementsOf(record, state).map(r => [r.id, r.contentHash, r.archived]), state.standards, ...(kind === 'document' ? [record.document, state.requirements, state.tasks, state.tests, state.lifecycle] : [])]);
 }
-export function registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView, options = {}, intelligence }) {
+export function registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView, refuseReadOnly = () => {}, options = {}, intelligence }) {
   const inFlight = new Map();
   const fingerprint = (record, state, kind) => assistantContextHash(record,state,kind,{hash,requirementsOf,deliveryBaselineHash});
   const stateOf = (data, record) => { data.workspace.delivery ||= {}; return data.workspace.delivery[record.document.id] ||= empty(); };
@@ -134,6 +134,7 @@ export function registerEngineeringAssistant(app, { store, requireAuth, requireC
     } finally { inFlight.delete(runId); }
   }
   app.post('/api/projects/:id/delivery/assistant-runs', { preHandler: [requireAuth, requireCsrf], bodyLimit: 12000, config: { rateLimit: { max: 6, timeWindow: '1 minute' } } }, async (request, reply) => {
+    refuseReadOnly();
     const input = request.body || {}, kind = input.kind;
     if (!['requirements', 'standards', 'verification', 'document'].includes(kind)) throw fail(400, 'INVALID_ANALYSIS', 'Tipo de análise inválido.');
     const run = await store.update(data => {

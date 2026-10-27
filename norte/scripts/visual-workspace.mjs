@@ -44,7 +44,9 @@ try {
  assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'light');
  if(await page.getByRole('button',{name:'Expandir barra lateral',exact:true}).count())await page.getByRole('button',{name:'Expandir barra lateral',exact:true}).click();
  assert.doesNotMatch(await page.locator('.mission-sidebar').innerText(),/Memória|Concepção|Testar ideias/);
- assert.match(await page.locator('.mission-sidebar').innerText(),/Documentos/);
+ assert.match(await page.locator('.mission-sidebar').innerText(),/Visão geral/);assert.doesNotMatch(await page.locator('.mission-sidebar').innerText(),/Verificação/);
+ await page.locator('.mission-outline').waitFor();assert.equal(await page.locator('.requirements-outline').count(),0);
+ assert.equal(await page.locator('.project-switcher-trigger select').count(),0,'the project context reads as text until opened');
  assert.equal(await page.locator('.journey-popover').count(),0);
  await page.screenshot({path:join(screenshots,'normal-requirements.png'),fullPage:true});
  await page.goto(`${base}/#/admin`,{waitUntil:'networkidle'});await page.waitForURL('**/#/');
@@ -56,9 +58,9 @@ try {
  assert.doesNotMatch(await page.locator('main').innerText(),/Comunidade|Perfil fictício proibido|Projetos, pessoas e responsabilidades/);
  assert.equal(await page.locator('.app-shell .brand').count(),1,'the shell has one Norte brand');
  assert.equal(await page.locator('.app-header-brand').count(),0);
- assert.equal(await page.locator('.teams-hub-list').count(),0,'one team needs no duplicate team picker');
- for(const selector of ['.teams-hub-toolbar > button','.project-card','.teams-hub-detail'])assert.equal(await page.locator(selector).first().evaluate(element=>getComputedStyle(element).borderTopLeftRadius),'0px',selector+' has straight corners');
- assert.equal(await page.locator('.teams-hub-detail').evaluate(element=>getComputedStyle(element).borderLeftWidth),'0px');
+ assert.equal(await page.locator('.team-directory').count(),0,'one team needs no duplicate team picker');
+ for(const selector of ['.team-head','.team-panel','.team-project-row'])assert.equal(await page.locator(selector).count()>0,true,selector);
+ assert.notEqual(await page.locator('.team-head').evaluate(element=>getComputedStyle(element).borderTopLeftRadius),'0px','panels use the shared rounded radius');
  await page.screenshot({path:join(screenshots,'teams.png'),fullPage:true});
  await page.locator('.mission-sidebar-toggle').click();await page.locator('.mission-sidebar.collapsed').waitFor();
  assert.equal(await page.locator('.mission-sidebar .norte-brand-icon').isVisible(),true,'collapsed sidebar retains the brand icon');
@@ -70,8 +72,8 @@ try {
  await page.locator('.invite-person').waitFor();await page.screenshot({path:join(screenshots,'team-invite-found.png'),fullPage:true});
  await page.getByRole('button',{name:'Enviar convite',exact:true}).click();await page.getByText('Convite enviado. A entrada depende do aceite da pessoa.',{exact:true}).waitFor();
  await page.getByText(/Aguardando resposta/).waitFor();await page.screenshot({path:join(screenshots,'team-invites.png'),fullPage:true});
- await page.getByRole('button',{name:'Integrantes',exact:true}).click();
- assert.equal(await page.locator('.person-card').count(),1);
+ await page.locator('.team-tabs button',{hasText:'Pessoas'}).click();
+ assert.equal(await page.locator('.team-person-row').count(),1);
  await page.getByRole('button',{name:'Cargo e função',exact:true}).click();await page.getByLabel('Cargo na equipe').fill('Engenheira de sistemas');await page.getByLabel('Função e responsabilidades').fill('Coordenar requisitos e revisões.');await page.getByRole('dialog').getByRole('button',{name:'Salvar',exact:true}).click();
  await page.waitForTimeout(400);await page.screenshot({path:join(screenshots,'team-roles.png'),fullPage:true});
  await page.goto(`${base}/#/people`,{waitUntil:'networkidle'});await page.locator('.people-directory').waitFor().catch(()=>{});
@@ -81,10 +83,11 @@ try {
  const profile=page.getByRole('dialog');assert.doesNotMatch(await profile.innerText(),/Universidade|Curso|Semestre|Horas disponíveis/);
  await profile.locator('summary').click();assert.match(await profile.innerText(),/Engenheira de sistemas/);assert.equal(await profile.locator('input[name="roleName"]').count(),0);
  await page.screenshot({path:join(screenshots,'profile.png'),fullPage:true});await profile.getByRole('button',{name:'Fechar',exact:true}).click();
- await page.locator('.mission-sidebar .brand').click();await page.waitForURL('**/#/landing');await page.locator('.public-site').waitFor();assert.match(await page.locator('main').innerText(),/Engenharia com/);assert.doesNotMatch(await page.locator('main').innerText(),/Conta de teste|Planos|Experimentar grátis/);
+ await page.locator('.mission-sidebar .brand').click();await page.waitForURL(url=>new URL(url).hash==='#/');await page.locator('.home-landing').waitFor();
+ await page.goto(`${base}/#/landing`,{waitUntil:'networkidle'});await page.locator('.public-site').waitFor();assert.match(await page.locator('main').innerText(),/Engenharia com/);assert.doesNotMatch(await page.locator('main').innerText(),/Conta de teste|Planos|Experimentar grátis/);
  await page.screenshot({path:join(screenshots,'landing.png'),fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:join(screenshots,'landing-mobile.png'),fullPage:true});
- await page.goto(`${base}/#/teams`,{waitUntil:'networkidle'});await page.locator('.project-card').filter({hasText:source.name}).waitFor();await page.waitForTimeout(200);await page.screenshot({path:join(screenshots,'teams-mobile.png'),fullPage:true});
+ await page.goto(`${base}/#/teams`,{waitUntil:'networkidle'});await page.locator('.team-project-row').filter({hasText:source.name}).waitFor();await page.waitForTimeout(200);await page.screenshot({path:join(screenshots,'teams-mobile.png'),fullPage:true});
  await page.goto(`${base}/#/requirements`,{waitUntil:'networkidle'});await page.locator('.delivery-workspace').waitFor();
  const avatar=await page.locator('.account-badge-trigger').boundingBox();assert.ok(avatar && avatar.x>=0 && avatar.x+avatar.width<=390,'mobile account control remains fully visible');
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'mobile viewport has no horizontal overflow');
@@ -105,7 +108,7 @@ try {
  const consent=page.getByLabel('Compartilhar métricas de navegação para melhorar o Norte');assert.equal(await consent.isChecked(),false);
  await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/platform/telemetry/events')&&response.status()===200),consent.check()]);
  await page.evaluate(()=>{window.location.hash='#/new-project';});await page.getByLabel('Nome do projeto').fill('Nome privado do projeto visual');
- await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/platform/telemetry/events')&&response.request().postDataJSON().name==='feature_click'&&response.status()===200),page.getByRole('button',{name:'Criar projeto',exact:true}).click()]);await page.waitForURL('**/#/requirements');
+ await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/platform/telemetry/events')&&response.request().postDataJSON().name==='feature_click'&&response.status()===200),page.getByRole('button',{name:'Criar projeto',exact:true}).click()]);await page.waitForURL('**/#/project');
  const events=app.missionStore.read().telemetry.events;assert.ok(events.some(event=>event.options?.action==='project.create'));assert.doesNotMatch(JSON.stringify(events),/Nome privado|Veículo Orbital|workspace_visual/);
  await adminPage.getByRole('button',{name:'Atualizar administração',exact:true}).click();await adminPage.getByRole('cell',{name:'Criar projeto',exact:true}).waitFor();await adminPage.screenshot({path:join(screenshots,'admin-usage-with-data.png'),fullPage:true});
  await createEngineeringMetrics(app.missionStore).recordProviderAttempt({status:'provider_completed',usageMetadata:{promptTokenCount:32},outputTokens:9});

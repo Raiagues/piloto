@@ -1,6 +1,6 @@
 # Norte
 
-O Norte organiza requisitos, verificações, cronogramas, documentos e reuniões de engenharia. A equipe acompanha a origem de cada requisito, suas versões, a revisão humana e as evidências de verificação.
+O Norte organiza requisitos, cronogramas, documentos e reuniões de engenharia. A equipe acompanha a origem de cada requisito, suas versões, a revisão humana e a situação de cada documento.
 
 A aplicação começa vazia. Contas, equipes, projetos e participantes só aparecem quando existem no armazenamento. Análises de requisitos, pesquisa de referências e sugestões de verificação são executadas por solicitação explícita.
 
@@ -72,15 +72,18 @@ Veja [arquitetura e dados](docs/architecture.md), [reuniões e memórias](docs/m
 
 ## Fluxos principais
 
-- **Requisitos:** árvore por subsistema ou tabela; busca, filtros, colunas configuráveis e abertura pela linha em painel lateral, sem cobrir a tabela. A hierarquia pode ser recolhida. Apontamentos destacam o trecho literal e apontam à referência oficial. A IA sugere; uma pessoa revisa.
-- **Verificação:** começa vazia. Sugestões são revisadas antes de virarem planos. Uma execução exige resultado e evidência; alterações relevantes invalidam aprovações anteriores.
+- **Navegação:** o cabeçalho mostra *equipe › projeto › setor › área* e um único botão Voltar à esquerda; quando uma área tem um nível interno aberto (requisito, documento, reunião ou ata), Voltar fecha esse nível primeiro. A barra lateral reúne Início, Equipes, Reuniões e o projeto ativo, cujo nome aparece como texto e abre a lista de projetos agrupada por equipe. No celular, a barra vira gaveta. O ícone do Norte leva ao Início. *Abertos recentemente* (ícone de relógio no cabeçalho e “Continuar de onde parou” no Início) identifica o tipo de cada item, o projeto, quando foi aberto, a situação e rascunhos locais não salvos.
+- **Visão geral do projeto:** primeira página ao abrir um projeto. Mostra objetivo, equipe, setores e pessoas; indicadores de requisitos, apontamentos, documentos e próximo marco; o registro de documentos com tipo, versão e situação (rascunho não submetido, aguardando revisão, alterações pedidas, versão final, arquivo original e ata); próximos marcos, reuniões do projeto e requisitos com apontamentos. Tudo vem dos registros existentes. `#/documents` redireciona para cá.
+- **Requisitos:** tabela ou árvore por subsistema; a árvore de subsistemas fica sob *Requisitos* na barra lateral e o filtro fica na URL. Busca, filtros, colunas configuráveis e abertura pela linha em painel lateral (folha inferior no celular). Apontamentos destacam o trecho literal e apontam à referência oficial. A IA sugere; uma pessoa revisa.
+- **Versão de teste somente leitura:** com `NORTE_DELIVERY_READ_ONLY=1`, o servidor mostra requisitos, cronograma e documentos, mas recusa toda escrita dessas áreas (HTTP 423) e não inicia análises. Reuniões, equipes e configurações do projeto continuam editáveis.
 - **Cronograma:** começa vazio. A equipe escolhe um modelo de referência e entra em edição. Há hierarquia, dependências, deslocamento encadeado, desfazer e aprovação independente.
-- **Documentos:** biblioteca por categoria, pacotes por revisão e área de edição/prévia em página inteira. Abas recentes permitem retornar a documentos, requisitos e atas; rascunhos locais são separados por conta e versão. PDF e ZIP LaTeX usam a versão salva.
-- **Mensagens:** texto e imagens na ordem de composição, colagem e anotações. Ajuda e feedback abrem a Administração.
-- **Reuniões:** falas em trechos; JEV classifica e o modelo editorial organiza tópicos concisos. A transcrição original permanece disponível. Correções são versionadas e restritas à reunião.
+- **Documentos:** pacotes por revisão e área de edição/prévia em página inteira, abertos a partir da visão geral. Rascunhos locais são separados por conta e versão. PDF e ZIP LaTeX usam a versão salva.
+- **Equipes:** cada equipe representa a empresa ou o grupo. A carteira lista os projetos com responsável, setores e equipe do projeto; *Pessoas* mostra cargo, função e alocação; *Alocação* cruza pessoas e projetos com o papel e o setor atribuídos; *Convites* fica com a gestão.
+- **Mensagens:** texto e imagens na ordem de composição, colagem e anotações. Ajuda e feedback abrem a Administração (menu da conta ou botão flutuante).
+- **Reuniões:** uma única barra com título e situação à esquerda, gravação e áudio no centro, até três participantes (o terceiro círculo resume os demais) e *Ata / PDF* à direita; a página não rola. Texto e transcrições entram por frase (até 40 palavras; frases maiores viram orações) e o microfone em trechos de 12 a 18 palavras. O JEV classifica cada trecho numa chamada e escolhe o assunto entre os recentes ou abre um novo; em segundo plano, enquanto a reunião acontece, o modelo editorial escreve as notas e o título de cada assunto, sem botão. Correções de classificação ajustam as perguntas do JEV só nesta reunião. A transcrição aceita texto digitado e arquivo de transcrição, inclusive para continuar uma reunião concluída. Editar um bloco no canvas (duplo clique ou lápis) preserva a fala original e passa a correção para a ata como `human_summary`. Abrir uma reunião salva não grava nem reorganiza nada. A sala segue o idioma PT/EN do Norte; a fala e os textos da reunião não são traduzidos. Detalhes em [processamento das reuniões](docs/meeting-memory.md).
 - **Administração:** contas, métricas opcionais e diagnóstico das reuniões às quais a administradora tem acesso. O diagnóstico mostra entradas, perguntas, classificações e memórias efetivamente registradas.
 
-Planos comerciais, comunidade, memória de projeto, concepção, laboratório de ideias e painéis de atividade de equipe foram retirados. A limpeza explícita do ambiente de teste remove os projetos Quetzal e exemplos antigos; uma instalação nova não cria nenhum projeto.
+A tela de Verificação foi retirada da interface; planos e execuções já gravados continuam preservados no servidor e nos documentos de revisão. Planos comerciais, comunidade, memória de projeto, concepção, laboratório de ideias e painéis de atividade de equipe foram retirados. A limpeza explícita do ambiente de teste remove os projetos Quetzal e exemplos antigos; uma instalação nova não cria nenhum projeto.
 
 Para instalações PostgreSQL, `node norte/scripts/retire-workspace.mjs --help` descreve a manutenção por plano e fingerprint, com backup transacional privado. O procedimento está em [arquitetura e dados](docs/architecture.md).
 
@@ -94,13 +97,11 @@ Métricas começam desativadas. Quando autorizadas, registram páginas, tempo at
 
 ## Projeto de revisão LYLE
 
-O comando abaixo prepara uma conta comum, uma equipe e o projeto do documento fornecido, sem pessoas fictícias nem verificações preenchidas. O cronograma provisório usa uma referência ECSS com datas de exemplo que exigem revisão:
+`node norte/scripts/seed-lyle-workspace.mjs --help` prepara o caso LYLE **numa conta existente** — por padrão a administradora, com o login e a senha lidos de um arquivo privado (`NORTE_SEED_CREDENTIALS`, padrão `.runtime/norte-admin-credentials.txt`). Cria a equipe *Equipe LYLE*, o projeto Veículo Orbital LYLE com os seis subsistemas, os oito requisitos com enunciado, localização e comentários do DOCX, os arquivos de origem (DOCX, leitura e PDF de transcrições), a checagem por regras sem IA (que destaca os trechos sob revisão MTCR em cada requisito), um cronograma provisório ECSS, os rascunhos SRR derivados dos requisitos (especificação e matriz de rastreabilidade) e as três reuniões já avaliadas do PDF de transcrições. Não registra contas, não chama provedores e não sobrescreve registros editados; `--check` confere as fontes sem acessar o servidor.
 
-```bash
-node norte/scripts/seed-workspace-review.mjs --help
-```
+Os requisitos só são gravados com `NORTE_DELIVERY_READ_ONLY` desligado: prepare o caso, depois ative o modo de leitura e reinicie. Para a publicação, use `NORTE_REVIEW_ORIGIN=https://norte-r007.onrender.com NORTE_REVIEW_PUBLISH=1`.
 
-O procedimento é explícito e repetível; não roda ao iniciar o servidor. Os oito requisitos preservam enunciados, localização e comentários do documento. Referências oficiais e apontamentos não equivalem à determinação de aplicabilidade ou conformidade. As credenciais criadas nesta instalação ficam em `.runtime/workspace-review-credentials.json`, com acesso privado.
+`node norte/scripts/seed-workspace-review.mjs --help` continua disponível para preparar o mesmo caso numa conta comum nova. Os procedimentos são explícitos e repetíveis; não rodam ao iniciar o servidor. Referências oficiais e apontamentos não equivalem à determinação de aplicabilidade ou conformidade.
 
 ## Verificar alterações
 

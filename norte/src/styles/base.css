@@ -7,13 +7,16 @@ body { font-family: var(--norte-font-ui); overflow: hidden; overscroll-behavior:
 :where(button, input, select, textarea) { font: inherit; color: inherit; }
 :where(button, [role="button"]) { cursor: pointer; }
 :where(button, [role="button"]):disabled { cursor: not-allowed; }
-:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--norte-accent); outline-offset: 3px; }
+:where(button, a, summary, [tabindex], input[type="checkbox"], input[type="radio"], input[type="range"]):focus-visible { outline: 2px solid var(--norte-accent); outline-offset: 3px; }
+/* Text fields draw the ring over their own border instead of a detached second line. */
+:where(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea):focus-visible { outline: 2px solid var(--norte-accent); outline-offset: -1px; }
 :where(input, textarea)::placeholder { color: var(--norte-text-muted); opacity: 1; }
 :where(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--norte-accent); }
-:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) { background: var(--norte-surface); border: 1px solid var(--norte-border-strong); border-radius: var(--norte-radius); }
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) { background: var(--norte-field); border: 1px solid transparent; border-radius: var(--norte-radius); }
 :where(button.primary, a.primary) { background: var(--norte-accent); color: var(--norte-on-accent); border: 1px solid transparent; }
 :where(button.primary, a.primary):hover:not(:disabled) { background: var(--norte-accent-hover); }
 a { color: var(--norte-link); }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .auth-status-screen { display: grid; place-items: center; align-content: center; min-height: 100dvh; gap: 13px; text-align: center; background: var(--norte-bg); color: var(--norte-text); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }

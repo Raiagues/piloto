@@ -48,16 +48,19 @@ function sentenceBoundaries(text){
  }
  return points;
 }
-function segment(input,{softWords=12,maxWords=18,preserveCommands=true}={}){
+function segment(input,{softWords=12,maxWords=18,sentenceWords=40,preserveCommands=true}={}){
  if(typeof input!=='string')throw TypeError('A fala deve ser um texto.');
- if(!Number.isFinite(softWords)||!Number.isFinite(maxWords)||softWords<8||maxWords<softWords)throw RangeError('Limites da fala inválidos.');
+ if(!Number.isFinite(softWords)||!Number.isFinite(maxWords)||!Number.isFinite(sentenceWords)||softWords<8||maxWords<softWords||sentenceWords<maxWords)throw RangeError('Limites da fala inválidos.');
  if(!input.trim())return [];
  const cuts=[{at:0,boundary:'start'},...sentenceBoundaries(input),...commandStarts(input).map(at=>({at,boundary:'command'})),{at:input.length,boundary:'end'}].sort((a,b)=>a.at-b.at);
  const unique=cuts.filter((cut,i)=>!i||cut.at!==cuts[i-1].at),out=[];
- function push(start,end,boundary){while(start<end&&/\s/u.test(input[start]))start++;while(end>start&&/\s/u.test(input[end-1]))end--;if(end>start)out.push({text:input.slice(start,end),start,end,boundary,command:isCommand(input.slice(start,end))});}
+ function push(start,end,boundary,shape={}){while(start<end&&/\s/u.test(input[start]))start++;while(end>start&&/\s/u.test(input[end-1]))end--;if(end>start)out.push({text:input.slice(start,end),start,end,boundary,command:isCommand(input.slice(start,end)),...shape});}
  for(let n=0;n<unique.length-1;n++){
   const begin=unique[n].at,end=unique[n+1].at,text=input.slice(begin,end);
   if(preserveCommands&&isCommand(text)){push(begin,end,'command');continue;}
+  // A punctuated sentence is one point: cutting it by length separated a
+  // requirement from its own values. Only an explicit new intent splits it.
+  const punctuated=/[.!?…]["”’)]*$/u.test(text.trim()),shape={punctuated,sentence:punctuated&&words(text)<=sentenceWords};
   let start=begin;
   // Distinct explicit intents are stronger boundaries than a fixed word count.
   for(const hit of text.matchAll(idea)){
@@ -65,37 +68,39 @@ function segment(input,{softWords=12,maxWords=18,preserveCommands=true}={}){
    const before=input.slice(start,at),join=before.match(/\s+(?:e|aí|ai|então|entao|and|then)\s+$/iu);
    if(join)at-=join[0].length-1;
    if(words(input.slice(start,at))<5||subordinateBefore(input,begin+hit.index)||quotedAt(input,begin+hit.index))continue;
-   push(start,at,'idea');start=at;
+   push(start,at,'idea',shape);start=at;
   }
   // Long descriptions can split at explicit discourse transitions without
   // separating a number from its unit or an experiment from its conditions.
   const tail=input.slice(start,end);let base=start;
-  for(const hit of tail.matchAll(conjunction)){
+  if(!shape.sentence)for(const hit of tail.matchAll(conjunction)){
    const at=base+hit.index+hit[0].length;
    if(words(input.slice(start,at))<softWords||words(input.slice(at,end))<5||quotedAt(input,at))continue;
-   push(start,at,'transition');start=at;
+   push(start,at,'transition',{punctuated});start=at;
   }
-  push(start,end,unique[n+1].boundary);
+  push(start,end,unique[n+1].boundary,shape);
  }
  const logical=out.splice(0);
- for(const part of logical){
-  if(preserveCommands&&part.command){out.push(part);continue;}
+ for(const {sentence,punctuated,...part} of logical){
+  if(preserveCommands&&part.command||sentence){out.push(part);continue;}
   let start=part.start;const end=part.end;
   // Browser finals and imported turns may contain minutes without punctuation.
-  // Keep every ordinary slice short; a safe unit boundary takes precedence over
-  // a discourse marker. Capture time is measured elsewhere, never inferred here.
-  while(words(input.slice(start,end))>maxWords){
+  // Keep every unpunctuated slice short; a safe unit boundary takes precedence over
+  // a discourse marker. An overlong written sentence splits into clauses instead.
+  // Capture time is measured elsewhere, never inferred here.
+  const limit=punctuated?Math.round(sentenceWords*.6):maxWords,soft=punctuated?Math.max(softWords,Math.round(sentenceWords*.4)):softWords;
+  while(words(input.slice(start,end))>limit){
    const tokens=[...input.slice(start,end).matchAll(/\S+/gu)],candidates=[];
    const safe=i=>{const right=tokens[i]?.[0]||'';return !quotedAt(input,start+tokens[i].index)&&! /^(?:(?:[kcm]?n(?:[·/]m)?|[kcm]?m|kg|gpa|mpa|pa|graus|metros?|centímetros?|centimetros?|milímetros?|milimetros?|quilonewtons?|newtons?)\b|[%°])/iu.test(right);};
-   for(let i=Math.max(8,Math.floor(softWords*.7));i<=Math.min(tokens.length-1,maxWords);i++){
+   for(let i=Math.max(8,Math.floor(soft*.7));i<=Math.min(tokens.length-1,limit);i++){
     const previous=tokens[i-1][0],next=tokens[i][0];
     if(safe(i)&&(/[,;:]$/.test(previous)||/^(?:e|mas|porém|porem|então|entao|agora|porque|para|and|but|then)$/iu.test(next)))candidates.push(i);
    }
-   let index=candidates.length?candidates.reduce((a,b)=>Math.abs(b-softWords)<Math.abs(a-softWords)?b:a):maxWords;
+   let index=candidates.length?candidates.reduce((a,b)=>Math.abs(b-soft)<Math.abs(a-soft)?b:a):limit;
    while(index>0&&!safe(index))index--;
    // A quotation is atomic so quoted instructions never turn into executable
    // commands in a subsequent slice. Preserve it rather than removing quotes.
-   if(!index){index=maxWords;while(index<tokens.length&&!safe(index))index++;if(index===tokens.length)break;}
+   if(!index){index=limit;while(index<tokens.length&&!safe(index))index++;if(index===tokens.length)break;}
    const at=start+tokens[index].index;
    push(start,at,'readability');start=at;
   }

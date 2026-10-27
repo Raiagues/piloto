@@ -41,10 +41,33 @@ def diagnostic_finalize(document,source):
         print(json.dumps({'validation_error':str(error)}),file=sys.stderr,flush=True)
         raise
 gemini_minutes.finalize=diagnostic_finalize
+def notes(run):
+    """Runs the room's editorial agents on one finished run in a private in-memory store."""
+    import auth
+    from meetings.engine import ai_runtime, block_agents
+    store=auth.Store()
+    try:
+        user=store.create_user('lyle-notes','evaluation-only-'+os.urandom(8).hex())['id']
+        runtime=ai_runtime.Runtime(store,settings)
+        try:
+            store.put_record(user,block_agents.PREFIX+run['id'],json.dumps(run))
+            runtime.blocks.review(user,{'session_id':run['id']})
+            for _ in range(60):
+                if not runtime.run_once(): break
+            result=runtime.blocks.review(user,{'session_id':run['id']})
+            evaluations=store._run('SELECT status,details FROM ai_block_evaluations ORDER BY created_at',fetch='all')
+            calls=store._run("SELECT COUNT(*) FROM ai_usage WHERE lane='blocks'",fetch='one')[0]
+            usage=[{'status':row[0],'latency_ms':round(row[1]),**{k:v for k,v in json.loads(row[2]).items() if k in ('task','provider_error','finish_reason')}} for row in store._run("SELECT status,latency_ms,details FROM ai_usage WHERE lane='blocks' ORDER BY created_at",fetch='all')]
+            return {'review':result['review'],'status':result['status'],'remaining':result['remaining'],'calls':calls,'usage':usage,
+                    'evaluations':[{'status':row[0],**{k:v for k,v in json.loads(row[1]).items() if k in ('attempt','items','approved','checks','reason','prompt')}} for row in evaluations]}
+        finally: runtime.stop()
+    finally: store.close()
 for raw in sys.stdin:
     job=json.loads(raw)
     try:
-        if job['kind']=='minutes':
+        if job['kind']=='notes':
+            result=notes(job['request'])
+        elif job['kind']=='minutes':
             source=gemini_minutes.validate_source({'source':job['request']})
             result=gemini_minutes.generate(source,settings)
         else:

@@ -102,6 +102,10 @@
     const run = options.run || {}, send = options.transport || options.send;
     if (typeof send !== 'function') throw Error('Forneça o transporte de classificação em transport ou send.');
     const interpretation = interpret(text, options), commandText = interpretation.interpreted_text;
+    // Without the wake word and without a pending naming request, the contract
+    // already fixes the answer as conversation: no audit entry and no paid call.
+    // Speech after a request still awaiting its title is classified, so it ends that request.
+    if (!interpretation.continuation && run.meeting_commands?.at(-1)?.status !== 'awaiting_title' && !/norte/i.test(commandText)) return { consumed: false, addressed: false, renamed: false, status: 'conversation', classified: false };
     const audit = {
       id: 'CMD' + String((run.meeting_commands?.length || 0) + 1).padStart(4, '0'),
       text, raw_text: text, interpreted_text: commandText, source: options.source || 'unspecified', ...(options.speaker ? { speaker: options.speaker } : {}),

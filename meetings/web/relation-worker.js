@@ -322,6 +322,45 @@
         "uncertain": "The current event could plausibly belong to the active thread, but the conversation does not provide enough evidence to establish that continuation. Use this for isolated requirements, facts, constraints, or statements that might apply to the active subject but do not explicitly or contextually identify it. Mere adjacency in the transcript or possible technical applicability does not identify the subject. Also use uncertain rather than guessing when deciding would require an unstated assumption."
       }
     };
+    // Topic memory v6 asks one question: which recent topic current_event
+    // belongs to, or whether it opens a new one. A return to an earlier subject
+    // is an ordinary answer instead of a second yes/no round that usually ended
+    // pending. Topic options are built per request from the topic memory.
+    const topicOptions=10,topicEvents=5,topicThreshold=.6;
+    const topicDefaults={questions:{topic_assignment:{type:'choice',
+      instructions:'Meeting topics group the events about one specific item under discussion: a component, document, offer, requirement, risk, deadline or line of work. The general theme of the meeting is not a topic; two items under one theme, such as two purchases, are two topics. Which topic does current_event belong to? state.topics lists recent topics with their first and latest events; current_topic_id is the topic of the previous event; recent_context is the speech just before current_event. Choose the topic whose item current_event continues, answers, qualifies, decides or returns to, even after other topics. Resolve references such as isso, esse valor or a short reply through recent_context. A requirement, decision, task, test, risk or result about the item of a topic belongs to it; a new event type, detail or speaker is not a new topic. A transition that names another item (sobre…, quanto a…, outro ponto) moves to the topic of that item, or to new_topic when no listed topic discusses it.',
+      criteria:{topic:'current_event continues, answers, qualifies, decides or returns to the item of topic {{topic_id}}: {{summary}}',
+        new_topic:'current_event moves to an item that none of the listed topics discusses, such as another component, document, offer, requirement, risk, deadline or workstream, even when the general theme of the meeting stays the same.'}}}};
+    function validateTopicConfig(value) {
+      const config=value && Object.keys(value).join()==='questions'?value:{questions:value},q=config.questions?.topic_assignment;
+      if(!q || Object.keys(config.questions).join()!=='topic_assignment' || q.type!=='choice' || Object.keys(q.criteria || {}).sort().join()!=='new_topic,topic' || !String(q.criteria.topic).includes('{{topic_id}}'))throw Error('Mantenha topic_assignment (choice) com os critérios topic e new_topic.');
+      E.validateConfig({model:'jev-latest',questions:{topic_assignment:{...q,criteria:{T001:q.criteria.topic,new_topic:q.criteria.new_topic}}}});
+      return E.clone(config);
+    }
+    const configFor=(value,schemaVersion)=>schemaVersion>=6?validateTopicConfig(value):validateConfig(value);
+    const clip=(text,limit)=>{const value=String(text || '').replace(/\s+/g,' ').trim();return value.length>limit?value.slice(0,limit-1).replace(/\s+\S*$/,'')+'…':value;};
+    function topicRequest(run,event,context,threads,config) {
+      const byId=new Map(run.meeting_events.map(item=>[item.event_id,item])),position=new Map(run.meeting_events.map((item,index)=>[item.event_id,index]));
+      const latest=thread=>position.get(thread.anchor_event_ids.at(-1));
+      // The most recently discussed topics are offered, in creation order.
+      const recent=new Set([...threads].sort((a,b)=>latest(b)-latest(a)).slice(0,topicOptions)),offered=threads.filter(thread=>recent.has(thread));
+      const speakers=new Map((run.transcript || []).filter(entry=>entry.chunk_id&&entry.speaker).map(entry=>[entry.chunk_id,entry.speaker]));
+      const recent_context=context.map(id=>{const chunk=chunkFor(run,id),speaker=speakers.get(id);return {chunk_id:id,...(speaker?{speaker:clip(speaker,120)}:{}),text:clip(chunk.text,400)};});
+      const q=config.questions.topic_assignment,semantic=item=>({event_id:item.event_id,type:item.type,text:clip(item.text,240)});
+      for(let size=topicEvents;size>=1;size--) {
+        const topics=offered.map(thread=>{
+          const ids=thread.anchor_event_ids,head=Math.min(2,size-1),picked=ids.length<=size?ids:[...ids.slice(0,head),...ids.slice(ids.length-(size-head))];
+          return {topic_id:thread.thread_id,event_count:ids.length,events:picked.map(id=>semantic(byId.get(id)))};
+        });
+        const criteria=Object.fromEntries([...offered.map(thread=>{
+          const first=byId.get(thread.anchor_event_ids[0]),last=byId.get(thread.anchor_event_ids.at(-1));
+          const summary='«'+clip(first.text,140)+'»'+(last!==first?' … «'+clip(last.text,140)+'»':'');
+          return [thread.thread_id,q.criteria.topic.replaceAll('{{topic_id}}',thread.thread_id).replaceAll('{{summary}}',summary)];
+        }),['new_topic',q.criteria.new_topic]]);
+        const req={model:'jev-latest',state:{current_event:{...semantic(event),text:clip(event.text,1200)},recent_context,current_topic_id:threads.find(thread=>thread.status==='active')?.thread_id || null,topics},questions:{topic_assignment:{type:'choice',instructions:q.instructions,criteria}}};
+        try {return checked(req);} catch(error){if(size===1)throw error;}
+      }
+    }
     // Upgrade only these exact previous rubrics for new executions. Stored
     // requests and all other user-authored questions remain immutable.
     function currentConfig(value) {
@@ -379,7 +418,7 @@
       const index=run.records.findIndex(record=>record.id===event.chunk_id);
       if(index<0)throw Error('Evento sem chunk de origem.');
       // Snapshot at receipt: never use later chunks that arrived during backlog.
-      return run.records.slice(Math.max(0,index-(schemaVersion>=5?8:5)),index).map(record=>schemaVersion>=3?record.id:{chunk_id:record.id,text:run.batch.cases.find(item=>item.id===record.id).current_utterance});
+      return run.records.slice(Math.max(0,index-(schemaVersion>=6?4:schemaVersion>=5?8:5)),index).map(record=>schemaVersion>=3?record.id:{chunk_id:record.id,text:run.batch.cases.find(item=>item.id===record.id).current_utterance});
     }
     function hydrate(thread,events) {
       const byId=new Map(events.map(event=>[event.event_id,event]));
@@ -400,6 +439,7 @@
     function planJob(run,job,threads,config,stage,schemaVersion) {
       const event=run.meeting_events.find(event=>event.event_id===job.event_id);
       if(!event)throw Error('Evento ausente: '+job.event_id);
+      if(schemaVersion>=6)return threads.length?[{stage:'topic',candidate_ids:threads.map(thread=>thread.thread_id),request:topicRequest(run,event,job.recent_context,threads,config),status:'queued'}]:[];
       const candidates=threads.filter(thread=>thread.status===(stage==='active'?'active':'archived'));
       const prior=run.meeting_events.slice(0,run.meeting_events.indexOf(event));
       if(schemaVersion<3)return plan(eventFields(event),job.recent_context,candidates.map(thread=>hydrate(thread,prior)),config,stage);
@@ -464,7 +504,18 @@
     const pending=reason=>({thread_id:null,route:'pending',reason});
     function decide(job,threads,schemaVersion=4) {
       const active=threads.find(t=>t.status==='active');
-      const create=()=>({thread_id:'T'+String(threads.length+1).padStart(3,'0'),route:'new',reason:active?'no_archive_match':'first_event'});
+      const create=()=>({thread_id:'T'+String(threads.length+1).padStart(3,'0'),route:'new',reason:active?schemaVersion>=6?'new_topic':'no_archive_match':'first_event'});
+      if(schemaVersion>=6) {
+        if(!threads.length)return create();
+        const a=answer(job.parts.find(part=>part.stage==='topic'),'topic_assignment');
+        if(!a)return pending('missing_topic_response');
+        const ranked=Object.entries(a.probabilities).sort((x,y)=>y[1]-x[1] || (x[0]<y[0]?-1:1)),best=ranked.find(([id])=>id!=='new_topic');
+        // A new topic needs a clear signal; otherwise conversational continuity
+        // keeps the event in its most likely topic, marked as tentative.
+        if(ranked[0][0]==='new_topic'&&(ranked[0][1]>=.5 || !best))return create();
+        const [id,probability]=ranked[0][0]==='new_topic'?best:ranked[0];
+        return {thread_id:id,route:id===active?.thread_id?'active':'archive',reason:ranked[0][0]===id&&probability>=topicThreshold?'belongs':'tentative'};
+      }
       if(schemaVersion>=4) {
         if(!threads.length)return create();
         const a=activeAnswer(job);
@@ -519,15 +570,15 @@
       for(const event of run.meeting_events){event.thread_id=null;if(run.thread_worker?.schemaVersion>=2)event.thread_assignment_state='pending';}
       for(const job of run.thread_worker?.jobs || []) {
         const event=byId.get(job.event_id);if(!event)throw Error('Evento de thread ausente.');
-        if(job.status==='done'){apply(threads,event,job.result,run.thread_worker.schemaVersion);event.thread_id=job.result.thread_id;if(run.thread_worker.schemaVersion>=2)event.thread_assignment_state=event.thread_id?'assigned':'pending';}
+        if(job.status==='done'){apply(threads,event,job.result,run.thread_worker.schemaVersion);event.thread_id=job.result.thread_id;if(run.thread_worker.schemaVersion>=2)event.thread_assignment_state=!event.thread_id?'pending':job.result.reason==='tentative'?'tentative':'assigned';}
       }
       run.meeting_threads=threads;
       if(!run.typed_relation_worker)run.meeting_relations=[];
     }
     function start(run,{config=defaults,version=null,schemaVersion=4,send,onChange=()=>{},now=Date.now,resume=false}) {
       if((run.thread_worker&&!resume) || run.relation_worker)throw Error('Crie uma nova rodada para atribuir threads.');
-      if(![4,5].includes(schemaVersion))throw Error('Versão de threads inválida para nova execução.');
-      const state=run.thread_worker=resume&&run.thread_worker?restore(run.thread_worker,run):{schemaVersion,config:validateConfig(config),version,status:'running',calls:0,jobs:[]};
+      if(![4,5,6].includes(schemaVersion))throw Error('Versão de threads inválida para nova execução.');
+      const state=run.thread_worker=resume&&run.thread_worker?restore(run.thread_worker,run):{schemaVersion,config:configFor(schemaVersion>=6&&config===defaults?topicDefaults:config,schemaVersion),version,status:'running',calls:0,jobs:[]};
       state.status='running';
       syncMemory(run);
       const queue=[],seen=new Set(state.jobs.map(job=>job.event_id));let working=false,halted=false,closed=false,resolveDone;
@@ -553,8 +604,11 @@
             const threads=E.clone(run.meeting_threads);
             const active=threads.find(thread=>thread.status==='active');
             job.active_thread_id=active?.thread_id || null;
-            if(active)await consult(job,planJob(run,job,threads,state.config,'active',state.schemaVersion));
-            if(!halted && threads.some(thread=>thread.status==='archived') && shouldSearchArchives(job,state.schemaVersion))await consult(job,planJob(run,job,threads,state.config,'archive',state.schemaVersion));
+            if(state.schemaVersion>=6){if(threads.length)await consult(job,planJob(run,job,threads,state.config,'topic',state.schemaVersion));}
+            else {
+              if(active)await consult(job,planJob(run,job,threads,state.config,'active',state.schemaVersion));
+              if(!halted && threads.some(thread=>thread.status==='archived') && shouldSearchArchives(job,state.schemaVersion))await consult(job,planJob(run,job,threads,state.config,'archive',state.schemaVersion));
+            }
             for(const part of job.parts)if(['queued','running'].includes(part.status))part.status='interrupted';
             const result=decide(job,threads,state.schemaVersion);
             if(job.parts.some(part=>part.status==='error') && (halted || result.route==='pending')){job.status='error';job.error='Não foi possível concluir a atribuição. Nenhuma thread foi inferida a partir do erro.';}
@@ -576,16 +630,16 @@
       return {enqueue,stop,done,close(){closed=true;finish();},get pending(){return queue.map(job=>job.event_id);}};
     }
     function restore(saved,run) {
-      if(!saved || ![1,2,3,4,5].includes(saved.schemaVersion) || !Array.isArray(saved.jobs) || !['running','done','stopped','interrupted'].includes(saved.status))throw Error('Worker de threads salvo inválido.');
-      const state={...E.clone(saved),config:validateConfig(saved.config),status:saved.status==='running'?'interrupted':saved.status,jobs:[]};
+      if(!saved || ![1,2,3,4,5,6].includes(saved.schemaVersion) || !Array.isArray(saved.jobs) || !['running','done','stopped','interrupted'].includes(saved.status))throw Error('Worker de threads salvo inválido.');
+      const state={...E.clone(saved),config:configFor(saved.config,saved.schemaVersion),status:saved.status==='running'?'interrupted':saved.status,jobs:[]};
       const threads=[];let calls=0;
       for(const [i,raw] of saved.jobs.entries()) {
         const event=run.meeting_events[i],job=E.clone(raw);
         if(!event || job.event_id!==event.event_id || job.chunk_id!==event.chunk_id || !Array.isArray(job.parts) || !['queued','running','done','error','interrupted'].includes(job.status) || !same(job.recent_context,contextFor(run,event,state.schemaVersion)))throw Error('Fila/contexto de threads inválido.');
         const active=threads.find(t=>t.status==='active');
         if(job.active_thread_id!==undefined && job.active_thread_id!==(active?.thread_id || null))throw Error('Thread ativa do snapshot inválida.');
-        let planned=active?planJob(run,job,threads,state.config,'active',state.schemaVersion):[];
-        if(shouldSearchArchives(job,state.schemaVersion))planned.push(...planJob(run,job,threads,state.config,'archive',state.schemaVersion));
+        let planned=state.schemaVersion>=6?planJob(run,job,threads,state.config,'topic',state.schemaVersion):active?planJob(run,job,threads,state.config,'active',state.schemaVersion):[];
+        if(state.schemaVersion<6&&shouldSearchArchives(job,state.schemaVersion))planned.push(...planJob(run,job,threads,state.config,'archive',state.schemaVersion));
         if(job.parts.length>planned.length || job.status==='done'&&job.parts.length!==planned.length)throw Error('Chamadas de threads incompletas ou inesperadas.');
         for(const [j,part] of job.parts.entries()) {
           const p=planned[j];
@@ -616,7 +670,7 @@
       const complete=job.status==='done',actual=complete?job.result.thread_id:null;
       const responses=job.parts.flatMap(part=>Object.entries(part.request?.questions || {}).map(([id,definition])=>{
         const a=answer(part,id),actual=a?E.predicted(a):null,probability=a?E.probabilityOf(a,actual):null;
-        const target=part.stage==='active'?job.active_thread_id:id.slice('belongs_to_archive_thread__'.length);
+        const target=part.stage==='topic'?actual:part.stage==='active'?job.active_thread_id:id.slice('belongs_to_archive_thread__'.length);
         let wanted=null;
         if(part.stage==='active')wanted=expectedSpec.expected_active_result ?? (hasThreadExpected&&expected!==null?(expected===target?'belongs':'does_not_belong'):null);
         else if(Object.hasOwn(expectedSpec,'expected_archive_results'))wanted=expectedSpec.expected_archive_results[target] ?? null;
@@ -643,7 +697,7 @@
       const low=responses.some(r=>r.probability!==null&&r.probability<.8);
       return {event,job,hasExpected,hasThreadExpected,expectedSpec,expected,actual,action,matches,checks,responses,tone:job.status==='error'?'error':matches===false?'fail':job.status==='running'?'active':job.status==='done'&&low?'warning':matches===true?'pass':''};
     }
-    return {defaults,currentConfig,assignmentThreshold,shouldSearchArchives,validateConfig,validateExpected,eventFields,chunkFor,contextFor,hydrate,request,plan,decide,syncMemory,start,restore,audit};
+    return {defaults,topicDefaults,topicThreshold,currentConfig,assignmentThreshold,shouldSearchArchives,validateConfig,validateTopicConfig,validateExpected,eventFields,chunkFor,contextFor,hydrate,request,plan,decide,syncMemory,start,restore,audit};
   }
   const api = { defaults, threshold, validateConfig, currentConfig, isFiltered, validateExpected, auditJob, combinedTone, candidatesFor, request, plan, scoresFor, relationsFor, start, restore, threads:threadAPI() };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.NorteRelations = api;
