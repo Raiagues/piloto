@@ -19,6 +19,9 @@ services:
         fromDatabase:
           name: norte-db
           property: connectionString
+      # Versão de teste: requisitos, cronograma e documentos em modo de leitura.
+      - key: NORTE_DELIVERY_READ_ONLY
+        value: "1"
       - key: NORTE_PROVIDER
         value: official
       - key: GEMINI_REQUIREMENTS_MODEL
