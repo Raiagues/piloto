@@ -1,14 +1,14 @@
-import type { ProjectFolder, ProjectType, SectorGrant } from "../../shared/project-organization.mjs";
-import type { Language, MissionLink, MissionNode } from "./types";
-import type { EngineeringSystemModel } from "./engineeringSystem";
+import type { ProjectFolder, ProjectType, SectorGrant } from '../../shared/project-organization.mjs';
+import type { Language, MissionLink, MissionNode } from './types';
+import type { EngineeringSystemModel } from './engineeringSystem';
 
-export type StudyIntent = "problem" | "technology" | "science" | "open";
-export type ProgressMode = "standard" | "custom";
+export type StudyIntent = 'problem' | 'technology' | 'science' | 'open';
+export type ProgressMode = 'standard' | 'custom';
 
 export type ProjectReference = {
   id: string;
   label: string;
-  kind: "standard" | "template" | "internal" | "other";
+  kind: 'standard' | 'template' | 'internal' | 'other';
   binding: boolean;
 };
 
@@ -24,7 +24,7 @@ export type IssueStudyHypothesis = {
   id: string;
   title: string;
   notes: string;
-  status: "candidate" | "favored" | "rejected";
+  status: 'candidate' | 'favored' | 'rejected';
 };
 
 export type IssueStudy = {
@@ -35,7 +35,7 @@ export type IssueStudy = {
   hypotheses: IssueStudyHypothesis[];
   notes: string;
   conclusionHypothesisId: string | null;
-  status: "draft" | "resolved";
+  status: 'draft' | 'resolved';
   updatedAt: string;
 };
 
@@ -61,7 +61,7 @@ export type ProjectContext = {
   teamArtifactFolders?: Record<string, string>;
   configured: boolean;
   /** "independent" records a deliberate choice to have no reference program. */
-  referenceProgram?: "independent" | null;
+  referenceProgram?: 'independent' | null;
   programId: string | null;
   modalityId: string | null;
   categoryId: string | null;
@@ -84,8 +84,8 @@ export type MissionProject = {
   createdAt: string;
   updatedAt: string;
   navigation: {
-    lastRoute: "setup" | "brainstorm" | "preliminary";
-    lastConceptionWorkspace?: "system" | "discovery";
+    lastRoute: 'setup' | 'brainstorm' | 'preliminary';
+    lastConceptionWorkspace?: 'system' | 'discovery';
     systemLayouts?: Record<string, Record<string, { x: number; y: number }>>;
   };
   phaseProgress: { highestUnlockedStep: 0 | 1 | 2 };
@@ -96,7 +96,7 @@ export type MissionProject = {
   setup: {
     intent: StudyIntent;
     statement: string;
-    framework: "norte-core" | "mission-dev-core" | "custom";
+    framework: 'norte-core' | 'mission-dev-core' | 'custom';
     references: ProjectReference[];
   };
   board: {
@@ -115,16 +115,15 @@ export type MissionProject = {
   };
 };
 
-
 const DEFAULT_ROLES: ProjectStructureItem[] = [
-  { id: "captain", name: "Responsável pelo projeto" },
-  { id: "manager", name: "Gerente" },
-  { id: "member", name: "Membro" },
-  { id: "advisor", name: "Orientador" }
+  { id: 'captain', name: 'Responsável pelo projeto' },
+  { id: 'manager', name: 'Gerente' },
+  { id: 'member', name: 'Membro' },
+  { id: 'advisor', name: 'Orientador' },
 ];
 
 function uid(prefix: string): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return `${prefix}-${crypto.randomUUID()}`;
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `${prefix}-${crypto.randomUUID()}`;
   return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
@@ -132,16 +131,16 @@ function now(): string {
   return new Date().toISOString();
 }
 
-export function createEmptyProject(language: Language = "pt"): MissionProject {
+export function createEmptyProject(language: Language = 'pt'): MissionProject {
   const timestamp = now();
   return {
     schemaVersion: 2,
-    id: uid("mission"),
-    name: "",
+    id: uid('mission'),
+    name: '',
     createdAt: timestamp,
     updatedAt: timestamp,
     navigation: {
-      lastRoute: "setup"
+      lastRoute: 'setup',
     },
     phaseProgress: { highestUnlockedStep: 0 },
     memoryRevision: 0,
@@ -151,49 +150,67 @@ export function createEmptyProject(language: Language = "pt"): MissionProject {
       modalityId: null,
       categoryId: null,
       teamId: null,
-      teamName: "",
+      teamName: '',
       teamArtifactIds: [],
       projectArtifactIds: [],
-      roles: DEFAULT_ROLES.map((role) => ({ ...role, name: language === "en" ? ({ captain: "Project lead", manager: "Sector manager", member: "Member", advisor: "Advisor" }[role.id] ?? role.name) : role.name })),
+      roles: DEFAULT_ROLES.map(role => ({
+        ...role,
+        name:
+          language === 'en'
+            ? ({ captain: 'Project lead', manager: 'Sector manager', member: 'Member', advisor: 'Advisor' }[role.id] ??
+              role.name)
+            : role.name,
+      })),
       sectors: [],
-      assignments: []
+      assignments: [],
     },
     setup: {
-      intent: "problem",
-      statement: "",
-      framework: "norte-core",
-      references: []
+      intent: 'problem',
+      statement: '',
+      framework: 'norte-core',
+      references: [],
     },
     board: {
       nodes: [],
-      links: []
+      links: [],
     },
     progress: {
-      mode: "standard",
-      customCriteria: []
+      mode: 'standard',
+      customCriteria: [],
     },
     studies: [],
     resolvedIssueKeys: [],
     templates: {
-      activeTemplateId: "norte-core-v1",
-      lockedPaths: []
-    }
+      activeTemplateId: 'norte-core-v1',
+      lockedPaths: [],
+    },
   };
 }
 
-export function normalizeProject(project: MissionProject, language: Language = "pt"): MissionProject {
+export function normalizeProject(project: MissionProject, language: Language = 'pt'): MissionProject {
   const defaults = createEmptyProject(language);
-  const context = project.context && typeof project.context === "object" ? project.context : defaults.context;
+  const context = project.context && typeof project.context === 'object' ? project.context : defaults.context;
   return {
     ...defaults,
     ...project,
     // Preserve historical fields for imported projects; they do not enable retired workspaces.
-    phaseProgress: { highestUnlockedStep: project.phaseProgress?.highestUnlockedStep === 2 ? 2 : project.phaseProgress?.highestUnlockedStep === 1 || Boolean(project.engineeringSystem) || (!project.phaseProgress && (project.navigation?.lastRoute === "brainstorm" || project.board?.nodes?.length > 0)) ? 1 : 0 },
-    memoryRevision: Number.isSafeInteger(project.memoryRevision) && project.memoryRevision >= 0 ? project.memoryRevision : 0,
+    phaseProgress: {
+      highestUnlockedStep:
+        project.phaseProgress?.highestUnlockedStep === 2
+          ? 2
+          : project.phaseProgress?.highestUnlockedStep === 1 ||
+              Boolean(project.engineeringSystem) ||
+              (!project.phaseProgress &&
+                (project.navigation?.lastRoute === 'brainstorm' || project.board?.nodes?.length > 0))
+            ? 1
+            : 0,
+    },
+    memoryRevision:
+      Number.isSafeInteger(project.memoryRevision) && project.memoryRevision >= 0 ? project.memoryRevision : 0,
     navigation: {
       ...defaults.navigation,
-      ...(project.navigation && typeof project.navigation === "object" ? project.navigation : {}),
-      lastConceptionWorkspace: project.navigation?.lastConceptionWorkspace === "discovery" ? "discovery" : "system"
+      ...(project.navigation && typeof project.navigation === 'object' ? project.navigation : {}),
+      lastConceptionWorkspace: project.navigation?.lastConceptionWorkspace === 'discovery' ? 'discovery' : 'system',
     },
     context: {
       ...defaults.context,
@@ -202,7 +219,7 @@ export function normalizeProject(project: MissionProject, language: Language = "
       sectors: Array.isArray(context.sectors) ? context.sectors : [],
       teamArtifactIds: Array.isArray(context.teamArtifactIds) ? context.teamArtifactIds : [],
       projectArtifactIds: Array.isArray(context.projectArtifactIds) ? context.projectArtifactIds : [],
-      assignments: Array.isArray(context.assignments) ? context.assignments : []
-    }
+      assignments: Array.isArray(context.assignments) ? context.assignments : [],
+    },
   };
 }

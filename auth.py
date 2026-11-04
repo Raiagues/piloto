@@ -4,6 +4,7 @@ Postgres (DATABASE_URL) in production; a local SQLite file otherwise, so ./start
 keeps working without any database server. Passwords use scrypt and only a
 SHA-256 digest of each session token is stored.
 """
+
 import base64
 import hashlib
 import hmac
@@ -18,7 +19,7 @@ RESERVED = {'admin', 'administrador', 'root', 'norte', 'suporte'}
 SESSION_SECONDS = 30 * 24 * 3600
 RECORD_PREFIX = 'norte.meeting-room.'
 MAX_RECORD_CHARS = 30_000_000
-SCRYPT = {'n': 2 ** 14, 'r': 8, 'p': 1}
+SCRYPT = {'n': 2**14, 'r': 8, 'p': 1}
 
 
 class AuthError(Exception):
@@ -27,7 +28,8 @@ class AuthError(Exception):
         self.status = status
 
 
-def _b64(raw): return base64.b64encode(raw).decode()
+def _b64(raw):
+    return base64.b64encode(raw).decode()
 
 
 def hash_password(password):
@@ -39,9 +41,12 @@ def hash_password(password):
 def verify_password(password, stored):
     try:
         scheme, n, r, p, salt, digest = stored.split('$')
-        if scheme != 'scrypt': return False
+        if scheme != 'scrypt':
+            return False
         expected = base64.b64decode(digest)
-        candidate = hashlib.scrypt(password.encode(), salt=base64.b64decode(salt), n=int(n), r=int(r), p=int(p), dklen=len(expected))
+        candidate = hashlib.scrypt(
+            password.encode(), salt=base64.b64decode(salt), n=int(n), r=int(r), p=int(p), dklen=len(expected)
+        )
         return hmac.compare_digest(candidate, expected)
     except (ValueError, TypeError):
         return False
@@ -68,7 +73,8 @@ def valid_record_key(key):
     return isinstance(key, str) and key.startswith(RECORD_PREFIX) and len(key) <= 200 and key.isprintable()
 
 
-def _token_digest(token): return hashlib.sha256(token.encode()).hexdigest()
+def _token_digest(token):
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
 SCHEMA = {
@@ -123,7 +129,12 @@ class Store:
     def __init__(self, database_url='', sqlite_path=':memory:'):
         if database_url:
             from psycopg_pool import ConnectionPool  # Only needed when Postgres is configured.
-            url = 'postgresql://' + database_url.split('://', 1)[1] if database_url.startswith('postgres://') else database_url
+
+            url = (
+                'postgresql://' + database_url.split('://', 1)[1]
+                if database_url.startswith('postgres://')
+                else database_url
+            )
             self.dialect = 'postgres'
             self.pool = ConnectionPool(url, min_size=1, max_size=8, kwargs={'autocommit': True}, open=True, timeout=15)
         else:
@@ -131,8 +142,10 @@ class Store:
             self.lock = threading.Lock()
             self.sqlite = sqlite3.connect(str(sqlite_path), check_same_thread=False, isolation_level=None)
             self.sqlite.execute('PRAGMA foreign_keys = ON')
-            if str(sqlite_path) != ':memory:': self.sqlite.execute('PRAGMA journal_mode = WAL')
-        for statement in SCHEMA[self.dialect]: self._run(statement)
+            if str(sqlite_path) != ':memory:':
+                self.sqlite.execute('PRAGMA journal_mode = WAL')
+        for statement in SCHEMA[self.dialect]:
+            self._run(statement)
 
     def _run(self, sql, params=(), fetch=None):
         if self.dialect == 'postgres':
@@ -147,24 +160,33 @@ class Store:
         return self._run('SELECT 1', fetch='one')[0] == 1
 
     def close(self):
-        if self.dialect == 'postgres': self.pool.close()
-        else: self.sqlite.close()
+        if self.dialect == 'postgres':
+            self.pool.close()
+        else:
+            self.sqlite.close()
 
     # Accounts
     def create_user(self, username, password, role='user'):
-        row = self._run('INSERT INTO norte_users (username, password_hash, role, created_at) VALUES (%s, %s, %s, %s) '
-                        'ON CONFLICT (username) DO NOTHING RETURNING id',
-                        (username, hash_password(password), role, int(time.time())), fetch='one')
-        if not row: raise AuthError('Este usuário já existe. Escolha outro nome.', 409)
+        row = self._run(
+            'INSERT INTO norte_users (username, password_hash, role, created_at) VALUES (%s, %s, %s, %s) '
+            'ON CONFLICT (username) DO NOTHING RETURNING id',
+            (username, hash_password(password), role, int(time.time())),
+            fetch='one',
+        )
+        if not row:
+            raise AuthError('Este usuário já existe. Escolha outro nome.', 409)
         return {'id': row[0], 'username': username, 'role': role}
 
     def find_user(self, username):
-        row = self._run('SELECT id, username, role, password_hash FROM norte_users WHERE username = %s', (username,), fetch='one')
+        row = self._run(
+            'SELECT id, username, role, password_hash FROM norte_users WHERE username = %s', (username,), fetch='one'
+        )
         return {'id': row[0], 'username': row[1], 'role': row[2], 'password_hash': row[3]} if row else None
 
     def authenticate(self, username, password):
         user = self.find_user(username)
-        if not verify_password(password, user['password_hash'] if user else _DUMMY_HASH) or not user: return None
+        if not verify_password(password, user['password_hash'] if user else _DUMMY_HASH) or not user:
+            return None
         return {key: user[key] for key in ('id', 'username', 'role')}
 
     def ensure_admin(self, username, password):
@@ -173,9 +195,12 @@ class Store:
         if user is None:
             user = self.create_user(username, password, 'admin')
         else:
-            if user['role'] != 'admin': self._run("UPDATE norte_users SET role = 'admin' WHERE id = %s", (user['id'],))
+            if user['role'] != 'admin':
+                self._run("UPDATE norte_users SET role = 'admin' WHERE id = %s", (user['id'],))
             if not verify_password(password, user['password_hash']):
-                self._run('UPDATE norte_users SET password_hash = %s WHERE id = %s', (hash_password(password), user['id']))
+                self._run(
+                    'UPDATE norte_users SET password_hash = %s WHERE id = %s', (hash_password(password), user['id'])
+                )
                 self._run('DELETE FROM norte_sessions WHERE user_id = %s', (user['id'],))
         self._run("UPDATE norte_users SET role = 'user' WHERE role = 'admin' AND id <> %s", (user['id'],))
         return user['id']
@@ -184,42 +209,69 @@ class Store:
     def create_session(self, user_id):
         token, now = secrets.token_urlsafe(32), int(time.time())
         self._run('DELETE FROM norte_sessions WHERE expires_at < %s', (now,))
-        self._run('INSERT INTO norte_sessions (token_hash, user_id, created_at, expires_at) VALUES (%s, %s, %s, %s)',
-                  (_token_digest(token), user_id, now, now + SESSION_SECONDS))
+        self._run(
+            'INSERT INTO norte_sessions (token_hash, user_id, created_at, expires_at) VALUES (%s, %s, %s, %s)',
+            (_token_digest(token), user_id, now, now + SESSION_SECONDS),
+        )
         return token
 
     def session_user(self, token):
-        if not token or len(token) > 200: return None
-        row = self._run('SELECT u.id, u.username, u.role FROM norte_sessions s JOIN norte_users u ON u.id = s.user_id '
-                        'WHERE s.token_hash = %s AND s.expires_at > %s', (_token_digest(token), int(time.time())), fetch='one')
+        if not token or len(token) > 200:
+            return None
+        row = self._run(
+            'SELECT u.id, u.username, u.role FROM norte_sessions s JOIN norte_users u ON u.id = s.user_id '
+            'WHERE s.token_hash = %s AND s.expires_at > %s',
+            (_token_digest(token), int(time.time())),
+            fetch='one',
+        )
         return {'id': row[0], 'username': row[1], 'role': row[2]} if row else None
 
     def delete_session(self, token):
-        if token: self._run('DELETE FROM norte_sessions WHERE token_hash = %s', (_token_digest(token),))
+        if token:
+            self._run('DELETE FROM norte_sessions WHERE token_hash = %s', (_token_digest(token),))
 
     # Meeting records: the same read/change contract the browser storage offers.
     def get_record(self, user_id, key):
-        row = self._run('SELECT value, version FROM norte_records WHERE user_id = %s AND key = %s', (user_id, key), fetch='one')
+        row = self._run(
+            'SELECT value, version FROM norte_records WHERE user_id = %s AND key = %s', (user_id, key), fetch='one'
+        )
         return (row[0], row[1]) if row else (None, 0)
 
     def put_record(self, user_id, key, value, expected=None):
         """Returns the new version, or None when `expected` no longer matches."""
         now = int(time.time())
         if value is None:
-            if expected is None: self._run('DELETE FROM norte_records WHERE user_id = %s AND key = %s', (user_id, key))
-            elif expected and not self._run('DELETE FROM norte_records WHERE user_id = %s AND key = %s AND version = %s', (user_id, key, expected)): return None
-            elif not expected and self.get_record(user_id, key)[1]: return None
+            if expected is None:
+                self._run('DELETE FROM norte_records WHERE user_id = %s AND key = %s', (user_id, key))
+            elif expected and not self._run(
+                'DELETE FROM norte_records WHERE user_id = %s AND key = %s AND version = %s', (user_id, key, expected)
+            ):
+                return None
+            elif not expected and self.get_record(user_id, key)[1]:
+                return None
             return 0
         if expected is None:
-            row = self._run('INSERT INTO norte_records (user_id, key, value, version, updated_at) VALUES (%s, %s, %s, 1, %s) '
-                            'ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value, version = norte_records.version + 1, updated_at = excluded.updated_at '
-                            'RETURNING version', (user_id, key, value, now), fetch='one')
+            row = self._run(
+                'INSERT INTO norte_records (user_id, key, value, version, updated_at) VALUES (%s, %s, %s, 1, %s) '
+                'ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value, version = norte_records.version + 1, updated_at = excluded.updated_at '
+                'RETURNING version',
+                (user_id, key, value, now),
+                fetch='one',
+            )
         elif expected == 0:
-            row = self._run('INSERT INTO norte_records (user_id, key, value, version, updated_at) VALUES (%s, %s, %s, 1, %s) '
-                            'ON CONFLICT (user_id, key) DO NOTHING RETURNING version', (user_id, key, value, now), fetch='one')
+            row = self._run(
+                'INSERT INTO norte_records (user_id, key, value, version, updated_at) VALUES (%s, %s, %s, 1, %s) '
+                'ON CONFLICT (user_id, key) DO NOTHING RETURNING version',
+                (user_id, key, value, now),
+                fetch='one',
+            )
         else:
-            row = self._run('UPDATE norte_records SET value = %s, version = version + 1, updated_at = %s '
-                            'WHERE user_id = %s AND key = %s AND version = %s RETURNING version', (value, now, user_id, key, expected), fetch='one')
+            row = self._run(
+                'UPDATE norte_records SET value = %s, version = version + 1, updated_at = %s '
+                'WHERE user_id = %s AND key = %s AND version = %s RETURNING version',
+                (value, now, user_id, key, expected),
+                fetch='one',
+            )
         return row[0] if row else None
 
 
@@ -233,14 +285,18 @@ class Throttle:
         now = time.monotonic()
         with self.lock:
             hits = [t for t in self.hits.get(key, []) if now - t < self.window]
-            if hits: self.hits[key] = hits
-            else: self.hits.pop(key, None)
+            if hits:
+                self.hits[key] = hits
+            else:
+                self.hits.pop(key, None)
             return len(hits) >= self.limit
 
     def hit(self, key):
         with self.lock:
             self.hits.setdefault(key, []).append(time.monotonic())
-            if len(self.hits) > 10000: self.hits.clear()
+            if len(self.hits) > 10000:
+                self.hits.clear()
 
     def reset(self, key):
-        with self.lock: self.hits.pop(key, None)
+        with self.lock:
+            self.hits.pop(key, None)

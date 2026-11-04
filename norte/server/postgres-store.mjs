@@ -1,9 +1,9 @@
-import pg from "pg";
-import { createInitialData, normalizeStoredData } from "./data-store.mjs";
-import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from "./postgres-state-codec.mjs";
+import pg from 'pg';
+import { createInitialData, normalizeStoredData } from './data-store.mjs';
+import { decodePostgresState, encodePostgresState, isEncodedPostgresState } from './postgres-state-codec.mjs';
 
 const { Pool } = pg;
-const STATE_ID = "primary";
+const STATE_ID = 'primary';
 
 function clone(value) {
   return structuredClone(value);
@@ -11,7 +11,9 @@ function clone(value) {
 
 function textCharacters(value) {
   if (typeof value === 'string') return value.length;
-  return value && typeof value === 'object' ? Object.values(value).reduce((sum, item) => sum + textCharacters(item), 0) : 0;
+  return value && typeof value === 'object'
+    ? Object.values(value).reduce((sum, item) => sum + textCharacters(item), 0)
+    : 0;
 }
 
 // pg already removes failed idle clients from the pool. The error event still
@@ -23,49 +25,63 @@ export async function postgresTransaction(pool, work) {
   let connectionError = null;
   let discard = false;
   let fail;
-  const disconnected = new Promise((_, reject) => { fail = reject; });
+  const disconnected = new Promise((_, reject) => {
+    fail = reject;
+  });
   const onError = error => {
     connectionError ??= error;
     discard = true;
     fail(connectionError);
   };
-  client.on?.("error", onError);
+  client.on?.('error', onError);
   // A mutator may be waiting on filesystem/network work between SQL queries.
   // Reject it on disconnect too, then prevent its continuation from issuing SQL
-  // or publishing its draft. Never retry a transaction or an uncertain COMMIT.
-  const wait = action => Promise.race([
-    Promise.resolve().then(() => {
-      if (connectionError) throw connectionError;
-      return action();
-    }),
-    disconnected
-  ]);
+  // or publishing its draft. A transaction or an uncertain COMMIT is not retried.
+  const wait = action =>
+    Promise.race([
+      Promise.resolve().then(() => {
+        if (connectionError) throw connectionError;
+        return action();
+      }),
+      disconnected,
+    ]);
   const query = async (...args) => {
     const started = performance.now();
-    try { return await wait(() => client.query(...args)); }
-    finally {
+    try {
+      return await wait(() => client.query(...args));
+    } finally {
       const durationMs = Math.round(performance.now() - started);
-      // Operational timing only: never log SQL parameters or document contents.
-      if (process.env.RENDER && durationMs >= 500) console.info(JSON.stringify({ event: 'norte_postgres_slow_query', operation: args[0].split(/\s+/u).slice(0, 2).join(' '), durationMs }));
+      // Operational timing only, without SQL parameters or document contents.
+      if (process.env.RENDER && durationMs >= 500)
+        console.info(
+          JSON.stringify({
+            event: 'norte_postgres_slow_query',
+            operation: args[0].split(/\s+/u).slice(0, 2).join(' '),
+            durationMs,
+          }),
+        );
     }
   };
   try {
-    await query("BEGIN");
+    await query('BEGIN');
     const result = await work({ query, wait });
-    await query("COMMIT");
+    await query('COMMIT');
     return result;
   } catch (error) {
     // An unusable socket cannot roll back. If rollback itself fails, also
-    // destroy the client; it must never re-enter the pool with an open txn.
+    // destroy the client, so it does not re-enter the pool with an open transaction.
     if (!connectionError) {
-      try { await query("ROLLBACK"); }
-      catch { discard = true; }
+      try {
+        await query('ROLLBACK');
+      } catch {
+        discard = true;
+      }
     }
     throw error;
   } finally {
     // release first restores pg-pool's idle error listener, avoiding a gap.
     client.release(discard);
-    client.removeListener?.("error", onError);
+    client.removeListener?.('error', onError);
   }
 }
 
@@ -73,18 +89,20 @@ export class PostgresDataStore {
   constructor(connectionString, options = {}) {
     // Enable writes only after every deployed reader supports this codec.
     // Once a row is encoded, compatible instances preserve that format.
-    this.compressState = options.compressState ?? process.env.NORTE_POSTGRES_COMPRESSION === "1";
-    this.compactStrings = options.compactStrings ?? process.env.NORTE_POSTGRES_STRING_REFS === "1";
-    this.pool = options.pool ?? new Pool({
-      connectionString,
-      max: 5,
-      idleTimeoutMillis: 30_000,
-      connectionTimeoutMillis: 10_000,
-      application_name: "norte"
-    });
+    this.compressState = options.compressState ?? process.env.NORTE_POSTGRES_COMPRESSION === '1';
+    this.compactStrings = options.compactStrings ?? process.env.NORTE_POSTGRES_STRING_REFS === '1';
+    this.pool =
+      options.pool ??
+      new Pool({
+        connectionString,
+        max: 5,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 10_000,
+        application_name: 'norte',
+      });
     // Several store wrappers can share an injected pool in tests/tools.
-    if (!this.pool.listeners?.("error").includes(handleIdleConnectionError)) {
-      this.pool.on?.("error", handleIdleConnectionError);
+    if (!this.pool.listeners?.('error').includes(handleIdleConnectionError)) {
+      this.pool.on?.('error', handleIdleConnectionError);
     }
     this.data = null;
     this.revision = null;
@@ -102,30 +120,53 @@ export class PostgresDataStore {
         revision BIGINT NOT NULL DEFAULT 0
       )
     `);
-    await this.pool.query("ALTER TABLE norte_state ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 0");
-    await this.pool.query(
-      "INSERT INTO norte_state (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING",
-      [STATE_ID, JSON.stringify(createInitialData())]
-    );
+    await this.pool.query('ALTER TABLE norte_state ADD COLUMN IF NOT EXISTS revision BIGINT NOT NULL DEFAULT 0');
+    await this.pool.query('INSERT INTO norte_state (id, data) VALUES ($1, $2::jsonb) ON CONFLICT (id) DO NOTHING', [
+      STATE_ID,
+      JSON.stringify(createInitialData()),
+    ]);
     // Normalize under the same lock used for ordinary writes; simultaneous
     // starts cannot overwrite a registration or upload with an old snapshot.
     const snapshot = await postgresTransaction(this.pool, async ({ query, wait }) => {
-      const result = await query("SELECT data, revision::text AS revision, updated_at::text AS updated_at_token FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
+      const result = await query(
+        'SELECT data, revision::text AS revision, updated_at::text AS updated_at_token FROM norte_state WHERE id = $1 FOR UPDATE',
+        [STATE_ID],
+      );
       const encoded = isEncodedPostgresState(result.rows[0].data);
       const decoded = await wait(() => decodePostgresState(result.rows[0].data));
       const previousSchema = decoded.schemaVersion;
       const data = normalizeStoredData(decoded, { copy: !encoded });
       let { revision, updated_at_token: updatedAtToken } = result.rows[0];
       if (previousSchema !== data.schemaVersion) {
-        const persisted = await wait(() => encodePostgresState(data, { compress: this.compressState || encoded, compactStrings: this.compactStrings || (encoded && result.rows[0].data.version === 2) }));
-        const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
+        const persisted = await wait(() =>
+          encodePostgresState(data, {
+            compress: this.compressState || encoded,
+            compactStrings: this.compactStrings || (encoded && result.rows[0].data.version === 2),
+          }),
+        );
+        const updated = await query(
+          'UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token',
+          [STATE_ID, JSON.stringify(persisted)],
+        );
         revision = updated.rows[0].revision;
         updatedAtToken = updated.rows[0].updated_at_token;
       }
       return { data, revision, updatedAtToken };
     });
     Object.assign(this, snapshot);
-    if (process.env.RENDER) console.info(JSON.stringify({ event: 'norte_storage_loaded', users: this.data.users.length, projects: Object.keys(this.data.workspace.projects).length, artifacts: this.data.artifacts.length, textCharactersBySection: Object.fromEntries(Object.entries(this.data).map(([name, value]) => [name, textCharacters(value)])), legacyProject: !!this.data.workspace.project }));
+    if (process.env.RENDER)
+      console.info(
+        JSON.stringify({
+          event: 'norte_storage_loaded',
+          users: this.data.users.length,
+          projects: Object.keys(this.data.workspace.projects).length,
+          artifacts: this.data.artifacts.length,
+          textCharactersBySection: Object.fromEntries(
+            Object.entries(this.data).map(([name, value]) => [name, textCharacters(value)]),
+          ),
+          legacyProject: !!this.data.workspace.project,
+        }),
+      );
     return this;
   }
 
@@ -141,22 +182,30 @@ export class PostgresDataStore {
       // parsing and cloning every user's documents on the small web instance.
       // The timestamp also catches older instances during a rolling deploy,
       // which update data/updated_at but do not yet increment revision.
-      const result = await this.pool.query("SELECT revision::text AS revision, updated_at::text AS updated_at_token, CASE WHEN revision = $2::bigint AND updated_at::text = $3 THEN NULL ELSE data END AS data FROM norte_state WHERE id = $1", [STATE_ID, this.revision, this.updatedAtToken]);
+      const result = await this.pool.query(
+        'SELECT revision::text AS revision, updated_at::text AS updated_at_token, CASE WHEN revision = $2::bigint AND updated_at::text = $3 THEN NULL ELSE data END AS data FROM norte_state WHERE id = $1',
+        [STATE_ID, this.revision, this.updatedAtToken],
+      );
       const row = result.rows[0];
-      if (!row) throw new Error("Norte state was not found.");
-      if (row.data !== null) this.data = normalizeStoredData(await decodePostgresState(row.data), { copy: !isEncodedPostgresState(row.data) });
+      if (!row) throw new Error('Norte state was not found.');
+      if (row.data !== null)
+        this.data = normalizeStoredData(await decodePostgresState(row.data), {
+          copy: !isEncodedPostgresState(row.data),
+        });
       this.revision = row.revision;
       this.updatedAtToken = row.updated_at_token;
     });
     this.pendingRefresh = operation;
-    const clear = () => { if (this.pendingRefresh === operation) this.pendingRefresh = null; };
+    const clear = () => {
+      if (this.pendingRefresh === operation) this.pendingRefresh = null;
+    };
     operation.then(clear, clear);
     this.queue = operation.catch(() => undefined);
     return operation;
   }
 
   read(select = value => value) {
-    if (!this.data) throw new Error("Data store was not initialized.");
+    if (!this.data) throw new Error('Data store was not initialized.');
     return clone(select(this.data));
   }
 
@@ -164,15 +213,28 @@ export class PostgresDataStore {
     this.pendingRefresh = null;
     const operation = this.queue.then(async () => {
       const snapshot = await postgresTransaction(this.pool, async ({ query, wait }) => {
-        const current = await query("SELECT data FROM norte_state WHERE id = $1 FOR UPDATE", [STATE_ID]);
+        const current = await query('SELECT data FROM norte_state WHERE id = $1 FOR UPDATE', [STATE_ID]);
         const encoded = isEncodedPostgresState(current.rows[0].data);
         const decoded = await wait(() => decodePostgresState(current.rows[0].data));
         const draft = normalizeStoredData(decoded, { copy: !encoded });
         const result = await wait(() => mutator(draft));
         draft.updatedAt = new Date().toISOString();
-        const persisted = await wait(() => encodePostgresState(draft, { compress: this.compressState || encoded, compactStrings: this.compactStrings || (encoded && current.rows[0].data.version === 2) }));
-        const updated = await query("UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token", [STATE_ID, JSON.stringify(persisted)]);
-        return { data: draft, revision: updated.rows[0].revision, updatedAtToken: updated.rows[0].updated_at_token, result };
+        const persisted = await wait(() =>
+          encodePostgresState(draft, {
+            compress: this.compressState || encoded,
+            compactStrings: this.compactStrings || (encoded && current.rows[0].data.version === 2),
+          }),
+        );
+        const updated = await query(
+          'UPDATE norte_state SET data = $2::jsonb, updated_at = NOW(), revision = revision + 1 WHERE id = $1 RETURNING revision::text AS revision, updated_at::text AS updated_at_token',
+          [STATE_ID, JSON.stringify(persisted)],
+        );
+        return {
+          data: draft,
+          revision: updated.rows[0].revision,
+          updatedAtToken: updated.rows[0].updated_at_token,
+          result,
+        };
       });
       this.data = snapshot.data;
       this.revision = snapshot.revision;
@@ -184,7 +246,7 @@ export class PostgresDataStore {
   }
 
   async health() {
-    await this.pool.query("SELECT 1");
+    await this.pool.query('SELECT 1');
   }
 
   async close() {

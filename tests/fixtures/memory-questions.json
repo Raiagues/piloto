@@ -1,0 +1,49 @@
+{
+  "archive": {
+    "should_store_memory": {
+      "type": "noul",
+      "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+      "criteria": {
+        "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+        "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+      "criteria": {
+        "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+        "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+        "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+        "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+        "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+        "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+        "other": "Useful project memory not covered above, such as a requirement, unresolved question, risk, or proposed change without an explicit final decision."
+      }
+    }
+  },
+  "current": {
+    "should_store_memory": {
+      "type": "noul",
+      "instructions": "Should the current utterance be retained as useful project memory? Evaluate only the supplied current_utterance. Do not invent context, an assignment, agreement, or a result. Useful factual background about the project can be memory even when it introduces no new task.",
+      "criteria": {
+        "true": "Contains concrete project information worth recalling later: a factual observation or durable background, hypothesis, proposed test or change, test result, explicit decision, actionable task, requirement, constraint, unresolved question, or risk.",
+        "false": "Contains only greetings, filler, acknowledgements without an explicit project fact, unrelated conversation, or transient logistics without lasting project consequence. A fragment with no recoverable project meaning is not memory."
+      }
+    },
+    "event_type": {
+      "type": "choice",
+      "instructions": "Classify the primary event in current_utterance, which has been selected for project memory. Use only the supplied text. Distinguish a proposed experiment from its result and from a final adoption decision. Prefer a specific test_proposal, test_result, or decision over the generic action_item category. Do not treat a suggestion alone as final approval.",
+      "criteria": {
+        "observation": "Reports a concrete project fact, current condition, or useful factual background without a more specific event type.",
+        "hypothesis": "Suggests an unverified explanation, cause, effect, or possibility; no concrete test or adoption decision is established.",
+        "test_proposal": "Proposes actually performing an investigation, experiment, prototype, measurement, validation, or comparison to learn something.",
+        "test_result": "Reports an outcome, measurement, or conclusion obtained from a test or experiment, without explicitly deciding adoption.",
+        "decision": "Explicitly decides, approves, or commits the actual project to a choice now, not merely suggesting or testing it.",
+        "action_item": "Establishes a concrete task to perform, not primarily a proposed test, test result, or project decision; a person or deadline is not required.",
+        "requirement": "States a required project property, constraint, acceptance criterion, or obligation that the design or solution must satisfy; not a measured test outcome or adoption decision.",
+        "other": "Useful project memory not covered above, such as an unresolved question, risk, or proposed change without an explicit final decision."
+      }
+    }
+  }
+}

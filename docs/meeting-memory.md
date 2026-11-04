@@ -29,7 +29,7 @@ A segmentação preserva os originais. Uma frase pontuada (texto digitado ou tra
 5. **Títulos estáveis.** O título de um assunto é reescrito só quando o assunto chega a 1, 3, 6, 12, 24 ou 48 eventos; o título anterior continua visível enquanto o novo é escrito. A ata segue a mesma regra, e um título dado pela equipe sempre prevalece.
 6. **Ata (LLM).** Organizada ao fim, a pedido, a partir dos eventos, assuntos e notas validadas.
 
-A edição humana de um bloco (duplo clique ou lápis) prevalece sobre a nota automática e segue para a ata como `human_summary`, ao lado do texto original; as guardas da ata aceitam valores presentes no original ou na correção. Abrir uma reunião salva não grava nem reorganiza nada; uma edição ou a continuação da reunião retomam a organização de fundo.
+Enquanto a reunião acontece, o canvas e a ata só podem ser lidos. As notas pessoais de cada participante ficam ao lado da reunião (`meetingNotes` no store do Node, rotas `/api/meetings/:id/notes`) e nunca entram no registro, na ata nem em um pedido a modelo. Depois de encerrar, a edição humana de um bloco (duplo clique ou lápis) prevalece sobre a nota automática e segue para a ata como `human_summary`, ao lado do texto original; as guardas da ata aceitam valores presentes no original ou na correção. Abrir uma reunião salva não grava nem reorganiza nada; uma edição ou a continuação da reunião retomam a organização de fundo.
 
 O anfitrião também pode continuar uma reunião concluída por texto, arquivo de transcrição ou microfone. A sessão retoma o registro salvo, grava o estado em andamento antes de aceitar contribuições e conta o novo período a partir de `continued_at`; uma ata gerada antes deixa de corresponder à fonte e precisa ser gerada de novo.
 
@@ -51,8 +51,9 @@ A avaliação editorial registra, por tentativa, quantas notas foram aprovadas e
 
 - Reconhecimento de fala: API de voz do navegador, quando disponível; a implementação e o eventual envio de áudio dependem do navegador. Áudio de participantes usa WebRTC, com consentimento de microfone.
 - JEV: `https://api.typesafe.ai/v1/systemone`, configurado por `TYPESAFE_API_KEY`/`JEV_MODEL`. Recebe estado limitado da reunião, perguntas fixas e exemplos de correção dessa mesma reunião quando aplicáveis.
-- Revisão editorial: Gemini ou OpenAI conforme `AI_AGENT_PROVIDER`, opt-in de revisão externa, credenciais e orçamento. Recebe fala classificada limitada, contexto do mesmo assunto e os dados necessários ao item. OpenAI usa `store: false`.
-- Atas: Gemini conforme configuração de atas; recebe a fonte solicitada para gerar o documento. O limite diário é persistente e independente da fila editorial.
+- Revisão editorial: OpenAI, modelo `NORTE_MEETING_EDITOR_MODEL`, conforme opt-in de revisão externa, credenciais e orçamento. Recebe fala classificada limitada, contexto do mesmo assunto e os dados necessários ao item. Usa `store: false`.
+- Atas: OpenAI, modelo `NORTE_MINUTES_MODEL`. Recebe a fonte solicitada para gerar o documento. O limite diário é persistente e independente da fila editorial.
+- `NORTE_LLM_PROVIDER=gemini` ainda seleciona um adaptador Google, usado só por quem pedir essa troca. Os fluxos são os mesmos.
 
 Nenhum desses fluxos recupera contexto de projeto ou de reuniões anteriores. Os endpoints antigos de aliases, navegação de simulador e consulta de memória externa foram retirados.
 
@@ -76,6 +77,8 @@ Reuniões antigas dos fluxos de revisão e simulação são convertidas em arqui
 
 ## Avaliação real dos três cenários fornecidos (24/10/2026)
 
+Esta avaliação e a seguinte foram feitas quando as notas e atas usavam Gemini. Elas continuam aqui como histórico e servem de base para comparar com a OpenAI em `tests/lyle/compare_minutes.py`.
+
 Executamos apenas as falas do material autorizado; comentários e gabarito ficaram fora das requisições. Os arquivos de origem, transcrições, respostas e PDFs são privados, em `novo_teste/resultados/reunioes/`. Esta execução não mede conformidade regulatória nem comprova os alertas do gabarito.
 
 | Cenário | Falas / chunks | Chamadas JEV | Registros retidos / sem assunto confirmado | Tempo somado do provedor JEV | Tempo da ata Gemini |
@@ -90,7 +93,7 @@ A baixa confiança de associação a assuntos é uma limitação observada: no c
 
 O Gemini `gemini-3.8-flash` organizou 41 registros do recorte apresentado: 35 sínteses passaram pela validação e 6 conservaram o texto original curto, com aviso para revisão (3, 2 e 1 por cenário). Essas contagens são de aceitação editorial, separadas da classificação JEV e da qualidade frente ao gabarito. Houve rejeição real de uma quantidade trazida de outro registro e de paráfrases que mudavam cláusulas negativas. O teste de regressão privado cobre o primeiro caso. IDs, associação a assunto, unidades, negações, cobertura e tabelas continuam sujeitos à validação local.
 
-O schema remoto tinha limites de arrays aninhados que causavam HTTP 400. `gemini_minutes.response_schema` remove esses limites somente da gramática enviada; `SCHEMA` e `finalize` mantêm os limites na resposta. Isso segue a [limitação de complexidade documentada pelo Google](https://ai.google.dev/gemini-api/docs/structured-output#limitations). `finalize_editorial` pode preservar um original curto quando apenas sua síntese falha; erros estruturais ainda rejeitam o documento. Originais longos não são truncados para aparentar uma síntese válida.
+O schema remoto tinha limites de arrays aninhados que causavam HTTP 400. `llm.without_size_limits` remove esses limites somente da gramática enviada; `SCHEMA` e `finalize` mantêm os limites na resposta. Isso segue a [limitação de complexidade documentada pelo Google](https://ai.google.dev/gemini-api/docs/structured-output#limitations). `finalize_editorial` pode preservar um original curto quando apenas sua síntese falha; erros estruturais ainda rejeitam o documento. Originais longos não são truncados para aparentar uma síntese válida.
 
 Os três resultados finais somaram cerca de US$ 0,0416 pelas tarifas configuradas localmente e tokens medidos, incluindo tokens de raciocínio do Gemini. É uma estimativa, não uma fatura. O custo dos diagnósticos não está incluído: foram 6 recusas HTTP 400 e 3 respostas recusadas pela validação antes das 3 atas aceitas; o uso desses diagnósticos não foi preservado integralmente. Metadados reais e método do cálculo ficam no relatório privado `metricas-reais.json`.
 
@@ -117,7 +120,7 @@ Mesmo material e mesma regra: só as falas foram enviadas; comentários e gabari
 
 Limitações observadas:
 
-- No cenário 01, “Então congelamos todos os requisitos de interface hoje…” virou “Congelados todos os requisitos de interface hoje…”: uma proposta registrada como fato. A fala seguinte adiou o congelamento, mas a nota é escrita sem as respostas posteriores, e o JEV classificou o trecho como decisão. A relação E017→E016 saiu com baixa confiança (0,26 para `supersedes`, 0,23 para `contradicts`). Um ajuste possível é revisar a nota anterior quando uma relação de contradição ou substituição for aceita.
+- No cenário 01, uma proposta de congelar requisitos virou nota de congelamento já feito, ou seja, uma proposta registrada como fato. A fala seguinte adiou o congelamento, mas a nota é escrita sem as respostas posteriores, e o JEV classificou o trecho como decisão. A relação E017→E016 saiu com baixa confiança (0,26 para `supersedes`, 0,23 para `contradicts`). Um ajuste possível é revisar a nota anterior quando uma relação de contradição ou substituição for aceita.
 - O crítico varia entre execuções; aprovação dele não é medida de fidelidade.
 - Nada disso mede acurácia de JEV, qualidade dos assuntos ou ganho com correções humanas. Para isso ainda faltam falas rotuladas por pessoas e um conjunto de avaliação separado.
 

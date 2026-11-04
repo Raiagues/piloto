@@ -1,13 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import type { DeliveryTask } from '../src/lib/projectDelivery';
-import { acceptCurrentScheduleFields, describeScheduleMove, patchScheduleDraft, resolveScheduleDraft, scheduleMoveUndo } from '../src/lib/scheduleEditing';
+import {
+  acceptCurrentScheduleFields,
+  describeScheduleMove,
+  patchScheduleDraft,
+  resolveScheduleDraft,
+  scheduleMoveUndo,
+} from '../src/lib/scheduleEditing';
 
 const task = (patch: Partial<DeliveryTask> = {}): DeliveryTask => ({
-  id: 'test-activity', title: 'Integrar a placa', description: 'Conferir as interfaces', phase: '', kind: 'task',
-  startDate: '2026-10-20', dueDate: '2026-10-25', prepDays: 0, closeDays: 0, status: 'planned',
-  sectorId: 'avionics', ownerId: '', dependencyIds: [], requirementIds: ['REQ-1'], testIds: [],
-  inputArtifactIds: ['DOC-1'], outputArtifactIds: [], documentOptions: [], archived: false,
-  overdue: false, blockedBy: [], dateConflicts: [], canEdit: true, ...patch,
+  id: 'test-activity',
+  title: 'Integrar a placa',
+  description: 'Conferir as interfaces',
+  phase: '',
+  kind: 'task',
+  startDate: '2026-10-20',
+  dueDate: '2026-10-25',
+  prepDays: 0,
+  closeDays: 0,
+  status: 'planned',
+  sectorId: 'avionics',
+  ownerId: '',
+  dependencyIds: [],
+  requirementIds: ['REQ-1'],
+  testIds: [],
+  inputArtifactIds: ['DOC-1'],
+  outputArtifactIds: [],
+  documentOptions: [],
+  archived: false,
+  overdue: false,
+  blockedBy: [],
+  dateConflicts: [],
+  canEdit: true,
+  ...patch,
 });
 
 describe('schedule quick-edit drafts', () => {
@@ -17,7 +42,14 @@ describe('schedule quick-edit drafts', () => {
     const moved = { ...original, startDate: '2026-10-22', dueDate: '2026-10-27', status: 'blocked' };
     const resolved = resolveScheduleDraft(moved, draft);
     expect(resolved.conflicts).toEqual([]);
-    expect(resolved.item).toMatchObject({ ownerId: 'ana', startDate: '2026-10-22', dueDate: '2026-10-27', status: 'blocked', requirementIds: ['REQ-1'], inputArtifactIds: ['DOC-1'] });
+    expect(resolved.item).toMatchObject({
+      ownerId: 'ana',
+      startDate: '2026-10-22',
+      dueDate: '2026-10-27',
+      status: 'blocked',
+      requirementIds: ['REQ-1'],
+      inputArtifactIds: ['DOC-1'],
+    });
     expect(draft?.values).toEqual({ ownerId: 'ana' });
     expect(original.ownerId).toBe('');
   });
@@ -39,7 +71,11 @@ describe('schedule quick-edit drafts', () => {
     const current = { ...original, dueDate: '2026-11-05' };
     const resolved = resolveScheduleDraft(current, draft);
     const reconciled = acceptCurrentScheduleFields(draft, resolved.conflicts);
-    expect(resolveScheduleDraft(current, reconciled)).toMatchObject({ conflicts: [], dirty: true, item: { dueDate: '2026-11-05', ownerId: 'ana' } });
+    expect(resolveScheduleDraft(current, reconciled)).toMatchObject({
+      conflicts: [],
+      dirty: true,
+      item: { dueDate: '2026-11-05', ownerId: 'ana' },
+    });
     expect(draft?.values.dueDate).toBe('2026-10-30');
   });
 
@@ -68,14 +104,24 @@ describe('exact schedule move undo', () => {
     expect(move.after).toEqual({ startDate: '2026-10-28', dueDate: '2026-10-28' });
     const current = { ...original, ...move.after, title: 'Título revisado', ownerId: 'ana' };
     const restored = scheduleMoveUndo(current, move);
-    expect(restored).toMatchObject({ startDate: '', dueDate: '2026-10-25', title: 'Título revisado', ownerId: 'ana', requirementIds: ['REQ-1'], inputArtifactIds: ['DOC-1'] });
+    expect(restored).toMatchObject({
+      startDate: '',
+      dueDate: '2026-10-25',
+      title: 'Título revisado',
+      ownerId: 'ana',
+      requirementIds: ['REQ-1'],
+      inputArtifactIds: ['DOC-1'],
+    });
     expect(current.startDate).toBe('2026-10-28');
   });
 
   it('restores an originally empty due date and preserves the activity duration for dated moves', () => {
     const original = task({ dueDate: '' });
     const move = describeScheduleMove(original, '2026-10-23');
-    expect(scheduleMoveUndo({ ...original, ...move.after }, move)).toMatchObject({ startDate: '2026-10-20', dueDate: '' });
+    expect(scheduleMoveUndo({ ...original, ...move.after }, move)).toMatchObject({
+      startDate: '2026-10-20',
+      dueDate: '',
+    });
     const dated = task();
     const datedMove = describeScheduleMove(dated, '2026-10-29');
     expect(datedMove.after).toEqual({ startDate: '2026-10-24', dueDate: '2026-10-29' });
@@ -83,7 +129,8 @@ describe('exact schedule move undo', () => {
   });
 
   it('refuses undo after either date changes, when archived or when editing is no longer allowed', () => {
-    const original = task(), move = describeScheduleMove(original, '2026-10-28');
+    const original = task(),
+      move = describeScheduleMove(original, '2026-10-28');
     const current = { ...original, ...move.after };
     expect(scheduleMoveUndo({ ...current, startDate: '2026-10-19' }, move)).toBeNull();
     expect(scheduleMoveUndo({ ...current, dueDate: '2026-10-29' }, move)).toBeNull();

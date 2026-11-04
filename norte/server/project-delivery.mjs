@@ -1,8 +1,19 @@
 import { documentLatexArchive } from './document-latex.mjs';
-import { registerEngineeringAssistant, reserveEngineeringBudget, assistantContextHash } from './engineering-assistant.mjs';
-import { draftDeliveryDocument, deliveryPdf } from './delivery-documents.mjs';
+import {
+  registerEngineeringAssistant,
+  reserveEngineeringBudget,
+  assistantContextHash,
+} from './engineering-assistant.mjs';
+import { draftDeliveryDocument, draftContext, deliveryPdf } from './delivery-documents.mjs';
 import { canReviewAccount, isFictionalProfile } from './reviewer-eligibility.mjs';
-import { LIFE_DURATIONS, LIFE_PHASES, lifecycleRanges, lifecycleMilestones, reviewDocuments, shiftDate } from '../shared/delivery-lifecycle.mjs';
+import {
+  LIFE_DURATIONS,
+  LIFE_PHASES,
+  lifecycleRanges,
+  lifecycleMilestones,
+  reviewDocuments,
+  shiftDate,
+} from '../shared/delivery-lifecycle.mjs';
 import { createRequirementAnalyzer } from './requirement-analysis.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { DELIVERY_STANDARDS, DELIVERY_STANDARD_GROUPS } from '../shared/delivery-standards.mjs';
@@ -12,464 +23,1885 @@ const fail = (statusCode, code, message) => Object.assign(new Error(message), { 
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const now = () => new Date().toISOString();
 const list = (value, field, max = 100) => {
-  if (!Array.isArray(value) || value.length > max || value.some(id => typeof id !== 'string' || !id || id.length > 200)) throw fail(400, 'INVALID_DELIVERY', `Lista inválida: ${field}.`);
+  if (!Array.isArray(value) || value.length > max || value.some(id => typeof id !== 'string' || !id || id.length > 200))
+    throw fail(400, 'INVALID_DELIVERY', `Lista inválida: ${field}.`);
   return [...new Set(value)];
 };
 const text = (value, field, max = 4000, required = false) => {
-  if (typeof value !== 'string' || value.length > max || (required && !value.trim())) throw fail(400, 'INVALID_DELIVERY', `Preencha ${field} corretamente.`);
+  if (typeof value !== 'string' || value.length > max || (required && !value.trim()))
+    throw fail(400, 'INVALID_DELIVERY', `Preencha ${field} corretamente.`);
   return value.trim();
 };
 const date = value => {
   if (value === '') return '';
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value) throw fail(400, 'INVALID_DATE', 'Informe uma data válida.');
+  if (
+    typeof value !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    !Number.isFinite(Date.parse(value)) ||
+    new Date(value).toISOString().slice(0, 10) !== value
+  )
+    throw fail(400, 'INVALID_DATE', 'Informe uma data válida.');
   return value;
 };
 const methods = ['unspecified', 'test', 'analysis', 'inspection', 'demonstration', 'simulation'];
 const statuses = ['planned', 'in_progress', 'blocked', 'done'];
-const empty = () => ({ revision: 0, requirements: [], tests: [], tasks: [], standards: [], history: [], proposals: [], documents: [], analyses: {} });
+const empty = () => ({
+  revision: 0,
+  requirements: [],
+  tests: [],
+  tasks: [],
+  standards: [],
+  history: [],
+  proposals: [],
+  documents: [],
+  analyses: {},
+});
 const baseline = record => record.document.engineeringSystem?.requirements || [];
-export const deliveryBaselineHash = record => hash({ requirements: baseline(record), evidence: record.document.engineeringSystem?.evidence || [], entities: record.document.engineeringSystem?.entities || [], relations: record.document.engineeringSystem?.relations || [] });
-const content = r => ({ id: r.id, title: r.title, statement: r.statement, sectorId: r.sectorId || '', method: r.method || 'unspecified', entityIds: r.entityIds || [], sourceRefs: r.sourceRefs || [], artifactIds: r.artifactIds || [], parentIds: r.parentIds || [], rationale: r.rationale || '', acceptanceCriteria: r.acceptanceCriteria || '', condition: r.condition || '', ownerId: r.ownerId || '', level: r.level || 'system', criticality: r.criticality || 'normal', sourceLocator: r.sourceLocator || '', sourceComment: r.sourceComment || '' });
+export const deliveryBaselineHash = record =>
+  hash({
+    requirements: baseline(record),
+    evidence: record.document.engineeringSystem?.evidence || [],
+    entities: record.document.engineeringSystem?.entities || [],
+    relations: record.document.engineeringSystem?.relations || [],
+  });
+const content = r => ({
+  id: r.id,
+  title: r.title,
+  statement: r.statement,
+  sectorId: r.sectorId || '',
+  method: r.method || 'unspecified',
+  entityIds: r.entityIds || [],
+  sourceRefs: r.sourceRefs || [],
+  artifactIds: r.artifactIds || [],
+  parentIds: r.parentIds || [],
+  rationale: r.rationale || '',
+  acceptanceCriteria: r.acceptanceCriteria || '',
+  condition: r.condition || '',
+  ownerId: r.ownerId || '',
+  level: r.level || 'system',
+  criticality: r.criticality || 'normal',
+  sourceLocator: r.sourceLocator || '',
+  sourceComment: r.sourceComment || '',
+});
 const contentHash = r => hash(content(r));
-const evidenceHash = (record, refs) => hash((record.document.engineeringSystem?.evidence || []).filter(e => refs.includes(e.id)));
-const requirementSourceHash = (record, r) => hash([projected(r), r.properties || [], r.relatedPropertyRefs || [], r.relatedRelationIds || [], evidenceHash(record, [...(r.sourceRefs || []), ...(r.properties || []).flatMap(p => p.evidenceRefs || [])])]);
-const projected = r => ({ id: r.id, title: r.title, statement: r.statement, sectorId: '', method: 'unspecified', entityIds: r.relatedEntityIds || [], sourceRefs: r.sourceRefs || [], artifactIds: [], parentIds: [], source: 'architecture' });
+const evidenceHash = (record, refs) =>
+  hash((record.document.engineeringSystem?.evidence || []).filter(e => refs.includes(e.id)));
+const requirementSourceHash = (record, r) =>
+  hash([
+    projected(r),
+    r.properties || [],
+    r.relatedPropertyRefs || [],
+    r.relatedRelationIds || [],
+    evidenceHash(record, [...(r.sourceRefs || []), ...(r.properties || []).flatMap(p => p.evidenceRefs || [])]),
+  ]);
+const projected = r => ({
+  id: r.id,
+  title: r.title,
+  statement: r.statement,
+  sectorId: '',
+  method: 'unspecified',
+  entityIds: r.relatedEntityIds || [],
+  sourceRefs: r.sourceRefs || [],
+  artifactIds: [],
+  parentIds: [],
+  source: 'architecture',
+});
 function requirementsOf(record, state, data) {
   const signatures = new Map(baseline(record).map(r => [r.id, requirementSourceHash(record, r)]));
-  const source = baseline(record).map(projected), overlays = new Map(state.requirements.map(r => [r.id, r]));
+  const source = baseline(record).map(projected),
+    overlays = new Map(state.requirements.map(r => [r.id, r]));
   const rows = source.map(r => {
-    const edit = overlays.get(r.id); overlays.delete(r.id);
-    if (!edit) return { ...r, version: 1, status: 'draft', reviewers: [], decisions: [], comments: [], archived: false, contentHash: hash([contentHash(r), signatures.get(r.id), evidenceHash(record, r.sourceRefs || [])]), sourceChanged: false, authorId: record.createdBy };
+    const edit = overlays.get(r.id);
+    overlays.delete(r.id);
+    if (!edit)
+      return {
+        ...r,
+        version: 1,
+        status: 'draft',
+        reviewers: [],
+        decisions: [],
+        comments: [],
+        archived: false,
+        contentHash: hash([contentHash(r), signatures.get(r.id), evidenceHash(record, r.sourceRefs || [])]),
+        sourceChanged: false,
+        authorId: record.createdBy,
+      };
     const sourceChanged = edit.sourceHash !== signatures.get(r.id);
     // Keep a user's correction, but invalidate review when the imported baseline changes.
-    return { ...edit, sourceChanged, sourceStatement: r.statement, contentHash: hash([contentHash(edit), signatures.get(r.id), evidenceHash(record, edit.sourceRefs || [])]) };
+    return {
+      ...edit,
+      sourceChanged,
+      sourceStatement: r.statement,
+      contentHash: hash([contentHash(edit), signatures.get(r.id), evidenceHash(record, edit.sourceRefs || [])]),
+    };
   });
-  for (const edit of overlays.values()) rows.push({ ...edit, sourceChanged: edit.source === 'architecture', contentHash: hash([contentHash(edit), 'manual', evidenceHash(record, edit.sourceRefs || [])]) });
+  for (const edit of overlays.values())
+    rows.push({
+      ...edit,
+      sourceChanged: edit.source === 'architecture',
+      contentHash: hash([contentHash(edit), 'manual', evidenceHash(record, edit.sourceRefs || [])]),
+    });
   return rows.map(r => {
-    const decisions = (r.decisions || []).filter(d => d.contentHash === r.contentHash && r.reviewers.includes(d.userId) && (!data || canReviewAccount(data.users.find(user => user.id === d.userId))));
-    const status = r.archived ? 'archived' : !r.reviewHash || r.reviewHash !== r.contentHash ? 'draft' : decisions.some(d => d.decision === 'request_changes') ? 'changes_requested' : r.reviewers.length && r.reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve')) ? 'approved' : 'in_review';
+    const decisions = (r.decisions || []).filter(
+      d =>
+        d.contentHash === r.contentHash &&
+        r.reviewers.includes(d.userId) &&
+        (!data || canReviewAccount(data.users.find(user => user.id === d.userId))),
+    );
+    const status = r.archived
+      ? 'archived'
+      : !r.reviewHash || r.reviewHash !== r.contentHash
+        ? 'draft'
+        : decisions.some(d => d.decision === 'request_changes')
+          ? 'changes_requested'
+          : r.reviewers.length &&
+              r.reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve'))
+            ? 'approved'
+            : 'in_review';
     return { ...r, status, decisions };
   });
 }
-/** A read-only projection for retrieval and scenarios. Never mutates the extracted baseline.
- * Human wording is not documentary proof, and obsolete numeric constraints are discarded. */
-export function effectiveEngineeringRequirements(data, record, { allowedArtifactIds } = {}) {
-  const state = data.workspace.delivery?.[record.document.id];
-  if (!state) return structuredClone(baseline(record));
-  const originals = new Map(baseline(record).map(r => [r.id, r]));
-  const allowed = allowedArtifactIds && new Set(allowedArtifactIds);
-  return requirementsOf(record, state, data).filter(r => !r.archived && (!allowed || (r.artifactIds || []).every(id => allowed.has(id)))).map(r => {
-    const original = originals.get(r.id), overlay = state.requirements.find(row => row.id === r.id);
-    if (!overlay) return structuredClone(original);
-    const changed = !original || r.sourceChanged || r.statement !== original.statement || hash(r.sourceRefs) !== hash(original.sourceRefs || []) || hash(r.entityIds) !== hash(original.relatedEntityIds || []);
-    const human = r.source === 'manual' || changed || r.title !== original?.title;
-    const result = { ...(original ? structuredClone(original) : {}), id: r.id, title: r.title, statement: r.statement,
-      subsystemTags: original?.subsystemTags || [], reviewTags: [...new Set([...(human ? ['human_revision'] : []), ...(changed ? ['numeric_constraints_need_review'] : []), ...(original?.reviewTags || [])])].slice(0, 20),
-      status: r.status === 'approved' ? 'accepted' : r.status === 'in_review' || r.status === 'changes_requested' ? 'review' : 'unreviewed',
-      sourceRefs: r.sourceRefs || [], relatedEntityIds: r.entityIds || [], relatedRelationIds: changed ? [] : original?.relatedRelationIds || [],
-      relatedPropertyRefs: changed ? [] : original?.relatedPropertyRefs || [], properties: changed ? [] : original?.properties || [],
-      ...(human ? { classificationSource: 'user' } : {}) };
-    if (changed) { delete result.originalStatement; delete result.originalSourceRefs; }
-    return result;
-  });
-}
 function graphAcyclic(rows, field) {
-  const byId = new Map(rows.map(row => [row.id, row])), visiting = new Set(), done = new Set();
+  const byId = new Map(rows.map(row => [row.id, row])),
+    visiting = new Set(),
+    done = new Set();
   function visit(id) {
     if (visiting.has(id)) throw fail(400, 'DEPENDENCY_CYCLE', 'As dependências não podem formar um ciclo.');
     if (done.has(id)) return;
     visiting.add(id);
-    for (const dependency of byId.get(id)?.[field] || []) { if (!byId.has(dependency)) throw fail(400, 'INVALID_LINK', 'Dependência não encontrada.'); visit(dependency); }
-    visiting.delete(id); done.add(id);
+    for (const dependency of byId.get(id)?.[field] || []) {
+      if (!byId.has(dependency)) throw fail(400, 'INVALID_LINK', 'Dependência não encontrada.');
+      visit(dependency);
+    }
+    visiting.delete(id);
+    done.add(id);
   }
   for (const row of rows) visit(row.id);
 }
-const configurationHash = record => hash({entities:record.document.engineeringSystem?.entities||[],relations:record.document.engineeringSystem?.relations||[]});
+const configurationHash = record =>
+  hash({
+    entities: record.document.engineeringSystem?.entities || [],
+    relations: record.document.engineeringSystem?.relations || [],
+  });
 function testStatus(test, requirements, record) {
   if (test.archived) return 'archived';
   const run = test.runs.at(-1);
   if (!run) return 'planned';
-  if (run.configurationHash !== configurationHash(record) || run.planHash !== hash(testPlan(test)) || test.requirementIds.some(id => !requirements.some(r => r.id === id && !r.archived && run.requirementHashes[id] === r.contentHash))) return 'stale';
+  if (
+    run.configurationHash !== configurationHash(record) ||
+    run.planHash !== hash(testPlan(test)) ||
+    test.requirementIds.some(
+      id => !requirements.some(r => r.id === id && !r.archived && run.requirementHashes[id] === r.contentHash),
+    )
+  )
+    return 'stale';
   return run.outcome;
 }
-const reviewNeedsRevalidation = (task, requirements, tests, data, record, access) => task?.kind === 'review' && task.status === 'done' &&
-  ((data && reviewState(task, null, data, requirements, tests, record, access).approvalStatus !== 'approved') || (task.requirementIds || []).some(id => !requirements.some(r => r.id === id && !r.archived && r.status === 'approved')) || (task.testIds || []).some(id => !tests.some(t => t.id === id && !t.archived && t.status === 'passed')));
-const effectiveTaskStatus = (task, requirements, tests, data, record, access) => reviewNeedsRevalidation(task, requirements, tests, data, record, access) ? 'blocked' : task?.status;
-const testPlan = t => ({ title: t.title, method: t.method, procedure: t.procedure, acceptanceCriteria: t.acceptanceCriteria, requirementIds: t.requirementIds, entityIds: t.entityIds, ownerId: t.ownerId, sectorId: t.sectorId, conditions:t.conditions||'', configuration:t.configuration||'', level:t.level||'system', reviewTaskIds:t.reviewTaskIds||[] });
+const reviewNeedsRevalidation = (task, requirements, tests, data, record, access) =>
+  task?.kind === 'review' &&
+  task.status === 'done' &&
+  ((data && reviewState(task, null, data, requirements, tests, record, access).approvalStatus !== 'approved') ||
+    (task.requirementIds || []).some(
+      id => !requirements.some(r => r.id === id && !r.archived && r.status === 'approved'),
+    ) ||
+    (task.testIds || []).some(id => !tests.some(t => t.id === id && !t.archived && t.status === 'passed')));
+const effectiveTaskStatus = (task, requirements, tests, data, record, access) =>
+  reviewNeedsRevalidation(task, requirements, tests, data, record, access) ? 'blocked' : task?.status;
+const testPlan = t => ({
+  title: t.title,
+  method: t.method,
+  procedure: t.procedure,
+  acceptanceCriteria: t.acceptanceCriteria,
+  requirementIds: t.requirementIds,
+  entityIds: t.entityIds,
+  ownerId: t.ownerId,
+  sectorId: t.sectorId,
+  conditions: t.conditions || '',
+  configuration: t.configuration || '',
+  level: t.level || 'system',
+  reviewTaskIds: t.reviewTaskIds || [],
+});
 function visibleMembers(data, record, access) {
-  return data.users.filter(user => user.active !== false && !user.disabled && !isFictionalProfile(user) && access(data, user, record)).map(user => ({ id: user.id, memberId: user.memberId, name: user.name, nickname: user.nickname, canReview: canReviewAccount(user), isFictionalProfile: isFictionalProfile(user) }));
+  return data.users
+    .filter(user => user.active !== false && !user.disabled && !isFictionalProfile(user) && access(data, user, record))
+    .map(user => ({
+      id: user.id,
+      memberId: user.memberId,
+      name: user.name,
+      nickname: user.nickname,
+      canReview: canReviewAccount(user),
+      isFictionalProfile: isFictionalProfile(user),
+    }));
 }
 function taskPlan(item) {
-  return { title:item.title || '', description:item.description || '', kind:item.kind || 'task', phase:item.phase || '', phaseId:item.phaseId || '', parentId:item.parentId || '',
-    startDate:item.startDate || '', dueDate:item.dueDate || '', prepDays:item.prepDays || 0, closeDays:item.closeDays || 0, sectorId:item.sectorId || '', ownerId:item.ownerId || '',
-    dependencyIds:item.dependencyIds || [], requirementIds:item.requirementIds || [], testIds:item.testIds || [], inputArtifactIds:item.inputArtifactIds || [], outputArtifactIds:item.outputArtifactIds || [],
-    reviewCode:item.reviewCode || '', lifecycleProfile:item.lifecycleProfile || '' };
+  return {
+    title: item.title || '',
+    description: item.description || '',
+    kind: item.kind || 'task',
+    phase: item.phase || '',
+    phaseId: item.phaseId || '',
+    parentId: item.parentId || '',
+    startDate: item.startDate || '',
+    dueDate: item.dueDate || '',
+    prepDays: item.prepDays || 0,
+    closeDays: item.closeDays || 0,
+    sectorId: item.sectorId || '',
+    ownerId: item.ownerId || '',
+    dependencyIds: item.dependencyIds || [],
+    requirementIds: item.requirementIds || [],
+    testIds: item.testIds || [],
+    inputArtifactIds: item.inputArtifactIds || [],
+    outputArtifactIds: item.outputArtifactIds || [],
+    reviewCode: item.reviewCode || '',
+    lifecycleProfile: item.lifecycleProfile || '',
+  };
 }
 function taskGraph(tasks) {
-  graphAcyclic(tasks.filter(t => !t.archived).map(t => ({ ...t, predecessors:[...(t.dependencyIds || []), ...(t.parentId ? [t.parentId] : [])] })), 'predecessors');
+  graphAcyclic(
+    tasks
+      .filter(t => !t.archived)
+      .map(t => ({ ...t, predecessors: [...(t.dependencyIds || []), ...(t.parentId ? [t.parentId] : [])] })),
+    'predecessors',
+  );
 }
 function reviewFingerprint(item, requirements, tests) {
   const plan = item.taskId ? [item.startDate || '', item.dueDate || '', item.dependencyIds || []] : [taskPlan(item)];
-  return hash([item.version || 1, item.body || '', ...plan,
-    requirements.filter(r => !r.archived && (!item.requirementIds?.length || item.requirementIds.includes(r.id))).map(r => [r.id, r.contentHash]),
-    tests.filter(t => !t.archived && (!item.testIds?.length || item.testIds.includes(t.id))).map(t => [t.id, t.version, t.runs.at(-1)?.id])]);
+  return hash([
+    item.version || 1,
+    item.body || '',
+    ...plan,
+    requirements
+      .filter(r => !r.archived && (!item.requirementIds?.length || item.requirementIds.includes(r.id)))
+      .map(r => [r.id, r.contentHash]),
+    tests
+      .filter(t => !t.archived && (!item.testIds?.length || item.testIds.includes(t.id)))
+      .map(t => [t.id, t.version, t.runs.at(-1)?.id]),
+  ]);
 }
 function reviewState(item, actor, data, requirements, tests, record, access) {
   const currentHash = reviewFingerprint(item, requirements, tests);
   const assigned = item.reviewers || [];
-  const reviewers = assigned.filter(id => { const user = data.users.find(u => u.id === id); return canReviewAccount(user) && access(data, user, record); });
-  const decisions = (item.decisions || []).filter(d => reviewers.includes(d.userId) && d.version === (item.version || 1) && d.contentHash === currentHash);
-  const status = item.reviewHash !== currentHash || !reviewers.length || reviewers.length !== assigned.length ? 'draft' : decisions.some(d => d.decision === 'request_changes') ? 'changes_requested' : reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve')) ? 'approved' : 'in_review';
-  return { version: item.version || 1, reviewers, decisions, approvalStatus: status, canReview: status === 'in_review' && canReviewAccount(actor) && reviewers.includes(actor.id) && item.authorId !== actor.id };
-}
-function view(data, record, state, actor, access, readOnly = false) {
-  const requirements = requirementsOf(record, state, data), project = record.document;
-  const can = sectorId => !readOnly && canEditSector(project, actor, sectorId, record.createdBy);
-  const tests = state.tests.map(test => ({ ...test, status: testStatus(test, requirements, record), canEdit: can(test.sectorId) }));
-  const today = now().slice(0, 10);
-  const taskView = task => ({ ...task, ...reviewState(task, actor, data, requirements, tests, record, access), ...(readOnly ? { canReview: false } : {}), status:effectiveTaskStatus(task,requirements,tests,data,record,access), reviewNeedsRevalidation:reviewNeedsRevalidation(task,requirements,tests,data,record,access), documentOptions: reviewDocuments(task.lifecycleProfile || state.lifecycle?.profile || 'custom',task.reviewCode || ''), overdue: !task.archived && effectiveTaskStatus(task,requirements,tests,data,record,access) !== 'done' && task.dueDate && task.dueDate < today, blockedBy: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && effectiveTaskStatus(t,requirements,tests,data,record,access) !== 'done' && !t.archived)), dateConflicts: task.dependencyIds.filter(id => state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate)), canEdit: can(task.sectorId) });
+  const reviewers = assigned.filter(id => {
+    const user = data.users.find(u => u.id === id);
+    return canReviewAccount(user) && access(data, user, record);
+  });
+  const decisions = (item.decisions || []).filter(
+    d => reviewers.includes(d.userId) && d.version === (item.version || 1) && d.contentHash === currentHash,
+  );
+  const status =
+    item.reviewHash !== currentHash || !reviewers.length || reviewers.length !== assigned.length
+      ? 'draft'
+      : decisions.some(d => d.decision === 'request_changes')
+        ? 'changes_requested'
+        : reviewers.every(id => decisions.some(d => d.userId === id && d.decision === 'approve'))
+          ? 'approved'
+          : 'in_review';
   return {
-    proposals: (state.proposals || []).map(p => ({...p, status: p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id))) ? 'open' : p.status, decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))), stale: requirements.find(r=>r.id===p.requirementId)?.contentHash !== p.baseHash, canReview: !readOnly && canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id, canMerge: can(requirements.find(r=>r.id===p.requirementId)?.sectorId)})), documents: (state.documents || []).map(document => { const meta = reviewState(document, actor, data, requirements, tests, record, access); const task = state.tasks.find(t => t.id === document.taskId); return {...document,...meta,...(readOnly?{canReview:false}:{}),status:meta.approvalStatus,canEdit:Boolean(task && can(task.sectorId))}; }), lifecycle: state.lifecycle || null, lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
-    standardsConfigured: Boolean(state.standardsConfigured || state.standards.length),
-    standardsProposals: (state.standardsProposals || []).map(p=>({...p, stale:p.baseHash!==hash(state.standards), canReview:!readOnly&&p.reviewers.includes(actor.id)&&p.authorId!==actor.id&&canReviewAccount(actor), status:['merged','cancelled'].includes(p.status)?p.status:p.reviewers.every(id=>visibleMembers(data,record,access).some(m=>m.id===id&&m.canReview)&&p.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':p.decisions.some(d=>d.decision==='request_changes')?'changes_requested':'open'})),
-    revision: state.revision, baselineHash: deliveryBaselineHash(record), standards: state.standards, standardOptions: DELIVERY_STANDARDS, standardGroups: DELIVERY_STANDARD_GROUPS,
-    requirements: requirements.map(r => ({ ...r, analysis: (state.analyses?.[r.id]?.contentHash === r.contentHash && state.analyses[r.id].standardsHash === hash(state.standards) ? state.analyses[r.id] : {engine:'not_analyzed',findings:[],checkedRules:[],disclaimer:''}), canEdit: can(r.sectorId), canReview: !readOnly && canReviewAccount(actor) && r.status === 'in_review' && r.reviewers.includes(actor.id) && r.authorId !== actor.id, verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id)) ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed') ? 'passed' : 'pending' : 'unplanned' })),
-    tests, tasks: state.tasks.filter(task => !task.lifecycleProfile || (task.lifecycleProfile === state.lifecycle?.profile && !task.excluded)).map(taskView),
-    // Preserve manual dates when previewing another profile or re-enabling a review.
-    lifecycleTasks: state.tasks.filter(task => task.lifecycleProfile).map(taskView),
-    members: visibleMembers(data, record, access), sectors: project.context.sectors || [],
-    entities: (project.engineeringSystem?.entities || []).map(e => ({ id: e.id, name: e.name })),
-    evidence: (project.engineeringSystem?.evidence || []).map(e => ({ id: e.id, artifactId: e.artifactId, artifactLabel: e.artifactLabel, locator: e.locator, excerpt: e.excerpt })),
-    artifacts: data.artifacts.filter(a => (a.scope === 'project' && a.ownerId === project.id) || (a.scope === 'team' && a.ownerId === project.context.teamId && project.context.teamArtifactIds.includes(a.id))).map(a => ({ id: a.id, label: a.label || a.name || a.id, href: a.documentText !== undefined ? `/api/artifacts/${encodeURIComponent(a.id)}/pdf` : a.url?.startsWith('data:') ? `/api/artifacts/${encodeURIComponent(a.id)}/content` : a.url || '' })),
-    history: state.history, permissions: { readOnly, manage: !readOnly && isProjectAdmin(project, actor, record.createdBy), editableSectorIds: readOnly ? [] : (project.context.sectors || []).filter(s => can(s.id)).map(s => s.id) }
+    version: item.version || 1,
+    reviewers,
+    decisions,
+    approvalStatus: status,
+    canReview:
+      status === 'in_review' && canReviewAccount(actor) && reviewers.includes(actor.id) && item.authorId !== actor.id,
   };
 }
-export function registerDeliveryRoutes(app, { store, requireAuth, requireCsrf, canAccessProject, analysisOptions = {}, intelligence, readOnly = false }) {
+function view(data, record, state, actor, access, readOnly = false) {
+  const requirements = requirementsOf(record, state, data),
+    project = record.document;
+  const can = sectorId => !readOnly && canEditSector(project, actor, sectorId, record.createdBy);
+  const tests = state.tests.map(test => ({
+    ...test,
+    status: testStatus(test, requirements, record),
+    canEdit: can(test.sectorId),
+  }));
+  const today = now().slice(0, 10);
+  const taskView = task => ({
+    ...task,
+    ...reviewState(task, actor, data, requirements, tests, record, access),
+    ...(readOnly ? { canReview: false } : {}),
+    status: effectiveTaskStatus(task, requirements, tests, data, record, access),
+    reviewNeedsRevalidation: reviewNeedsRevalidation(task, requirements, tests, data, record, access),
+    documentOptions: reviewDocuments(
+      task.lifecycleProfile || state.lifecycle?.profile || 'custom',
+      task.reviewCode || '',
+    ),
+    overdue:
+      !task.archived &&
+      effectiveTaskStatus(task, requirements, tests, data, record, access) !== 'done' &&
+      task.dueDate &&
+      task.dueDate < today,
+    blockedBy: task.dependencyIds.filter(id =>
+      state.tasks.some(
+        t => t.id === id && effectiveTaskStatus(t, requirements, tests, data, record, access) !== 'done' && !t.archived,
+      ),
+    ),
+    dateConflicts: task.dependencyIds.filter(id =>
+      state.tasks.some(t => t.id === id && t.dueDate && task.startDate && t.dueDate > task.startDate),
+    ),
+    canEdit: can(task.sectorId),
+  });
+  return {
+    proposals: (state.proposals || []).map(p => ({
+      ...p,
+      status:
+        p.status === 'approved' && !p.reviewers.every(id => canReviewAccount(data.users.find(u => u.id === id)))
+          ? 'open'
+          : p.status,
+      decisions: p.decisions.filter(d => canReviewAccount(data.users.find(u => u.id === d.userId))),
+      stale: requirements.find(r => r.id === p.requirementId)?.contentHash !== p.baseHash,
+      canReview: !readOnly && canReviewAccount(actor) && p.reviewers.includes(actor.id) && p.authorId !== actor.id,
+      canMerge: can(requirements.find(r => r.id === p.requirementId)?.sectorId),
+    })),
+    documents: (state.documents || []).map(document => {
+      const meta = reviewState(document, actor, data, requirements, tests, record, access);
+      const task = state.tasks.find(t => t.id === document.taskId);
+      return {
+        ...document,
+        suggestions: document.suggestions || [],
+        ...meta,
+        ...(readOnly ? { canReview: false } : {}),
+        status: meta.approvalStatus,
+        canEdit: Boolean(task && can(task.sectorId)),
+        canSuggest:
+          !readOnly &&
+          ['in_review', 'changes_requested'].includes(meta.approvalStatus) &&
+          canReviewAccount(actor) &&
+          meta.reviewers.includes(actor.id) &&
+          document.authorId !== actor.id,
+      };
+    }),
+    lifecycle: state.lifecycle || null,
+    lifecycleRanges: state.lifecycle ? lifecycleRanges(state.lifecycle) : [],
+    standardsConfigured: Boolean(state.standardsConfigured || state.standards.length),
+    standardsProposals: (state.standardsProposals || []).map(p => ({
+      ...p,
+      stale: p.baseHash !== hash(state.standards),
+      canReview: !readOnly && p.reviewers.includes(actor.id) && p.authorId !== actor.id && canReviewAccount(actor),
+      status: ['merged', 'cancelled'].includes(p.status)
+        ? p.status
+        : p.reviewers.every(
+              id =>
+                visibleMembers(data, record, access).some(m => m.id === id && m.canReview) &&
+                p.decisions.some(d => d.userId === id && d.decision === 'approve'),
+            )
+          ? 'approved'
+          : p.decisions.some(d => d.decision === 'request_changes')
+            ? 'changes_requested'
+            : 'open',
+    })),
+    revision: state.revision,
+    baselineHash: deliveryBaselineHash(record),
+    standards: state.standards,
+    standardOptions: DELIVERY_STANDARDS,
+    standardGroups: DELIVERY_STANDARD_GROUPS,
+    requirements: requirements.map(r => ({
+      ...r,
+      analysis:
+        state.analyses?.[r.id]?.contentHash === r.contentHash &&
+        state.analyses[r.id].standardsHash === hash(state.standards)
+          ? state.analyses[r.id]
+          : { engine: 'not_analyzed', findings: [], checkedRules: [], disclaimer: '' },
+      canEdit: can(r.sectorId),
+      canReview:
+        !readOnly &&
+        canReviewAccount(actor) &&
+        r.status === 'in_review' &&
+        r.reviewers.includes(actor.id) &&
+        r.authorId !== actor.id,
+      verificationStatus: tests.some(t => !t.archived && t.requirementIds.includes(r.id))
+        ? tests.filter(t => !t.archived && t.requirementIds.includes(r.id)).every(t => t.status === 'passed')
+          ? 'passed'
+          : 'pending'
+        : 'unplanned',
+    })),
+    tests,
+    tasks: state.tasks
+      .filter(task => !task.lifecycleProfile || (task.lifecycleProfile === state.lifecycle?.profile && !task.excluded))
+      .map(taskView),
+    // Preserve manual dates when previewing another profile or re-enabling a review.
+    lifecycleTasks: state.tasks.filter(task => task.lifecycleProfile).map(taskView),
+    members: visibleMembers(data, record, access),
+    sectors: project.context.sectors || [],
+    entities: (project.engineeringSystem?.entities || []).map(e => ({ id: e.id, name: e.name })),
+    evidence: (project.engineeringSystem?.evidence || []).map(e => ({
+      id: e.id,
+      artifactId: e.artifactId,
+      artifactLabel: e.artifactLabel,
+      locator: e.locator,
+      excerpt: e.excerpt,
+    })),
+    artifacts: data.artifacts
+      .filter(
+        a =>
+          (a.scope === 'project' && a.ownerId === project.id) ||
+          (a.scope === 'team' &&
+            a.ownerId === project.context.teamId &&
+            project.context.teamArtifactIds.includes(a.id)),
+      )
+      .map(a => ({
+        id: a.id,
+        label: a.label || a.name || a.id,
+        href:
+          a.documentText !== undefined
+            ? `/api/artifacts/${encodeURIComponent(a.id)}/pdf`
+            : a.url?.startsWith('data:')
+              ? `/api/artifacts/${encodeURIComponent(a.id)}/content`
+              : a.url || '',
+      })),
+    history: state.history,
+    permissions: {
+      readOnly,
+      manage: !readOnly && isProjectAdmin(project, actor, record.createdBy),
+      editableSectorIds: readOnly ? [] : (project.context.sectors || []).filter(s => can(s.id)).map(s => s.id),
+    },
+  };
+}
+export function registerDeliveryRoutes(
+  app,
+  { store, requireAuth, requireCsrf, canAccessProject, analysisOptions = {}, intelligence, readOnly = false },
+) {
   // Test deployments can show requirements, schedule and documents without accepting edits.
-  const refuseReadOnly = () => { if (readOnly) throw fail(423, 'DELIVERY_READ_ONLY', 'Requisitos, cronograma e documentos estão em modo de leitura nesta versão de teste.'); };
-  const analyzeRequirement = createRequirementAnalyzer(analysisOptions, intelligence), analysisInFlight = new Set();
+  const refuseReadOnly = () => {
+    if (readOnly)
+      throw fail(
+        423,
+        'DELIVERY_READ_ONLY',
+        'Requisitos, cronograma e documentos estão em modo de leitura nesta versão de teste.',
+      );
+  };
+  const analyzeRequirement = createRequirementAnalyzer(analysisOptions, intelligence),
+    analysisInFlight = new Set();
   function recordFor(data, request) {
-    const actor=data.users.find(u=>u.id===request.auth.user.id&&u.active);if(!actor)throw fail(401,'AUTH_REQUIRED','Entre novamente.');
+    const actor = data.users.find(u => u.id === request.auth.user.id && u.active);
+    if (!actor) throw fail(401, 'AUTH_REQUIRED', 'Entre novamente.');
     const record = data.workspace.projects?.[request.params.id];
-    if (!record || !canAccessProject(data, actor, record)) throw fail(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível.');
+    if (!record || !canAccessProject(data, actor, record))
+      throw fail(404, 'PROJECT_NOT_FOUND', 'Projeto não disponível.');
     return record;
   }
-  registerEngineeringAssistant(app, { store, requireAuth, requireCsrf, recordFor, requirementsOf, empty, hash, deliveryBaselineHash, analyzeRequirement, deliveryView:(data,record,actor)=>view(data,record,data.workspace.delivery?.[record.document.id]||empty(),actor,canAccessProject,readOnly), refuseReadOnly, options: analysisOptions, intelligence });
+  registerEngineeringAssistant(app, {
+    store,
+    requireAuth,
+    requireCsrf,
+    recordFor,
+    requirementsOf,
+    empty,
+    hash,
+    deliveryBaselineHash,
+    analyzeRequirement,
+    deliveryView: (data, record, actor) =>
+      view(data, record, data.workspace.delivery?.[record.document.id] || empty(), actor, canAccessProject, readOnly),
+    refuseReadOnly,
+    options: analysisOptions,
+    intelligence,
+  });
   app.get('/api/projects/:id/delivery', { preHandler: [requireAuth] }, async request => {
-    const data = store.read(), record = recordFor(data, request);
-    return view(data, record, data.workspace.delivery?.[record.document.id] || empty(), request.auth.user, canAccessProject, readOnly);
+    const data = store.read(),
+      record = recordFor(data, request);
+    return view(
+      data,
+      record,
+      data.workspace.delivery?.[record.document.id] || empty(),
+      request.auth.user,
+      canAccessProject,
+      readOnly,
+    );
   });
-  app.get('/api/projects/:id/delivery/documents/:documentId/export', {preHandler:[requireAuth]}, async (request,reply)=>{
-    const data=store.read(),record=recordFor(data,request),document=view(data,record,data.workspace.delivery?.[record.document.id]||empty(),request.auth.user,canAccessProject).documents.find(d=>d.id===request.params.documentId);
-    if(!document)throw fail(404,'DOCUMENT_NOT_FOUND','Documento indisponível.');
-    reply.header('Cache-Control','no-store');
-    if(request.query.format==='latex')return reply.type('application/zip').header('Content-Disposition',`attachment; filename="${document.id}-v${document.version}.zip"`).send(documentLatexArchive(document));
-    if(request.query.format==='pdf')return reply.type('application/pdf').header('Content-Disposition',`${request.query.inline === '1' ? 'inline' : 'attachment'}; filename="${document.id}.pdf"`).send(await deliveryPdf(document));
-    return reply.type('text/markdown; charset=utf-8').header('Content-Disposition',`attachment; filename="${document.id}.md"`).send(document.body);
-  });
-  app.post('/api/projects/:id/delivery/requirements/:requirementId/analyze',{preHandler:[requireAuth,requireCsrf],bodyLimit:1000,config:{rateLimit:{max:6,timeWindow:'1 minute'}}},async request=>{
-    refuseReadOnly();
-    const data=store.read(),record=recordFor(data,request),state=data.workspace.delivery?.[record.document.id]||empty();
-    const requirement=requirementsOf(record,state).find(r=>r.id===request.params.requirementId&&!r.archived);
-    if(!requirement)throw fail(404,'REQUIREMENT_NOT_FOUND','Requisito indisponível.');
-    if(!canEditSector(record.document,request.auth.user,requirement.sectorId,record.createdBy)&&!requirement.reviewers.includes(request.auth.user.id))throw fail(403,'FORBIDDEN','A análise é reservada aos editores e revisores atribuídos.');
-    const fingerprint=hash([requirement.contentHash,state.standards]),key=`${record.document.id}:${requirement.id}`;
-    if(state.analyses?.[requirement.id]?.fingerprint===fingerprint)return {analysis:state.analyses[requirement.id],cached:true};
-    if(analysisInFlight.has(key))throw fail(409,'ANALYSIS_RUNNING','Esta análise já está em andamento.');analysisInFlight.add(key);
-    try {
-      await store.update(data=>{const current=recordFor(data,request),s=data.workspace.delivery?.[current.document.id]||empty(),actor=data.users.find(u=>u.id===request.auth.user.id),r=requirementsOf(current,s).find(r=>r.id===requirement.id&&!r.archived);if(!r||hash([r.contentHash,s.standards])!==fingerprint)throw fail(409,'ANALYSIS_STALE','O requisito mudou antes da análise. Atualize a ficha.');if(!canEditSector(current.document,actor,r.sectorId,current.createdBy)&&!r.reviewers.includes(actor.id))throw fail(403,'FORBIDDEN','A permissão mudou antes da análise.');reserveEngineeringBudget(s,1);data.workspace.delivery||={};data.workspace.delivery[current.document.id]=s;});
-      const analysis=await analyzeRequirement({requirement,standards:state.standards,projectId:record.document.id,corrections:(state.proposals||[]).filter(p=>p.status==='merged').slice(-5).map(p=>({before:p.before,after:p.statement,reason:p.reason}))});
-      return await store.update(data=>{const current=recordFor(data,request),s=data.workspace.delivery[current.document.id],r=requirementsOf(current,s).find(r=>r.id===requirement.id&&!r.archived);if(!r||hash([r.contentHash,s.standards])!==fingerprint||deliveryBaselineHash(current)!==deliveryBaselineHash(record))throw fail(409,'ANALYSIS_STALE','O requisito ou suas fontes mudaram durante a análise. Nenhuma sugestão foi aplicada.');if(!canEditSector(current.document,data.users.find(u=>u.id===request.auth.user.id),r.sectorId,current.createdBy)&&!r.reviewers.includes(request.auth.user.id))throw fail(403,'FORBIDDEN','A permissão mudou durante a análise.');s.analyses||={};s.analyses[r.id]={...analysis,contentHash:r.contentHash,standardsHash:hash(s.standards),fingerprint,createdAt:now(),disclaimer:'Sugestões de IA, sem declaração de conformidade. Confira os trechos e a aplicabilidade com os revisores.'};return {analysis:s.analyses[r.id],cached:false};});
-    } finally {analysisInFlight.delete(key);}
-  });
-  app.post('/api/projects/:id/delivery/actions', { preHandler: [requireAuth, requireCsrf], bodyLimit: 128 * 1024, config: { rateLimit: { max: 90, timeWindow: '1 minute' } } }, async request => store.update(data => {
-    refuseReadOnly();
-    const record = recordFor(data, request), project = record.document, actor = data.users.find(u => u.id === request.auth.user.id);
-    const body = request.body;
-    if (!body || typeof body !== 'object' || Array.isArray(body)) throw fail(400, 'INVALID_DELIVERY', 'Ação inválida.');
-    const state = data.workspace.delivery?.[project.id] || empty();
-    state.proposals ||= []; state.documents ||= []; state.analyses ||= {}; state.standardsProposals ||= [];
-    if (body.expectedRevision !== state.revision || body.expectedBaselineHash !== deliveryBaselineHash(record)) throw fail(409, 'DELIVERY_CHANGED', 'O projeto mudou em outra aba. Atualize antes de salvar.');
-    const members = visibleMembers(data, record, canAccessProject), memberIds = new Set(members.map(m => m.id)), reviewerIds = new Set(members.filter(m => m.canReview).map(m => m.id));
-    const current = view(data, record, state, actor, canAccessProject, readOnly), action = text(body.action, 'ação', 80, true), item = body.item || {};
-    const references = (ids, choices, field) => { const parsed = list(ids || [], field); if (parsed.some(id => !choices.some(v => v.id === id))) throw fail(400, 'INVALID_LINK', `Referência inválida: ${field}.`); return parsed; };
-    const member = value => { const id = text(value || '', 'responsável', 200); if (id && !memberIds.has(id)) throw fail(400, 'INVALID_MEMBER', 'Selecione um participante deste projeto.'); return id; };
-    const editor = sectorId => { if (sectorId && !project.context.sectors.some(s => s.id === sectorId)) throw fail(400, 'INVALID_SECTOR', 'Setor inexistente.'); if (!canEditSector(project, actor, sectorId, record.createdBy)) throw fail(403, 'FORBIDDEN', 'Você não pode editar os registros deste setor.'); };
-    const admin = () => { if (!isProjectAdmin(project, actor, record.createdBy)) throw fail(403, 'FORBIDDEN', 'Apenas a liderança do projeto pode configurar esta opção.'); };
-    const timestamp = now(), actorName = actor.name;
-    let eventId = body.id || '', before = null, after = null;
-    if (action === 'standards.set') {
-      admin(); const selected=references(body.standards, DELIVERY_STANDARDS, 'normas');
-      if((state.standardsConfigured||state.standards.length)&&hash(selected)!==hash(state.standards))throw fail(409,'STANDARDS_REVIEW_REQUIRED','Proponha esta mudança normativa para revisão independente.');
-      before=state.standards;state.standards=selected;state.standardsConfigured=true;after=selected;
-    } else if(action==='standards.propose') {
-      admin();const selected=references(body.standards,DELIVERY_STANDARDS,'normas'),reviewers=list(body.reviewers,'revisores');
-      if(!reviewers.length||reviewers.includes(actor.id)||reviewers.some(id=>!reviewerIds.has(id)))throw fail(400,'INVALID_REVIEWERS','Escolha revisores independentes deste projeto.');
-      if(hash(selected)===hash(state.standards))throw fail(400,'NO_CHANGE','Selecione a alteração da base normativa.');
-      const proposal={id:`STD-${randomUUID().slice(0,8).toUpperCase()}`,before:[...state.standards],standards:selected,baseHash:hash(state.standards),reason:text(body.reason,'justificativa',2000,true),authorId:actor.id,authorName:actorName,reviewers,decisions:[],status:'open',createdAt:timestamp};
-      state.standardsProposals.push(proposal);eventId=proposal.id;after=proposal;
-    } else if(['standards.review','standards.merge','standards.cancel'].includes(action)) {
-      const proposal=state.standardsProposals.find(p=>p.id===body.id);if(!proposal)throw fail(404,'PROPOSAL_NOT_FOUND','Proposta não encontrada.');
-      if(['merged','cancelled'].includes(proposal.status))throw fail(409,'PROPOSAL_CLOSED','Proposta encerrada.');
-      if(action==='standards.cancel'){admin();proposal.status='cancelled';}
-      else {
-        if(proposal.baseHash!==hash(state.standards))throw fail(409,'PROPOSAL_STALE','A base normativa mudou; crie uma proposta sobre a versão atual.');
-        if(action==='standards.review') {
-          if(actor.id===proposal.authorId||!proposal.reviewers.includes(actor.id)||!reviewerIds.has(actor.id))throw fail(403,'FORBIDDEN','Apenas revisores independentes atribuídos podem revisar.');
-          if(!['approve','request_changes'].includes(body.decision))throw fail(400,'INVALID_REVIEW','Decisão inválida.');
-          const comment=text(body.comment||'','comentário',2000,body.decision==='request_changes');
-          proposal.decisions=proposal.decisions.filter(d=>d.userId!==actor.id).concat({userId:actor.id,authorName:actorName,decision:body.decision,comment,createdAt:timestamp});
-        } else {
-          admin();if(!proposal.reviewers.every(id=>reviewerIds.has(id)&&proposal.decisions.some(d=>d.userId===id&&d.decision==='approve')))throw fail(409,'REVIEW_PENDING','Todos os revisores atribuídos precisam aprovar.');
-          before=[...state.standards];state.standards=[...proposal.standards];state.standardsConfigured=true;proposal.status='merged';proposal.mergedAt=timestamp;
-          for(const requirement of state.requirements){requirement.reviewHash=null;requirement.decisions=[];}
-          after=state.standards;
-        }
+  app.get(
+    '/api/projects/:id/delivery/documents/:documentId/export',
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const data = store.read(),
+        record = recordFor(data, request),
+        document = view(
+          data,
+          record,
+          data.workspace.delivery?.[record.document.id] || empty(),
+          request.auth.user,
+          canAccessProject,
+        ).documents.find(d => d.id === request.params.documentId);
+      if (!document) throw fail(404, 'DOCUMENT_NOT_FOUND', 'Documento indisponível.');
+      reply.header('Cache-Control', 'no-store');
+      if (request.query.format === 'latex')
+        return reply
+          .type('application/zip')
+          .header('Content-Disposition', `attachment; filename="${document.id}-v${document.version}.zip"`)
+          .send(documentLatexArchive(document));
+      if (request.query.format === 'pdf')
+        return reply
+          .type('application/pdf')
+          .header(
+            'Content-Disposition',
+            `${request.query.inline === '1' ? 'inline' : 'attachment'}; filename="${document.id}.pdf"`,
+          )
+          .send(await deliveryPdf(document));
+      return reply
+        .type('text/markdown; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="${document.id}.md"`)
+        .send(document.body);
+    },
+  );
+  // An unprepared document of a review: the template draft is computed on request.
+  app.get(
+    '/api/projects/:id/delivery/templates/:taskId/:templateId',
+    { preHandler: [requireAuth] },
+    async (request, reply) => {
+      const data = store.read(),
+        record = recordFor(data, request),
+        current = view(
+          data,
+          record,
+          data.workspace.delivery?.[record.document.id] || empty(),
+          request.auth.user,
+          canAccessProject,
+          readOnly,
+        );
+      const task = current.tasks.find(t => t.id === request.params.taskId && t.kind === 'review' && !t.archived),
+        definition = task?.documentOptions.find(d => d.id === request.params.templateId);
+      if (!task || !definition) throw fail(404, 'TEMPLATE_NOT_FOUND', 'Modelo indisponível para esta revisão.');
+      const draft = {
+        id: `${definition.code}-${task.reviewCode || 'REV'}`,
+        taskId: task.id,
+        templateId: definition.id,
+        profile: definition.profile,
+        code: definition.code,
+        title: definition.title,
+        reference: definition.reference,
+        maturity: definition.maturity,
+        version: 0,
+        status: 'draft',
+        authorName: record.document.name,
+        body: draftDeliveryDocument(
+          definition,
+          record.document,
+          current.requirements,
+          current.tests,
+          task,
+          draftContext(current, record.document, task),
+        ),
+      };
+      reply.header('Cache-Control', 'no-store');
+      const file = `${draft.id}-modelo`;
+      if (request.query.format === 'latex')
+        return reply
+          .type('application/zip')
+          .header('Content-Disposition', `attachment; filename="${file}.zip"`)
+          .send(documentLatexArchive(draft));
+      if (request.query.format === 'pdf')
+        return reply
+          .type('application/pdf')
+          .header(
+            'Content-Disposition',
+            `${request.query.inline === '1' ? 'inline' : 'attachment'}; filename="${file}.pdf"`,
+          )
+          .send(await deliveryPdf(draft));
+      if (request.query.format === 'md')
+        return reply
+          .type('text/markdown; charset=utf-8')
+          .header('Content-Disposition', `attachment; filename="${file}.md"`)
+          .send(draft.body);
+      return {
+        template: definition,
+        draft: { title: draft.title, body: draft.body, code: draft.code },
+        prepared: current.documents.find(d => d.taskId === task.id && d.templateId === definition.id)?.id || '',
+        canPrepare: task.canEdit,
+      };
+    },
+  );
+  app.post(
+    '/api/projects/:id/delivery/requirements/:requirementId/analyze',
+    {
+      preHandler: [requireAuth, requireCsrf],
+      bodyLimit: 1000,
+      config: { rateLimit: { max: 6, timeWindow: '1 minute' } },
+    },
+    async request => {
+      refuseReadOnly();
+      const data = store.read(),
+        record = recordFor(data, request),
+        state = data.workspace.delivery?.[record.document.id] || empty();
+      const requirement = requirementsOf(record, state).find(r => r.id === request.params.requirementId && !r.archived);
+      if (!requirement) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito indisponível.');
+      if (
+        !canEditSector(record.document, request.auth.user, requirement.sectorId, record.createdBy) &&
+        !requirement.reviewers.includes(request.auth.user.id)
+      )
+        throw fail(403, 'FORBIDDEN', 'A análise é reservada aos editores e revisores atribuídos.');
+      const fingerprint = hash([requirement.contentHash, state.standards]),
+        key = `${record.document.id}:${requirement.id}`;
+      if (state.analyses?.[requirement.id]?.fingerprint === fingerprint)
+        return { analysis: state.analyses[requirement.id], cached: true };
+      if (analysisInFlight.has(key)) throw fail(409, 'ANALYSIS_RUNNING', 'Esta análise já está em andamento.');
+      analysisInFlight.add(key);
+      try {
+        await store.update(data => {
+          const current = recordFor(data, request),
+            s = data.workspace.delivery?.[current.document.id] || empty(),
+            actor = data.users.find(u => u.id === request.auth.user.id),
+            r = requirementsOf(current, s).find(r => r.id === requirement.id && !r.archived);
+          if (!r || hash([r.contentHash, s.standards]) !== fingerprint)
+            throw fail(409, 'ANALYSIS_STALE', 'O requisito mudou antes da análise. Atualize a ficha.');
+          if (!canEditSector(current.document, actor, r.sectorId, current.createdBy) && !r.reviewers.includes(actor.id))
+            throw fail(403, 'FORBIDDEN', 'A permissão mudou antes da análise.');
+          reserveEngineeringBudget(s, 1);
+          data.workspace.delivery ||= {};
+          data.workspace.delivery[current.document.id] = s;
+        });
+        const analysis = await analyzeRequirement({
+          requirement,
+          standards: state.standards,
+          projectId: record.document.id,
+          corrections: (state.proposals || [])
+            .filter(p => p.status === 'merged')
+            .slice(-5)
+            .map(p => ({ before: p.before, after: p.statement, reason: p.reason })),
+        });
+        return await store.update(data => {
+          const current = recordFor(data, request),
+            s = data.workspace.delivery[current.document.id],
+            r = requirementsOf(current, s).find(r => r.id === requirement.id && !r.archived);
+          if (
+            !r ||
+            hash([r.contentHash, s.standards]) !== fingerprint ||
+            deliveryBaselineHash(current) !== deliveryBaselineHash(record)
+          )
+            throw fail(
+              409,
+              'ANALYSIS_STALE',
+              'O requisito ou suas fontes mudaram durante a análise. Nenhuma sugestão foi aplicada.',
+            );
+          if (
+            !canEditSector(
+              current.document,
+              data.users.find(u => u.id === request.auth.user.id),
+              r.sectorId,
+              current.createdBy,
+            ) &&
+            !r.reviewers.includes(request.auth.user.id)
+          )
+            throw fail(403, 'FORBIDDEN', 'A permissão mudou durante a análise.');
+          s.analyses ||= {};
+          s.analyses[r.id] = {
+            ...analysis,
+            contentHash: r.contentHash,
+            standardsHash: hash(s.standards),
+            fingerprint,
+            createdAt: now(),
+            disclaimer:
+              'Sugestões de IA, sem declaração de conformidade. Confira os trechos e a aplicabilidade com os revisores.',
+          };
+          return { analysis: s.analyses[r.id], cached: false };
+        });
+      } finally {
+        analysisInFlight.delete(key);
       }
-      eventId=proposal.id;
-    } else if (action === 'requirement.save') {
-      const old = body.id ? current.requirements.find(r => r.id === body.id) : null;
-      if (body.id && !old) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito não encontrado.');
-      if (old?.archived) throw fail(409, 'ARCHIVED', 'Restaure o requisito antes de editar.');
-      if (old) editor(old.sectorId);
-      const sectorId = text(item.sectorId || '', 'setor', 100); editor(sectorId);
-      const method = item.method || 'unspecified'; if (!methods.includes(method)) throw fail(400, 'INVALID_METHOD', 'Método inválido.');
-      eventId = old?.id || item.identifier || `REQ-${randomUUID().slice(0, 8).toUpperCase()}`;
-      if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{1,79}$/.test(eventId) || (!old && current.requirements.some(r => r.id === eventId))) throw fail(400, 'INVALID_IDENTIFIER', 'Use um identificador único com letras, números, ponto ou hífen.');
-      const source = baseline(record).find(r => r.id === eventId);
-      const updated = { ...(state.requirements.find(r => r.id === eventId) || {}), id: eventId, title: text(item.title, 'título', 160, true), statement: text(item.statement, 'enunciado', 1200, true), sectorId, method,
-        entityIds: references(item.entityIds, current.entities, 'elementos'), sourceRefs: references(item.sourceRefs, current.evidence, 'fontes'), artifactIds: references(item.artifactIds, current.artifacts, 'documentos'), parentIds: references(item.parentIds, current.requirements.filter(r => !r.archived), 'requisitos de origem'),
-        version: (old?.version || 0) + 1, source: old?.source || 'manual', sourceHash: source ? requirementSourceHash(record, source) : null,
-        rationale: text(item.rationale || '', 'justificativa', 4000), acceptanceCriteria: text(item.acceptanceCriteria || '', 'critério de aceitação', 4000), condition: text(item.condition || '', 'condição', 2000), ownerId: member(item.ownerId), level: ['system','subsystem','component'].includes(item.level) ? item.level : 'system', criticality: ['normal','high','safety'].includes(item.criticality) ? item.criticality : 'normal',
-        sourceLocator: text(item.sourceLocator ?? old?.sourceLocator ?? '', 'localizador da fonte', 500), sourceComment: text(item.sourceComment ?? old?.sourceComment ?? '', 'comentário da fonte', 8000),
-        authorId: actor.id, authorName: actorName, updatedAt: timestamp, reviewers: old?.reviewers || [], decisions: [], comments: old?.comments || [], archived: false, reviewHash: null };
-      before = old ? content(old) : null; after = content(updated);
-      state.requirements = state.requirements.filter(r => r.id !== eventId).concat(updated);
-      graphAcyclic(requirementsOf(record, state).filter(r => !r.archived), 'parentIds');
-    } else if (action.startsWith('requirement.')) {
-      const old = current.requirements.find(r => r.id === body.id); if (!old) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito não encontrado.');
-      let target = state.requirements.find(r => r.id === body.id);
-      if (!target) { target = { ...old, sourceHash: requirementSourceHash(record, baseline(record).find(r => r.id === old.id)), authorId: record.createdBy, authorName: '', comments: [], decisions: [] }; state.requirements.push(target); }
-      if (action === 'requirement.comment') {
-        const comment = text(body.comment, 'comentário', 4000, true);
-        target.comments.push({ id: randomUUID(), userId: actor.id, authorName: actorName, text: comment, createdAt: timestamp, version: old.version });
-      } else if (action === 'requirement.review') {
-        if (!canReviewAccount(actor) || old.status !== 'in_review' || !old.reviewers.includes(actor.id) || old.authorId === actor.id) throw fail(403, 'REVIEW_FORBIDDEN', 'A revisão exige um revisor atribuído diferente do autor da versão.');
-        if (!['approve', 'request_changes'].includes(body.decision)) throw fail(400, 'INVALID_DECISION', 'Decisão inválida.');
-        const comment = text(body.comment || '', 'comentário', 4000, body.decision === 'request_changes');
-        after = { decision: body.decision, comment, version: old.version };
-        target.decisions = (target.decisions || []).filter(d => d.userId !== actor.id).concat({ userId: actor.id, authorName: actorName, decision: body.decision, comment, contentHash: old.contentHash, createdAt: timestamp });
-      } else {
-        editor(old.sectorId);
-        if (action === 'requirement.request_review') {
-          const reviewers = list(body.reviewers, 'revisores', 30);
-          if (!reviewers.length || reviewers.some(id => !reviewerIds.has(id) || id === target.authorId)) throw fail(400, 'INVALID_REVIEWERS', 'Escolha revisores do projeto diferentes do autor. Perfis fictícios não podem revisar.');
-          if (old.archived) throw fail(409, 'ARCHIVED', 'Restaure o requisito antes de revisar.');
-          after = { reviewers, version: old.version };
-          target.reviewers = reviewers; target.decisions = []; target.reviewHash = requirementsOf(record, state).find(r => r.id === old.id).contentHash;
-        } else if (action === 'requirement.archive' || action === 'requirement.restore') {
-          if (action === 'requirement.archive' && current.requirements.some(r => !r.archived && r.parentIds.includes(old.id))) throw fail(409, 'REQUIREMENT_IN_USE', 'Remova os vínculos dos requisitos dependentes antes de arquivar.');
-          target.archived = action === 'requirement.archive'; target.reviewHash = null; after = { archived: target.archived };
-          graphAcyclic(requirementsOf(record, state).filter(r => !r.archived), 'parentIds');
+    },
+  );
+  app.post(
+    '/api/projects/:id/delivery/actions',
+    {
+      preHandler: [requireAuth, requireCsrf],
+      bodyLimit: 128 * 1024,
+      config: { rateLimit: { max: 90, timeWindow: '1 minute' } },
+    },
+    async request =>
+      store.update(data => {
+        refuseReadOnly();
+        const record = recordFor(data, request),
+          project = record.document,
+          actor = data.users.find(u => u.id === request.auth.user.id);
+        const body = request.body;
+        if (!body || typeof body !== 'object' || Array.isArray(body))
+          throw fail(400, 'INVALID_DELIVERY', 'Ação inválida.');
+        const state = data.workspace.delivery?.[project.id] || empty();
+        state.proposals ||= [];
+        state.documents ||= [];
+        state.analyses ||= {};
+        state.standardsProposals ||= [];
+        if (body.expectedRevision !== state.revision || body.expectedBaselineHash !== deliveryBaselineHash(record))
+          throw fail(409, 'DELIVERY_CHANGED', 'O projeto mudou em outra aba. Atualize antes de salvar.');
+        const members = visibleMembers(data, record, canAccessProject),
+          memberIds = new Set(members.map(m => m.id)),
+          reviewerIds = new Set(members.filter(m => m.canReview).map(m => m.id));
+        const current = view(data, record, state, actor, canAccessProject, readOnly),
+          action = text(body.action, 'ação', 80, true),
+          item = body.item || {};
+        const references = (ids, choices, field) => {
+          const parsed = list(ids || [], field);
+          if (parsed.some(id => !choices.some(v => v.id === id)))
+            throw fail(400, 'INVALID_LINK', `Referência inválida: ${field}.`);
+          return parsed;
+        };
+        const member = value => {
+          const id = text(value || '', 'responsável', 200);
+          if (id && !memberIds.has(id)) throw fail(400, 'INVALID_MEMBER', 'Selecione um participante deste projeto.');
+          return id;
+        };
+        const editor = sectorId => {
+          if (sectorId && !project.context.sectors.some(s => s.id === sectorId))
+            throw fail(400, 'INVALID_SECTOR', 'Setor inexistente.');
+          if (!canEditSector(project, actor, sectorId, record.createdBy))
+            throw fail(403, 'FORBIDDEN', 'Você não pode editar os registros deste setor.');
+        };
+        const admin = () => {
+          if (!isProjectAdmin(project, actor, record.createdBy))
+            throw fail(403, 'FORBIDDEN', 'Apenas a liderança do projeto pode configurar esta opção.');
+        };
+        const timestamp = now(),
+          actorName = actor.name;
+        let eventId = body.id || '',
+          before = null,
+          after = null;
+        if (action === 'standards.set') {
+          admin();
+          const selected = references(body.standards, DELIVERY_STANDARDS, 'normas');
+          if ((state.standardsConfigured || state.standards.length) && hash(selected) !== hash(state.standards))
+            throw fail(409, 'STANDARDS_REVIEW_REQUIRED', 'Proponha esta mudança normativa para revisão independente.');
+          before = state.standards;
+          state.standards = selected;
+          state.standardsConfigured = true;
+          after = selected;
+        } else if (action === 'standards.propose') {
+          admin();
+          const selected = references(body.standards, DELIVERY_STANDARDS, 'normas'),
+            reviewers = list(body.reviewers, 'revisores');
+          if (!reviewers.length || reviewers.includes(actor.id) || reviewers.some(id => !reviewerIds.has(id)))
+            throw fail(400, 'INVALID_REVIEWERS', 'Escolha revisores independentes deste projeto.');
+          if (hash(selected) === hash(state.standards))
+            throw fail(400, 'NO_CHANGE', 'Selecione a alteração da base normativa.');
+          const proposal = {
+            id: `STD-${randomUUID().slice(0, 8).toUpperCase()}`,
+            before: [...state.standards],
+            standards: selected,
+            baseHash: hash(state.standards),
+            reason: text(body.reason, 'justificativa', 2000, true),
+            authorId: actor.id,
+            authorName: actorName,
+            reviewers,
+            decisions: [],
+            status: 'open',
+            createdAt: timestamp,
+          };
+          state.standardsProposals.push(proposal);
+          eventId = proposal.id;
+          after = proposal;
+        } else if (['standards.review', 'standards.merge', 'standards.cancel'].includes(action)) {
+          const proposal = state.standardsProposals.find(p => p.id === body.id);
+          if (!proposal) throw fail(404, 'PROPOSAL_NOT_FOUND', 'Proposta não encontrada.');
+          if (['merged', 'cancelled'].includes(proposal.status))
+            throw fail(409, 'PROPOSAL_CLOSED', 'Proposta encerrada.');
+          if (action === 'standards.cancel') {
+            admin();
+            proposal.status = 'cancelled';
+          } else {
+            if (proposal.baseHash !== hash(state.standards))
+              throw fail(409, 'PROPOSAL_STALE', 'A base normativa mudou; crie uma proposta sobre a versão atual.');
+            if (action === 'standards.review') {
+              if (
+                actor.id === proposal.authorId ||
+                !proposal.reviewers.includes(actor.id) ||
+                !reviewerIds.has(actor.id)
+              )
+                throw fail(403, 'FORBIDDEN', 'Apenas revisores independentes atribuídos podem revisar.');
+              if (!['approve', 'request_changes'].includes(body.decision))
+                throw fail(400, 'INVALID_REVIEW', 'Decisão inválida.');
+              const comment = text(body.comment || '', 'comentário', 2000, body.decision === 'request_changes');
+              proposal.decisions = proposal.decisions
+                .filter(d => d.userId !== actor.id)
+                .concat({
+                  userId: actor.id,
+                  authorName: actorName,
+                  decision: body.decision,
+                  comment,
+                  createdAt: timestamp,
+                });
+            } else {
+              admin();
+              if (
+                !proposal.reviewers.every(
+                  id =>
+                    reviewerIds.has(id) && proposal.decisions.some(d => d.userId === id && d.decision === 'approve'),
+                )
+              )
+                throw fail(409, 'REVIEW_PENDING', 'Todos os revisores atribuídos precisam aprovar.');
+              before = [...state.standards];
+              state.standards = [...proposal.standards];
+              state.standardsConfigured = true;
+              proposal.status = 'merged';
+              proposal.mergedAt = timestamp;
+              for (const requirement of state.requirements) {
+                requirement.reviewHash = null;
+                requirement.decisions = [];
+              }
+              after = state.standards;
+            }
+          }
+          eventId = proposal.id;
+        } else if (action === 'requirement.save') {
+          const old = body.id ? current.requirements.find(r => r.id === body.id) : null;
+          if (body.id && !old) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito não encontrado.');
+          if (old?.archived) throw fail(409, 'ARCHIVED', 'Restaure o requisito antes de editar.');
+          if (old) editor(old.sectorId);
+          const sectorId = text(item.sectorId || '', 'setor', 100);
+          editor(sectorId);
+          const method = item.method || 'unspecified';
+          if (!methods.includes(method)) throw fail(400, 'INVALID_METHOD', 'Método inválido.');
+          eventId = old?.id || item.identifier || `REQ-${randomUUID().slice(0, 8).toUpperCase()}`;
+          if (
+            !/^[A-Za-z0-9][A-Za-z0-9_.-]{1,79}$/.test(eventId) ||
+            (!old && current.requirements.some(r => r.id === eventId))
+          )
+            throw fail(400, 'INVALID_IDENTIFIER', 'Use um identificador único com letras, números, ponto ou hífen.');
+          const source = baseline(record).find(r => r.id === eventId);
+          const updated = {
+            ...(state.requirements.find(r => r.id === eventId) || {}),
+            id: eventId,
+            title: text(item.title, 'título', 160, true),
+            statement: text(item.statement, 'enunciado', 1200, true),
+            sectorId,
+            method,
+            entityIds: references(item.entityIds, current.entities, 'elementos'),
+            sourceRefs: references(item.sourceRefs, current.evidence, 'fontes'),
+            artifactIds: references(item.artifactIds, current.artifacts, 'documentos'),
+            parentIds: references(
+              item.parentIds,
+              current.requirements.filter(r => !r.archived),
+              'requisitos de origem',
+            ),
+            version: (old?.version || 0) + 1,
+            source: old?.source || 'manual',
+            sourceHash: source ? requirementSourceHash(record, source) : null,
+            rationale: text(item.rationale || '', 'justificativa', 4000),
+            acceptanceCriteria: text(item.acceptanceCriteria || '', 'critério de aceitação', 4000),
+            condition: text(item.condition || '', 'condição', 2000),
+            ownerId: member(item.ownerId),
+            level: ['system', 'subsystem', 'component'].includes(item.level) ? item.level : 'system',
+            criticality: ['normal', 'high', 'safety'].includes(item.criticality) ? item.criticality : 'normal',
+            sourceLocator: text(item.sourceLocator ?? old?.sourceLocator ?? '', 'localizador da fonte', 500),
+            sourceComment: text(item.sourceComment ?? old?.sourceComment ?? '', 'comentário da fonte', 8000),
+            authorId: actor.id,
+            authorName: actorName,
+            updatedAt: timestamp,
+            reviewers: old?.reviewers || [],
+            decisions: [],
+            comments: old?.comments || [],
+            archived: false,
+            reviewHash: null,
+          };
+          before = old ? content(old) : null;
+          after = content(updated);
+          state.requirements = state.requirements.filter(r => r.id !== eventId).concat(updated);
+          graphAcyclic(
+            requirementsOf(record, state).filter(r => !r.archived),
+            'parentIds',
+          );
+        } else if (action.startsWith('requirement.')) {
+          const old = current.requirements.find(r => r.id === body.id);
+          if (!old) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito não encontrado.');
+          let target = state.requirements.find(r => r.id === body.id);
+          if (!target) {
+            target = {
+              ...old,
+              sourceHash: requirementSourceHash(
+                record,
+                baseline(record).find(r => r.id === old.id),
+              ),
+              authorId: record.createdBy,
+              authorName: '',
+              comments: [],
+              decisions: [],
+            };
+            state.requirements.push(target);
+          }
+          if (action === 'requirement.comment') {
+            const comment = text(body.comment, 'comentário', 4000, true);
+            target.comments.push({
+              id: randomUUID(),
+              userId: actor.id,
+              authorName: actorName,
+              text: comment,
+              createdAt: timestamp,
+              version: old.version,
+            });
+          } else if (action === 'requirement.review') {
+            if (
+              !canReviewAccount(actor) ||
+              old.status !== 'in_review' ||
+              !old.reviewers.includes(actor.id) ||
+              old.authorId === actor.id
+            )
+              throw fail(403, 'REVIEW_FORBIDDEN', 'A revisão exige um revisor atribuído diferente do autor da versão.');
+            if (!['approve', 'request_changes'].includes(body.decision))
+              throw fail(400, 'INVALID_DECISION', 'Decisão inválida.');
+            const comment = text(body.comment || '', 'comentário', 4000, body.decision === 'request_changes');
+            after = { decision: body.decision, comment, version: old.version };
+            target.decisions = (target.decisions || [])
+              .filter(d => d.userId !== actor.id)
+              .concat({
+                userId: actor.id,
+                authorName: actorName,
+                decision: body.decision,
+                comment,
+                contentHash: old.contentHash,
+                createdAt: timestamp,
+              });
+          } else {
+            editor(old.sectorId);
+            if (action === 'requirement.request_review') {
+              const reviewers = list(body.reviewers, 'revisores', 30);
+              if (!reviewers.length || reviewers.some(id => !reviewerIds.has(id) || id === target.authorId))
+                throw fail(
+                  400,
+                  'INVALID_REVIEWERS',
+                  'Escolha revisores do projeto diferentes do autor. Perfis fictícios não podem revisar.',
+                );
+              if (old.archived) throw fail(409, 'ARCHIVED', 'Restaure o requisito antes de revisar.');
+              after = { reviewers, version: old.version };
+              target.reviewers = reviewers;
+              target.decisions = [];
+              target.reviewHash = requirementsOf(record, state).find(r => r.id === old.id).contentHash;
+            } else if (action === 'requirement.archive' || action === 'requirement.restore') {
+              if (
+                action === 'requirement.archive' &&
+                current.requirements.some(r => !r.archived && r.parentIds.includes(old.id))
+              )
+                throw fail(
+                  409,
+                  'REQUIREMENT_IN_USE',
+                  'Remova os vínculos dos requisitos dependentes antes de arquivar.',
+                );
+              target.archived = action === 'requirement.archive';
+              target.reviewHash = null;
+              after = { archived: target.archived };
+              graphAcyclic(
+                requirementsOf(record, state).filter(r => !r.archived),
+                'parentIds',
+              );
+            } else throw fail(400, 'INVALID_ACTION', 'Ação desconhecida.');
+          }
+          target.updatedAt = timestamp;
+        } else if (action.startsWith('proposal.')) {
+          const proposal = body.id ? state.proposals.find(p => p.id === body.id) : null;
+          const requirement = current.requirements.find(r => r.id === (proposal?.requirementId || item.requirementId));
+          if (!requirement || requirement.archived) throw fail(404, 'REQUIREMENT_NOT_FOUND', 'Requisito indisponível.');
+          if (action === 'proposal.save') {
+            if (!requirement.reviewers.includes(actor.id)) editor(requirement.sectorId);
+            if (body.id && !proposal) throw fail(404, 'PROPOSAL_NOT_FOUND', 'Proposta indisponível.');
+            if (
+              proposal &&
+              (proposal.authorId !== actor.id || !['open', 'changes_requested', 'approved'].includes(proposal.status))
+            )
+              throw fail(403, 'PROPOSAL_FORBIDDEN', 'Somente o autor pode editar uma proposta aberta.');
+            const reviewers = references(item.reviewers, members, 'revisores');
+            if (!reviewers.length || reviewers.includes(actor.id) || reviewers.some(id => !reviewerIds.has(id)))
+              throw fail(
+                400,
+                'INVALID_REVIEWERS',
+                'Selecione revisores diferentes do autor. Perfis fictícios não podem revisar.',
+              );
+            before = proposal
+              ? {
+                  statement: proposal.statement,
+                  reason: proposal.reason,
+                  reviewers: proposal.reviewers,
+                  version: proposal.version,
+                }
+              : null;
+            const updated = {
+              id: proposal?.id || `PR-${randomUUID().slice(0, 8).toUpperCase()}`,
+              requirementId: requirement.id,
+              baseHash: requirement.contentHash,
+              baseVersion: requirement.version,
+              before: requirement.statement,
+              statement: text(item.statement, 'novo enunciado', 1200, true),
+              reason: text(item.reason, 'motivo da proposta', 4000, true),
+              authorId: actor.id,
+              authorName: actorName,
+              reviewers,
+              decisions: [],
+              comments: proposal?.comments || [],
+              version: (proposal?.version || 0) + 1,
+              status: 'open',
+              createdAt: proposal?.createdAt || timestamp,
+              updatedAt: timestamp,
+            };
+            state.proposals = state.proposals.filter(p => p.id !== updated.id).concat(updated);
+            eventId = updated.id;
+            after = {
+              requirementId: requirement.id,
+              statement: updated.statement,
+              reason: updated.reason,
+              reviewers: updated.reviewers,
+              version: updated.version,
+            };
+          } else {
+            if (!proposal) throw fail(404, 'PROPOSAL_NOT_FOUND', 'Proposta indisponível.');
+            eventId = proposal.id;
+            if (action === 'proposal.comment')
+              proposal.comments.push({
+                id: randomUUID(),
+                authorName: actorName,
+                userId: actor.id,
+                text: text(body.comment, 'comentário', 4000, true),
+                createdAt: timestamp,
+                version: proposal.version,
+              });
+            else if (action === 'proposal.review') {
+              if (
+                !canReviewAccount(actor) ||
+                proposal.authorId === actor.id ||
+                !proposal.reviewers.includes(actor.id) ||
+                !['open', 'changes_requested', 'approved'].includes(proposal.status)
+              )
+                throw fail(403, 'REVIEW_FORBIDDEN', 'Parecer reservado a um revisor atribuído.');
+              if (proposal.baseHash !== requirement.contentHash)
+                throw fail(
+                  409,
+                  'PROPOSAL_STALE',
+                  'O requisito mudou. O autor deve atualizar a proposta antes da revisão.',
+                );
+              if (!['approve', 'request_changes'].includes(body.decision))
+                throw fail(400, 'INVALID_DECISION', 'Parecer inválido.');
+              const comment = text(body.comment || '', 'parecer', 4000, body.decision === 'request_changes');
+              after = { decision: body.decision, comment, version: proposal.version };
+              proposal.decisions = proposal.decisions
+                .filter(d => d.userId !== actor.id)
+                .concat({
+                  userId: actor.id,
+                  authorName: actorName,
+                  decision: body.decision,
+                  comment,
+                  version: proposal.version,
+                  createdAt: timestamp,
+                });
+              proposal.status = proposal.decisions.some(d => d.decision === 'request_changes')
+                ? 'changes_requested'
+                : proposal.reviewers.every(id =>
+                      proposal.decisions.some(d => d.userId === id && d.decision === 'approve'),
+                    )
+                  ? 'approved'
+                  : 'open';
+            } else if (action === 'proposal.merge') {
+              editor(requirement.sectorId);
+              if (proposal.baseHash !== requirement.contentHash)
+                throw fail(409, 'PROPOSAL_STALE', 'O requisito mudou. Atualize a proposta e solicite novos pareceres.');
+              if (
+                proposal.status !== 'approved' ||
+                !proposal.reviewers.every(
+                  id =>
+                    reviewerIds.has(id) &&
+                    proposal.decisions.some(
+                      d => d.userId === id && d.decision === 'approve' && d.version === proposal.version,
+                    ),
+                )
+              )
+                throw fail(409, 'REVIEW_REQUIRED', 'Todos os revisores atuais precisam aprovar esta versão.');
+              const source = baseline(record).find(r => r.id === requirement.id),
+                updated = {
+                  ...requirement,
+                  statement: proposal.statement,
+                  version: requirement.version + 1,
+                  authorId: proposal.authorId,
+                  authorName: proposal.authorName,
+                  sourceHash: source ? requirementSourceHash(record, source) : null,
+                  reviewers: proposal.reviewers,
+                  decisions: [],
+                  reviewHash: null,
+                  updatedAt: timestamp,
+                };
+              state.requirements = state.requirements.filter(r => r.id !== requirement.id).concat(updated);
+              const next = requirementsOf(record, state).find(r => r.id === requirement.id);
+              updated.reviewHash = next.contentHash;
+              updated.decisions = proposal.decisions.map(d => ({ ...d, contentHash: next.contentHash }));
+              proposal.status = 'merged';
+              proposal.mergedAt = timestamp;
+              proposal.mergedBy = actor.id;
+              before = content(requirement);
+              after = content(updated);
+            } else if (action === 'proposal.close') {
+              if (proposal.authorId !== actor.id) editor(requirement.sectorId);
+              if (proposal.status === 'merged') throw fail(409, 'PROPOSAL_CLOSED', 'A proposta já foi integrada.');
+              proposal.status = 'closed';
+            } else throw fail(400, 'INVALID_ACTION', 'Ação desconhecida.');
+            proposal.updatedAt = timestamp;
+          }
+        } else if (action === 'test.save') {
+          if (body.suggestionRunId) {
+            const run = state.assistantRuns?.find(
+              r => r.id === body.suggestionRunId && r.kind === 'verification' && r.status === 'completed',
+            );
+            if (
+              !run ||
+              Object.entries(run.requirementHashes || {}).some(
+                ([id, value]) => !current.requirements.some(r => r.id === id && !r.archived && r.contentHash === value),
+              )
+            )
+              throw fail(
+                409,
+                'SUGGESTION_STALE',
+                'Os requisitos mudaram desde a sugestão. Solicite uma nova proposta.',
+              );
+          }
+          const old = body.id ? state.tests.find(t => t.id === body.id) : null;
+          if (body.id && !old) throw fail(404, 'TEST_NOT_FOUND', 'Verificação não encontrada.');
+          if (old) editor(old.sectorId);
+          const sectorId = text(item.sectorId || '', 'setor', 100);
+          editor(sectorId);
+          if (!methods.includes(item.method) || item.method === 'unspecified')
+            throw fail(400, 'INVALID_METHOD', 'Selecione um método de verificação.');
+          const requirementIds = references(
+            item.requirementIds,
+            current.requirements.filter(r => !r.archived),
+            'requisitos',
+          );
+          if (!requirementIds.length) throw fail(400, 'REQUIREMENT_REQUIRED', 'Associe pelo menos um requisito.');
+          for (const id of requirementIds) editor(current.requirements.find(r => r.id === id).sectorId);
+          eventId = old?.id || `VER-${randomUUID().slice(0, 8).toUpperCase()}`;
+          const updated = {
+            id: eventId,
+            title: text(item.title, 'título', 200, true),
+            method: item.method,
+            procedure: text(item.procedure || '', 'procedimento', 10000),
+            acceptanceCriteria: text(item.acceptanceCriteria || '', 'critério de aceitação', 8000),
+            requirementIds,
+            entityIds: references(item.entityIds, current.entities, 'elementos'),
+            sectorId,
+            ownerId: member(item.ownerId),
+            conditions: text(item.conditions || '', 'condições do ensaio', 4000),
+            configuration: text(item.configuration || '', 'configuração', 4000),
+            level: ['system', 'subsystem', 'component'].includes(item.level) ? item.level : 'system',
+            reviewTaskIds: references(
+              item.reviewTaskIds,
+              current.tasks.filter(t => !t.archived),
+              'revisões',
+            ),
+            runs: old?.runs || [],
+            archived: old?.archived || false,
+            version: (old?.version || 0) + 1,
+            updatedAt: timestamp,
+          };
+          state.tests = state.tests.filter(t => t.id !== eventId).concat(updated);
+          before = old && testPlan(old);
+          after = testPlan(updated);
+        } else if (action === 'test.result' || action === 'test.archive' || action === 'test.restore') {
+          const target = state.tests.find(t => t.id === body.id);
+          if (!target) throw fail(404, 'TEST_NOT_FOUND', 'Verificação não encontrada.');
+          editor(target.sectorId);
+          if (action !== 'test.result') target.archived = action === 'test.archive';
+          else {
+            if (target.archived) throw fail(409, 'ARCHIVED', 'Restaure a verificação antes de registrar um resultado.');
+            if (!['passed', 'failed', 'inconclusive'].includes(item.outcome))
+              throw fail(400, 'INVALID_RESULT', 'Resultado inválido.');
+            for (const id of target.requirementIds) {
+              const requirement = current.requirements.find(r => r.id === id);
+              if (requirement) editor(requirement.sectorId);
+            }
+            const result = text(item.result, 'resultado observado', 10000, true),
+              artifactIds = references(item.artifactIds, current.artifacts, 'evidências');
+            const evidenceUrl = text(item.evidenceUrl || '', 'link da evidência', 2000);
+            if (evidenceUrl) {
+              try {
+                const u = new URL(evidenceUrl);
+                if (u.protocol !== 'https:' || u.username || u.password) throw new Error();
+              } catch {
+                throw fail(400, 'INVALID_EVIDENCE_URL', 'Use um link HTTPS válido para a evidência.');
+              }
+            }
+            if (!target.procedure || !target.acceptanceCriteria || (!artifactIds.length && !evidenceUrl))
+              throw fail(
+                400,
+                'EVIDENCE_REQUIRED',
+                'Registre procedimento, critério de aceitação e uma evidência antes de concluir.',
+              );
+            if (target.requirementIds.some(id => !current.requirements.some(r => r.id === id && !r.archived)))
+              throw fail(409, 'REQUIREMENT_ARCHIVED', 'Atualize os vínculos: há um requisito arquivado ou removido.');
+            target.runs.push({
+              id: randomUUID(),
+              outcome: item.outcome,
+              result,
+              artifactIds,
+              evidenceUrl,
+              userId: actor.id,
+              authorName: actorName,
+              createdAt: timestamp,
+              planHash: hash(testPlan(target)),
+              configurationHash: configurationHash(record),
+              requirementHashes: Object.fromEntries(
+                target.requirementIds.map(id => [id, current.requirements.find(r => r.id === id).contentHash]),
+              ),
+            });
+          }
+        } else if (
+          ['document.request_review', 'document.review', 'task.request_review', 'task.review'].includes(action)
+        ) {
+          const isDocument = action.startsWith('document.'),
+            target = (isDocument ? state.documents : state.tasks).find(row => row.id === body.id);
+          if (!target || target.archived) throw fail(404, 'REVIEW_RECORD_NOT_FOUND', 'Registro indisponível.');
+          const task = isDocument ? state.tasks.find(t => t.id === target.taskId) : target;
+          if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
+          const currentHash = reviewFingerprint(target, current.requirements, current.tests);
+          before = { status: target.status, reviewers: target.reviewers || [], decisions: target.decisions || [] };
+          if (action.endsWith('request_review')) {
+            editor(task.sectorId);
+            const selected = list(body.reviewers, 'revisores');
+            if (
+              !selected.length ||
+              selected.includes(target.authorId || record.createdBy) ||
+              selected.some(id => !reviewerIds.has(id))
+            )
+              throw fail(400, 'INVALID_REVIEWERS', 'Escolha pelo menos um revisor real, diferente do autor da versão.');
+            target.authorId ||= record.createdBy;
+            target.version ||= 1;
+            target.reviewers = selected;
+            target.decisions = [];
+            target.reviewHash = currentHash;
+            if (isDocument) target.status = 'in_review';
+          } else {
+            const meta = reviewState(
+              target,
+              actor,
+              data,
+              current.requirements,
+              current.tests,
+              record,
+              canAccessProject,
+            );
+            if (!meta.canReview)
+              throw fail(
+                403,
+                'REVIEW_FORBIDDEN',
+                'A revisão exige uma pessoa atribuída, diferente do autor, na versão atual.',
+              );
+            if (body.version !== (target.version || 1))
+              throw fail(409, 'REVIEW_CHANGED', 'Abra a versão atual antes de revisar.');
+            if (!['approve', 'request_changes'].includes(body.decision))
+              throw fail(400, 'INVALID_REVIEW', 'Decisão inválida.');
+            const comment = text(body.comment || '', 'comentário', 4000, body.decision === 'request_changes');
+            target.decisions = (target.decisions || [])
+              .filter(d => d.userId !== actor.id)
+              .concat({
+                userId: actor.id,
+                authorName: actorName,
+                decision: body.decision,
+                comment,
+                version: target.version || 1,
+                contentHash: currentHash,
+                createdAt: timestamp,
+              });
+            if (isDocument)
+              target.status = reviewState(
+                target,
+                actor,
+                data,
+                current.requirements,
+                current.tests,
+                record,
+                canAccessProject,
+              ).approvalStatus;
+          }
+          eventId = target.id;
+          after = { reviewers: target.reviewers, decisions: target.decisions, version: target.version || 1 };
+        } else if (action === 'task.save') {
+          const old = body.id ? state.tasks.find(t => t.id === body.id) : null;
+          if (body.id && !old) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.');
+          if (old) editor(old.sectorId);
+          const sectorId = text(item.sectorId || '', 'setor', 100);
+          editor(sectorId);
+          eventId = old?.id || `TASK-${randomUUID().slice(0, 8).toUpperCase()}`;
+          const status = item.status || 'planned';
+          if (!statuses.includes(status)) throw fail(400, 'INVALID_STATUS', 'Situação inválida.');
+          const startDate = date(item.startDate || ''),
+            dueDate = date(item.dueDate || '');
+          if (startDate && dueDate && startDate > dueDate)
+            throw fail(400, 'INVALID_DATE_RANGE', 'O prazo deve ser posterior ao início.');
+          const dependencyIds = references(
+            item.dependencyIds,
+            state.tasks.filter(t => !t.archived),
+            'dependências',
+          );
+          const parentId = text(item.parentId ?? old?.parentId ?? '', 'atividade superior', 200);
+          if (parentId && !state.tasks.some(t => t.id === parentId && !t.archived))
+            throw fail(400, 'INVALID_PARENT', 'Selecione uma atividade superior deste cronograma.');
+          if (
+            status === 'done' &&
+            dependencyIds.some(
+              id =>
+                effectiveTaskStatus(
+                  state.tasks.find(t => t.id === id),
+                  current.requirements,
+                  current.tests,
+                  data,
+                  record,
+                  canAccessProject,
+                ) !== 'done',
+            )
+          )
+            throw fail(409, 'DEPENDENCIES_OPEN', 'Conclua as dependências antes desta atividade.');
+          const prepDays = Number(item.prepDays ?? 0),
+            closeDays = Number(item.closeDays ?? 0);
+          if (![prepDays, closeDays].every(n => Number.isInteger(n) && n >= 0 && n <= 365))
+            throw fail(400, 'INVALID_DURATION', 'Use um período de 0 a 365 dias.');
+          const phaseId = text(item.phaseId || '', 'fase', 100);
+          if (phaseId && !current.lifecycleRanges.some(p => p.id === phaseId))
+            throw fail(400, 'INVALID_PHASE', 'Fase não encontrada.');
+          const updated = {
+            ...(old || {}),
+            phaseId,
+            parentId,
+            id: eventId,
+            title: text(item.title, 'título', 200, true),
+            description: text(item.description || '', 'descrição', 8000),
+            phase: text(item.phase || '', 'fase', 100),
+            kind: item.kind === 'review' ? 'review' : 'task',
+            startDate,
+            dueDate,
+            prepDays,
+            closeDays,
+            status,
+            sectorId,
+            ownerId: member(item.ownerId),
+            dependencyIds,
+            requirementIds: references(
+              item.requirementIds,
+              current.requirements.filter(r => !r.archived),
+              'requisitos',
+            ),
+            testIds: references(
+              item.testIds,
+              state.tests.filter(t => !t.archived),
+              'verificações',
+            ),
+            inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'),
+            outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'),
+            archived: old?.archived || false,
+            updatedAt: timestamp,
+          };
+          const planChanged = !old || hash(taskPlan(old)) !== hash(taskPlan(updated));
+          if (planChanged)
+            Object.assign(updated, {
+              manual: true,
+              version: (old?.version || 0) + 1,
+              authorId: actor.id,
+              authorName: actorName,
+              decisions: [],
+              reviewHash: null,
+            });
+          if (
+            updated.kind === 'review' &&
+            updated.status === 'done' &&
+            (!old ||
+              planChanged ||
+              reviewState(old, actor, data, current.requirements, current.tests, record, canAccessProject)
+                .approvalStatus !== 'approved')
+          )
+            throw fail(
+              409,
+              'SCHEDULE_REVIEW_PENDING',
+              'Solicite uma revisão independente desta versão do planejamento antes de concluí-la.',
+            );
+          if (
+            updated.kind === 'review' &&
+            updated.status === 'done' &&
+            (updated.requirementIds.some(id => current.requirements.find(r => r.id === id)?.status !== 'approved') ||
+              updated.testIds.some(id => current.tests.find(t => t.id === id)?.status !== 'passed'))
+          )
+            throw fail(
+              409,
+              'REVIEW_EVIDENCE_PENDING',
+              'Para concluir esta revisão, aprove as versões dos requisitos vinculados e registre evidência atual de atendimento nas verificações vinculadas.',
+            );
+          state.tasks = state.tasks.filter(t => t.id !== eventId).concat(updated);
+          taskGraph(state.tasks);
+          before = old;
+          after = updated;
+        } else if (action === 'task.reschedule') {
+          const target = state.tasks.find(t => t.id === body.id);
+          if (!target || target.archived) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não disponível.');
+          editor(target.sectorId);
+          const dueDate = date(body.dueDate);
+          if (!dueDate) throw fail(400, 'INVALID_DATE', 'Informe a nova data.');
+          if (body.cascade !== undefined && typeof body.cascade !== 'boolean')
+            throw fail(400, 'INVALID_CASCADE', 'A opção de deslocamento deve ser verdadeira ou falsa.');
+          const previous = target.dueDate || target.startDate || dueDate,
+            delta = Math.round((Date.parse(dueDate) - Date.parse(previous)) / 86400000);
+          if (!delta && target.dueDate === dueDate)
+            throw fail(400, 'UNCHANGED_DATE', 'A atividade já está nesta data.');
+          taskGraph(state.tasks);
+          const ids = new Set([target.id]),
+            queue = [target.id];
+          if (body.cascade !== false)
+            while (queue.length) {
+              const id = queue.shift();
+              for (const task of state.tasks)
+                if (!task.archived && !ids.has(task.id) && (task.parentId === id || task.dependencyIds.includes(id))) {
+                  ids.add(task.id);
+                  queue.push(task.id);
+                }
+            }
+          const affected = state.tasks.filter(t => ids.has(t.id) && (t.id === target.id || t.startDate || t.dueDate));
+          for (const task of affected) editor(task.sectorId);
+          before = { tasks: structuredClone(affected) };
+          for (const task of affected) {
+            task.startDate = task.startDate
+              ? date(shiftDate(task.startDate, delta))
+              : task.id === target.id
+                ? dueDate
+                : '';
+            task.dueDate = task.id === target.id ? dueDate : task.dueDate ? date(shiftDate(task.dueDate, delta)) : '';
+            task.manual = true;
+            task.updatedAt = timestamp;
+            task.version = (task.version || 1) + 1;
+            task.authorId = actor.id;
+            task.authorName = actorName;
+            task.reviewHash = null;
+            task.decisions = [];
+            if (task.kind === 'review' && task.status === 'done') task.status = 'blocked';
+          }
+          after = { deltaDays: delta, cascade: body.cascade !== false, tasks: structuredClone(affected) };
+        } else if (action === 'task.undo_reschedule') {
+          const movement = [...state.history]
+            .reverse()
+            .find(
+              entry => entry.action === 'task.reschedule' && entry.subjectId === body.id && entry.actorId === actor.id,
+            );
+          if (
+            !movement?.before?.tasks?.length ||
+            !movement?.after?.tasks?.length ||
+            state.history.some(
+              entry => entry.action === 'task.undo_reschedule' && entry.after?.rescheduleId === movement.id,
+            )
+          )
+            throw fail(409, 'UNDO_UNAVAILABLE', 'Não há um deslocamento seu disponível para desfazer.');
+          for (const saved of movement.after.tasks) {
+            const task = state.tasks.find(t => t.id === saved.id);
+            if (!task || hash(task) !== hash(saved))
+              throw fail(
+                409,
+                'UNDO_CHANGED',
+                'Uma atividade envolvida mudou depois do deslocamento. Abra o planejamento atual para ajustá-la.',
+              );
+            editor(task.sectorId);
+          }
+          before = { tasks: structuredClone(movement.after.tasks) };
+          const restored = movement.before.tasks.map(saved => ({
+            ...structuredClone(saved),
+            version: (state.tasks.find(t => t.id === saved.id).version || 1) + 1,
+            updatedAt: timestamp,
+            manual: true,
+            authorId: actor.id,
+            authorName: actorName,
+            decisions: [],
+            reviewHash: null,
+            status: saved.kind === 'review' && saved.status === 'done' ? 'blocked' : saved.status,
+          }));
+          state.tasks = state.tasks.map(task => restored.find(saved => saved.id === task.id) || task);
+          taskGraph(state.tasks);
+          after = { rescheduleId: movement.id, tasks: structuredClone(restored) };
+        } else if (action === 'task.archive' || action === 'task.restore') {
+          const target = state.tasks.find(t => t.id === body.id);
+          if (!target) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.');
+          editor(target.sectorId);
+          if (
+            action === 'task.archive' &&
+            state.tasks.some(t => !t.archived && (t.dependencyIds.includes(target.id) || t.parentId === target.id))
+          )
+            throw fail(409, 'TASK_IN_USE', 'Remova as dependências e os subitens antes de arquivar.');
+          before = structuredClone(target);
+          target.archived = action === 'task.archive';
+          target.updatedAt = timestamp;
+          target.version = (target.version || 1) + 1;
+          target.reviewHash = null;
+          target.decisions = [];
+          if (target.kind === 'review' && target.status === 'done') target.status = 'blocked';
+          taskGraph(state.tasks);
+          after = structuredClone(target);
+        } else if (action === 'lifecycle.configure') {
+          admin();
+          const profile = body.profile;
+          if (!Object.hasOwn(LIFE_PHASES, profile)) throw fail(400, 'INVALID_PROFILE', 'Perfil inválido.');
+          const startDate = date(body.startDate),
+            durations = body.durations || LIFE_DURATIONS[profile];
+          if (
+            !startDate ||
+            !Array.isArray(durations) ||
+            durations.length !== LIFE_PHASES[profile].length ||
+            durations.some(v => !Number.isInteger(v) || v < 1 || v > 520)
+          )
+            throw fail(400, 'INVALID_DURATION', 'Informe início e duração de cada fase entre 1 e 520 semanas.');
+          const lifecycle = {
+            profile,
+            startDate,
+            durations,
+            updatedAt: timestamp,
+            version: (state.lifecycle?.version || 0) + 1,
+          };
+          if (body.phases !== undefined) {
+            if (body.expectedLifecycleVersion !== (state.lifecycle?.version || 0))
+              throw fail(
+                409,
+                'LIFECYCLE_CHANGED',
+                'As fases mudaram durante a edição. Feche a configuração e abra a versão atual.',
+              );
+            if (!Array.isArray(body.phases) || body.phases.length > 30)
+              throw fail(400, 'INVALID_PHASES', 'Use até 30 fases.');
+            lifecycle.phases = body.phases.map(p => {
+              if (!p || typeof p !== 'object' || Array.isArray(p)) throw fail(400, 'INVALID_PHASE', 'Fase inválida.');
+              const start = date(p.start),
+                end = date(p.end);
+              if (!start || !end || end < start)
+                throw fail(400, 'INVALID_PHASE_DATES', 'O fim de cada fase deve ser igual ou posterior ao início.');
+              return {
+                id: text(p.id, 'identificador da fase', 100, true),
+                code: text(p.code, 'código da fase', 30, true),
+                name: text(p.name, 'nome da fase', 100, true),
+                start,
+                end,
+                ...(p.templateCode ? { templateCode: text(p.templateCode, 'referência da fase', 30) } : {}),
+              };
+            });
+            if (
+              new Set(lifecycle.phases.map(p => p.id)).size !== lifecycle.phases.length ||
+              new Set(lifecycle.phases.filter(p => p.templateCode).map(p => p.templateCode)).size !==
+                lifecycle.phases.filter(p => p.templateCode).length
+            )
+              throw fail(400, 'DUPLICATE_PHASE', 'Cada fase deve ter um identificador e uma referência únicos.');
+            if (
+              lifecycle.phases.some(
+                p => p.templateCode && !LIFE_PHASES[profile].some(([code]) => code === p.templateCode),
+              )
+            )
+              throw fail(400, 'INVALID_PHASE', 'Referência de fase inválida para este modelo.');
+          }
+          const previousRanges = state.lifecycle ? lifecycleRanges(state.lifecycle) : [];
+          for (const task of state.tasks.filter(t => t.lifecycleProfile === profile && !Object.hasOwn(t, 'phaseId'))) {
+            task.phaseId = previousRanges[task.phaseIndex]?.id || '';
+          }
+          const definitions = lifecycleMilestones(lifecycle),
+            ranges = lifecycleRanges(lifecycle),
+            phaseIds = new Set(ranges.map(p => p.id));
+          const selected =
+            body.selectedReviews === undefined
+              ? definitions.filter(r => r.active).map(r => r.id)
+              : references(body.selectedReviews, definitions, 'revisões');
+          lifecycle.selectedReviews = selected;
+          before = state.lifecycle || null;
+          state.lifecycle = lifecycle;
+          for (const task of state.tasks.filter(t => !t.lifecycleProfile || t.lifecycleProfile === profile)) {
+            if (task.phaseId && !phaseIds.has(task.phaseId)) {
+              task.phaseId = '';
+              task.phase = '';
+              task.manual = true;
+            } else if (task.phaseId) {
+              task.phase = ranges.find(p => p.id === task.phaseId).name;
+            }
+          }
+          for (const definition of definitions) {
+            const old = state.tasks.find(t => t.lifecycleProfile === profile && t.reviewCode === definition.id);
+            if (old) {
+              old.excluded = !selected.includes(definition.id);
+              old.phaseId = definition.phaseId;
+              old.phase = definition.phaseName;
+              if (!old.manual) {
+                old.startDate = definition.date;
+                old.dueDate = definition.date;
+              }
+              continue;
+            }
+            state.tasks.push({
+              id: `TASK-${randomUUID().slice(0, 8).toUpperCase()}`,
+              reviewCode: definition.id,
+              lifecycleProfile: profile,
+              lane: definition.lane,
+              phaseIndex: definition.phase,
+              phaseId: definition.phaseId,
+              excluded: !selected.includes(definition.id),
+              title: `${definition.id} · ${definition.title}`,
+              phase: definition.phaseName,
+              description: definition.focus,
+              kind: 'review',
+              startDate: definition.date,
+              dueDate: definition.date,
+              prepDays: 10,
+              closeDays: 7,
+              status: 'planned',
+              sectorId: '',
+              ownerId: '',
+              dependencyIds: [],
+              requirementIds: [],
+              testIds: [],
+              inputArtifactIds: [],
+              outputArtifactIds: [],
+              archived: false,
+              updatedAt: timestamp,
+              manual: false,
+              version: 1,
+              authorId: actor.id,
+              authorName: actorName,
+              reviewers: [],
+              decisions: [],
+            });
+          }
+          after = lifecycle;
+        } else if (action === 'document.prepare') {
+          const task = current.tasks.find(t => t.id === body.taskId);
+          if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
+          editor(task.sectorId);
+          const profile = body.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
+          if (!['nasa', 'ecss', 'custom'].includes(profile)) throw fail(400, 'INVALID_PROFILE', 'Modelo inválido.');
+          const definitions = reviewDocuments(profile, task.reviewCode || '');
+          const definition = definitions.find(d => d.id === body.templateId);
+          if (!definition) throw fail(400, 'INVALID_DOCUMENT', 'Documento não pertence a esta revisão.');
+          const existing = state.documents.find(d => d.taskId === task.id && d.templateId === definition.id);
+          if (existing) throw fail(409, 'DOCUMENT_EXISTS', 'O rascunho já está preparado; abra sua versão atual.');
+          const document = {
+            id: `DOC-${randomUUID().slice(0, 8).toUpperCase()}`,
+            taskId: task.id,
+            templateId: definition.id,
+            profile: definition.profile,
+            code: definition.code,
+            kind: definition.kind,
+            maturity: definition.maturity,
+            title: definition.title,
+            flow: definition.flow,
+            reference: definition.reference,
+            body: draftDeliveryDocument(
+              definition,
+              project,
+              current.requirements,
+              current.tests,
+              task,
+              draftContext(current, project, task),
+            ),
+            status: 'draft',
+            version: 1,
+            authorId: actor.id,
+            authorName: actorName,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+            sourceRevision: state.revision,
+            suggestions: [],
+          };
+          state.documents.push(document);
+          eventId = document.id;
+          after = { title: document.title, version: 1 };
+        } else if (action === 'document.save') {
+          if (body.suggestionRunId) {
+            const run = state.assistantRuns?.find(
+              r => r.id === body.suggestionRunId && r.kind === 'document' && r.status === 'completed',
+            );
+            if (
+              !run ||
+              run.input.taskId !== item.taskId ||
+              run.input.templateId !== item.templateId ||
+              run.fingerprint !==
+                assistantContextHash(record, state, 'document', { hash, requirementsOf, deliveryBaselineHash })
+            )
+              throw fail(409, 'SUGGESTION_STALE', 'A base do documento mudou. Gere uma nova minuta antes de salvar.');
+          }
+          let document = state.documents.find(d => d.id === body.id);
+          if (body.id && !document) throw fail(404, 'DOCUMENT_NOT_FOUND', 'Documento indisponível.');
+          const task = state.tasks.find(t => t.id === (document?.taskId || item.taskId) && !t.archived);
+          if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
+          editor(task.sectorId);
+          if (!document) {
+            const profile = item.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
+            if (!['nasa', 'ecss', 'custom'].includes(profile)) throw fail(400, 'INVALID_PROFILE', 'Modelo inválido.');
+            const definition = reviewDocuments(profile, task.reviewCode || '').find(d => d.id === item.templateId);
+            if (!definition) throw fail(400, 'INVALID_DOCUMENT', 'Modelo não pertence a esta revisão.');
+            if (state.documents.some(d => d.taskId === task.id && d.templateId === definition.id))
+              throw fail(409, 'DOCUMENT_EXISTS', 'Já existe um documento deste modelo; abra e edite sua versão atual.');
+            document = {
+              id: `DOC-${randomUUID().slice(0, 8).toUpperCase()}`,
+              taskId: task.id,
+              templateId: definition.id,
+              profile: definition.profile,
+              code: definition.code,
+              kind: definition.kind,
+              maturity: definition.maturity,
+              title: text(item.title || definition.title, 'título', 200, true),
+              flow: definition.flow,
+              reference: definition.reference,
+              body: '',
+              version: 0,
+              createdAt: timestamp,
+            };
+            state.documents.push(document);
+          } else if (item.version !== document.version)
+            throw fail(409, 'DOCUMENT_CHANGED', 'O documento mudou; abra a versão atual.');
+          before = { body: document.body, version: document.version };
+          document.body = text(item.body, 'conteúdo do documento', 150000, true);
+          document.version++;
+          document.status = 'draft';
+          document.updatedAt = timestamp;
+          document.authorId = actor.id;
+          document.authorName = actorName;
+          document.decisions = [];
+          document.reviewHash = null;
+          document.sourceRevision = state.revision;
+          eventId = document.id;
+          after = { body: document.body, version: document.version };
+        } else if (action === 'document.suggest') {
+          const document = state.documents.find(d => d.id === body.id && !d.archived);
+          if (!document) throw fail(404, 'DOCUMENT_NOT_FOUND', 'Documento indisponível.');
+          const meta = current.documents.find(d => d.id === document.id);
+          if (!meta?.canSuggest)
+            throw fail(
+              403,
+              'SUGGESTION_FORBIDDEN',
+              'Somente revisores atribuídos à versão atual, diferentes do autor, sugerem correções.',
+            );
+          if (body.version !== document.version)
+            throw fail(409, 'DOCUMENT_CHANGED', 'O documento mudou; abra a versão atual antes de sugerir.');
+          const quote = text(body.quote, 'trecho citado', 2000, true),
+            replacement = text(body.replacement ?? '', 'texto sugerido', 4000),
+            comment = text(body.comment || '', 'comentário', 2000);
+          if (!replacement && !comment)
+            throw fail(400, 'INVALID_SUGGESTION', 'Escreva o texto sugerido ou um comentário.');
+          if (document.body.split(quote).length !== 2)
+            throw fail(400, 'QUOTE_NOT_UNIQUE', 'Cite um trecho que aparece exatamente uma vez no documento.');
+          document.suggestions ||= [];
+          if (document.suggestions.length >= 300) throw fail(400, 'DELIVERY_LIMIT', 'Limite de sugestões atingido.');
+          const suggestion = {
+            id: `SUG-${randomUUID().slice(0, 8).toUpperCase()}`,
+            authorId: actor.id,
+            authorName: actorName,
+            quote,
+            replacement,
+            comment,
+            version: document.version,
+            status: 'open',
+            createdAt: timestamp,
+          };
+          document.suggestions.push(suggestion);
+          eventId = document.id;
+          after = { suggestion };
+        } else if (action === 'document.resolve_suggestion') {
+          const document = state.documents.find(d => d.id === body.id && !d.archived);
+          if (!document) throw fail(404, 'DOCUMENT_NOT_FOUND', 'Documento indisponível.');
+          const task = state.tasks.find(t => t.id === document.taskId && !t.archived);
+          if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
+          editor(task.sectorId);
+          const suggestion = (document.suggestions || []).find(item => item.id === body.suggestionId);
+          if (!suggestion || suggestion.status !== 'open')
+            throw fail(404, 'SUGGESTION_NOT_FOUND', 'Sugestão já resolvida ou indisponível.');
+          if (body.version !== document.version)
+            throw fail(409, 'DOCUMENT_CHANGED', 'O documento mudou; abra a versão atual.');
+          if (!['accept', 'dismiss'].includes(body.decision)) throw fail(400, 'INVALID_DECISION', 'Decisão inválida.');
+          before = { status: suggestion.status, version: document.version };
+          if (body.decision === 'accept') {
+            if (!suggestion.replacement)
+              throw fail(400, 'NOTHING_TO_APPLY', 'Esta sugestão é só um comentário; marque-a como resolvida.');
+            if (document.body.split(suggestion.quote).length !== 2)
+              throw fail(409, 'SUGGESTION_STALE', 'O trecho citado mudou ou se repete. Edite o documento manualmente.');
+            // Applying text is a new version: earlier review decisions no longer apply to it.
+            document.body = document.body.replace(suggestion.quote, () => suggestion.replacement);
+            document.version++;
+            document.status = 'draft';
+            document.updatedAt = timestamp;
+            document.authorId = actor.id;
+            document.authorName = actorName;
+            document.decisions = [];
+            document.reviewHash = null;
+            document.sourceRevision = state.revision;
+          }
+          Object.assign(suggestion, {
+            status: body.decision === 'accept' ? 'accepted' : 'dismissed',
+            resolvedBy: actor.id,
+            resolvedByName: actorName,
+            resolvedAt: timestamp,
+          });
+          eventId = document.id;
+          after = { suggestionId: suggestion.id, status: suggestion.status, version: document.version };
+        } else if (action === 'schedule.template') {
+          admin();
+          const start = date(body.startDate);
+          if (!start) throw fail(400, 'INVALID_DATE', 'Selecione a data inicial.');
+          if (!['nasa', 'ecss', 'custom'].includes(body.profile))
+            throw fail(400, 'INVALID_PROFILE', 'Perfil inválido.');
+          if (state.tasks.some(t => !t.archived))
+            throw fail(
+              409,
+              'SCHEDULE_EXISTS',
+              'O cronograma já tem atividades. Edite os marcos existentes ou arquive-os antes de aplicar outro modelo.',
+            );
+          const definitions =
+            body.profile === 'custom'
+              ? [
+                  ['KICKOFF', 'Abertura do projeto', 'Concepção', 0],
+                  ['DELIVERY', 'Entrega do projeto', 'Entrega', 90],
+                ]
+              : [
+                  ['MCR', 'Revisão do conceito', 'Concepção', 0],
+                  ['SRR', 'Revisão dos requisitos', 'Definição', 21],
+                  ['PDR', 'Revisão preliminar do projeto', 'Projeto preliminar', 45],
+                  ['CDR', 'Revisão crítica do projeto', 'Projeto detalhado', 75],
+                  ['TRR', 'Prontidão para testes', 'Integração e testes', 105],
+                  [
+                    body.profile === 'ecss' ? 'QR' : 'SAR',
+                    body.profile === 'ecss' ? 'Revisão de qualificação' : 'Aceitação do sistema',
+                    'Verificação',
+                    135,
+                  ],
+                  ['ORR', 'Prontidão operacional', 'Operações', 150],
+                ];
+          const created = definitions.map(([code, title, phase, offset]) => {
+            const dueDate = new Date(Date.parse(start) + offset * 86400000).toISOString().slice(0, 10);
+            return {
+              id: `TASK-${randomUUID().slice(0, 8).toUpperCase()}`,
+              title: `${code} · ${title}`,
+              phase,
+              description:
+                'Modelo de planejamento adaptável. Revise critérios, entregas e datas com a equipe; esta seleção não declara conformidade normativa.',
+              kind: 'review',
+              startDate: dueDate,
+              dueDate,
+              prepDays: 7,
+              closeDays: 7,
+              status: 'planned',
+              sectorId: '',
+              ownerId: '',
+              dependencyIds: [],
+              requirementIds: [],
+              testIds: [],
+              inputArtifactIds: [],
+              outputArtifactIds: [],
+              archived: false,
+              updatedAt: timestamp,
+              manual: false,
+            };
+          });
+          created.forEach((task, index) => {
+            if (index) task.dependencyIds = [created[index - 1].id];
+          });
+          state.tasks.push(...created);
         } else throw fail(400, 'INVALID_ACTION', 'Ação desconhecida.');
-      }
-      target.updatedAt = timestamp;
-    } else if (action.startsWith('proposal.')) {
-      const proposal = body.id ? state.proposals.find(p=>p.id===body.id) : null;
-      const requirement = current.requirements.find(r=>r.id===(proposal?.requirementId || item.requirementId));
-      if (!requirement || requirement.archived) throw fail(404,'REQUIREMENT_NOT_FOUND','Requisito indisponível.');
-      if (action === 'proposal.save') {
-        if(!requirement.reviewers.includes(actor.id)) editor(requirement.sectorId);
-        if (body.id && !proposal) throw fail(404,'PROPOSAL_NOT_FOUND','Proposta indisponível.');
-        if (proposal && (proposal.authorId !== actor.id || !['open','changes_requested','approved'].includes(proposal.status))) throw fail(403,'PROPOSAL_FORBIDDEN','Somente o autor pode editar uma proposta aberta.');
-        const reviewers = references(item.reviewers, members, 'revisores');
-        if (!reviewers.length || reviewers.includes(actor.id) || reviewers.some(id => !reviewerIds.has(id))) throw fail(400,'INVALID_REVIEWERS','Selecione revisores diferentes do autor. Perfis fictícios não podem revisar.');
-        before=proposal?{statement:proposal.statement,reason:proposal.reason,reviewers:proposal.reviewers,version:proposal.version}:null;
-        const updated={id:proposal?.id||`PR-${randomUUID().slice(0,8).toUpperCase()}`,requirementId:requirement.id,baseHash:requirement.contentHash,baseVersion:requirement.version,before:requirement.statement,statement:text(item.statement,'novo enunciado',1200,true),reason:text(item.reason,'motivo da proposta',4000,true),authorId:actor.id,authorName:actorName,reviewers,decisions:[],comments:proposal?.comments||[],version:(proposal?.version||0)+1,status:'open',createdAt:proposal?.createdAt||timestamp,updatedAt:timestamp};
-        state.proposals=state.proposals.filter(p=>p.id!==updated.id).concat(updated);eventId=updated.id;after={requirementId:requirement.id,statement:updated.statement,reason:updated.reason,reviewers:updated.reviewers,version:updated.version};
-      } else {
-        if (!proposal) throw fail(404,'PROPOSAL_NOT_FOUND','Proposta indisponível.');
-        eventId=proposal.id;
-        if (action === 'proposal.comment') proposal.comments.push({id:randomUUID(),authorName:actorName,userId:actor.id,text:text(body.comment,'comentário',4000,true),createdAt:timestamp,version:proposal.version});
-        else if (action === 'proposal.review') {
-          if (!canReviewAccount(actor) || proposal.authorId===actor.id || !proposal.reviewers.includes(actor.id) || !['open','changes_requested','approved'].includes(proposal.status)) throw fail(403,'REVIEW_FORBIDDEN','Parecer reservado a um revisor atribuído.');
-          if (proposal.baseHash!==requirement.contentHash) throw fail(409,'PROPOSAL_STALE','O requisito mudou. O autor deve atualizar a proposta antes da revisão.');
-          if (!['approve','request_changes'].includes(body.decision)) throw fail(400,'INVALID_DECISION','Parecer inválido.');
-          const comment=text(body.comment||'','parecer',4000,body.decision==='request_changes');after={decision:body.decision,comment,version:proposal.version};
-          proposal.decisions=proposal.decisions.filter(d=>d.userId!==actor.id).concat({userId:actor.id,authorName:actorName,decision:body.decision,comment,version:proposal.version,createdAt:timestamp});
-          proposal.status=proposal.decisions.some(d=>d.decision==='request_changes')?'changes_requested':proposal.reviewers.every(id=>proposal.decisions.some(d=>d.userId===id&&d.decision==='approve'))?'approved':'open';
-        } else if (action === 'proposal.merge') {
-          editor(requirement.sectorId);
-          if(proposal.baseHash!==requirement.contentHash) throw fail(409,'PROPOSAL_STALE','O requisito mudou. Atualize a proposta e solicite novos pareceres.');
-          if(proposal.status!=='approved' || !proposal.reviewers.every(id=>reviewerIds.has(id)&&proposal.decisions.some(d=>d.userId===id&&d.decision==='approve'&&d.version===proposal.version))) throw fail(409,'REVIEW_REQUIRED','Todos os revisores atuais precisam aprovar esta versão.');
-          const source=baseline(record).find(r=>r.id===requirement.id), updated={...requirement,statement:proposal.statement,version:requirement.version+1,authorId:proposal.authorId,authorName:proposal.authorName,sourceHash:source?requirementSourceHash(record,source):null,reviewers:proposal.reviewers,decisions:[],reviewHash:null,updatedAt:timestamp};
-          state.requirements=state.requirements.filter(r=>r.id!==requirement.id).concat(updated);
-          const next=requirementsOf(record,state).find(r=>r.id===requirement.id);updated.reviewHash=next.contentHash;updated.decisions=proposal.decisions.map(d=>({...d,contentHash:next.contentHash}));
-          proposal.status='merged';proposal.mergedAt=timestamp;proposal.mergedBy=actor.id;before=content(requirement);after=content(updated);
-        } else if(action==='proposal.close') { if(proposal.authorId!==actor.id) editor(requirement.sectorId);if(proposal.status==='merged') throw fail(409,'PROPOSAL_CLOSED','A proposta já foi integrada.');proposal.status='closed'; }
-        else throw fail(400,'INVALID_ACTION','Ação desconhecida.');
-        proposal.updatedAt=timestamp;
-      }
-    } else if (action === 'test.save') {
-      if (body.suggestionRunId) { const run = state.assistantRuns?.find(r => r.id === body.suggestionRunId && r.kind === 'verification' && r.status === 'completed'); if (!run || Object.entries(run.requirementHashes || {}).some(([id, value]) => !current.requirements.some(r => r.id === id && !r.archived && r.contentHash === value))) throw fail(409,'SUGGESTION_STALE','Os requisitos mudaram desde a sugestão. Solicite uma nova proposta.'); }
-      const old = body.id ? state.tests.find(t => t.id === body.id) : null;
-      if (body.id && !old) throw fail(404, 'TEST_NOT_FOUND', 'Verificação não encontrada.');
-      if (old) editor(old.sectorId);
-      const sectorId = text(item.sectorId || '', 'setor', 100); editor(sectorId);
-      if (!methods.includes(item.method) || item.method === 'unspecified') throw fail(400, 'INVALID_METHOD', 'Selecione um método de verificação.');
-      const requirementIds = references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos');
-      if (!requirementIds.length) throw fail(400, 'REQUIREMENT_REQUIRED', 'Associe pelo menos um requisito.');
-      for (const id of requirementIds) editor(current.requirements.find(r => r.id === id).sectorId);
-      eventId = old?.id || `VER-${randomUUID().slice(0, 8).toUpperCase()}`;
-      const updated = { id: eventId, title: text(item.title, 'título', 200, true), method: item.method, procedure: text(item.procedure || '', 'procedimento', 10000), acceptanceCriteria: text(item.acceptanceCriteria || '', 'critério de aceitação', 8000), requirementIds, entityIds: references(item.entityIds, current.entities, 'elementos'), sectorId, ownerId: member(item.ownerId), conditions:text(item.conditions||'', 'condições do ensaio',4000), configuration:text(item.configuration||'', 'configuração',4000), level:['system','subsystem','component'].includes(item.level)?item.level:'system', reviewTaskIds:references(item.reviewTaskIds,current.tasks.filter(t=>!t.archived),'revisões'), runs: old?.runs || [], archived: old?.archived || false, version: (old?.version || 0) + 1, updatedAt: timestamp };
-      state.tests = state.tests.filter(t => t.id !== eventId).concat(updated); before = old && testPlan(old); after = testPlan(updated);
-    } else if (action === 'test.result' || action === 'test.archive' || action === 'test.restore') {
-      const target = state.tests.find(t => t.id === body.id); if (!target) throw fail(404, 'TEST_NOT_FOUND', 'Verificação não encontrada.'); editor(target.sectorId);
-      if (action !== 'test.result') target.archived = action === 'test.archive';
-      else {
-        if (target.archived) throw fail(409, 'ARCHIVED', 'Restaure a verificação antes de registrar um resultado.');
-        if (!['passed', 'failed', 'inconclusive'].includes(item.outcome)) throw fail(400, 'INVALID_RESULT', 'Resultado inválido.');
-        for (const id of target.requirementIds) { const requirement = current.requirements.find(r => r.id === id); if (requirement) editor(requirement.sectorId); }
-        const result = text(item.result, 'resultado observado', 10000, true), artifactIds = references(item.artifactIds, current.artifacts, 'evidências');
-        const evidenceUrl = text(item.evidenceUrl || '', 'link da evidência', 2000);
-        if (evidenceUrl) { try { const u = new URL(evidenceUrl); if (u.protocol !== 'https:' || u.username || u.password) throw new Error(); } catch { throw fail(400, 'INVALID_EVIDENCE_URL', 'Use um link HTTPS válido para a evidência.'); } }
-        if (!target.procedure || !target.acceptanceCriteria || (!artifactIds.length && !evidenceUrl)) throw fail(400, 'EVIDENCE_REQUIRED', 'Registre procedimento, critério de aceitação e uma evidência antes de concluir.');
-        if (target.requirementIds.some(id => !current.requirements.some(r => r.id === id && !r.archived))) throw fail(409, 'REQUIREMENT_ARCHIVED', 'Atualize os vínculos: há um requisito arquivado ou removido.');
-        target.runs.push({ id: randomUUID(), outcome: item.outcome, result, artifactIds, evidenceUrl, userId: actor.id, authorName: actorName, createdAt: timestamp, planHash: hash(testPlan(target)), configurationHash:configurationHash(record), requirementHashes: Object.fromEntries(target.requirementIds.map(id => [id, current.requirements.find(r => r.id === id).contentHash])) });
-      }
-    } else if (['document.request_review','document.review','task.request_review','task.review'].includes(action)) {
-      const isDocument = action.startsWith('document.'), target = (isDocument ? state.documents : state.tasks).find(row => row.id === body.id);
-      if (!target || target.archived) throw fail(404, 'REVIEW_RECORD_NOT_FOUND', 'Registro indisponível.');
-      const task = isDocument ? state.tasks.find(t => t.id === target.taskId) : target;
-      if (!task) throw fail(404, 'TASK_NOT_FOUND', 'Revisão indisponível.');
-      const currentHash = reviewFingerprint(target, current.requirements, current.tests);
-      before = {status: target.status, reviewers: target.reviewers || [], decisions: target.decisions || []};
-      if (action.endsWith('request_review')) {
-        editor(task.sectorId);
-        const selected = list(body.reviewers, 'revisores');
-        if (!selected.length || selected.includes(target.authorId || record.createdBy) || selected.some(id => !reviewerIds.has(id))) throw fail(400, 'INVALID_REVIEWERS', 'Escolha pelo menos um revisor real, diferente do autor da versão.');
-        target.authorId ||= record.createdBy; target.version ||= 1; target.reviewers = selected; target.decisions = []; target.reviewHash = currentHash;
-        if (isDocument) target.status = 'in_review';
-      } else {
-        const meta = reviewState(target, actor, data, current.requirements, current.tests, record, canAccessProject);
-        if (!meta.canReview) throw fail(403, 'REVIEW_FORBIDDEN', 'A revisão exige uma pessoa atribuída, diferente do autor, na versão atual.');
-        if (body.version !== (target.version || 1)) throw fail(409, 'REVIEW_CHANGED', 'Abra a versão atual antes de revisar.');
-        if (!['approve','request_changes'].includes(body.decision)) throw fail(400,'INVALID_REVIEW','Decisão inválida.');
-        const comment = text(body.comment || '', 'comentário', 4000, body.decision === 'request_changes');
-        target.decisions = (target.decisions || []).filter(d => d.userId !== actor.id).concat({userId:actor.id,authorName:actorName,decision:body.decision,comment,version:target.version || 1,contentHash:currentHash,createdAt:timestamp});
-        if (isDocument) target.status = reviewState(target, actor, data, current.requirements, current.tests, record, canAccessProject).approvalStatus;
-      }
-      eventId=target.id; after={reviewers:target.reviewers,decisions:target.decisions,version:target.version || 1};
-    } else if (action === 'task.save') {
-      const old = body.id ? state.tasks.find(t => t.id === body.id) : null;
-      if (body.id && !old) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.');
-      if (old) editor(old.sectorId);
-      const sectorId = text(item.sectorId || '', 'setor', 100); editor(sectorId);
-      eventId = old?.id || `TASK-${randomUUID().slice(0, 8).toUpperCase()}`;
-      const status = item.status || 'planned'; if (!statuses.includes(status)) throw fail(400, 'INVALID_STATUS', 'Situação inválida.');
-      const startDate = date(item.startDate || ''), dueDate = date(item.dueDate || ''); if (startDate && dueDate && startDate > dueDate) throw fail(400, 'INVALID_DATE_RANGE', 'O prazo deve ser posterior ao início.');
-      const dependencyIds = references(item.dependencyIds, state.tasks.filter(t => !t.archived), 'dependências');
-      const parentId = text(item.parentId ?? old?.parentId ?? '', 'atividade superior', 200);
-      if (parentId && !state.tasks.some(t => t.id === parentId && !t.archived)) throw fail(400, 'INVALID_PARENT', 'Selecione uma atividade superior deste cronograma.');
-      if (status === 'done' && dependencyIds.some(id => effectiveTaskStatus(state.tasks.find(t => t.id === id),current.requirements,current.tests,data,record,canAccessProject) !== 'done')) throw fail(409, 'DEPENDENCIES_OPEN', 'Conclua as dependências antes desta atividade.');
-      const prepDays = Number(item.prepDays ?? 0), closeDays = Number(item.closeDays ?? 0);
-      if (![prepDays, closeDays].every(n => Number.isInteger(n) && n >= 0 && n <= 365)) throw fail(400, 'INVALID_DURATION', 'Use um período de 0 a 365 dias.');
-      const phaseId=text(item.phaseId||'', 'fase',100);if(phaseId&&!current.lifecycleRanges.some(p=>p.id===phaseId))throw fail(400,'INVALID_PHASE','Fase não encontrada.');
-      const updated = { ...(old || {}), phaseId, parentId, id: eventId, title: text(item.title, 'título', 200, true), description: text(item.description || '', 'descrição', 8000), phase: text(item.phase || '', 'fase', 100), kind: item.kind === 'review' ? 'review' : 'task', startDate, dueDate, prepDays, closeDays, status, sectorId, ownerId: member(item.ownerId), dependencyIds, requirementIds: references(item.requirementIds, current.requirements.filter(r => !r.archived), 'requisitos'), testIds: references(item.testIds, state.tests.filter(t => !t.archived), 'verificações'), inputArtifactIds: references(item.inputArtifactIds, current.artifacts, 'entradas'), outputArtifactIds: references(item.outputArtifactIds, current.artifacts, 'saídas'), archived: old?.archived || false, updatedAt: timestamp };
-      const planChanged = !old || hash(taskPlan(old)) !== hash(taskPlan(updated));
-      if (planChanged) Object.assign(updated, { manual:true, version:(old?.version || 0) + 1, authorId:actor.id, authorName:actorName, decisions:[], reviewHash:null });
-      if(updated.kind==='review'&&updated.status==='done'&&(!old||planChanged||reviewState(old,actor,data,current.requirements,current.tests,record,canAccessProject).approvalStatus!=='approved'))throw fail(409,'SCHEDULE_REVIEW_PENDING','Solicite uma revisão independente desta versão do planejamento antes de concluí-la.');
-      if(updated.kind==='review'&&updated.status==='done'&&(updated.requirementIds.some(id=>current.requirements.find(r=>r.id===id)?.status!=='approved')||updated.testIds.some(id=>current.tests.find(t=>t.id===id)?.status!=='passed'))) throw fail(409,'REVIEW_EVIDENCE_PENDING','Para concluir esta revisão, aprove as versões dos requisitos vinculados e registre evidência atual de atendimento nas verificações vinculadas.');
-      state.tasks = state.tasks.filter(t => t.id !== eventId).concat(updated); taskGraph(state.tasks); before = old; after = updated;
-    } else if(action==='task.reschedule') {
-      const target=state.tasks.find(t=>t.id===body.id);if(!target||target.archived)throw fail(404,'TASK_NOT_FOUND','Atividade não disponível.');editor(target.sectorId);
-      const dueDate=date(body.dueDate);if(!dueDate)throw fail(400,'INVALID_DATE','Informe a nova data.');
-      if(body.cascade!==undefined&&typeof body.cascade!=='boolean')throw fail(400,'INVALID_CASCADE','A opção de deslocamento deve ser verdadeira ou falsa.');
-      const previous=target.dueDate||target.startDate||dueDate,delta=Math.round((Date.parse(dueDate)-Date.parse(previous))/86400000);
-      if(!delta&&target.dueDate===dueDate)throw fail(400,'UNCHANGED_DATE','A atividade já está nesta data.');
-      taskGraph(state.tasks);
-      const ids=new Set([target.id]),queue=[target.id];
-      if(body.cascade!==false)while(queue.length){const id=queue.shift();for(const task of state.tasks)if(!task.archived&&!ids.has(task.id)&&(task.parentId===id||task.dependencyIds.includes(id))){ids.add(task.id);queue.push(task.id);}}
-      const affected=state.tasks.filter(t=>ids.has(t.id)&&(t.id===target.id||t.startDate||t.dueDate));
-      for(const task of affected)editor(task.sectorId);
-      before={tasks:structuredClone(affected)};
-      for(const task of affected){task.startDate=task.startDate?date(shiftDate(task.startDate,delta)):(task.id===target.id?dueDate:'');task.dueDate=task.id===target.id?dueDate:task.dueDate?date(shiftDate(task.dueDate,delta)):'';task.manual=true;task.updatedAt=timestamp;task.version=(task.version||1)+1;task.authorId=actor.id;task.authorName=actorName;task.reviewHash=null;task.decisions=[];if(task.kind==='review'&&task.status==='done')task.status='blocked';}
-      after={deltaDays:delta,cascade:body.cascade!==false,tasks:structuredClone(affected)};
-    } else if(action==='task.undo_reschedule') {
-      const movement=[...state.history].reverse().find(entry=>entry.action==='task.reschedule'&&entry.subjectId===body.id&&entry.actorId===actor.id);
-      if(!movement?.before?.tasks?.length||!movement?.after?.tasks?.length||state.history.some(entry=>entry.action==='task.undo_reschedule'&&entry.after?.rescheduleId===movement.id))throw fail(409,'UNDO_UNAVAILABLE','Não há um deslocamento seu disponível para desfazer.');
-      for(const saved of movement.after.tasks){const task=state.tasks.find(t=>t.id===saved.id);if(!task||hash(task)!==hash(saved))throw fail(409,'UNDO_CHANGED','Uma atividade envolvida mudou depois do deslocamento. Abra o planejamento atual para ajustá-la.');editor(task.sectorId);}
-      before={tasks:structuredClone(movement.after.tasks)};
-      const restored=movement.before.tasks.map(saved=>({...structuredClone(saved),version:(state.tasks.find(t=>t.id===saved.id).version||1)+1,updatedAt:timestamp,manual:true,authorId:actor.id,authorName:actorName,decisions:[],reviewHash:null,status:saved.kind==='review'&&saved.status==='done'?'blocked':saved.status}));
-      state.tasks=state.tasks.map(task=>restored.find(saved=>saved.id===task.id)||task);taskGraph(state.tasks);
-      after={rescheduleId:movement.id,tasks:structuredClone(restored)};
-    } else if (action === 'task.archive'  || action === 'task.restore') {
-      const target = state.tasks.find(t => t.id === body.id); if (!target) throw fail(404, 'TASK_NOT_FOUND', 'Atividade não encontrada.'); editor(target.sectorId);
-      if (action === 'task.archive' && state.tasks.some(t => !t.archived && (t.dependencyIds.includes(target.id)||t.parentId===target.id))) throw fail(409, 'TASK_IN_USE', 'Remova as dependências e os subitens antes de arquivar.');
-      before=structuredClone(target);target.archived = action === 'task.archive';target.updatedAt=timestamp;target.version=(target.version||1)+1;target.reviewHash=null;target.decisions=[];if(target.kind==='review'&&target.status==='done')target.status='blocked';taskGraph(state.tasks);after=structuredClone(target);
-    } else if(action==='lifecycle.configure') {
-      admin();const profile=body.profile;
-      if(!Object.hasOwn(LIFE_PHASES,profile)) throw fail(400,'INVALID_PROFILE','Perfil inválido.');
-      const startDate=date(body.startDate), durations=body.durations||LIFE_DURATIONS[profile];
-      if(!startDate || !Array.isArray(durations) || durations.length!==LIFE_PHASES[profile].length || durations.some(v=>!Number.isInteger(v)||v<1||v>520)) throw fail(400,'INVALID_DURATION','Informe início e duração de cada fase entre 1 e 520 semanas.');
-      const lifecycle={profile,startDate,durations,updatedAt:timestamp,version:(state.lifecycle?.version||0)+1};
-      if(body.phases!==undefined){
-        if(body.expectedLifecycleVersion!==(state.lifecycle?.version||0))throw fail(409,'LIFECYCLE_CHANGED','As fases mudaram durante a edição. Feche a configuração e abra a versão atual.');
-        if(!Array.isArray(body.phases)||body.phases.length>30)throw fail(400,'INVALID_PHASES','Use até 30 fases.');
-        lifecycle.phases=body.phases.map(p=>{if(!p||typeof p!=='object'||Array.isArray(p))throw fail(400,'INVALID_PHASE','Fase inválida.');const start=date(p.start),end=date(p.end);if(!start||!end||end<start)throw fail(400,'INVALID_PHASE_DATES','O fim de cada fase deve ser igual ou posterior ao início.');return {id:text(p.id,'identificador da fase',100,true),code:text(p.code,'código da fase',30,true),name:text(p.name,'nome da fase',100,true),start,end,...(p.templateCode?{templateCode:text(p.templateCode,'referência da fase',30)}:{})};});
-        if(new Set(lifecycle.phases.map(p=>p.id)).size!==lifecycle.phases.length||new Set(lifecycle.phases.filter(p=>p.templateCode).map(p=>p.templateCode)).size!==lifecycle.phases.filter(p=>p.templateCode).length)throw fail(400,'DUPLICATE_PHASE','Cada fase deve ter um identificador e uma referência únicos.');
-        if(lifecycle.phases.some(p=>p.templateCode&&!LIFE_PHASES[profile].some(([code])=>code===p.templateCode)))throw fail(400,'INVALID_PHASE','Referência de fase inválida para este modelo.');
-      }
-      const previousRanges=state.lifecycle?lifecycleRanges(state.lifecycle):[];
-      for(const task of state.tasks.filter(t=>t.lifecycleProfile===profile&&!Object.hasOwn(t,'phaseId'))){task.phaseId=previousRanges[task.phaseIndex]?.id||'';}
-      const definitions=lifecycleMilestones(lifecycle),ranges=lifecycleRanges(lifecycle),phaseIds=new Set(ranges.map(p=>p.id));
-      const selected=body.selectedReviews===undefined?definitions.filter(r=>r.active).map(r=>r.id):references(body.selectedReviews,definitions,'revisões');
-      lifecycle.selectedReviews=selected;before=state.lifecycle||null;state.lifecycle=lifecycle;
-      for(const task of state.tasks.filter(t=>!t.lifecycleProfile||t.lifecycleProfile===profile)){
-        if(task.phaseId&&!phaseIds.has(task.phaseId)){task.phaseId='';task.phase='';task.manual=true;}
-        else if(task.phaseId){task.phase=ranges.find(p=>p.id===task.phaseId).name;}
-      }
-      for(const definition of definitions) {
-        const old=state.tasks.find(t=>t.lifecycleProfile===profile&&t.reviewCode===definition.id);
-        if(old){old.excluded=!selected.includes(definition.id);old.phaseId=definition.phaseId;old.phase=definition.phaseName;if(!old.manual){old.startDate=definition.date;old.dueDate=definition.date;}continue;}
-        state.tasks.push({id:`TASK-${randomUUID().slice(0,8).toUpperCase()}`,reviewCode:definition.id,lifecycleProfile:profile,lane:definition.lane,phaseIndex:definition.phase,phaseId:definition.phaseId,excluded:!selected.includes(definition.id),title:`${definition.id} · ${definition.title}`,phase:definition.phaseName,description:definition.focus,kind:'review',startDate:definition.date,dueDate:definition.date,prepDays:10,closeDays:7,status:'planned',sectorId:'',ownerId:'',dependencyIds:[],requirementIds:[],testIds:[],inputArtifactIds:[],outputArtifactIds:[],archived:false,updatedAt:timestamp,manual:false,version:1,authorId:actor.id,authorName:actorName,reviewers:[],decisions:[]});
-      }
-      after=lifecycle;
-    } else if(action==='document.prepare') {
-      const task=current.tasks.find(t=>t.id===body.taskId);if(!task)throw fail(404,'TASK_NOT_FOUND','Revisão indisponível.');editor(task.sectorId);
-      const profile = body.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
-      if (!['nasa','ecss','custom'].includes(profile)) throw fail(400,'INVALID_PROFILE','Modelo inválido.');
-      const definitions=reviewDocuments(profile,task.reviewCode||'');
-      const definition=definitions.find(d=>d.id===body.templateId);if(!definition)throw fail(400,'INVALID_DOCUMENT','Documento não pertence ao pacote desta revisão.');
-      const existing=state.documents.find(d=>d.taskId===task.id&&d.templateId===definition.id);if(existing)throw fail(409,'DOCUMENT_EXISTS','O rascunho já está preparado; abra sua versão atual.');
-      const document={id:`DOC-${randomUUID().slice(0,8).toUpperCase()}`,taskId:task.id,templateId:definition.id,profile,code:definition.code,kind:definition.kind,maturity:definition.maturity,title:definition.title,flow:definition.flow,reference:definition.reference,body:draftDeliveryDocument(definition,project,current.requirements,current.tests,task),status:'draft',version:1,authorId:actor.id,authorName:actorName,createdAt:timestamp,updatedAt:timestamp,sourceRevision:state.revision};
-      state.documents.push(document);eventId=document.id;after={title:document.title,version:1};
-    } else if(action==='document.save') {
-      if (body.suggestionRunId) { const run=state.assistantRuns?.find(r=>r.id===body.suggestionRunId && r.kind==='document' && r.status==='completed'); if(!run || run.input.taskId!==item.taskId || run.input.templateId!==item.templateId || run.fingerprint!==assistantContextHash(record,state,'document',{hash,requirementsOf,deliveryBaselineHash})) throw fail(409,'SUGGESTION_STALE','A base do documento mudou. Gere uma nova minuta antes de salvar.'); }
-      let document=state.documents.find(d=>d.id===body.id);
-      if (body.id && !document) throw fail(404,'DOCUMENT_NOT_FOUND','Documento indisponível.');
-      const task=state.tasks.find(t=>t.id===(document?.taskId || item.taskId) && !t.archived);if(!task)throw fail(404,'TASK_NOT_FOUND','Revisão indisponível.');editor(task.sectorId);
-      if (!document) {
-        const profile=item.profile || task.lifecycleProfile || state.lifecycle?.profile || 'custom';
-        if(!['nasa','ecss','custom'].includes(profile))throw fail(400,'INVALID_PROFILE','Modelo inválido.');
-        const definition=reviewDocuments(profile,task.reviewCode||'').find(d=>d.id===item.templateId);
-        if(!definition)throw fail(400,'INVALID_DOCUMENT','Modelo não pertence ao pacote desta revisão.');
-        if(state.documents.some(d=>d.taskId===task.id && d.templateId===definition.id))throw fail(409,'DOCUMENT_EXISTS','Já existe um documento deste modelo; abra e edite sua versão atual.');
-        document={id:`DOC-${randomUUID().slice(0,8).toUpperCase()}`,taskId:task.id,templateId:definition.id,profile,code:definition.code,kind:definition.kind,maturity:definition.maturity,title:text(item.title || definition.title,'título',200,true),flow:definition.flow,reference:definition.reference,body:'',version:0,createdAt:timestamp};state.documents.push(document);
-      } else if(item.version!==document.version)throw fail(409,'DOCUMENT_CHANGED','O documento mudou; abra a versão atual.');
-      before={body:document.body,version:document.version};document.body=text(item.body,'conteúdo do documento',150000,true);document.version++;document.status='draft';document.updatedAt=timestamp;document.authorId=actor.id;document.authorName=actorName;document.decisions=[];document.reviewHash=null;document.sourceRevision=state.revision;eventId=document.id;after={body:document.body,version:document.version};
-    } else if (action === 'schedule.template') {
-      admin(); const start = date(body.startDate); if (!start) throw fail(400, 'INVALID_DATE', 'Selecione a data inicial.');
-      if (!['nasa', 'ecss', 'custom'].includes(body.profile)) throw fail(400, 'INVALID_PROFILE', 'Perfil inválido.');
-      if (state.tasks.some(t => !t.archived)) throw fail(409, 'SCHEDULE_EXISTS', 'O cronograma já tem atividades. Edite os marcos existentes ou arquive-os antes de aplicar outro modelo.');
-      const definitions = body.profile === 'custom' ? [['KICKOFF', 'Abertura do projeto', 'Concepção', 0], ['DELIVERY', 'Entrega do projeto', 'Entrega', 90]] : [['MCR', 'Revisão do conceito', 'Concepção', 0], ['SRR', 'Revisão dos requisitos', 'Definição', 21], ['PDR', 'Revisão preliminar do projeto', 'Projeto preliminar', 45], ['CDR', 'Revisão crítica do projeto', 'Projeto detalhado', 75], ['TRR', 'Prontidão para testes', 'Integração e testes', 105], [body.profile === 'ecss' ? 'QR' : 'SAR', body.profile === 'ecss' ? 'Revisão de qualificação' : 'Aceitação do sistema', 'Verificação', 135], ['ORR', 'Prontidão operacional', 'Operações', 150]];
-      const created = definitions.map(([code, title, phase, offset]) => { const dueDate = new Date(Date.parse(start) + offset * 86400000).toISOString().slice(0, 10); return { id: `TASK-${randomUUID().slice(0, 8).toUpperCase()}`, title: `${code} · ${title}`, phase, description: 'Modelo de planejamento adaptável. Revise critérios, entregas e datas com a equipe; esta seleção não declara conformidade normativa.', kind: 'review', startDate: dueDate, dueDate, prepDays: 7, closeDays: 7, status: 'planned', sectorId: '', ownerId: '', dependencyIds: [], requirementIds: [], testIds: [], inputArtifactIds: [], outputArtifactIds: [], archived: false, updatedAt: timestamp, manual: false }; });
-      created.forEach((task, index) => { if (index) task.dependencyIds = [created[index - 1].id]; }); state.tasks.push(...created);
-    } else throw fail(400, 'INVALID_ACTION', 'Ação desconhecida.');
-    if (state.standardsProposals.length > 3000 || state.proposals.length > 3000 || state.documents.length > 3000 || state.requirements.length > 3000 || state.tests.length > 3000 || state.tasks.length > 3000) throw fail(400, 'DELIVERY_LIMIT', 'Limite de registros atingido.');
-    state.revision++;
-    state.history.push({ id: randomUUID(), revision: state.revision, action, subjectId: eventId, actorId: actor.id, actorName, createdAt: timestamp, ...(action.startsWith('proposal.')?{requirementId:state.proposals.find(p=>p.id===eventId)?.requirementId}:{}), before, after });
-    data.workspace.delivery ||= {}; data.workspace.delivery[project.id] = state;
-    return view(data, record, state, actor, canAccessProject, readOnly);
-  }));
+        if (
+          state.standardsProposals.length > 3000 ||
+          state.proposals.length > 3000 ||
+          state.documents.length > 3000 ||
+          state.requirements.length > 3000 ||
+          state.tests.length > 3000 ||
+          state.tasks.length > 3000
+        )
+          throw fail(400, 'DELIVERY_LIMIT', 'Limite de registros atingido.');
+        state.revision++;
+        state.history.push({
+          id: randomUUID(),
+          revision: state.revision,
+          action,
+          subjectId: eventId,
+          actorId: actor.id,
+          actorName,
+          createdAt: timestamp,
+          ...(action.startsWith('proposal.')
+            ? { requirementId: state.proposals.find(p => p.id === eventId)?.requirementId }
+            : {}),
+          before,
+          after,
+        });
+        data.workspace.delivery ||= {};
+        data.workspace.delivery[project.id] = state;
+        return view(data, record, state, actor, canAccessProject, readOnly);
+      }),
+  );
 }

@@ -14,6 +14,7 @@ A instalação começa vazia. Fixtures ficam nos testes; seeds são comandos exp
 - Estilos: tokens em `norte/src/styles/tokens.css`; regras base de baixa especificidade; estilos locais em `features` ou no módulo existente. A sala usa os mesmos tokens. Não crie outra camada global de sobrescritas.
 - API: `norte/server/app.mjs` compõe serviços e contratos de conta/equipe/projeto. Funcionalidades próprias ficam nos módulos de domínio existentes.
 - Reuniões: navegador em `meetings/web`; Python em `meetings/engine`; `server.py` mantém a entrada do worker. O Node autoriza a ponte.
+- Prompts da LLM e perguntas do JEV: `prompts/`. O código só lê esses arquivos.
 - Comente apenas decisões importantes, de modo curto. Prefira funções diretas a abstrações sem consumidor real.
 
 ## Contratos que precisam permanecer

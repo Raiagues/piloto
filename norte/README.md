@@ -11,4 +11,4 @@ npm run test:visual
 
 Use Node.js 24.20+. Para testar também a sala de reuniões, inicie a instalação pela raiz com `./start`. A implantação integrada usa `../Dockerfile` e `../render.yaml`.
 
-Veja [arquitetura](../docs/architecture.md), [estilos](src/styles/README.md), [privacidade](server/privacy.mjs) e [qualidade](../docs/testing.md).
+Veja [arquitetura](../docs/architecture.md), [estilos](src/styles/README.md), [privacidade](server/privacy.mjs) e [testes](../docs/testing.md).

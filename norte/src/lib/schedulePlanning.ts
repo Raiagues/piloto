@@ -12,18 +12,23 @@ export type ScheduleGroup<T extends ScheduleTask = ScheduleTask> = {
 
 const normalizeName = (value: string) => value.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('pt-BR');
 
-/** Explicit phase assignments win. Dates never determine ownership of an activity. */
+/** Explicit phase assignments win over dates. */
 export function buildScheduleGroups<T extends ScheduleTask>(
   tasks: readonly T[],
   ranges: readonly LifecycleRange[],
 ): ScheduleGroup<T>[] {
-  const groups: ScheduleGroup<T>[] = ranges.map(phase => ({ id: `phase:${phase.id}`, phase, title: phase.name, tasks: [] }));
+  const groups: ScheduleGroup<T>[] = ranges.map(phase => ({
+    id: `phase:${phase.id}`,
+    phase,
+    title: phase.name,
+    tasks: [],
+  }));
   const unassigned: ScheduleGroup<T> = { id: 'unassigned', phase: null, title: 'Sem fase', tasks: [] };
   for (const task of tasks) {
     if (task.archived) continue;
     let group: ScheduleGroup<T> | undefined;
     if (task.phaseId !== undefined) {
-      // An empty or stale explicit ID must not silently reassign a removed phase.
+      // An empty or stale ID keeps its activity out of the removed phase.
       group = groups.find(candidate => candidate.phase?.id === task.phaseId);
     } else if (normalizeName(task.phase || '')) {
       const matches = groups.filter(candidate => normalizeName(candidate.title) === normalizeName(task.phase));
@@ -133,11 +138,13 @@ export function timelineWindow(
   const dates = [
     ...tasks.filter(task => !task.archived).flatMap(task => [task.startDate, task.dueDate]),
     ...ranges.flatMap(phase => [phase.start, phase.end]),
-  ].map(calendarTime).filter((value): value is number => value !== null);
-  const first = dates.length ? Math.min(...dates) : calendarTime(anchorDate) ?? 0;
+  ]
+    .map(calendarTime)
+    .filter((value): value is number => value !== null);
+  const first = dates.length ? Math.min(...dates) : (calendarTime(anchorDate) ?? 0);
   const last = dates.length ? Math.max(...dates) : first;
   const minimumExtra = Math.max(0, 7 * DAY - (last - first));
-  const padding = Math.max(DAY, Math.ceil((last - first) * 0.04 / DAY) * DAY);
+  const padding = Math.max(DAY, Math.ceil(((last - first) * 0.04) / DAY) * DAY);
   const start = first - Math.ceil(minimumExtra / DAY / 2) * DAY - padding;
   const end = last + Math.floor(minimumExtra / DAY / 2) * DAY + padding;
   return { start, end, span: end - start };

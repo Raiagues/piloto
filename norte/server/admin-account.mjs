@@ -27,7 +27,10 @@ function plan(data, config) {
   }
   if (identityInUse(data.users, config.login, user?.id)) throw fail('ADMIN_ACCOUNT_LOGIN_CONFLICT');
   if (!user && !config.hasPassword) throw fail('ADMIN_ACCOUNT_PASSWORD_REQUIRED');
-  if (user && (!user.passwordHash || !data.members.some(member => member.id === user.memberId && member.accountId === user.id))) {
+  if (
+    user &&
+    (!user.passwordHash || !data.members.some(member => member.id === user.memberId && member.accountId === user.id))
+  ) {
     throw fail('ADMIN_ACCOUNT_TARGET_UNAVAILABLE');
   }
   return { user };
@@ -42,36 +45,60 @@ function plan(data, config) {
  */
 export async function configureAdminAccount(store, options = {}) {
   const { login: suppliedLogin, password, operationId, targetUserId, createOnly = false } = options || {};
-  if ([suppliedLogin, password, operationId, targetUserId].every(value => value === undefined || value === null || value === '')) {
+  if (
+    [suppliedLogin, password, operationId, targetUserId].every(
+      value => value === undefined || value === null || value === '',
+    )
+  ) {
     return { status: 'not-configured' };
   }
   const login = typeof suppliedLogin === 'string' ? suppliedLogin.trim() : '';
   const hasPassword = password !== undefined && password !== null;
   const normalizedPassword = typeof password === 'string' ? password.normalize('NFKC') : '';
   if (!validLogin(login)) throw fail('ADMIN_ACCOUNT_INVALID_LOGIN');
-  if (typeof operationId !== 'string' || !/^[a-zA-Z0-9._:-]{3,128}$/.test(operationId)) throw fail('ADMIN_ACCOUNT_INVALID_OPERATION');
-  if (targetUserId !== undefined && targetUserId !== null && (typeof targetUserId !== 'string' || !targetUserId.trim() || targetUserId.length > 128)) {
+  if (typeof operationId !== 'string' || !/^[a-zA-Z0-9._:-]{3,128}$/.test(operationId))
+    throw fail('ADMIN_ACCOUNT_INVALID_OPERATION');
+  if (
+    targetUserId !== undefined &&
+    targetUserId !== null &&
+    (typeof targetUserId !== 'string' || !targetUserId.trim() || targetUserId.length > 128)
+  ) {
     throw fail('ADMIN_ACCOUNT_INVALID_TARGET');
   }
   if (typeof createOnly !== 'boolean') throw fail('ADMIN_ACCOUNT_INVALID_OPERATION');
-  if (hasPassword && (typeof password !== 'string' || password.length > 128 || normalizedPassword.length < 8 || normalizedPassword.length > 128 || !normalizedPassword.trim())) {
+  if (
+    hasPassword &&
+    (typeof password !== 'string' ||
+      password.length > 128 ||
+      normalizedPassword.length < 8 ||
+      normalizedPassword.length > 128 ||
+      !normalizedPassword.trim())
+  ) {
     throw fail('ADMIN_ACCOUNT_INVALID_PASSWORD');
   }
   const config = { login, operationId, targetUserId: targetUserId?.trim(), hasPassword, createOnly };
   try {
     const initial = plan(store.read(), config);
     if (initial.applied) return { status: 'already-applied', userId: initial.applied.userId };
-    const passwordHash = hasPassword ? await argon2.hash(normalizedPassword, {
-      type: argon2.argon2id, memoryCost: 19_456, timeCost: 2, parallelism: 1
-    }) : null;
+    const passwordHash = hasPassword
+      ? await argon2.hash(normalizedPassword, {
+          type: argon2.argon2id,
+          memoryCost: 19_456,
+          timeCost: 2,
+          parallelism: 1,
+        })
+      : null;
 
     return await store.update(data => {
       // Recheck every condition under the store transaction. A concurrent signup,
-      // rename, deletion or setup must not silently select a different account.
+      // rename, deletion or setup keeps pointing at the same account.
       const current = plan(data, config);
       if (current.applied) return { status: 'already-applied', userId: current.applied.userId };
       if ((initial.user?.id || null) !== (current.user?.id || null)) throw fail('ADMIN_ACCOUNT_STATE_CHANGED');
-      if (initial.user && ['passwordHash', 'login', 'accessRole', 'memberId'].some(key => initial.user[key] !== current.user[key])) {
+      if (
+        initial.user &&
+        ['passwordHash', 'login', 'accessRole', 'memberId'].some(key => initial.user[key] !== current.user[key])
+      ) {
         throw fail('ADMIN_ACCOUNT_STATE_CHANGED');
       }
       const timestamp = new Date().toISOString();
@@ -80,19 +107,44 @@ export async function configureAdminAccount(store, options = {}) {
       if (!user) {
         const memberId = randomUUID();
         user = {
-          id: randomUUID(), memberId, name: 'Administração', login,
+          id: randomUUID(),
+          memberId,
+          name: 'Administração',
+          login,
           nickname: uniqueNickname([...data.users, { login }], 'Administrador'),
-          email: '', emailVerifiedAt: null, passwordHash, accessRole: 'owner_admin',
-          institution: '', course: '', academicStage: '', availabilityHours: 0,
-          avatarUrl: '', primaryArea: 'systems', active: true,
-          createdAt: timestamp, updatedAt: timestamp
+          email: '',
+          emailVerifiedAt: null,
+          passwordHash,
+          accessRole: 'owner_admin',
+          institution: '',
+          course: '',
+          academicStage: '',
+          availabilityHours: 0,
+          avatarUrl: '',
+          primaryArea: 'systems',
+          active: true,
+          createdAt: timestamp,
+          updatedAt: timestamp,
         };
         data.users.push(user);
         data.members.push({
-          id: memberId, accountId: user.id, displayName: user.name, email: '',
-          missionRole: 'captain', primaryArea: 'systems', secondaryAreas: [],
-          institution: '', course: '', academicStage: '', skills: [], availabilityHours: 0,
-          notes: '', avatarUrl: '', accountStatus: 'active', createdAt: timestamp, updatedAt: timestamp
+          id: memberId,
+          accountId: user.id,
+          displayName: user.name,
+          email: '',
+          missionRole: 'captain',
+          primaryArea: 'systems',
+          secondaryAreas: [],
+          institution: '',
+          course: '',
+          academicStage: '',
+          skills: [],
+          availabilityHours: 0,
+          notes: '',
+          avatarUrl: '',
+          accountStatus: 'active',
+          createdAt: timestamp,
+          updatedAt: timestamp,
         });
       } else {
         Object.assign(user, { login, accessRole: 'owner_admin', updatedAt: timestamp });
@@ -101,18 +153,23 @@ export async function configureAdminAccount(store, options = {}) {
       if (hasPassword) data.sessions = data.sessions.filter(session => session.userId !== user.id);
       data.authBootstrap = { ...data.authBootstrap, completedAt: data.authBootstrap?.completedAt || timestamp };
       // The operation journal doubles as the private audit trail. It contains
-      // identifiers and action metadata only, never login or password values.
+      // identifiers and action metadata only.
       (data.adminAccountOperations ||= []).push({
-        operationId, userId: user.id, appliedAt: timestamp,
-        action: created ? 'admin.created' : initial.user.accessRole === 'owner_admin' ? 'admin.updated' : 'admin.promoted',
-        passwordUpdated: hasPassword
+        operationId,
+        userId: user.id,
+        appliedAt: timestamp,
+        action: created
+          ? 'admin.created'
+          : initial.user.accessRole === 'owner_admin'
+            ? 'admin.updated'
+            : 'admin.promoted',
+        passwordUpdated: hasPassword,
       });
       return { status: 'applied', userId: user.id, created, passwordUpdated: hasPassword };
     });
   } catch (error) {
     if (error?.code?.startsWith('ADMIN_ACCOUNT_')) throw error;
-    // Hash/store errors can contain implementation details: do not attach their
-    // message or cause to startup logs or the public API.
+    // Hash and store errors stay out of the logs and the public API.
     throw fail('ADMIN_ACCOUNT_CONFIG_FAILED');
   }
 }

@@ -5,9 +5,12 @@
  */
 (function (root) {
   'use strict';
-  const COMPRESS_FROM = 32 * 1024, KEEPALIVE_LIMIT = 60 * 1024;
+  const COMPRESS_FROM = 32 * 1024,
+    KEEPALIVE_LIMIT = 60 * 1024;
   // versions: last server version per key. known: last value of keys updated through change().
-  const versions = new Map(), known = new Map(), lanes = new Map();
+  const versions = new Map(),
+    known = new Map(),
+    lanes = new Map();
 
   function validKey(key) {
     if (typeof key !== 'string' || !key) throw TypeError('A chave do armazenamento deve ser um texto não vazio.');
@@ -22,7 +25,10 @@
     return Error(body.error || 'Não foi possível salvar na sua conta. Confira a conexão.');
   }
   async function get(key) {
-    const response = await fetch('/api/records?key=' + encodeURIComponent(key), { cache: 'no-store', credentials: 'same-origin' });
+    const response = await fetch('/api/records?key=' + encodeURIComponent(key), {
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
     if (!response.ok) throw await failure(response);
     const body = await response.json();
     versions.set(key, body.version);
@@ -30,7 +36,9 @@
     return body.value;
   }
   async function put(key, raw, expected) {
-    const payload = JSON.stringify(expected === undefined ? { key, value: raw } : { key, value: raw, expected_version: expected });
+    const payload = JSON.stringify(
+      expected === undefined ? { key, value: raw } : { key, value: raw, expected_version: expected },
+    );
     const headers = { 'Content-Type': 'application/json' };
     let body = payload;
     if (payload.length > COMPRESS_FROM && typeof root.CompressionStream === 'function') {
@@ -39,7 +47,13 @@
     }
     const size = typeof body === 'string' ? body.length : body.size;
     // keepalive lets the last save finish while the page closes; browsers cap it near 64 KB.
-    const response = await fetch('/api/records', { method: 'POST', headers, body, credentials: 'same-origin', keepalive: size < KEEPALIVE_LIMIT });
+    const response = await fetch('/api/records', {
+      method: 'POST',
+      headers,
+      body,
+      credentials: 'same-origin',
+      keepalive: size < KEEPALIVE_LIMIT,
+    });
     if (response.status === 409) {
       const current = await response.json();
       versions.set(key, current.version);
@@ -63,13 +77,25 @@
   function open() {
     const store = {
       read(key) {
-        try { validKey(key); } catch (error) { return Promise.reject(error); }
+        try {
+          validKey(key);
+        } catch (error) {
+          return Promise.reject(error);
+        }
         return enqueue(key, () => get(key));
       },
       write(key, raw) {
-        try { validKey(key); validRaw(raw); } catch (error) { return Promise.reject(error); }
+        try {
+          validKey(key);
+          validRaw(raw);
+        } catch (error) {
+          return Promise.reject(error);
+        }
         const current = lane(key);
-        if (current.queued) { current.queued.raw = raw; return current.queued.done; }
+        if (current.queued) {
+          current.queued.raw = raw;
+          return current.queued.done;
+        }
         const job = { raw };
         current.queued = job;
         job.done = enqueue(key, async () => {
@@ -80,26 +106,42 @@
         return job.done;
       },
       change(key, mutator) {
-        try { validKey(key); } catch (error) { return Promise.reject(error); }
-        if (typeof mutator !== 'function') return Promise.reject(TypeError('A alteração do armazenamento requer uma função.'));
+        try {
+          validKey(key);
+        } catch (error) {
+          return Promise.reject(error);
+        }
+        if (typeof mutator !== 'function')
+          return Promise.reject(TypeError('A alteração do armazenamento requer uma função.'));
         return enqueue(key, async () => {
           let raw = known.has(key) ? known.get(key) : await get(key);
           for (let attempt = 0; attempt < 6; attempt++) {
             const next = mutator(raw);
-            if (!next || typeof next !== 'object' || typeof next.then === 'function' || !Object.prototype.hasOwnProperty.call(next, 'value')) {
+            if (
+              !next ||
+              typeof next !== 'object' ||
+              typeof next.then === 'function' ||
+              !Object.prototype.hasOwnProperty.call(next, 'value')
+            ) {
               throw TypeError('A alteração deve retornar { value, result } de forma síncrona.');
             }
             validRaw(next.value);
             if (next.value === raw) return next.result;
             const saved = await put(key, next.value, versions.get(key) || 0);
-            if (!saved.conflict) { known.set(key, next.value); return next.result; }
-            raw = saved.raw; known.set(key, raw);
+            if (!saved.conflict) {
+              known.set(key, next.value);
+              return next.result;
+            }
+            raw = saved.raw;
+            known.set(key, raw);
           }
           throw Error('A lista de reuniões mudou em outra aba ao mesmo tempo. Tente novamente.');
         });
       },
-      subscribe() { return () => {}; },
-      close() {}
+      subscribe() {
+        return () => {};
+      },
+      close() {},
     };
     return Promise.resolve(store);
   }

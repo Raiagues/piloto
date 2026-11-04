@@ -11,111 +11,397 @@ import { createValidationProject } from '../server/test-support/project.mjs';
 import { totp } from '../server/platform-security.mjs';
 import { createEngineeringMetrics } from '../server/engineering-metrics.mjs';
 import { visualRequirements } from './visual-fixtures.mjs';
-const root=fileURLToPath(new URL('../..',import.meta.url)), dir=await mkdtemp(join(tmpdir(),'norte-interface-visual-')), screenshots=process.env.NORTE_VISUAL_OUTPUT ? resolve(process.env.NORTE_VISUAL_OUTPUT) : await mkdtemp(join(tmpdir(),'norte-interface-screenshots-'));
-await mkdir(screenshots,{recursive:true});
-const app=await buildApp({storeFile:join(dir,'store.json'),logger:false,ai:{apiKey:''},platform:{encryptionKey:'isolated-visual-key-for-administration-more-than-32-characters'}});
-let browser,vite;
-const logs=[];
+const root = fileURLToPath(new URL('../..', import.meta.url)),
+  dir = await mkdtemp(join(tmpdir(), 'norte-interface-visual-')),
+  screenshots = process.env.NORTE_VISUAL_OUTPUT
+    ? resolve(process.env.NORTE_VISUAL_OUTPUT)
+    : await mkdtemp(join(tmpdir(), 'norte-interface-screenshots-'));
+await mkdir(screenshots, { recursive: true });
+const app = await buildApp({
+  storeFile: join(dir, 'store.json'),
+  logger: false,
+  ai: { apiKey: '' },
+  platform: { encryptionKey: 'isolated-visual-key-for-administration-more-than-32-characters' },
+});
+let browser, vite;
+const logs = [];
 try {
- const admin=await app.inject({method:'POST',url:'/api/auth/register',payload:{name:'Administrador visual',login:'admin_visual',password:'isolated visual admin password'}});assert.equal(admin.statusCode,201,admin.body);
- const apiOrigin=await app.listen({port:0,host:'127.0.0.1'});
- const registration=await app.inject({method:'POST',url:'/api/auth/register',payload:{name:'Teste Norte',login:'workspace_visual',password:'isolated visual account password'}});assert.equal(registration.statusCode,201,registration.body);
- const actor=registration.json(),headers={cookie:registration.headers['set-cookie'].split(';')[0],'x-csrf-token':actor.csrfToken};
- const request=async(method,path,payload)=>{const response=await app.inject({method,url:'/api'+path,headers,...(payload?{payload}:{})});assert.ok(response.statusCode<300,response.body);return response.json();};
- const {team}=await request('POST','/teams',{name:'Equipe teste'});
- const source=visualRequirements();
- const projectDocument=createValidationProject();projectDocument.name=source.name;projectDocument.context.teamId=team.id;projectDocument.context.teamName=team.name;projectDocument.context.assignments=[{memberId:actor.user.memberId,roleId:'captain',sectorId:''}];
- const subsystems=[...new Set(source.requirements.map(item=>item.subsystem))];projectDocument.context.sectors=subsystems.map((name,index)=>({id:'sector-'+index,name}));
- const {project}=await request('POST','/projects',projectDocument);const state={teamId:team.id,projectId:project.id};
- for(const item of source.requirements){const baseline=await request('GET',`/projects/${project.id}/delivery`);await request('POST',`/projects/${project.id}/delivery/actions`,{expectedRevision:baseline.revision,expectedBaselineHash:baseline.baselineHash,action:'requirement.save',item:{identifier:item.id,title:item.title,statement:item.statement,sectorId:projectDocument.context.sectors.find(sector=>sector.name===item.subsystem)?.id,ownerMemberId:actor.user.memberId,verificationMethod:'analysis',sourceLocator:'Parágrafo '+item.paragraph}});}
- await app.missionStore.update(data=>{data.users.push({id:'visual-fake-user',memberId:'visual-fake-member',name:'Perfil fictício proibido',active:true,isFictionalProfile:true}); data.members.push({id:'visual-fake-member',accountId:'visual-fake-user',displayName:'Perfil fictício proibido',accountStatus:'active'});data.teams.find(t=>t.id===state.teamId).memberIds.push('visual-fake-member');});
- const login=registration;
- const port=5387,base=`http://127.0.0.1:${port}`;
- vite=spawn(process.execPath,['node_modules/vite/bin/vite.js','--host','127.0.0.1','--port',String(port),'--strictPort'],{cwd:join(root,'norte'),env:{...process.env,VITE_BASE_PATH:'/',VITE_API_PROXY_TARGET:apiOrigin},stdio:['ignore','pipe','pipe']});
- await new Promise((yes,no)=>{const timer=setTimeout(()=>no(new Error('Vite timeout')),20000);vite.stdout.on('data',d=>{if(String(d).includes('Local:')){clearTimeout(timer);yes();}});vite.stderr.on('data',d=>logs.push(String(d)));vite.once('exit',c=>no(new Error(`Vite ${c}`)));});
- browser=await chromium.launch({executablePath:'/opt/google/chrome/chrome',headless:true,args:['--no-sandbox']});
- async function contextFor(response) {const context=await browser.newContext({viewport:{width:1440,height:960}});const raw=[response.headers['set-cookie']].flat().filter(Boolean)[0].split(';')[0], i=raw.indexOf('=');await context.addCookies([{name:raw.slice(0,i),value:raw.slice(i+1),url:base}]);return context;}
- const publicContext=await browser.newContext();const publicPage=await publicContext.newPage();
- for(const kind of ['privacy','terms']){await publicPage.goto(`${base}/#/${kind}`,{waitUntil:'networkidle'});await publicPage.locator('.policy-page').waitFor();assert.equal(await publicPage.locator('.auth-form').count(),0);}
- await publicPage.goto(`${base}/#/register`,{waitUntil:'networkidle'});await publicPage.locator('.auth-form').waitFor();assert.equal(await publicPage.locator('.auth-form input').count(),3);assert.equal(await publicPage.locator('a[href="#/privacy"]').count(),1);assert.equal(await publicPage.locator('a[href="#/terms"]').count(),1);
- await publicPage.screenshot({path:join(screenshots,'register.png'),fullPage:true});
- const context=await contextFor(login),page=await context.newPage();const errors=[],projectWrites=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='PUT' && /\/api\/projects\/[^/]+$/.test(r.url()))projectWrites.push(r.url());});
- await page.goto(`${base}/#/requirements`,{waitUntil:'networkidle'});await page.locator('.app-header').waitFor();
- assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'light');
- if(await page.getByRole('button',{name:'Expandir barra lateral',exact:true}).count())await page.getByRole('button',{name:'Expandir barra lateral',exact:true}).click();
- assert.doesNotMatch(await page.locator('.mission-sidebar').innerText(),/Memória|Concepção|Testar ideias/);
- assert.match(await page.locator('.mission-sidebar').innerText(),/Visão geral/);assert.doesNotMatch(await page.locator('.mission-sidebar').innerText(),/Verificação/);
- await page.locator('.mission-outline').waitFor();assert.equal(await page.locator('.requirements-outline').count(),0);
- assert.equal(await page.locator('.project-switcher-trigger select').count(),0,'the project context reads as text until opened');
- assert.equal(await page.locator('.journey-popover').count(),0);
- await page.screenshot({path:join(screenshots,'normal-requirements.png'),fullPage:true});
- await page.goto(`${base}/#/admin`,{waitUntil:'networkidle'});await page.waitForURL('**/#/');
- await page.goto(`${base}/#/dashboard`,{waitUntil:'networkidle'});await page.waitForURL('**/#/');
- await page.locator('.home-landing').waitFor();
- await page.screenshot({path:join(screenshots,'home.png'),fullPage:true});
- for(const hash of ['#/study-setup','#/brainstorming','#/ideas']){await page.goto(base+'/'+hash,{waitUntil:'networkidle'});await page.waitForURL('**/#/requirements');assert.equal(new URL(page.url()).hash,'#/requirements',hash);}
- await page.goto(`${base}/#/teams`,{waitUntil:'networkidle'});await page.getByRole('heading',{name:'Equipe teste',exact:true}).waitFor();
- assert.doesNotMatch(await page.locator('main').innerText(),/Comunidade|Perfil fictício proibido|Projetos, pessoas e responsabilidades/);
- assert.equal(await page.locator('.app-shell .brand').count(),1,'the shell has one Norte brand');
- assert.equal(await page.locator('.app-header-brand').count(),0);
- assert.equal(await page.locator('.team-directory').count(),0,'one team needs no duplicate team picker');
- for(const selector of ['.team-head','.team-panel','.team-project-row'])assert.equal(await page.locator(selector).count()>0,true,selector);
- assert.notEqual(await page.locator('.team-head').evaluate(element=>getComputedStyle(element).borderTopLeftRadius),'0px','panels use the shared rounded radius');
- await page.screenshot({path:join(screenshots,'teams.png'),fullPage:true});
- await page.locator('.mission-sidebar-toggle').click();await page.locator('.mission-sidebar.collapsed').waitFor();
- assert.equal(await page.locator('.mission-sidebar .norte-brand-icon').isVisible(),true,'collapsed sidebar retains the brand icon');
- assert.equal(await page.locator('.mission-sidebar .brand > span').isVisible(),false);
- await page.waitForTimeout(200);await page.screenshot({path:join(screenshots,'teams-collapsed.png'),fullPage:true});
- await page.locator('.mission-sidebar-toggle').click();
- await page.getByRole('button',{name:'Convites',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Enviar convite',exact:true}).count(),0);
- await page.getByLabel('Login ou nickname',{exact:true}).fill(admin.json().user.login);await page.getByLabel('Login ou nickname',{exact:true}).press('Enter');
- await page.locator('.invite-person').waitFor();await page.screenshot({path:join(screenshots,'team-invite-found.png'),fullPage:true});
- await page.getByRole('button',{name:'Enviar convite',exact:true}).click();await page.getByText('Convite enviado. A entrada depende do aceite da pessoa.',{exact:true}).waitFor();
- await page.getByText(/Aguardando resposta/).waitFor();await page.screenshot({path:join(screenshots,'team-invites.png'),fullPage:true});
- await page.locator('.team-tabs button',{hasText:'Pessoas'}).click();
- assert.equal(await page.locator('.team-person-row').count(),1);
- await page.getByRole('button',{name:'Cargo e função',exact:true}).click();await page.getByLabel('Cargo na equipe').fill('Engenheira de sistemas');await page.getByLabel('Função e responsabilidades').fill('Coordenar requisitos e revisões.');await page.getByRole('dialog').getByRole('button',{name:'Salvar',exact:true}).click();
- await page.waitForTimeout(400);await page.screenshot({path:join(screenshots,'team-roles.png'),fullPage:true});
- await page.goto(`${base}/#/people`,{waitUntil:'networkidle'});await page.locator('.people-directory').waitFor().catch(()=>{});
- assert.doesNotMatch(await page.locator('main').innerText(),/Perfil fictício proibido|Encontre quem está|90 segundos|A conta de teste/);
- await page.screenshot({path:join(screenshots,'contacts.png'),fullPage:true});
- await page.locator('.account-badge-trigger').click();await page.getByRole('button',{name:'Ver e editar perfil'}).click();await page.getByRole('dialog').waitFor();
- const profile=page.getByRole('dialog');assert.doesNotMatch(await profile.innerText(),/Universidade|Curso|Semestre|Horas disponíveis/);
- await profile.locator('summary').click();assert.match(await profile.innerText(),/Engenheira de sistemas/);assert.equal(await profile.locator('input[name="roleName"]').count(),0);
- await page.screenshot({path:join(screenshots,'profile.png'),fullPage:true});await profile.getByRole('button',{name:'Fechar',exact:true}).click();
- await page.locator('.mission-sidebar .brand').click();await page.waitForURL(url=>new URL(url).hash==='#/');await page.locator('.home-landing').waitFor();
- await page.goto(`${base}/#/landing`,{waitUntil:'networkidle'});await page.locator('.public-site').waitFor();assert.match(await page.locator('main').innerText(),/Engenharia com/);assert.doesNotMatch(await page.locator('main').innerText(),/Conta de teste|Planos|Experimentar grátis/);
- await page.screenshot({path:join(screenshots,'landing.png'),fullPage:true});
- await page.setViewportSize({width:390,height:844});await page.screenshot({path:join(screenshots,'landing-mobile.png'),fullPage:true});
- await page.goto(`${base}/#/teams`,{waitUntil:'networkidle'});await page.locator('.team-project-row').filter({hasText:source.name}).waitFor();await page.waitForTimeout(200);await page.screenshot({path:join(screenshots,'teams-mobile.png'),fullPage:true});
- await page.goto(`${base}/#/requirements`,{waitUntil:'networkidle'});await page.locator('.delivery-workspace').waitFor();
- const avatar=await page.locator('.account-badge-trigger').boundingBox();assert.ok(avatar && avatar.x>=0 && avatar.x+avatar.width<=390,'mobile account control remains fully visible');
- assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'mobile viewport has no horizontal overflow');
- await page.screenshot({path:join(screenshots,'requirements-mobile.png'),fullPage:true});
- const adminContext=await contextFor(admin),adminPage=await adminContext.newPage();await adminPage.goto(`${base}/#/requirements`,{waitUntil:'networkidle'});
- if(await adminPage.getByRole('button',{name:'Expandir barra lateral',exact:true}).count())await adminPage.getByRole('button',{name:'Expandir barra lateral',exact:true}).click();
- assert.doesNotMatch(await adminPage.locator('.mission-sidebar').innerText(),/Memória|Concepção|Testar ideias/);
- await adminPage.goto(`${base}/#/study-setup`,{waitUntil:'networkidle'});await adminPage.waitForURL('**/#/requirements');
- await adminPage.goto(`${base}/#/admin`,{waitUntil:'networkidle'});await adminPage.locator('.platform-admin').waitFor();
- await adminPage.screenshot({path:join(screenshots,'admin-navigation.png'),fullPage:true});
- await adminPage.getByLabel('Sua senha atual').fill('isolated visual admin password');await adminPage.getByRole('button',{name:'Configurar autenticador',exact:true}).click();
- const secret=await adminPage.locator('.admin-mfa code').innerText();await adminPage.getByLabel('Código de seis dígitos').fill(totp(secret,Math.floor(Date.now()/30000)));await adminPage.getByRole('button',{name:'Confirmar código',exact:true}).click();
- await adminPage.getByRole('heading',{name:'Usuários da plataforma',exact:true}).waitFor();assert.doesNotMatch(await adminPage.locator('.platform-admin').innerText(),/Perfil fictício proibido/);
- await adminPage.screenshot({path:join(screenshots,'admin-accounts.png'),fullPage:true});
- await adminPage.getByRole('button',{name:'Uso',exact:true}).click();await adminPage.getByText('Ainda não há métricas autorizadas.',{exact:true}).waitFor();assert.equal(app.missionStore.read().telemetry?.events?.length||0,0,'metrics start disabled');
- await adminPage.screenshot({path:join(screenshots,'admin-usage-empty.png'),fullPage:true});
- await page.setViewportSize({width:1440,height:960});await page.goto(`${base}/#/privacy`,{waitUntil:'networkidle'});
- const consent=page.getByLabel('Compartilhar métricas de navegação para melhorar o Norte');assert.equal(await consent.isChecked(),false);
- await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/platform/telemetry/events')&&response.status()===200),consent.check()]);
- await page.evaluate(()=>{window.location.hash='#/new-project';});await page.getByLabel('Nome do projeto').fill('Nome privado do projeto visual');
- await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/platform/telemetry/events')&&response.request().postDataJSON().name==='feature_click'&&response.status()===200),page.getByRole('button',{name:'Criar projeto',exact:true}).click()]);await page.waitForURL('**/#/project');
- const events=app.missionStore.read().telemetry.events;assert.ok(events.some(event=>event.options?.action==='project.create'));assert.doesNotMatch(JSON.stringify(events),/Nome privado|Veículo Orbital|workspace_visual/);
- await adminPage.getByRole('button',{name:'Atualizar administração',exact:true}).click();await adminPage.getByRole('cell',{name:'Criar projeto',exact:true}).waitFor();await adminPage.screenshot({path:join(screenshots,'admin-usage-with-data.png'),fullPage:true});
- await createEngineeringMetrics(app.missionStore).recordProviderAttempt({status:'provider_completed',usageMetadata:{promptTokenCount:32},outputTokens:9});
- await adminPage.getByRole('button',{name:'IA e reuniões',exact:true}).click();await adminPage.getByText('Tentativas LLM',{exact:true}).waitFor();await adminPage.screenshot({path:join(screenshots,'admin-technical.png'),fullPage:true});
- await adminPage.getByRole('link',{name:'Diagnóstico de reuniões',exact:true}).click();await adminPage.locator('.meeting-observability').waitFor();await adminPage.screenshot({path:join(screenshots,'admin-meeting-diagnostics-empty.png'),fullPage:true});
- await page.goto(`${base}/#/privacy`,{waitUntil:'networkidle'});await page.getByLabel('Compartilhar métricas de navegação para melhorar o Norte').uncheck();
- await page.waitForFunction(()=>!document.querySelector('.usage-privacy input').disabled);assert.equal(app.missionStore.read().telemetry.events.length,0,'opting out deletes consented usage');
- await page.screenshot({path:join(screenshots,'privacy-opted-out.png'),fullPage:true});
- assert.deepEqual(projectWrites,[],'navigation must not PUT stale project snapshots');assert.deepEqual(errors,[]);console.log(JSON.stringify({passed:true,screenshots,checks:['public privacy and terms','minimal signup','light default','normal gated routes and sidebar','admin has no experimental workspaces','real contacts and members','manager editor and read-only own role','logo landing','no guide or commercial plans','desktop and mobile screenshots','real TOTP enrollment and admin tabs','empty and consented usage metrics','allowlisted feature click without private form text','consent withdrawal erases metrics','technical counters and meeting diagnostics link'],logs},null,2));
-} finally {await browser?.close();vite?.kill('SIGTERM');await app.close();await rm(dir,{recursive:true,force:true});}
+  const admin = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { name: 'Administrador visual', login: 'admin_visual', password: 'isolated visual admin password' },
+  });
+  assert.equal(admin.statusCode, 201, admin.body);
+  const apiOrigin = await app.listen({ port: 0, host: '127.0.0.1' });
+  const registration = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { name: 'Teste Norte', login: 'workspace_visual', password: 'isolated visual account password' },
+  });
+  assert.equal(registration.statusCode, 201, registration.body);
+  const actor = registration.json(),
+    headers = { cookie: registration.headers['set-cookie'].split(';')[0], 'x-csrf-token': actor.csrfToken };
+  const request = async (method, path, payload) => {
+    const response = await app.inject({ method, url: '/api' + path, headers, ...(payload ? { payload } : {}) });
+    assert.ok(response.statusCode < 300, response.body);
+    return response.json();
+  };
+  const { team } = await request('POST', '/teams', { name: 'Equipe teste' });
+  const source = visualRequirements();
+  const projectDocument = createValidationProject();
+  projectDocument.name = source.name;
+  projectDocument.context.teamId = team.id;
+  projectDocument.context.teamName = team.name;
+  projectDocument.context.assignments = [{ memberId: actor.user.memberId, roleId: 'captain', sectorId: '' }];
+  const subsystems = [...new Set(source.requirements.map(item => item.subsystem))];
+  projectDocument.context.sectors = subsystems.map((name, index) => ({ id: 'sector-' + index, name }));
+  const { project } = await request('POST', '/projects', projectDocument);
+  const state = { teamId: team.id, projectId: project.id };
+  for (const item of source.requirements) {
+    const baseline = await request('GET', `/projects/${project.id}/delivery`);
+    await request('POST', `/projects/${project.id}/delivery/actions`, {
+      expectedRevision: baseline.revision,
+      expectedBaselineHash: baseline.baselineHash,
+      action: 'requirement.save',
+      item: {
+        identifier: item.id,
+        title: item.title,
+        statement: item.statement,
+        sectorId: projectDocument.context.sectors.find(sector => sector.name === item.subsystem)?.id,
+        ownerMemberId: actor.user.memberId,
+        verificationMethod: 'analysis',
+        sourceLocator: 'Parágrafo ' + item.paragraph,
+      },
+    });
+  }
+  await app.missionStore.update(data => {
+    data.users.push({
+      id: 'visual-fake-user',
+      memberId: 'visual-fake-member',
+      name: 'Perfil fictício proibido',
+      active: true,
+      isFictionalProfile: true,
+    });
+    data.members.push({
+      id: 'visual-fake-member',
+      accountId: 'visual-fake-user',
+      displayName: 'Perfil fictício proibido',
+      accountStatus: 'active',
+    });
+    data.teams.find(t => t.id === state.teamId).memberIds.push('visual-fake-member');
+  });
+  const login = registration;
+  const port = 5387,
+    base = `http://127.0.0.1:${port}`;
+  vite = spawn(
+    process.execPath,
+    ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
+    {
+      cwd: join(root, 'norte'),
+      env: { ...process.env, VITE_BASE_PATH: '/', VITE_API_PROXY_TARGET: apiOrigin },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  await new Promise((yes, no) => {
+    const timer = setTimeout(() => no(new Error('Vite timeout')), 20000);
+    vite.stdout.on('data', d => {
+      if (String(d).includes('Local:')) {
+        clearTimeout(timer);
+        yes();
+      }
+    });
+    vite.stderr.on('data', d => logs.push(String(d)));
+    vite.once('exit', c => no(new Error(`Vite ${c}`)));
+  });
+  browser = await chromium.launch({
+    executablePath: '/opt/google/chrome/chrome',
+    headless: true,
+    args: ['--no-sandbox'],
+  });
+  async function contextFor(response) {
+    const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+    const raw = [response.headers['set-cookie']].flat().filter(Boolean)[0].split(';')[0],
+      i = raw.indexOf('=');
+    await context.addCookies([{ name: raw.slice(0, i), value: raw.slice(i + 1), url: base }]);
+    return context;
+  }
+  const publicContext = await browser.newContext();
+  const publicPage = await publicContext.newPage();
+  for (const kind of ['privacy', 'terms']) {
+    await publicPage.goto(`${base}/#/${kind}`, { waitUntil: 'networkidle' });
+    await publicPage.locator('.policy-page').waitFor();
+    assert.equal(await publicPage.locator('.auth-form').count(), 0);
+  }
+  await publicPage.goto(`${base}/#/register`, { waitUntil: 'networkidle' });
+  await publicPage.locator('.auth-form').waitFor();
+  assert.equal(await publicPage.locator('.auth-form input').count(), 3);
+  assert.equal(await publicPage.locator('a[href="#/privacy"]').count(), 1);
+  assert.equal(await publicPage.locator('a[href="#/terms"]').count(), 1);
+  await publicPage.screenshot({ path: join(screenshots, 'register.png'), fullPage: true });
+  const context = await contextFor(login),
+    page = await context.newPage();
+  const errors = [],
+    projectWrites = [];
+  page.on('pageerror', e => errors.push(e.message));
+  page.on('request', r => {
+    if (r.method() === 'PUT' && /\/api\/projects\/[^/]+$/.test(r.url())) projectWrites.push(r.url());
+  });
+  await page.goto(`${base}/#/requirements`, { waitUntil: 'networkidle' });
+  await page.locator('.app-header').waitFor();
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+  if (await page.getByRole('button', { name: 'Expandir barra lateral', exact: true }).count())
+    await page.getByRole('button', { name: 'Expandir barra lateral', exact: true }).click();
+  // The trees under the project carry the team's own review and sector names, so retired modules are checked by navigation label.
+  const navLabels = async target =>
+    (await target.locator('.mission-sidebar .mission-nav-label').allInnerTexts()).join('\n');
+  assert.doesNotMatch(await navLabels(page), /Memória|Concepção|Testar ideias/);
+  assert.match(await page.locator('.mission-sidebar').innerText(), /Visão geral/);
+  assert.doesNotMatch(await navLabels(page), /Verificação/);
+  await page.locator('.mission-outline').waitFor();
+  assert.equal(await page.locator('.requirements-outline').count(), 0);
+  assert.equal(
+    await page.locator('.project-switcher-trigger select').count(),
+    0,
+    'the project context reads as text until opened',
+  );
+  assert.equal(await page.locator('.journey-popover').count(), 0);
+  await page.screenshot({ path: join(screenshots, 'normal-requirements.png'), fullPage: true });
+  await page.goto(`${base}/#/admin`, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/#/');
+  await page.goto(`${base}/#/dashboard`, { waitUntil: 'networkidle' });
+  await page.waitForURL('**/#/');
+  await page.locator('.home-landing').waitFor();
+  await page.screenshot({ path: join(screenshots, 'home.png'), fullPage: true });
+  for (const hash of ['#/study-setup', '#/brainstorming', '#/ideas']) {
+    await page.goto(base + '/' + hash, { waitUntil: 'networkidle' });
+    await page.waitForURL('**/#/requirements');
+    assert.equal(new URL(page.url()).hash, '#/requirements', hash);
+  }
+  await page.goto(`${base}/#/teams`, { waitUntil: 'networkidle' });
+  await page.getByRole('heading', { name: 'Equipe teste', exact: true }).waitFor();
+  assert.doesNotMatch(
+    await page.locator('main').innerText(),
+    /Comunidade|Perfil fictício proibido|Projetos, pessoas e responsabilidades/,
+  );
+  assert.equal(await page.locator('.app-shell .brand').count(), 1, 'the shell has one Norte brand');
+  assert.equal(await page.locator('.app-header-brand').count(), 0);
+  assert.equal(await page.locator('.team-directory').count(), 0, 'one team needs no duplicate team picker');
+  for (const selector of ['.team-head', '.team-panel', '.team-project-row'])
+    assert.equal((await page.locator(selector).count()) > 0, true, selector);
+  assert.equal(
+    await page.locator('.team-head').evaluate(element => getComputedStyle(element).borderTopLeftRadius),
+    '0px',
+    'panels are square',
+  );
+  await page.screenshot({ path: join(screenshots, 'teams.png'), fullPage: true });
+  await page.locator('.mission-sidebar-toggle').click();
+  await page.locator('.mission-sidebar.collapsed').waitFor();
+  assert.equal(
+    await page.locator('.mission-sidebar .norte-brand-icon').isVisible(),
+    true,
+    'collapsed sidebar retains the brand icon',
+  );
+  assert.equal(await page.locator('.mission-sidebar .brand > span').isVisible(), false);
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: join(screenshots, 'teams-collapsed.png'), fullPage: true });
+  await page.locator('.mission-sidebar-toggle').click();
+  await page.getByRole('button', { name: 'Convites', exact: true }).click();
+  assert.equal(await page.getByRole('button', { name: 'Enviar convite', exact: true }).count(), 0);
+  await page.getByLabel('Login ou nickname', { exact: true }).fill(admin.json().user.login);
+  await page.getByLabel('Login ou nickname', { exact: true }).press('Enter');
+  await page.locator('.invite-person').waitFor();
+  await page.screenshot({ path: join(screenshots, 'team-invite-found.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Enviar convite', exact: true }).click();
+  await page.getByText('Convite enviado. A entrada depende do aceite da pessoa.', { exact: true }).waitFor();
+  await page.getByText(/Aguardando resposta/).waitFor();
+  await page.screenshot({ path: join(screenshots, 'team-invites.png'), fullPage: true });
+  await page.locator('.team-tabs button', { hasText: 'Pessoas' }).click();
+  assert.equal(await page.locator('.team-person-row').count(), 1);
+  await page.getByRole('button', { name: 'Cargo e função', exact: true }).click();
+  await page.getByLabel('Cargo na equipe').fill('Engenheira de sistemas');
+  await page.getByLabel('Função e responsabilidades').fill('Coordenar requisitos e revisões.');
+  await page.getByRole('dialog').getByRole('button', { name: 'Salvar', exact: true }).click();
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: join(screenshots, 'team-roles.png'), fullPage: true });
+  await page.goto(`${base}/#/people`, { waitUntil: 'networkidle' });
+  await page
+    .locator('.people-directory')
+    .waitFor()
+    .catch(() => {});
+  assert.doesNotMatch(
+    await page.locator('main').innerText(),
+    /Perfil fictício proibido|Encontre quem está|90 segundos|A conta de teste/,
+  );
+  await page.screenshot({ path: join(screenshots, 'contacts.png'), fullPage: true });
+  await page.locator('.account-badge-trigger').click();
+  await page.getByRole('button', { name: 'Ver e editar perfil' }).click();
+  await page.getByRole('dialog').waitFor();
+  const profile = page.getByRole('dialog');
+  assert.doesNotMatch(await profile.innerText(), /Universidade|Curso|Semestre|Horas disponíveis/);
+  await profile.locator('summary').click();
+  assert.match(await profile.innerText(), /Engenheira de sistemas/);
+  assert.equal(await profile.locator('input[name="roleName"]').count(), 0);
+  await page.screenshot({ path: join(screenshots, 'profile.png'), fullPage: true });
+  await profile.getByRole('button', { name: 'Fechar', exact: true }).click();
+  await page.locator('.mission-sidebar .brand').click();
+  await page.waitForURL(url => new URL(url).hash === '#/');
+  await page.locator('.home-landing').waitFor();
+  await page.goto(`${base}/#/landing`, { waitUntil: 'networkidle' });
+  await page.locator('.public-site').waitFor();
+  assert.match(await page.locator('main').innerText(), /Engenharia com/);
+  assert.doesNotMatch(await page.locator('main').innerText(), /Conta de teste|Planos|Experimentar grátis/);
+  // The meeting example plays by itself, runs no model and ends in minutes that cite each line.
+  const demo = page.locator('.landing-meeting');
+  await page.locator('.landing-meeting[data-phase="playing"]').waitFor();
+  assert.equal(
+    await demo.getByRole('combobox', { name: 'Tipo do registro' }).count(),
+    0,
+    'records cannot be corrected while the meeting runs',
+  );
+  const note = demo.getByRole('textbox', { name: 'Nota pessoal' });
+  await note.fill('Conferir a massa do suporte.');
+  await note.press('Enter');
+  assert.match(await demo.locator('.landing-note').innerText(), /sua nota[\s\S]*Conferir a massa do suporte\./i);
+  await demo.getByRole('button', { name: 'Pular para a ata' }).click();
+  const minutes = await demo.locator('.landing-minutes').innerText();
+  assert.match(minutes, /Deformação do suporte da antena[\s\S]*Ref\. 2/);
+  assert.doesNotMatch(minutes, /Conferir a massa/, 'a personal note stays out of the minutes');
+  assert.match(await demo.innerText(), /Exemplo ilustrativo/);
+  await demo.getByRole('button', { name: 'Canvas', exact: true }).click();
+  await demo.getByRole('combobox', { name: 'Tipo do registro' }).first().selectOption('decision');
+  assert.match(await demo.locator('.landing-block').first().innerText(), /corrigido/);
+  await page.screenshot({ path: join(screenshots, 'landing.png'), fullPage: true });
+  const theme = await page.evaluate(() => {
+    const before = document.documentElement.dataset.theme;
+    document.documentElement.dataset.theme = 'dark';
+    return before;
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: join(screenshots, 'landing-dark.png') });
+  await page.evaluate(value => {
+    document.documentElement.dataset.theme = value;
+  }, theme);
+  await page.setViewportSize({ width: 390, height: 844 });
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    'landing has no horizontal overflow on mobile',
+  );
+  await page.screenshot({ path: join(screenshots, 'landing-mobile.png'), fullPage: true });
+  await page.goto(`${base}/#/teams`, { waitUntil: 'networkidle' });
+  await page.locator('.team-project-row').filter({ hasText: source.name }).waitFor();
+  await page.waitForTimeout(200);
+  await page.screenshot({ path: join(screenshots, 'teams-mobile.png'), fullPage: true });
+  await page.goto(`${base}/#/requirements`, { waitUntil: 'networkidle' });
+  await page.locator('.delivery-workspace').waitFor();
+  const avatar = await page.locator('.account-badge-trigger').boundingBox();
+  assert.ok(avatar && avatar.x >= 0 && avatar.x + avatar.width <= 390, 'mobile account control remains fully visible');
+  assert.ok(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    'mobile viewport has no horizontal overflow',
+  );
+  await page.screenshot({ path: join(screenshots, 'requirements-mobile.png'), fullPage: true });
+  const adminContext = await contextFor(admin),
+    adminPage = await adminContext.newPage();
+  await adminPage.goto(`${base}/#/requirements`, { waitUntil: 'networkidle' });
+  if (await adminPage.getByRole('button', { name: 'Expandir barra lateral', exact: true }).count())
+    await adminPage.getByRole('button', { name: 'Expandir barra lateral', exact: true }).click();
+  assert.doesNotMatch(await navLabels(adminPage), /Memória|Concepção|Testar ideias/);
+  await adminPage.goto(`${base}/#/study-setup`, { waitUntil: 'networkidle' });
+  await adminPage.waitForURL('**/#/requirements');
+  await adminPage.goto(`${base}/#/admin`, { waitUntil: 'networkidle' });
+  await adminPage.locator('.platform-admin').waitFor();
+  await adminPage.screenshot({ path: join(screenshots, 'admin-navigation.png'), fullPage: true });
+  await adminPage.getByLabel('Sua senha atual').fill('isolated visual admin password');
+  await adminPage.getByRole('button', { name: 'Configurar autenticador', exact: true }).click();
+  const secret = await adminPage.locator('.admin-mfa code').innerText();
+  await adminPage.getByLabel('Código de seis dígitos').fill(totp(secret, Math.floor(Date.now() / 30000)));
+  await adminPage.getByRole('button', { name: 'Confirmar código', exact: true }).click();
+  await adminPage.getByRole('heading', { name: 'Usuários da plataforma', exact: true }).waitFor();
+  assert.doesNotMatch(await adminPage.locator('.platform-admin').innerText(), /Perfil fictício proibido/);
+  await adminPage.screenshot({ path: join(screenshots, 'admin-accounts.png'), fullPage: true });
+  await adminPage.getByRole('button', { name: 'Uso', exact: true }).click();
+  await adminPage.getByText('Ainda não há métricas autorizadas.', { exact: true }).waitFor();
+  assert.equal(app.missionStore.read().telemetry?.events?.length || 0, 0, 'metrics start disabled');
+  await adminPage.screenshot({ path: join(screenshots, 'admin-usage-empty.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto(`${base}/#/privacy`, { waitUntil: 'networkidle' });
+  const consent = page.getByLabel('Compartilhar métricas de navegação para melhorar o Norte');
+  assert.equal(await consent.isChecked(), false);
+  await Promise.all([
+    page.waitForResponse(
+      response => response.url().endsWith('/api/platform/telemetry/events') && response.status() === 200,
+    ),
+    consent.check(),
+  ]);
+  await page.evaluate(() => {
+    window.location.hash = '#/new-project';
+  });
+  await page.getByLabel('Nome do projeto').fill('Nome privado do projeto visual');
+  await Promise.all([
+    page.waitForResponse(
+      response =>
+        response.url().endsWith('/api/platform/telemetry/events') &&
+        response.request().postDataJSON().name === 'feature_click' &&
+        response.status() === 200,
+    ),
+    page.getByRole('button', { name: 'Criar projeto', exact: true }).click(),
+  ]);
+  await page.waitForURL('**/#/project');
+  const events = app.missionStore.read().telemetry.events;
+  assert.ok(events.some(event => event.options?.action === 'project.create'));
+  assert.doesNotMatch(JSON.stringify(events), /Nome privado|Veículo Orbital|workspace_visual/);
+  await adminPage.getByRole('button', { name: 'Atualizar administração', exact: true }).click();
+  await adminPage.getByRole('cell', { name: 'Criar projeto', exact: true }).waitFor();
+  await adminPage.screenshot({ path: join(screenshots, 'admin-usage-with-data.png'), fullPage: true });
+  await createEngineeringMetrics(app.missionStore).recordProviderAttempt({
+    status: 'provider_completed',
+    usageMetadata: { promptTokenCount: 32 },
+    outputTokens: 9,
+  });
+  await adminPage.getByRole('button', { name: 'IA e reuniões', exact: true }).click();
+  await adminPage.getByText('Tentativas LLM', { exact: true }).waitFor();
+  await adminPage.screenshot({ path: join(screenshots, 'admin-technical.png'), fullPage: true });
+  await adminPage.getByRole('link', { name: 'Diagnóstico de reuniões', exact: true }).click();
+  await adminPage.locator('.meeting-observability').waitFor();
+  await adminPage.screenshot({ path: join(screenshots, 'admin-meeting-diagnostics-empty.png'), fullPage: true });
+  await page.goto(`${base}/#/privacy`, { waitUntil: 'networkidle' });
+  await page.getByLabel('Compartilhar métricas de navegação para melhorar o Norte').uncheck();
+  await page.waitForFunction(() => !document.querySelector('.usage-privacy input').disabled);
+  assert.equal(app.missionStore.read().telemetry.events.length, 0, 'opting out deletes consented usage');
+  await page.screenshot({ path: join(screenshots, 'privacy-opted-out.png'), fullPage: true });
+  assert.deepEqual(projectWrites, [], 'navigation must not PUT stale project snapshots');
+  assert.deepEqual(errors, []);
+  console.log(
+    JSON.stringify(
+      {
+        passed: true,
+        screenshots,
+        checks: [
+          'public privacy and terms',
+          'minimal signup',
+          'light default',
+          'normal gated routes and sidebar',
+          'admin has no experimental workspaces',
+          'real contacts and members',
+          'manager editor and read-only own role',
+          'logo landing',
+          'no guide or commercial plans',
+          'desktop and mobile screenshots',
+          'real TOTP enrollment and admin tabs',
+          'empty and consented usage metrics',
+          'allowlisted feature click without private form text',
+          'consent withdrawal erases metrics',
+          'technical counters and meeting diagnostics link',
+        ],
+        logs,
+      },
+      null,
+      2,
+    ),
+  );
+} finally {
+  await browser?.close();
+  vite?.kill('SIGTERM');
+  await app.close();
+  await rm(dir, { recursive: true, force: true });
+}

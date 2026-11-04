@@ -6,10 +6,16 @@ export function createHeartbeatSender(send: () => Promise<unknown>, now = () => 
     if (pending) return pending;
     if (now() - lastAttempt < 25_000) return Promise.resolve();
     lastAttempt = now();
-    pending = Promise.resolve().then(send).then(() => undefined).catch(error => {
-      lastAttempt = -Infinity; // A later interaction/tick may try again.
-      throw error;
-    }).finally(() => { pending = null; });
+    pending = Promise.resolve()
+      .then(send)
+      .then(() => undefined)
+      .catch(error => {
+        lastAttempt = -Infinity; // A later interaction/tick may try again.
+        throw error;
+      })
+      .finally(() => {
+        pending = null;
+      });
     return pending;
   };
 }

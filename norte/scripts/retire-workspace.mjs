@@ -3,7 +3,9 @@ import { loadLocalEnvironment } from '../server/local-environment.mjs';
 import { runPostgresRetirement } from '../server/postgres-retirement.mjs';
 
 if (process.argv.includes('--help')) {
-  console.info('Usage: node norte/scripts/retire-workspace.mjs --config /private/operation.json\nRequires DATABASE_URL. Modes: inventory, plan, apply. Apply requires the reviewed fingerprint.');
+  console.info(
+    'Usage: node norte/scripts/retire-workspace.mjs --config /private/operation.json\nRequires DATABASE_URL. Modes: inventory, plan, apply. Apply requires the reviewed fingerprint.',
+  );
 } else {
   try {
     loadLocalEnvironment();

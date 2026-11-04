@@ -6,13 +6,20 @@ export function initializeNavigation() {
   initialized = true;
   const saved = window.history.state?.norteIndex;
   let sameAppReferrer = false;
-  try { sameAppReferrer = new URL(document.referrer).origin === window.location.origin; } catch { /* A direct link has no app referrer. */ }
-  currentIndex = Number.isSafeInteger(saved) ? saved : (sameAppReferrer && window.history.length > 1 ? 1 : 0);
+  try {
+    sameAppReferrer = new URL(document.referrer).origin === window.location.origin;
+  } catch {
+    /* A direct link has no app referrer. */
+  }
+  currentIndex = Number.isSafeInteger(saved) ? saved : sameAppReferrer && window.history.length > 1 ? 1 : 0;
   window.history.replaceState({ ...window.history.state, norteIndex: currentIndex }, '', window.location.href);
   window.addEventListener('hashchange', () => {
     const entry = window.history.state?.norteIndex;
     if (Number.isSafeInteger(entry)) currentIndex = entry;
-    else { currentIndex++; window.history.replaceState({ ...window.history.state, norteIndex: currentIndex }, '', window.location.href); }
+    else {
+      currentIndex++;
+      window.history.replaceState({ ...window.history.state, norteIndex: currentIndex }, '', window.location.href);
+    }
   });
 }
 export function goBack(fallback = '#/') {
@@ -25,7 +32,9 @@ type BackHandler = () => boolean;
 let backHandler: BackHandler | null = null;
 export function claimBack(handler: BackHandler) {
   backHandler = handler;
-  return () => { if (backHandler === handler) backHandler = null; };
+  return () => {
+    if (backHandler === handler) backHandler = null;
+  };
 }
 export function navigateBack(fallback = '#/') {
   if (backHandler?.()) return;

@@ -214,10 +214,10 @@
   color: var(--norte-text-muted);
 }
 .profile-loading svg {
-  animation: auth-spin .8s linear infinite;
+  animation: auth-spin 0.8s linear infinite;
 }
 .profile-spin {
-  animation: auth-spin .8s linear infinite;
+  animation: auth-spin 0.8s linear infinite;
 }
 .profile-dialog > header h2 {
   font-size: 25px;
@@ -312,24 +312,24 @@
   color: var(--norte-link);
 }
 
-@media (max-width:650px) {
-.profile-organizations dl {
-  grid-template-columns: 1fr;
-}
+@media (max-width: 650px) {
+  .profile-organizations dl {
+    grid-template-columns: 1fr;
+  }
 }
 
-@media (max-width:560px) {
-.profile-dialog {
-  padding: 21px 16px;
-}
-.profile-fields {
-  grid-template-columns: 1fr;
-}
-.profile-dialog footer {
-  align-items: stretch;
-  flex-direction: column-reverse;
-}
-.profile-dialog footer button {
-  justify-content: center;
-}
+@media (max-width: 560px) {
+  .profile-dialog {
+    padding: 21px 16px;
+  }
+  .profile-fields {
+    grid-template-columns: 1fr;
+  }
+  .profile-dialog footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .profile-dialog footer button {
+    justify-content: center;
+  }
 }

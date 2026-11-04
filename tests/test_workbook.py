@@ -1,4 +1,5 @@
 """Read-only regression checks against the user's original Jev workbook."""
+
 import json
 from pathlib import Path
 import unittest
@@ -12,11 +13,16 @@ NS = {'m': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
 
 def rows(book, number):
     root = ET.fromstring(book.read(f'xl/worksheets/sheet{number}.xml'))
-    return [{''.join(filter(str.isalpha, cell.attrib['r'])): ''.join(cell.itertext())
-             for cell in row} for row in root.findall('.//m:sheetData/m:row', NS)]
+    return [
+        {''.join(filter(str.isalpha, cell.attrib['r'])): ''.join(cell.itertext()) for cell in row}
+        for row in root.findall('.//m:sheetData/m:row', NS)
+    ]
 
 
-@unittest.skipUnless(all(path.exists() for path in (BOOK, BOOK.parent / 'full-request.json', BOOK.parent / 'workbook-variants.json')), 'Private workbook and reference fixtures are not available')
+@unittest.skipUnless(
+    all(path.exists() for path in (BOOK, BOOK.parent / 'full-request.json', BOOK.parent / 'workbook-variants.json')),
+    'Private workbook and reference fixtures are not available',
+)
 class WorkbookTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -27,7 +33,11 @@ class WorkbookTests(unittest.TestCase):
     def test_all_questions_match_workbook_v2_exactly(self):
         with zipfile.ZipFile(BOOK) as book:
             for number in range(5, 12):
-                questions = [r for r in rows(book, number) if r.get('B') in ('noul', 'choice', 'score') and 'D' in r and 'E' not in r]
+                questions = [
+                    r
+                    for r in rows(book, number)
+                    if r.get('B') in ('noul', 'choice', 'score') and 'D' in r and 'E' not in r
+                ]
                 self.assertEqual(len(questions), 11)
                 for row in questions:
                     q = self.example['questions'][row['A']]
@@ -42,9 +52,13 @@ class WorkbookTests(unittest.TestCase):
             cases = [r for r in rows(book, 2) if r.get('D') == 'v2' and r.get('G', '').startswith('{')]
             self.assertEqual(len(cases), 7)
             for index, number in enumerate(range(5, 12)):
-                state = self.example['state'] if index == 0 else {**self.example['state'], 'current_utterance': self.options[index-1]['text']}
+                state = (
+                    self.example['state']
+                    if index == 0
+                    else {**self.example['state'], 'current_utterance': self.options[index - 1]['text']}
+                )
                 self.assertEqual(state, json.loads(cases[index]['G']))
-                expected = self.example['expected'] if index == 0 else self.options[index-1]['expected']
+                expected = self.example['expected'] if index == 0 else self.options[index - 1]['expected']
                 results = [r for r in rows(book, number) if r.get('B') in ('noul', 'choice', 'score') and 'J' in r]
                 self.assertEqual(len(results), 11)
                 for row in results:

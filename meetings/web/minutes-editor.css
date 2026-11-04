@@ -1,0 +1,437 @@
+/* The finished minutes in the room's right pane. Same reading style as the example on the first page. */
+.gm-dialog {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  color: var(--norte-text);
+}
+.gm-document {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+.gm-controls {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.gm-button {
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--norte-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+}
+.gm-button:hover:not(:disabled) {
+  background: var(--norte-surface);
+  color: var(--norte-text);
+}
+.gm-button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+.gm-button[hidden] {
+  display: none;
+}
+.gm-button:focus-visible,
+.gm-contents a:focus-visible,
+.gm-feedback:focus-visible,
+.gm-edit-input:focus-visible {
+  outline: 2px solid var(--norte-accent);
+  outline-offset: 2px;
+}
+.gm-primary,
+.gm-primary:hover:not(:disabled) {
+  background: var(--norte-accent);
+  color: var(--norte-on-accent);
+}
+.gm-primary:hover:not(:disabled) {
+  background: var(--norte-accent-hover);
+  color: var(--norte-on-accent);
+}
+.gm-notice {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--norte-text-secondary);
+  font-size: 11.5px;
+}
+.gm-notice:empty {
+  display: none;
+}
+.gm-paper {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 22px 24px 26px;
+  overflow: auto;
+  background: var(--norte-surface);
+  box-shadow: var(--norte-shadow-card);
+  scroll-behavior: smooth;
+  scroll-padding-top: 16px;
+}
+.gm-paper ::selection {
+  background: color-mix(in srgb, var(--norte-link) 25%, transparent);
+}
+.gm-meeting-info > small {
+  color: var(--norte-accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.gm-meeting-info h1 {
+  margin: 6px 0 14px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+.gm-meeting-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  margin: 0 0 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--norte-divider);
+}
+.gm-meeting-fields dt {
+  color: var(--norte-text-muted);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.gm-meeting-fields dd {
+  margin: 3px 0 0;
+  font-size: 12.5px;
+}
+.gm-contents {
+  font-size: 12.5px;
+}
+.gm-contents strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.gm-contents ol {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--norte-link);
+}
+.gm-contents a {
+  color: var(--norte-link);
+  text-decoration: none;
+}
+.gm-contents a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.gm-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 12px -12px 0;
+}
+.gm-document-actions .gm-button {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.gm-document-actions .gm-button:hover:not(:disabled) {
+  background: var(--norte-surface-muted);
+}
+.gm-topic {
+  scroll-margin-top: 16px;
+}
+.gm-topic h3 {
+  margin: 22px 0 4px;
+  font-size: 14.5px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.gm-topic h4 {
+  margin: 12px 0 4px;
+  color: var(--norte-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.gm-current-list {
+  margin: 0;
+  padding-left: 18px;
+}
+.gm-current-entry {
+  font-size: 13px;
+  line-height: 1.65;
+}
+.gm-current-entry[data-state='pending'],
+.gm-current-entry[data-state='review'] {
+  --gm-state: var(--norte-warning);
+}
+.gm-current-entry[data-state='conflict'],
+.gm-current-entry[data-state='error'] {
+  --gm-state: var(--norte-danger);
+}
+.gm-current-entry::marker {
+  color: var(--gm-state, var(--norte-text-muted));
+}
+.gm-source-quote {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.gm-editable-quote {
+  cursor: pointer;
+}
+.gm-editable-quote:hover {
+  background: var(--norte-surface-muted);
+}
+.gm-selected {
+  background: var(--norte-accent-soft);
+}
+.gm-reference {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border: 0;
+  background: var(--norte-accent-soft);
+  color: var(--norte-link);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  vertical-align: 1px;
+  cursor: pointer;
+}
+.gm-reference:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--norte-accent) 22%, transparent);
+}
+.gm-flag {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--norte-warning);
+  vertical-align: -4px;
+  cursor: pointer;
+}
+.gm-flag svg {
+  width: 15px;
+  height: 15px;
+}
+.gm-test-status {
+  display: block;
+  width: max-content;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--norte-text-muted);
+  font: inherit;
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.gm-test-status[data-completed='false'] {
+  color: var(--norte-warning);
+}
+.gm-unknown-label {
+  display: block;
+  color: var(--norte-text-muted);
+  font-size: 11px;
+}
+.gm-entry-evidence {
+  margin: 4px 0 0;
+  padding-left: 16px;
+}
+.gm-user-note,
+.gm-entry-state,
+.gm-entry-references,
+.gm-incompatibility {
+  margin: 2px 0 0;
+  color: var(--norte-text-secondary);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.gm-entry-references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.gm-incompatibility {
+  color: var(--norte-warning);
+}
+.gm-table-wrap {
+  margin: 12px 0;
+  overflow-x: auto;
+}
+.gm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.gm-table caption {
+  padding-bottom: 6px;
+  font-size: 12px;
+  font-weight: 650;
+  text-align: left;
+}
+.gm-table th {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--norte-divider);
+  color: var(--norte-text-muted);
+  font-size: 10.5px;
+  font-weight: 650;
+  text-align: left;
+}
+.gm-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--norte-divider);
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+.gm-empty,
+.gm-muted {
+  color: var(--norte-text-secondary);
+  font-size: 12px;
+}
+.gm-empty {
+  padding: 24px 0;
+}
+
+/* Review panel: floats over the document so the text keeps its width. */
+.gm-review {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  width: min(340px, 100%);
+  padding: 16px;
+  overflow: auto;
+  background: var(--norte-surface-raised);
+  box-shadow: var(--norte-shadow-card);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.gm-review[hidden] {
+  display: none;
+}
+.gm-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.gm-review-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+.gm-close-review {
+  padding: 2px 6px;
+  font-size: 18px;
+}
+.gm-review-topic > summary {
+  font-size: 12px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.gm-excluded-item {
+  padding: 10px 0;
+  font-size: 12px;
+}
+.gm-excluded-item blockquote,
+.gm-edit-quote {
+  max-height: 170px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  overflow: auto;
+  background: var(--norte-surface-muted);
+  overflow-wrap: anywhere;
+}
+.gm-feedback,
+.gm-edit-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 0;
+  background: var(--norte-field);
+  color: var(--norte-text);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+}
+textarea.gm-edit-input {
+  min-height: 76px;
+}
+.gm-edit-field {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.gm-edit-message,
+.gm-recovery-message {
+  margin: 6px 0 0;
+  color: var(--norte-warning);
+  overflow-wrap: anywhere;
+}
+.gm-edit-message:empty,
+.gm-recovery-message:empty {
+  display: none;
+}
+.gm-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gm-text-action {
+  padding-inline: 0;
+  color: var(--norte-link);
+}
+.gm-log-dialog {
+  width: min(850px, 92vw);
+  max-height: 84vh;
+  padding: 20px;
+  border: 0;
+  background: var(--norte-surface);
+  color: var(--norte-text);
+}
+.gm-log-dialog::backdrop {
+  background: var(--norte-overlay);
+}
+.gm-log {
+  max-height: 65vh;
+  overflow: auto;
+  font:
+    11px/1.7 ui-monospace,
+    monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.room-minutes-host:has(.gm-dialog) {
+  padding-top: 2px;
+}
+@media (max-width: 760px) {
+  .gm-paper {
+    padding: 16px;
+  }
+  .gm-table {
+    min-width: 440px;
+  }
+}

@@ -6,9 +6,15 @@ import { DataType, newDb } from 'pg-mem';
  */
 export function createMemoryPostgresPool() {
   const database = newDb({ noAstCoverageCheck: true });
-  database.public.registerFunction({ name: 'norte_timestamp_token', args: [DataType.timestamptz], returns: DataType.text, implementation: value => value.toISOString() });
+  database.public.registerFunction({
+    name: 'norte_timestamp_token',
+    args: [DataType.timestamptz],
+    returns: DataType.text,
+    implementation: value => value.toISOString(),
+  });
   const { Pool } = database.adapters.createPg();
-  const pool = new Pool(), query = pool.query.bind(pool);
+  const pool = new Pool(),
+    query = pool.query.bind(pool);
   pool.query = async (sql, ...args) => {
     const result = await query(sql.replaceAll('updated_at::text', 'norte_timestamp_token(updated_at)'), ...args);
     return result;

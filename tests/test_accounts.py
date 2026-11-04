@@ -2,6 +2,7 @@
 
 Set TEST_DATABASE_URL to also run the store contract against a real Postgres.
 """
+
 import gzip
 import json
 import os
@@ -18,14 +19,16 @@ import server
 
 
 class NoRedirect(HTTPRedirectHandler):
-    def redirect_request(self, *args, **kwargs): return None
+    def redirect_request(self, *args, **kwargs):
+        return None
 
 
 HTTP = build_opener(NoRedirect())
 
 
 class StoreContract:
-    def make_store(self): raise NotImplementedError
+    def make_store(self):
+        raise NotImplementedError
 
     def setUp(self):
         self.store = self.make_store()
@@ -33,7 +36,8 @@ class StoreContract:
 
     def test_passwords_sessions_and_admin_bootstrap(self):
         user = self.store.create_user('ana', 'senha-segura-1')
-        with self.assertRaises(auth.AuthError) as error: self.store.create_user('ana', 'outra-senha-2')
+        with self.assertRaises(auth.AuthError) as error:
+            self.store.create_user('ana', 'outra-senha-2')
         self.assertEqual(error.exception.status, 409)
         self.assertNotIn('senha-segura-1', self.store.find_user('ana')['password_hash'])
         self.assertIsNone(self.store.authenticate('ana', 'errada-123'))
@@ -74,14 +78,16 @@ class StoreContract:
 
 
 class SqliteStoreTests(StoreContract, unittest.TestCase):
-    def make_store(self): return auth.Store()
+    def make_store(self):
+        return auth.Store()
 
 
 @unittest.skipUnless(os.environ.get('TEST_DATABASE_URL'), 'TEST_DATABASE_URL not set')
 class PostgresStoreTests(StoreContract, unittest.TestCase):
     def make_store(self):
         store = auth.Store(os.environ['TEST_DATABASE_URL'])
-        for table in ('norte_records', 'norte_sessions', 'norte_users'): store._run(f'DELETE FROM {table}')
+        for table in ('norte_records', 'norte_sessions', 'norte_users'):
+            store._run(f'DELETE FROM {table}')
         return store
 
 
@@ -89,23 +95,40 @@ class AccountHttpTests(unittest.TestCase):
     def setUp(self):
         self.store = auth.Store()
         self.store.ensure_admin('admin', 'admin-senha-1')
-        for target, value in (('STORE', self.store), ('SETTINGS', config.Settings(api_key='fixture-only', allowed_hosts=('norte.example',)))):
-            patcher = patch.object(server, target, value); patcher.start(); self.addCleanup(patcher.stop)
-        for throttle in (server.LOGIN_THROTTLE, server.NETWORK_THROTTLE, server.SIGNUP_THROTTLE): throttle.hits.clear()
+        for target, value in (
+            ('STORE', self.store),
+            ('SETTINGS', config.Settings(api_key='fixture-only', allowed_hosts=('norte.example',))),
+        ):
+            patcher = patch.object(server, target, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        for throttle in (server.LOGIN_THROTTLE, server.NETWORK_THROTTLE, server.SIGNUP_THROTTLE):
+            throttle.hits.clear()
         self.http = server.ThreadingHTTPServer(('127.0.0.1', 0), server.Handler)
-        self.thread = threading.Thread(target=self.http.serve_forever, daemon=True); self.thread.start()
+        self.thread = threading.Thread(target=self.http.serve_forever, daemon=True)
+        self.thread.start()
         self.base = f'http://127.0.0.1:{self.http.server_port}'
 
     def tearDown(self):
-        self.http.shutdown(); self.http.server_close(); self.thread.join(); self.store.close()
+        self.http.shutdown()
+        self.http.server_close()
+        self.thread.join()
+        self.store.close()
 
     def call(self, path, body=None, headers=None, method=None, raw=None):
         data = raw if raw is not None else json.dumps(body).encode() if body is not None else None
-        request = Request(self.base + path, data=data, method=method, headers={**({'Content-Type': 'application/json'} if data else {}), **(headers or {})})
+        request = Request(
+            self.base + path,
+            data=data,
+            method=method,
+            headers={**({'Content-Type': 'application/json'} if data else {}), **(headers or {})},
+        )
         try:
-            with HTTP.open(request) as response: return response.status, response.headers, response.read()
+            with HTTP.open(request) as response:
+                return response.status, response.headers, response.read()
         except HTTPError as error:
-            with error: return error.code, error.headers, error.read()
+            with error:
+                return error.code, error.headers, error.read()
 
     def sign(self, action, username, password, **extra):
         status, headers, body = self.call('/api/auth/' + action, {'username': username, 'password': password, **extra})
@@ -120,7 +143,8 @@ class AccountHttpTests(unittest.TestCase):
         self.assertEqual(self.call('/api/auth/me')[0], 401)
         self.assertEqual(self.call('/api/classify', {'model': 'jev-latest'})[0], 401)
         status, _, body = self.call('/login')
-        self.assertEqual(status, 200); self.assertIn(b'auth.js', body)
+        self.assertEqual(status, 200)
+        self.assertIn(b'auth.js', body)
         self.assertEqual(json.loads(self.call('/api/health')[2]), {'app': 'norte', 'pid': os.getpid()})
         self.assertEqual(self.call('/healthz')[2], b'ok')
 
@@ -128,13 +152,17 @@ class AccountHttpTests(unittest.TestCase):
         status, body, session = self.sign('signup', ' Maria.Silva ', 'uma-senha-boa')
         self.assertEqual((status, body['user']), (200, {'username': 'maria.silva', 'role': 'user'}))
         self.assertEqual(self.sign('signup', 'maria.silva', 'uma-senha-boa')[0], 409)
-        for name in ('admin', 'root'): self.assertEqual(self.sign('signup', name, 'uma-senha-boa')[0], 409)
+        for name in ('admin', 'root'):
+            self.assertEqual(self.sign('signup', name, 'uma-senha-boa')[0], 409)
         self.assertEqual(self.sign('signup', 'x', 'uma-senha-boa')[0], 400)
         self.assertEqual(self.sign('signup', 'joana', 'curta')[0], 400)
         self.assertEqual(json.loads(self.call('/api/auth/me', headers=session)[2])['user']['username'], 'maria.silva')
-        status, headers, _ = self.call('/api/auth/login', {'username': 'maria.silva', 'password': 'uma-senha-boa'}, {'X-Forwarded-Proto': 'https'})
+        status, headers, _ = self.call(
+            '/api/auth/login', {'username': 'maria.silva', 'password': 'uma-senha-boa'}, {'X-Forwarded-Proto': 'https'}
+        )
         cookie = headers['Set-Cookie']
-        for flag in ('HttpOnly', 'SameSite=Lax', 'Secure', 'Path=/'): self.assertIn(flag, cookie)
+        for flag in ('HttpOnly', 'SameSite=Lax', 'Secure', 'Path=/'):
+            self.assertIn(flag, cookie)
         self.assertEqual(self.sign('login', 'maria.silva', 'senha-errada')[0], 401)
         self.assertEqual(self.sign('login', 'nao-existe', 'senha-errada')[1]['error'], 'Usuário ou senha incorretos.')
         self.assertEqual(self.call('/login', headers=session)[0], 302)
@@ -150,7 +178,16 @@ class AccountHttpTests(unittest.TestCase):
         _, _, session = self.sign('signup', 'referencia', 'uma-senha-boa')
         status, headers, _ = self.call('/login?' + urlencode({'next': destination + '#simulacao'}), headers=session)
         self.assertEqual((status, headers['Location']), (302, destination + '#simulacao'))
-        for unsafe in ('https://attacker.example/', '//attacker.example/', '/\\attacker.example/', '/api/auth/logout', '/?meeting=bad/id', '/?meeting=abc\nX-Header:bad', '/%2f%2fattacker.example', 'javascript:alert(1)'):
+        for unsafe in (
+            'https://attacker.example/',
+            '//attacker.example/',
+            '/\\attacker.example/',
+            '/api/auth/logout',
+            '/?meeting=bad/id',
+            '/?meeting=abc\nX-Header:bad',
+            '/%2f%2fattacker.example',
+            'javascript:alert(1)',
+        ):
             with self.subTest(unsafe=unsafe):
                 status, headers, _ = self.call('/login?' + urlencode({'next': unsafe}), headers=session)
                 self.assertEqual((status, headers['Location']), (302, '/'))
@@ -169,11 +206,13 @@ class AccountHttpTests(unittest.TestCase):
         for path in ('/meeting-room.js', '/remote-storage.js', '/base.css', '/tokens.css'):
             self.assertEqual(self.call(path, headers=user)[0], 200)
         health = json.loads(self.call('/api/health', headers=user)[2])
-        self.assertTrue(health['ready']); self.assertNotIn('TYPESAFE', health['message'])
+        self.assertTrue(health['ready'])
+        self.assertNotIn('TYPESAFE', health['message'])
 
     def test_login_attempts_are_throttled(self):
         self.sign('signup', 'carla', 'uma-senha-boa')
-        for _ in range(8): self.assertEqual(self.sign('login', 'carla', 'errada-123')[0], 401)
+        for _ in range(8):
+            self.assertEqual(self.sign('login', 'carla', 'errada-123')[0], 401)
         status, body, _ = self.sign('login', 'carla', 'uma-senha-boa')
         self.assertEqual(status, 429)
 
@@ -188,7 +227,9 @@ class AccountHttpTests(unittest.TestCase):
         body = {'username': 'eva', 'password': 'uma-senha-boa'}
         self.assertEqual(self.call('/api/auth/signup', body, {'Origin': 'https://attacker.example'})[0], 403)
         self.assertEqual(self.call('/api/auth/signup', body, {'Host': 'attacker.example'})[0], 403)
-        self.assertEqual(self.call('/api/auth/signup', body, {'Host': 'norte.example', 'Origin': 'https://norte.example'})[0], 200)
+        self.assertEqual(
+            self.call('/api/auth/signup', body, {'Host': 'norte.example', 'Origin': 'https://norte.example'})[0], 200
+        )
 
     def test_meeting_records_round_trip_with_gzip_and_conflicts(self):
         _, _, ana = self.sign('signup', 'ana', 'uma-senha-boa')
@@ -196,40 +237,65 @@ class AccountHttpTests(unittest.TestCase):
         key = 'norte.meeting-room.session.v2.abc'
         snapshot = json.dumps({'id': 'abc', 'meeting_events': ['fala'] * 5000})
         packed = gzip.compress(json.dumps({'key': key, 'value': snapshot}).encode())
-        status, _, body = self.call('/api/records', headers={**ana, 'Content-Encoding': 'gzip'}, raw=packed, method='POST')
+        status, _, body = self.call(
+            '/api/records', headers={**ana, 'Content-Encoding': 'gzip'}, raw=packed, method='POST'
+        )
         self.assertEqual((status, json.loads(body)), (200, {'version': 1}))
-        self.assertEqual(json.loads(self.call('/api/records?key=' + key, headers=ana)[2]), {'value': snapshot, 'version': 1})
-        self.assertEqual(json.loads(self.call('/api/records?key=' + key, headers=bia)[2]), {'value': None, 'version': 0})
+        self.assertEqual(
+            json.loads(self.call('/api/records?key=' + key, headers=ana)[2]), {'value': snapshot, 'version': 1}
+        )
+        self.assertEqual(
+            json.loads(self.call('/api/records?key=' + key, headers=bia)[2]), {'value': None, 'version': 0}
+        )
         status, _, body = self.call('/api/records', {'key': key, 'value': 'novo', 'expected_version': 0}, ana)
-        self.assertEqual(status, 409); self.assertEqual(json.loads(body)['version'], 1)
+        self.assertEqual(status, 409)
+        self.assertEqual(json.loads(body)['version'], 1)
         self.assertEqual(self.call('/api/records', {'key': key, 'value': 'novo', 'expected_version': 1}, ana)[0], 200)
         self.assertEqual(self.call('/api/records', {'key': 'norte.lab.v1', 'value': 'x'}, ana)[0], 400)
         self.assertEqual(self.call('/api/records?key=norte.lab.v1', headers=ana)[0], 400)
         self.assertEqual(self.call('/api/records', {'key': key, 'value': 'x'})[0], 401)
         bomb = gzip.compress(json.dumps({'key': key, 'value': ' ' * (server.MAX_RECORD_REQUEST + 10)}).encode())
-        self.assertEqual(self.call('/api/records', headers={**ana, 'Content-Encoding': 'gzip'}, raw=bomb, method='POST')[0], 413)
+        self.assertEqual(
+            self.call('/api/records', headers={**ana, 'Content-Encoding': 'gzip'}, raw=bomb, method='POST')[0], 413
+        )
 
     def test_each_account_has_its_own_processing_lanes(self):
         _, _, ana = self.sign('signup', 'ana', 'uma-senha-boa')
         _, _, bia = self.sign('signup', 'bia', 'uma-senha-boa')
-        body = {'model': 'jev-latest', 'state': 'Teste', 'questions': {'q': {'type': 'noul', 'instructions': 'Is it a test?'}}}
+        body = {
+            'model': 'jev-latest',
+            'state': 'Teste',
+            'questions': {'q': {'type': 'noul', 'instructions': 'Is it a test?'}},
+        }
         ana_id = self.store.find_user('ana')['id']
         with patch.object(server, 'classify', side_effect=lambda b, settings: {'request': b}):
-            lane = server.lanes_for(ana_id)['classify']; lane.acquire()
+            lane = server.lanes_for(ana_id)['classify']
+            lane.acquire()
             try:
                 self.assertEqual(self.call('/api/classify', body, ana)[0], 429)
                 self.assertEqual(self.call('/api/classify', body, bia)[0], 200)
-            finally: lane.release()
+            finally:
+                lane.release()
 
 
 class SettingsTests(unittest.TestCase):
     def test_render_hostname_and_account_settings(self):
-        settings = config.load_settings('/nonexistent', {'RENDER_EXTERNAL_HOSTNAME': 'norte.onrender.com', 'ALLOWED_HOSTS': 'Norte.com.br, www.norte.com.br',
-                                                         'ADMIN_USERNAME': 'chefe', 'ADMIN_PASSWORD': 'x' * 12, 'DATABASE_URL': 'postgres://u:p@h/db'})
+        settings = config.load_settings(
+            '/nonexistent',
+            {
+                'RENDER_EXTERNAL_HOSTNAME': 'norte.onrender.com',
+                'ALLOWED_HOSTS': 'Norte.com.br, www.norte.com.br',
+                'ADMIN_USERNAME': 'chefe',
+                'ADMIN_PASSWORD': 'x' * 12,
+                'DATABASE_URL': 'postgres://u:p@h/db',
+            },
+        )
         self.assertEqual(settings.allowed_hosts, ('norte.com.br', 'www.norte.com.br', 'norte.onrender.com'))
         self.assertEqual((settings.admin_username, settings.database_url), ('chefe', 'postgres://u:p@h/db'))
-        self.assertNotIn('x' * 12, repr(settings)); self.assertNotIn('u:p@h', repr(settings))
+        self.assertNotIn('x' * 12, repr(settings))
+        self.assertNotIn('u:p@h', repr(settings))
         self.assertEqual(config.load_settings('/nonexistent', {}).admin_username, 'admin')
 
 
-if __name__ == '__main__': unittest.main()
+if __name__ == '__main__':
+    unittest.main()

@@ -9,11 +9,17 @@ from meetings.engine import meeting_bridge as bridge
 class BridgeTests(unittest.TestCase):
     secret = 'private-test-secret-' * 3
 
-    def headers(self, body=b'{}', path='/api/records', actor='account-a', scope='meeting:one', role='user', stamp='1000'):
+    def headers(
+        self, body=b'{}', path='/api/records', actor='account-a', scope='meeting:one', role='user', stamp='1000'
+    ):
         message = '\n'.join(('POST', path, actor, scope, role, stamp, hashlib.sha256(body).hexdigest()))
-        return {'X-Norte-Bridge-User': actor, 'X-Norte-Bridge-Scope': scope,
-                'X-Norte-Bridge-Role': role, 'X-Norte-Bridge-Time': stamp,
-                'X-Norte-Bridge-Signature': hmac.new(self.secret.encode(), message.encode(), hashlib.sha256).hexdigest()}
+        return {
+            'X-Norte-Bridge-User': actor,
+            'X-Norte-Bridge-Scope': scope,
+            'X-Norte-Bridge-Role': role,
+            'X-Norte-Bridge-Time': stamp,
+            'X-Norte-Bridge-Signature': hmac.new(self.secret.encode(), message.encode(), hashlib.sha256).hexdigest(),
+        }
 
     def check(self, headers=None, body=b'{}', path='/api/records', peer='127.0.0.1', now=1000):
         return bridge.verify('POST', path, headers or self.headers(), body, peer, self.secret, now)
@@ -24,9 +30,11 @@ class BridgeTests(unittest.TestCase):
         self.assertIsNone(self.check(path='/api/admin/ai/overview'))
         self.assertIsNone(self.check(peer='192.168.1.1'))
         self.assertIsNone(self.check(now=1061))
-        headers = self.headers(); headers['X-Norte-Bridge-User'] = 'account-b'
+        headers = self.headers()
+        headers['X-Norte-Bridge-User'] = 'account-b'
         self.assertIsNone(self.check(headers))
-        headers = self.headers(); headers['X-Norte-Bridge-Scope'] = 'meeting:two'
+        headers = self.headers()
+        headers['X-Norte-Bridge-Scope'] = 'meeting:two'
         self.assertIsNone(self.check(headers))
 
     def test_meeting_never_grants_admin_and_private_scope_must_match_actor(self):
@@ -49,4 +57,5 @@ class BridgeTests(unittest.TestCase):
             store.close()
 
 
-if __name__ == '__main__': unittest.main()
+if __name__ == '__main__':
+    unittest.main()

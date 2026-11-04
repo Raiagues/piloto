@@ -24,39 +24,36 @@ services:
         value: "1"
       - key: NORTE_PROVIDER
         value: official
-      - key: GEMINI_REQUIREMENTS_MODEL
-        value: gemini-3.5-flash-lite
-      - key: GEMINI_REQUIREMENTS_MAX_OUTPUT_TOKENS
-        value: "6000"
       - key: NORTE_PRIVACY_EMAIL
         value: emillyraianerodrigues@gmail.com
-      - key: GEMINI_MODEL
-        value: gemini-3.8-flash
-      # Standard até 31/12/2026. A partir de 01/01/2027: 1.50 / 7.50.
-      - key: MINUTES_INPUT_USD_PER_MILLION
-        value: "0.75"
-      - key: MINUTES_OUTPUT_USD_PER_MILLION
-        value: "3.75"
+      - key: NORTE_LLM_PROVIDER
+        value: openai
+      - key: NORTE_MEETING_EDITOR_MODEL
+        value: gpt-6-luna
+      - key: NORTE_MEETING_EDITOR_INPUT_USD_PER_MILLION
+        value: "0.10"
+      - key: NORTE_MEETING_EDITOR_OUTPUT_USD_PER_MILLION
+        value: "0.50"
+      - key: NORTE_MINUTES_MODEL
+        value: gpt-6.1-sol
+      - key: NORTE_MINUTES_INPUT_USD_PER_MILLION
+        value: "2.00"
+      - key: NORTE_MINUTES_OUTPUT_USD_PER_MILLION
+        value: "10.00"
+      - key: NORTE_ENGINEERING_MODEL
+        value: gpt-6.1-sol
       - key: MINUTES_DAILY_CALL_LIMIT
         value: "50"
       - key: TYPESAFE_API_KEY
         sync: false
-      - key: GOOGLE_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
       - key: AI_AGENTS_ENABLED
         value: "true"
       - key: AI_EXTERNAL_REVIEW_ENABLED
         value: "true"
-      - key: AI_AGENT_PROVIDER
-        value: gemini
       - key: AI_AUTO_PUBLISH
         value: "true"
-      - key: AI_AGENT_MODEL
-        value: gemini-3.5-flash-lite
-      - key: AI_GEMINI_INPUT_USD_PER_MILLION
-        value: "0.30"
-      - key: AI_GEMINI_OUTPUT_USD_PER_MILLION
-        value: "2.50"
       - key: AI_DAILY_BUDGET_USD
         value: "1.00"
       - key: AI_DAILY_CALL_LIMIT

@@ -27,7 +27,7 @@
   cursor: pointer;
 }
 :is(.project-create, .org-chart-shell) button:disabled {
-  opacity: .45;
+  opacity: 0.45;
   cursor: default;
 }
 .project-create.project-create-simple {
@@ -127,36 +127,36 @@
   color: var(--norte-on-accent);
 }
 
-@media (max-width:1050px) {
-.project-create {
-  padding: 24px;
-}
-}
-
-@media (max-width:900px) {
-.project-area-body {
-  padding: 16px;
-}
+@media (max-width: 1050px) {
+  .project-create {
+    padding: 24px;
+  }
 }
 
-@media (max-width:760px) {
-.project-create {
-  padding: 24px 16px;
-}
-.project-create-footer {
-  position: sticky;
-  bottom: 0;
-  padding: 12px 0;
-  background: var(--norte-surface);
-  flex-wrap: wrap;
-}
+@media (max-width: 900px) {
+  .project-area-body {
+    padding: 16px;
+  }
 }
 
-@media (max-width:600px) {
-.project-create.project-create-simple {
-  padding: 26px 16px;
+@media (max-width: 760px) {
+  .project-create {
+    padding: 24px 16px;
+  }
+  .project-create-footer {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 0;
+    background: var(--norte-surface);
+    flex-wrap: wrap;
+  }
 }
-.project-create-simple .workspace-card {
-  padding: 22px 18px;
-}
+
+@media (max-width: 600px) {
+  .project-create.project-create-simple {
+    padding: 26px 16px;
+  }
+  .project-create-simple .workspace-card {
+    padding: 22px 18px;
+  }
 }

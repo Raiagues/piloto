@@ -1,9 +1,9 @@
-import type { Language } from "./types";
+import type { Language } from './types';
 
-export type AccessRole = "owner_admin" | "captain" | "manager" | "member" | "advisor";
-export type MemberStatus = "demo" | "invited" | "active";
-export type ArtifactKind = "official" | "document" | "repository" | "dataset" | "link";
-export type ArtifactScope = "team" | "project";
+export type AccessRole = 'owner_admin' | 'captain' | 'manager' | 'member' | 'advisor';
+export type MemberStatus = 'demo' | 'invited' | 'active';
+export type ArtifactKind = 'official' | 'document' | 'repository' | 'dataset' | 'link';
+export type ArtifactScope = 'team' | 'project';
 
 export type SessionUser = {
   testEnvironment?: boolean;
@@ -57,15 +57,15 @@ export type TeamRecord = {
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
-  membership?: "member" | "requested" | "available";
+  membership?: 'member' | 'requested' | 'available';
   canManage?: boolean;
   memberCount?: number;
   artifactCount?: number;
   projectCount?: number;
 };
 
-export type ArtifactStatus = "parsed" | "pdf" | "not_parsed" | "metadata_only" | "unknown";
-export type ArtifactSourceRole = "project_context" | "supporting_datasheet";
+export type ArtifactStatus = 'parsed' | 'pdf' | 'not_parsed' | 'metadata_only' | 'unknown';
+export type ArtifactSourceRole = 'project_context' | 'supporting_datasheet';
 
 /** The server's verdict on whether this source can reach engineering extraction. */
 export type ArtifactReadability = {
@@ -101,15 +101,6 @@ export type ConnectedArtifact = {
   updatedAt: string;
 };
 
-export type DirectoryMember = {
-  id: string;
-  displayName: string;
-  institution: string;
-  course: string;
-  avatarUrl?: string;
-  presence: "online" | "recent" | "offline";
-};
-
 export type ProjectSummary = {
   id: string;
   name: string;
@@ -134,27 +125,33 @@ export type TeamProjectSummary = ProjectSummary & {
   participants: TeamProjectParticipant[];
   sectorCount?: number;
   hasSystem?: boolean;
-  organization?: import("../../shared/organization-tree.mjs").OrganizationNode;
+  organization?: import('../../shared/organization-tree.mjs').OrganizationNode;
   public?: boolean;
 };
 
 export function memberInitials(name: string): string {
-  return name.trim().split(/\s+/u).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  return name
+    .trim()
+    .split(/\s+/u)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]?.toUpperCase())
+    .join('');
 }
 
 export function accessRoleLabel(role: AccessRole, language: Language): string {
   const labels: Record<AccessRole, Record<Language, string>> = {
-    owner_admin: { pt: "Proprietário e administrador", en: "Owner and administrator" },
-    captain: { pt: "Capitão", en: "Captain" },
-    manager: { pt: "Gerente", en: "Manager" },
-    member: { pt: "Membro", en: "Member" },
-    advisor: { pt: "Orientador", en: "Advisor" }
+    owner_admin: { pt: 'Proprietário e administrador', en: 'Owner and administrator' },
+    captain: { pt: 'Capitão', en: 'Captain' },
+    manager: { pt: 'Gerente', en: 'Manager' },
+    member: { pt: 'Membro', en: 'Member' },
+    advisor: { pt: 'Orientador', en: 'Advisor' },
   };
   return labels[role][language];
 }
 
 /** A stable accent per person, so avatars keep their colour across every view. */
-export const MEMBER_PALETTE = ["#866344", "#847052", "#777358", "#956958", "#7f7367", "#686556"] as const;
+export const MEMBER_PALETTE = ['#866344', '#847052', '#777358', '#956958', '#7f7367', '#686556'] as const;
 export function memberColor(seed: string): string {
   let hash = 0;
   for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
@@ -163,6 +160,11 @@ export function memberColor(seed: string): string {
 
 /** Project types share one accent across cards, chart and chips. */
 export function projectTypeLabel(type: string | undefined, language: Language): string {
-  const labels: Record<string, [string, string]> = { competition: ["Competição", "Competition"], research: ["Pesquisa", "Research"], product: ["Produto", "Product"], custom: ["Personalizado", "Custom"] };
-  return (labels[type || ""] || ["Projeto", "Project"])[language === "pt" ? 0 : 1];
+  const labels: Record<string, [string, string]> = {
+    competition: ['Competição', 'Competition'],
+    research: ['Pesquisa', 'Research'],
+    product: ['Produto', 'Product'],
+    custom: ['Personalizado', 'Custom'],
+  };
+  return (labels[type || ''] || ['Projeto', 'Project'])[language === 'pt' ? 0 : 1];
 }

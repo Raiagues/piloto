@@ -1,33 +1,49 @@
-# Qualidade
+# Testes: referência
 
-## Suites
+O [README](../README.md#6-testes) explica o que cada suíte protege, como ler as métricas e quais foram os resultados. Este arquivo guarda o que interessa a quem vai mexer no código, ou seja, o que conferir em cada tipo de mudança e como rodar as avaliações que custam dinheiro.
 
-- `npm --prefix norte run typecheck` e `lint`: contratos TypeScript e problemas estáticos.
-- `npm --prefix norte test`: componentes/regras em Vitest e contratos API em Node.
-- `python3 -m unittest discover -s tests -p 'test_*.py'`: validação de entradas, transporte, correções, memória editorial e fronteira assinada.
-- `node --test tests/*.test.cjs`: segmentação, relações, blocos, ata e persistência da sala.
-- `npm --prefix norte run test:visual`: navegador real, instalação temporária, conta comum, tema, rotas e permissões.
-- `npm --prefix norte run test:visual:collaboration`: mensagens com imagens, documentos, filtros e cronograma em desktop/mobile.
-- `npm --prefix norte run test:visual:meetings`: sala, participação, transcrição, atas e persistência usando provedor simulado.
-- `node norte/scripts/visual-meeting-observability.mjs`: mapa administrativo preenchido, memórias, MFA e autorização por reunião, em desktop/mobile.
-- `node tests/browser-meeting-room.cjs`, `browser-meeting-minutes.cjs` e `browser-gemini-minutes.cjs`: sala, ata, PDF e idioma da interface num Chrome real, com provedor simulado.
+## O que conferir em cada mudança
 
-Os testes usam diretórios temporários e mocks declarados. Não removem os dados do usuário e não fazem chamadas pagas por padrão. O PostgreSQL é exercitado pelo adaptador de testes; os casos que exigem servidor PostgreSQL real informam o skip quando não há uma instância descartável configurada.
+| Mudança | O que conferir |
+| --- | --- |
+| Visual | Primeira pintura, celular, teclado e os dois temas |
+| Permissões | Conta sem acesso, convite aceito, acesso revogado e sessão expirada |
+| Escrita com versão | Duas versões concorrentes e rollback |
+| Migração | Cópia completa preservada, backup, integridade e permissões |
+| Prompt ou pergunta do JEV | Testes da sala e uma rodada LYLE para comparar com a anterior |
+| IA | Entrada enviada, fonte citada, trecho apontado, recusa de conteúdo inventado, limite de orçamento e estado obsoleto ao concluir |
+
+Depois das suítes visuais, rode `VITE_BASE_PATH=/ npm --prefix norte run build`, porque elas compilam a interface com outro caminho base e o site local fica em branco.
 
 ## Integração contínua
 
-O workflow `.github/workflows/ci.yml` executa varredura de segredos, auditoria de dependências, tipos, lint, testes Node/Vitest, build e suítes Python/JavaScript da reunião. Os testes visuais com navegador são comandos separados e não fazem parte desse workflow. A validação de uma mudança visual deve registrar também o resultado do smoke correspondente.
+`.github/workflows/ci.yml` procura segredos, audita dependências e roda tipos, lint, testes Node e Vitest, build e as suítes Python e JavaScript da reunião. Os testes com navegador real são comandos separados e ficam fora desse workflow.
 
-## O que verificar por mudança
+## Avaliações com provedor real
 
-Alterações visuais precisam de primeiro carregamento e viewport móvel, incluindo navegação por teclado. Mudanças de permissões precisam de conta sem acesso, convite/aceite, revogação e sessão expirada. Operações versionadas precisam de duas versões concorrentes e rollback. Migrações precisam preservar uma cópia completa e manter ACL.
+Estes comandos usam dados locais de `novo_teste/` e, quando dizem pago, chaves reais. Nenhum deles roda sozinho. Os resultados ficam em `novo_teste/resultados/`, fora do Git.
 
-Para IA, verifique entrada enviada, fonte citada, identificação do trecho, rejeição de conteúdo inventado, limite de orçamento e estado obsoleto ao concluir. Testes de transporte não demonstram precisão. Uma avaliação de qualidade exige falas/requisitos rotulados por especialistas e um conjunto separado dos exemplos usados nas correções.
+| Comando | O que faz | Custo |
+| --- | --- | --- |
+| `python3 tests/lyle/build_answer_key.py` | Lê as 13 marcações do PDF LYLE e gera o gabarito | Grátis |
+| `node tests/lyle/highlights.cjs run --note "o que mudou"` | Roda os alertas nas três reuniões LYLE com o JEV real e guarda uma nova rodada | Cerca de US$ 0,01 |
+| `node tests/lyle/highlights.cjs report` | Refaz o relatório a partir das rodadas salvas | Grátis |
+| `python3 tests/lyle/compare_minutes.py --saved` | Mede as atas já salvas | Grátis |
+| `python3 tests/lyle/compare_minutes.py --live` | Gera atas novas com o provedor configurado e compara | Pago |
+| `python3 scripts/refine_highlight_questions.py --round N` | Pede à LLM ajustes nas perguntas, a partir dos erros da rodada N | Pago |
+| `node scripts/verify-memory-v2.cjs` | Mede retenção, tipo e assunto do JEV em casos rotulados | Pago |
+| `node scripts/verify-typed-relations.cjs` | Mede as relações entre eventos em casos rotulados | Pago |
+| `node tests/live-meeting-simulation.cjs --run-live` | Fala uma reunião longa na sala real, com microfone simulado | Pago |
 
-## Resultados locais
+## Como fazer uma nova rodada de alertas
 
-As evidências desta revisão ficam em `.runtime/validation`, `.runtime/stage2-interface-review` e `.runtime/collaboration-review`. São artefatos locais, não uma suite pública nem uma garantia para outro ambiente. A versão final deve passar novamente depois de qualquer alteração posterior em código, configuração ou dependências.
+1. Mude as perguntas em `prompts/jev/questions.js` e aumente `highlightVersion`.
+2. Rode `node --test tests/*.test.cjs`, que confere o formato das perguntas sem gastar nada.
+3. Rode `node tests/lyle/highlights.cjs run --note "o que mudou e por quê"`.
+4. Abra `novo_teste/resultados/destaques/RELATORIO.md`. Ele mostra a entrada, o esperado, o texto das perguntas, o que mudou em relação à rodada anterior e o resultado de cada alerta.
 
-Na revisão de 24/10/2026 passaram 51 testes frontend, 211 de API, 439 de lógica da sala e 112 Python. Cinco casos que exigem PostgreSQL real ficaram sem execução. Typecheck, lint, build, auditoria npm e varredura de segredos passaram; a auditoria não reportou vulnerabilidades. O container foi compilado e iniciado localmente, com API, página e política de privacidade respondendo. Os smokes de navegador conferiram a conta LYLE, PDFs, colaboração, reuniões e o diagnóstico administrativo preenchido. A validação não incluiu publicação remota nem medição de acurácia dos provedores reais.
+Cada rodada guarda em `rodada-N/` as perguntas usadas (`perguntas.json`) e as notas de cada frase (`resultado.json`), então qualquer número pode ser conferido depois.
 
-Na revisão de 26/10/2026 passaram 54 testes frontend, 226 de API (12 sem PostgreSQL real), 448 de lógica da sala e 124 Python (2 ignorados). Typecheck, lint, build, varredura de segredos e auditoria npm (sem vulnerabilidades) passaram, assim como os smokes visuais de workspace, documentos, colaboração, reuniões e diagnóstico administrativo, e os três testes de navegador da sala e das atas. Esses testes foram atualizados para o fluxo atual: títulos provisórios, tokens atuais, ata como página, filtro e tipo numa só etapa do diagnóstico, pergunta única de assunto e comando perguntado só quando a fala cita o Norte. A avaliação com provedores reais está em `docs/meeting-memory.md`; ela registra contagens e custos, não precisão.
+## Limites
+
+Testes com provedor simulado mostram que o transporte, as validações e a interface funcionam. Eles não medem se o modelo acerta. Uma medida de qualidade exige falas rotuladas por especialistas e um conjunto separado dos exemplos usados nas correções.

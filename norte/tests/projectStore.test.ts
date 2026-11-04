@@ -14,7 +14,28 @@ describe('core project context', () => {
   });
   it('preserves historical source and architecture data while normalizing missing core fields', () => {
     const project = createEmptyProject('pt');
-    const historical = { ...project, context: { ...project.context, sectors: [{ id: 's1', name: 'Telemetria' }], projectArtifactIds: ['document-original'] }, navigation: { lastRoute: 'brainstorm' as const }, memoryRevision: 7, engineeringSystem: { schemaVersion: 1 as const, id: 'original', name: 'Imported', generatedFromRevision: 7, generatedAt: project.createdAt, relations: [], entities: [], requirements: [], evidence: [], artifactSources: [] } };
+    const historical = {
+      ...project,
+      context: {
+        ...project.context,
+        sectors: [{ id: 's1', name: 'Telemetria' }],
+        projectArtifactIds: ['document-original'],
+      },
+      navigation: { lastRoute: 'brainstorm' as const },
+      memoryRevision: 7,
+      engineeringSystem: {
+        schemaVersion: 1 as const,
+        id: 'original',
+        name: 'Imported',
+        generatedFromRevision: 7,
+        generatedAt: project.createdAt,
+        relations: [],
+        entities: [],
+        requirements: [],
+        evidence: [],
+        artifactSources: [],
+      },
+    };
     const result = normalizeProject(historical);
     expect(result.engineeringSystem).toEqual(historical.engineeringSystem);
     expect(result.context.projectArtifactIds).toEqual(['document-original']);
@@ -26,7 +47,10 @@ describe('core project context', () => {
   });
   it('recovers absent context lists without overwriting valid assignments', () => {
     const original = createEmptyProject();
-    const old = { ...original, context: { ...original.context, assignments: [{ memberId: 'real', roleId: 'captain', sectorId: '' }] } };
+    const old = {
+      ...original,
+      context: { ...original.context, assignments: [{ memberId: 'real', roleId: 'captain', sectorId: '' }] },
+    };
     Reflect.deleteProperty(old.context, 'roles');
     Reflect.deleteProperty(old.context, 'sectors');
     const result = normalizeProject(old);

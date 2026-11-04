@@ -1,4 +1,5 @@
 """Bootstrap checks never contact providers or install models."""
+
 import importlib.util
 from pathlib import Path
 import tempfile
@@ -24,11 +25,23 @@ class PrepareToolsTests(unittest.TestCase):
     def test_wrong_checksum_discards_archive_without_extracting_or_running(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            asset = {'node': {'dir': '.runtime/tools/node', 'url': 'https://example.test/node.tar.xz', 'shasums': 'https://example.test/SHASUMS256.txt'}}
+            asset = {
+                'node': {
+                    'dir': '.runtime/tools/node',
+                    'url': 'https://example.test/node.tar.xz',
+                    'shasums': 'https://example.test/SHASUMS256.txt',
+                }
+            }
+
             def download(url, target):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(('0' * 64 + '  node.tar.xz\n').encode() if 'SHASUMS' in url else b'corrupt archive')
-            with patch.object(TOOLS, 'ROOT', root), patch.object(TOOLS, 'ASSETS', asset), patch.object(TOOLS, 'node_version', return_value=None), patch.object(TOOLS.platform, 'system', return_value='Linux'), patch.object(TOOLS.platform, 'machine', return_value='x86_64'), patch.object(TOOLS, 'download', side_effect=download), patch.object(TOOLS.tarfile, 'open') as extract:
+
+            with patch.object(TOOLS, 'ROOT', root), patch.object(TOOLS, 'ASSETS', asset), patch.object(
+                TOOLS, 'node_version', return_value=None
+            ), patch.object(TOOLS.platform, 'system', return_value='Linux'), patch.object(
+                TOOLS.platform, 'machine', return_value='x86_64'
+            ), patch.object(TOOLS, 'download', side_effect=download), patch.object(TOOLS.tarfile, 'open') as extract:
                 with self.assertRaisesRegex(ValueError, 'Checksum'):
                     TOOLS.node_status(True)
                 extract.assert_not_called()

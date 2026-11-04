@@ -1,60 +1,12 @@
-.planning-workspace {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-height: 0;
-  padding-bottom: 12px
-}
-.planning-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: space-between
-}
-.planning-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap
-}
-.planning-toolbar button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px
-}
 .planning-settings button {
   display: inline-flex;
   align-items: center;
-  gap: 7px
-}
-.planning-review-tree button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px
+  gap: 7px;
 }
 .delivery-standards-button {
   display: inline-flex;
   align-items: center;
-  gap: 7px
-}
-.planning-controls .delivery-standards-button span {
-  font-size: 11px;
-  color: var(--norte-text-muted)
-}
-.planning-layout {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  min-width: 0
-}
-.planning-main {
-  min-width: 0;
-  flex: 1
-}
-.planning-layout.with-settings .planning-settings {
-  width: 340px;
-  flex: 0 0 340px
+  gap: 7px;
 }
 .planning-settings {
   background: var(--norte-surface);
@@ -63,23 +15,23 @@
   max-height: calc(100dvh - 215px);
   overflow: auto;
   padding: 16px;
-  color: var(--norte-text)
+  color: var(--norte-text);
 }
-.planning-settings>header {
+.planning-settings > header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px
+  margin-bottom: 14px;
 }
 .planning-settings form {
   display: grid;
-  gap: 13px
+  gap: 13px;
 }
 .planning-settings label {
   display: grid;
   gap: 5px;
   font-size: 11px;
-  color: var(--norte-text-secondary)
+  color: var(--norte-text-secondary);
 }
 .planning-settings input {
   width: 100%;
@@ -87,9 +39,9 @@
   background: var(--norte-surface-muted);
   color: var(--norte-text);
   border: 1px solid transparent;
-  border-radius:var(--norte-radius);
+  border-radius: var(--norte-radius);
   padding: 8px;
-  font: inherit
+  font: inherit;
 }
 .planning-settings select {
   width: 100%;
@@ -97,14 +49,14 @@
   background: var(--norte-surface-muted);
   color: var(--norte-text);
   border: 1px solid transparent;
-  border-radius:var(--norte-radius);
+  border-radius: var(--norte-radius);
   padding: 8px;
-  font: inherit
+  font: inherit;
 }
 .planning-settings small {
   font-size: 11px;
   line-height: 1.45;
-  color: var(--norte-text-muted)
+  color: var(--norte-text-muted);
 }
 .planning-settings footer {
   display: flex;
@@ -114,243 +66,121 @@
   bottom: -16px;
   background: var(--norte-surface);
   padding: 12px 0;
-  margin-top: 4px
-}
-.planning-marker {
-  position: absolute;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 0 4px;
-  min-height: 28px;
-  background: transparent;
-  color: var(--norte-text);
-  touch-action: none;
-  cursor: grab;
-  white-space: nowrap;
-  z-index: 1;
-  max-width: 100px
-}
-.planning-marker:active {
-  cursor: grabbing
-}
-.planning-marker span {
-  font-size: 10px;
-  line-height: 13px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis
-}
-.planning-marker i {
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 8px solid var(--norte-accent);
-  margin-top: 1px
-}
-.planning-marker.done i {
-  border-top-color: var(--norte-success)
-}
-.planning-marker.blocked i {
-  border-top-color: var(--norte-danger)
-}
-.planning-marker.activity span {
-  display: none
-}
-.planning-marker.activity i {
-  width: 7px;
-  height: 12px;
-  background: var(--norte-accent);
-  border: 0
-}
-.planning-marker em {
-  position: absolute;
-  bottom: 30px;
-  padding: 4px;
-  background: var(--norte-surface-raised);
-  border: 1px solid transparent;
-  font-size: 11px;
-  font-style: normal;
-  box-shadow: 0 2px 12px var(--norte-shadow)
-}
-.planning-review-tree {
-  display: grid;
-  gap: 7px
-}
-.planning-review-tree>article {
-  background: var(--norte-surface);
-  border: 1px solid transparent;
-  border-radius: var(--norte-radius-panel);
-  overflow: hidden
-}
-.planning-review-tree>article>header {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px
+  margin-top: 4px;
 }
 .delivery-standards-button b {
   background: var(--norte-accent);
   color: var(--norte-on-accent);
-  border-radius:var(--norte-radius);
+  border-radius: var(--norte-radius);
   padding: 1px 4px;
-  font-size: 10px
+  font-size: 10px;
 }
 .standards-configuration {
-  padding: 0 22px 22px
+  padding: 0 22px 22px;
 }
 .standards-configuration form {
-  padding: 0
+  padding: 0;
 }
 .standards-options {
   max-height: 340px;
   overflow: auto;
   border-top: 1px solid var(--norte-divider);
-  margin: 10px 0
+  margin: 10px 0;
 }
-.standards-options>div {
+.standards-options > div {
   display: flex;
   align-items: center;
   gap: 8px;
   border-bottom: 1px solid var(--norte-divider);
-  padding: 10px 2px
+  padding: 10px 2px;
 }
 .standards-options label {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 1;
-  margin: 0
+  margin: 0;
 }
 .standards-options label input {
-  width: auto
+  width: auto;
 }
 .standards-options label span {
   display: grid;
-  gap: 3px
+  gap: 3px;
 }
 .standards-options label strong {
   font-weight: 500;
-  font-size: 12px
+  font-size: 12px;
 }
 .standards-options small {
   font-size: 10px;
-  color: var(--norte-text-muted)
+  color: var(--norte-text-muted);
 }
 .standards-options a {
-  padding: 4px 8px
+  padding: 4px 8px;
 }
 .standards-proposals {
-  margin-top: 18px
+  margin-top: 18px;
 }
-.standards-proposals>article {
+.standards-proposals > article {
   border-top: 1px solid var(--norte-divider);
   padding: 12px 0;
   display: grid;
   gap: 8px;
-  font-size: 12px
+  font-size: 12px;
 }
 .standards-proposals header {
   display: flex;
   justify-content: space-between;
-  gap: 10px
+  gap: 10px;
 }
 .standards-proposals dl {
   display: grid;
   grid-template-columns: 65px 1fr;
   gap: 5px;
-  font-size: 11px
+  font-size: 11px;
 }
 .standards-proposals dd {
-  margin: 0
+  margin: 0;
 }
 .standards-proposals textarea {
   width: 100%;
   background: var(--norte-surface-muted);
   color: var(--norte-text);
-  border: 1px solid transparent
+  border: 1px solid transparent;
 }
 .delivery-dialog .planning-settings {
   max-height: none;
   border: 0;
-  width: 100%
+  width: 100%;
 }
-.delivery-dialog .planning-settings>header {
-  display: none
+.delivery-dialog .planning-settings > header {
+  display: none;
 }
 .delivery-dialog .planning-settings form {
-  padding: 0
-}
-.planning-workspace .planning-toolbar {
-  margin: 0
-}
-.planning-workspace .planning-marker {
-  border: 0;
-  gap: 1px
+  padding: 0;
 }
 
-@media (max-width:1050px) {
-.planning-layout.with-settings {
-  flex-direction: column-reverse
-}
-.planning-layout.with-settings .planning-settings {
-  width: 100%;
-  flex: auto;
-  max-height: 390px
-}
-.planning-main {
-  width: 100%
-}
-.planning-settings form {
-  grid-template-columns: 1fr 1fr
-}
-.planning-settings small {
-  grid-column: 1/-1
-}
-.planning-settings footer {
-  grid-column: 1/-1
-}
-.planning-settings details {
-  grid-column: 1/-1
-}
+@media (max-width: 1050px) {
+  .planning-settings form {
+    grid-template-columns: 1fr 1fr;
+  }
+  .planning-settings small {
+    grid-column: 1/-1;
+  }
+  .planning-settings footer {
+    grid-column: 1/-1;
+  }
+  .planning-settings details {
+    grid-column: 1/-1;
+  }
 }
 
-@media (max-width:600px) {
-.planning-toolbar {
-  gap: 12px
-}
-.planning-controls {
-  gap: 5px
-}
-.planning-controls button {
-  font-size: 10px;
-  padding: 7px
-}
-.planning-marker span {
-  font-size: 8px
-}
-.planning-marker {
-  max-width: 60px
-}
-.planning-marker i {
-  border-left-width: 4px;
-  border-right-width: 4px
-}
-.planning-review-tree>article>header {
-  gap: 6px;
-  padding: 9px 7px;
-  flex-wrap: wrap
-}
-.planning-review-tree .delivery-badge {
-  font-size: 9px
-}
-.planning-settings form {
-  grid-template-columns: 1fr
-}
-.standards-configuration {
-  padding: 0 14px 14px
-}
+@media (max-width: 600px) {
+  .planning-settings form {
+    grid-template-columns: 1fr;
+  }
+  .standards-configuration {
+    padding: 0 14px 14px;
+  }
 }

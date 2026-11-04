@@ -3,6 +3,7 @@
 The browser never receives the signing secret. Storage belongs to a signed scope,
 not to a user id supplied in a request body. Node enforces membership and CSRF.
 """
+
 import hashlib
 import hmac
 import ipaddress
@@ -59,5 +60,10 @@ def storage_user(store, identity):
             user = store.find_user(name)
             if user is None:
                 raise
-    return {'id': user['id'], 'username': name, 'role': identity['role'],
-            'bridge_actor': identity['actor'], 'bridge_scope': identity['scope']}
+    return {
+        'id': user['id'],
+        'username': name,
+        'role': identity['role'],
+        'bridge_actor': identity['actor'],
+        'bridge_scope': identity['scope'],
+    }

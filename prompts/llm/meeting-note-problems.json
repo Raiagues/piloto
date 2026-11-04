@@ -1,0 +1,12 @@
+{
+  "missing": "O item não voltou na resposta.",
+  "longer": "A nota ficou maior que a fala original.",
+  "numbers": "Use exatamente os números do original, escritos do mesmo jeito (algarismo continua algarismo, palavra continua palavra).",
+  "negation": "Mantenha as mesmas negações do original (não, nunca, sem, nem).",
+  "units": "Mantenha unidades e identificadores exatamente como no original.",
+  "symbols": "Mantenha os símbolos % e ° do original.",
+  "doubt": "Mantenha a possibilidade ou condição do original (pode, talvez, se, caso) sem acrescentar outra.",
+  "points": "Use de 1 a 3 tópicos, até 180 caracteres cada e 480 no total.",
+  "title": "O título deve ter de 1 a 90 caracteres.",
+  "label": "Não comece pela classificação (Decisão:, Requisito:…): o tipo já aparece no bloco e pode estar errado."
+}

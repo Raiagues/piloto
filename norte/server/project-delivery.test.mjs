@@ -8,183 +8,620 @@ import { createValidationProject } from './test-support/project.mjs';
 
 async function fixture(t, systemAi = { apiKey: '' }) {
   const dir = await mkdtemp(join(tmpdir(), 'norte-delivery-'));
-  let app = await buildApp({ logger: false, storeFile: join(dir, 'data.json'), demoAccount: false, ai: { apiKey: '' }, systemAi });
-  t.after(async () => { await app.close(); await rm(dir, { recursive: true, force: true }); });
+  let app = await buildApp({
+    logger: false,
+    storeFile: join(dir, 'data.json'),
+    demoAccount: false,
+    ai: { apiKey: '' },
+    systemAi,
+  });
+  t.after(async () => {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  });
   let n = 0;
-  const register = async name => { n++; const response = await app.inject({ method: 'POST', url: '/api/auth/register', remoteAddress: `127.0.0.${n}`, payload: { name, nickname: name.toLowerCase(), email: `${name.toLowerCase()}@example.test`, password: `local-test-password-${name}-long` } }); assert.equal(response.statusCode, 201, response.body); return { ...response.json().user, headers: { cookie: [response.headers['set-cookie']].flat().map(v => v.split(';')[0]).join('; '), 'x-csrf-token': response.json().csrfToken } }; };
-  const globalAdmin = await register('GlobalAdmin'), captain = await register('Captain'), reviewer = await register('Reviewer'), member = await register('Member'), outsider = await register('Outsider');
-  const req = (actor, method, path, payload) => app.inject({ method, url: '/api' + path, headers: actor.headers, ...(payload !== undefined ? { payload } : {}) });
-  const teamResponse = await req(captain, 'POST', '/teams', { name: 'Engineering delivery team' }); assert.equal(teamResponse.statusCode, 201, teamResponse.body); const team = teamResponse.json().team;
-  await app.missionStore.update(data => { const t = data.teams.find(v => v.id === team.id); t.memberIds.push(reviewer.memberId, member.memberId); });
-  const p = createValidationProject(); p.id = 'delivery-fixture'; p.name = 'Delivery fixture'; p.context.teamId = team.id; p.context.teamName = team.name; p.context.sectors = [{ id: 'avionics', name: 'Avionics' }, { id: 'structure', name: 'Structures' }]; p.context.assignments = [{ memberId: captain.memberId, roleId: 'captain', sectorId: '' }, { memberId: reviewer.memberId, roleId: 'member', sectorId: 'avionics' }, { memberId: member.memberId, roleId: 'member', sectorId: 'structure' }];
-  const created = await req(captain, 'POST', '/projects', p); assert.equal(created.statusCode, 201, created.body);
+  const register = async name => {
+    n++;
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      remoteAddress: `127.0.0.${n}`,
+      payload: {
+        name,
+        nickname: name.toLowerCase(),
+        email: `${name.toLowerCase()}@example.test`,
+        password: `local-test-password-${name}-long`,
+      },
+    });
+    assert.equal(response.statusCode, 201, response.body);
+    return {
+      ...response.json().user,
+      headers: {
+        cookie: [response.headers['set-cookie']]
+          .flat()
+          .map(v => v.split(';')[0])
+          .join('; '),
+        'x-csrf-token': response.json().csrfToken,
+      },
+    };
+  };
+  const globalAdmin = await register('GlobalAdmin'),
+    captain = await register('Captain'),
+    reviewer = await register('Reviewer'),
+    member = await register('Member'),
+    outsider = await register('Outsider');
+  const req = (actor, method, path, payload) =>
+    app.inject({ method, url: '/api' + path, headers: actor.headers, ...(payload !== undefined ? { payload } : {}) });
+  const teamResponse = await req(captain, 'POST', '/teams', { name: 'Engineering delivery team' });
+  assert.equal(teamResponse.statusCode, 201, teamResponse.body);
+  const team = teamResponse.json().team;
+  await app.missionStore.update(data => {
+    const t = data.teams.find(v => v.id === team.id);
+    t.memberIds.push(reviewer.memberId, member.memberId);
+  });
+  const p = createValidationProject();
+  p.id = 'delivery-fixture';
+  p.name = 'Delivery fixture';
+  p.context.teamId = team.id;
+  p.context.teamName = team.name;
+  p.context.sectors = [
+    { id: 'avionics', name: 'Avionics' },
+    { id: 'structure', name: 'Structures' },
+  ];
+  p.context.assignments = [
+    { memberId: captain.memberId, roleId: 'captain', sectorId: '' },
+    { memberId: reviewer.memberId, roleId: 'member', sectorId: 'avionics' },
+    { memberId: member.memberId, roleId: 'member', sectorId: 'structure' },
+  ];
+  const created = await req(captain, 'POST', '/projects', p);
+  assert.equal(created.statusCode, 201, created.body);
   const route = `/projects/${p.id}/delivery`;
-  const read = async (actor = captain) => { const r = await req(actor, 'GET', route); assert.equal(r.statusCode, 200, r.body); return r.json(); };
-  const action = async (actor, action, payload = {}, expected = null) => { const state = expected || await read(actor); return req(actor, 'POST', `${route}/actions`, { action, ...payload, expectedRevision: state.revision, expectedBaselineHash: state.baselineHash }); };
-  const saveReq = async (actor = captain, item = {}, id) => { const response = await action(actor, 'requirement.save', { ...(id ? { id } : {}), item: { title: 'Power requirement', statement: 'The payload shall consume at most 2 W.', sectorId: 'avionics', method: 'analysis', entityIds: [], sourceRefs: [], artifactIds: [], parentIds: [], ...item } }); assert.equal(response.statusCode, 200, response.body); return response.json().requirements.find(r => id ? r.id === id : r.title === (item.title || 'Power requirement')); };
-  return { get app() { return app; }, req, read, action, saveReq, route, projectId: p.id, captain, reviewer, member, outsider, globalAdmin, restart: async (options = {}) => { await app.close(); app = await buildApp({ ...options, logger: false, storeFile: join(dir, 'data.json'), ai: { apiKey: '' }, systemAi }); } };
+  const read = async (actor = captain) => {
+    const r = await req(actor, 'GET', route);
+    assert.equal(r.statusCode, 200, r.body);
+    return r.json();
+  };
+  const action = async (actor, action, payload = {}, expected = null) => {
+    const state = expected || (await read(actor));
+    return req(actor, 'POST', `${route}/actions`, {
+      action,
+      ...payload,
+      expectedRevision: state.revision,
+      expectedBaselineHash: state.baselineHash,
+    });
+  };
+  const saveReq = async (actor = captain, item = {}, id) => {
+    const response = await action(actor, 'requirement.save', {
+      ...(id ? { id } : {}),
+      item: {
+        title: 'Power requirement',
+        statement: 'The payload shall consume at most 2 W.',
+        sectorId: 'avionics',
+        method: 'analysis',
+        entityIds: [],
+        sourceRefs: [],
+        artifactIds: [],
+        parentIds: [],
+        ...item,
+      },
+    });
+    assert.equal(response.statusCode, 200, response.body);
+    return response.json().requirements.find(r => (id ? r.id === id : r.title === (item.title || 'Power requirement')));
+  };
+  return {
+    get app() {
+      return app;
+    },
+    req,
+    read,
+    action,
+    saveReq,
+    route,
+    projectId: p.id,
+    captain,
+    reviewer,
+    member,
+    outsider,
+    globalAdmin,
+    restart: async (options = {}) => {
+      await app.close();
+      app = await buildApp({
+        ...options,
+        logger: false,
+        storeFile: join(dir, 'data.json'),
+        ai: { apiKey: '' },
+        systemAi,
+      });
+    },
+  };
 }
 
 test('delivery is project scoped, CSRF protected, sector limited and persists across restart', async t => {
   const f = await fixture(t);
   for (const actor of [f.globalAdmin, f.outsider]) assert.equal((await f.req(actor, 'GET', f.route)).statusCode, 404);
   const state = await f.read();
-  const noCsrf = await f.app.inject({ method: 'POST', url: `/api${f.route}/actions`, headers: { cookie: f.captain.headers.cookie }, payload: { action: 'standards.set', standards: [], expectedRevision: state.revision, expectedBaselineHash: state.baselineHash } }); assert.equal(noCsrf.statusCode, 403);
+  const noCsrf = await f.app.inject({
+    method: 'POST',
+    url: `/api${f.route}/actions`,
+    headers: { cookie: f.captain.headers.cookie },
+    payload: {
+      action: 'standards.set',
+      standards: [],
+      expectedRevision: state.revision,
+      expectedBaselineHash: state.baselineHash,
+    },
+  });
+  assert.equal(noCsrf.statusCode, 403);
   const r = await f.saveReq();
   assert.equal((await f.action(f.member, 'requirement.archive', { id: r.id })).statusCode, 403);
-  assert.equal((await f.action(f.reviewer, 'requirement.save', { id: r.id, item: { ...r, statement: 'The payload shall consume at most 3 W.' } })).statusCode, 200);
-  assert.equal((await f.action(f.reviewer, 'requirement.save', { id: r.id, item: { ...r, sectorId: 'structure' } })).statusCode, 403);
+  assert.equal(
+    (
+      await f.action(f.reviewer, 'requirement.save', {
+        id: r.id,
+        item: { ...r, statement: 'The payload shall consume at most 3 W.' },
+      })
+    ).statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.action(f.reviewer, 'requirement.save', { id: r.id, item: { ...r, sectorId: 'structure' } })).statusCode,
+    403,
+  );
   assert.equal((await f.action(f.captain, 'standards.set', { standards: [] })).statusCode, 200);
-  const before = await f.read(); await f.restart(); const after = await f.read(); assert.deepEqual(after.requirements, before.requirements); assert.deepEqual(after.history, before.history);
+  const before = await f.read();
+  await f.restart();
+  const after = await f.read();
+  assert.deepEqual(after.requirements, before.requirements);
+  assert.deepEqual(after.history, before.history);
 });
 
 test('versions require independent reviewers, reject outsiders and invalidate approval after edits', async t => {
-  const f = await fixture(t), r = await f.saveReq();
-  assert.equal((await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.captain.id] })).statusCode, 400);
-  assert.equal((await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.outsider.id] })).statusCode, 400);
-  let response = await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.reviewer.id] }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().requirements[0].status, 'in_review');
+  const f = await fixture(t),
+    r = await f.saveReq();
+  assert.equal(
+    (await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.captain.id] })).statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.outsider.id] })).statusCode,
+    400,
+  );
+  let response = await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.reviewer.id] });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().requirements[0].status, 'in_review');
   assert.equal((await f.action(f.member, 'requirement.review', { id: r.id, decision: 'approve' })).statusCode, 403);
-  response = await f.action(f.reviewer, 'requirement.review', { id: r.id, decision: 'approve', comment: 'Measured criterion is clear.' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().requirements[0].status, 'approved');
-  const updated = await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id); assert.equal(updated.version, 2); assert.equal(updated.status, 'draft');
-  response = await f.action(f.reviewer, 'requirement.comment', { id: r.id, comment: 'Please verify the new bound.' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().requirements[0].comments.length, 1);
+  response = await f.action(f.reviewer, 'requirement.review', {
+    id: r.id,
+    decision: 'approve',
+    comment: 'Measured criterion is clear.',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().requirements[0].status, 'approved');
+  const updated = await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id);
+  assert.equal(updated.version, 2);
+  assert.equal(updated.status, 'draft');
+  response = await f.action(f.reviewer, 'requirement.comment', { id: r.id, comment: 'Please verify the new bound.' });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().requirements[0].comments.length, 1);
   assert.equal(response.json().history.filter(h => h.action === 'requirement.save').length, 2);
 });
 
 test('CAS rejects stale tabs and source changes; extracted IDs remain unique and source change resets review', async t => {
   const f = await fixture(t);
-  await f.app.missionStore.update(data => { data.workspace.projects[f.projectId].document.engineeringSystem = { schemaVersion: 1, id: 'system', name: 'Fixture', generatedAt: '2026-01-01', generatedFromRevision: 1, entities: [], relations: [], evidence: [], artifactSources: [], requirements: [{ id: 'EXT-1', title: 'Extracted', statement: 'Measured bound 2 W', subsystemTags: [], reviewTags: [], status: 'unreviewed', sourceRefs: [], relatedEntityIds: [], relatedRelationIds: [], properties: [] }] }; });
-  const first = await f.read(); assert.equal(first.requirements[0].method, 'unspecified');
-  await f.saveReq(f.captain, { title: 'Corrected extraction', statement: 'Measured bound 3 W' }, 'EXT-1'); assert.equal((await f.read()).requirements.length, 1);
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem = {
+      schemaVersion: 1,
+      id: 'system',
+      name: 'Fixture',
+      generatedAt: '2026-01-01',
+      generatedFromRevision: 1,
+      entities: [],
+      relations: [],
+      evidence: [],
+      artifactSources: [],
+      requirements: [
+        {
+          id: 'EXT-1',
+          title: 'Extracted',
+          statement: 'Measured bound 2 W',
+          subsystemTags: [],
+          reviewTags: [],
+          status: 'unreviewed',
+          sourceRefs: [],
+          relatedEntityIds: [],
+          relatedRelationIds: [],
+          properties: [],
+        },
+      ],
+    };
+  });
+  const first = await f.read();
+  assert.equal(first.requirements[0].method, 'unspecified');
+  await f.saveReq(f.captain, { title: 'Corrected extraction', statement: 'Measured bound 3 W' }, 'EXT-1');
+  assert.equal((await f.read()).requirements.length, 1);
   assert.equal((await f.action(f.captain, 'standards.set', { standards: [] }, first)).statusCode, 409);
-  await f.action(f.captain, 'requirement.request_review', { id: 'EXT-1', reviewers: [f.reviewer.id] }); await f.action(f.reviewer, 'requirement.review', { id: 'EXT-1', decision: 'approve' });
-  const approved = await f.read(); assert.equal(approved.requirements[0].status, 'approved');
-  await f.app.missionStore.update(data => { data.workspace.projects[f.projectId].document.engineeringSystem.requirements[0].statement = 'Changed source 4 W'; });
+  await f.action(f.captain, 'requirement.request_review', { id: 'EXT-1', reviewers: [f.reviewer.id] });
+  await f.action(f.reviewer, 'requirement.review', { id: 'EXT-1', decision: 'approve' });
+  const approved = await f.read();
+  assert.equal(approved.requirements[0].status, 'approved');
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem.requirements[0].statement = 'Changed source 4 W';
+  });
   assert.equal((await f.action(f.captain, 'standards.set', { standards: [] }, approved)).statusCode, 409);
-  const changed = await f.read(); assert.equal(changed.requirements.length, 1); assert.equal(changed.requirements[0].status, 'draft'); assert.equal(changed.requirements[0].sourceChanged, true); assert.equal(changed.requirements[0].statement, 'Measured bound 3 W');
+  const changed = await f.read();
+  assert.equal(changed.requirements.length, 1);
+  assert.equal(changed.requirements[0].status, 'draft');
+  assert.equal(changed.requirements[0].sourceChanged, true);
+  assert.equal(changed.requirements[0].statement, 'Measured bound 3 W');
 });
 
 test('verification requires evidence, records immutable runs and invalidates stale results', async t => {
-  const f = await fixture(t), r = await f.saveReq();
-  const plan = { title: 'Power analysis', method: 'analysis', procedure: 'Measure current and voltage.', acceptanceCriteria: 'P <= 2 W', requirementIds: [r.id], sectorId: 'avionics', ownerId: f.reviewer.id };
-  let response = await f.action(f.captain, 'test.save', { item: plan }); assert.equal(response.statusCode, 200, response.body); const id = response.json().tests[0].id;
-  assert.equal((await f.action(f.captain, 'test.result', { id, item: { outcome: 'passed', result: '1.8 W', artifactIds: [] } })).statusCode, 400);
-  assert.equal((await f.action(f.captain, 'test.result', { id, item: { outcome: 'passed', result: '1.8 W', evidenceUrl: 'javascript:alert(1)' } })).statusCode, 400);
-  response = await f.action(f.reviewer, 'test.result', { id, item: { outcome: 'passed', result: '1.8 W ± 0.02 W', evidenceUrl: 'https://example.test/report.pdf' } }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().tests[0].status, 'passed'); assert.equal(response.json().requirements[0].verificationStatus, 'passed');
-  await f.action(f.reviewer, 'requirement.comment', { id: r.id, comment: 'Results discussed.' }); assert.equal((await f.read()).tests[0].status, 'passed', 'comments do not invalidate measured results');
-  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id); const changed = await f.read(); assert.equal(changed.tests[0].status, 'stale'); assert.equal(changed.tests[0].runs.length, 1); assert.equal(changed.requirements[0].verificationStatus, 'pending');
+  const f = await fixture(t),
+    r = await f.saveReq();
+  const plan = {
+    title: 'Power analysis',
+    method: 'analysis',
+    procedure: 'Measure current and voltage.',
+    acceptanceCriteria: 'P <= 2 W',
+    requirementIds: [r.id],
+    sectorId: 'avionics',
+    ownerId: f.reviewer.id,
+  };
+  let response = await f.action(f.captain, 'test.save', { item: plan });
+  assert.equal(response.statusCode, 200, response.body);
+  const id = response.json().tests[0].id;
+  assert.equal(
+    (await f.action(f.captain, 'test.result', { id, item: { outcome: 'passed', result: '1.8 W', artifactIds: [] } }))
+      .statusCode,
+    400,
+  );
+  assert.equal(
+    (
+      await f.action(f.captain, 'test.result', {
+        id,
+        item: { outcome: 'passed', result: '1.8 W', evidenceUrl: 'javascript:alert(1)' },
+      })
+    ).statusCode,
+    400,
+  );
+  response = await f.action(f.reviewer, 'test.result', {
+    id,
+    item: { outcome: 'passed', result: '1.8 W ± 0.02 W', evidenceUrl: 'https://example.test/report.pdf' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tests[0].status, 'passed');
+  assert.equal(response.json().requirements[0].verificationStatus, 'passed');
+  await f.action(f.reviewer, 'requirement.comment', { id: r.id, comment: 'Results discussed.' });
+  assert.equal((await f.read()).tests[0].status, 'passed', 'comments do not invalidate measured results');
+  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id);
+  const changed = await f.read();
+  assert.equal(changed.tests[0].status, 'stale');
+  assert.equal(changed.tests[0].runs.length, 1);
+  assert.equal(changed.requirements[0].verificationStatus, 'pending');
 });
 
 test('all linked verifications must pass; another sector cannot manufacture passing coverage', async t => {
-  const f = await fixture(t), r = await f.saveReq();
-  const item = { title: 'Power analysis', method: 'analysis', procedure: 'Measure', acceptanceCriteria: '2 W', requirementIds: [r.id], sectorId: 'avionics' };
+  const f = await fixture(t),
+    r = await f.saveReq();
+  const item = {
+    title: 'Power analysis',
+    method: 'analysis',
+    procedure: 'Measure',
+    acceptanceCriteria: '2 W',
+    requirementIds: [r.id],
+    sectorId: 'avionics',
+  };
   assert.equal((await f.action(f.member, 'test.save', { item: { ...item, sectorId: 'structure' } })).statusCode, 403);
-  let response = await f.action(f.captain, 'test.save', { item }); const id = response.json().tests[0].id;
-  await f.action(f.captain, 'test.result', { id, item: { outcome: 'passed', result: '1 W', evidenceUrl: 'https://example.test/report' } });
-  response = await f.action(f.captain, 'test.save', { item: { ...item, title: 'Independent verification' } }); assert.equal(response.json().requirements[0].verificationStatus, 'pending');
+  let response = await f.action(f.captain, 'test.save', { item });
+  const id = response.json().tests[0].id;
+  await f.action(f.captain, 'test.result', {
+    id,
+    item: { outcome: 'passed', result: '1 W', evidenceUrl: 'https://example.test/report' },
+  });
+  response = await f.action(f.captain, 'test.save', { item: { ...item, title: 'Independent verification' } });
+  assert.equal(response.json().requirements[0].verificationStatus, 'pending');
 });
 
 test('schedule rejects cycles, invalid dates and premature completion, preserves manual dates and archived history', async t => {
   const f = await fixture(t);
-  let response = await f.action(f.captain, 'task.save', { item: { title: 'Define interfaces', startDate: '2026-02-30' } }); assert.equal(response.statusCode, 400);
-  response = await f.action(f.captain, 'task.save', { item: { title: 'Define interfaces', startDate: '2026-01-01', dueDate: '2026-01-10' } }); assert.equal(response.statusCode, 200, response.body); const a = response.json().tasks[0];
-  response = await f.action(f.captain, 'task.save', { item: { title: 'Build harness', dependencyIds: [a.id], startDate: '2026-01-05', dueDate: '2026-01-15' } }); assert.equal(response.statusCode, 200, response.body); const b = response.json().tasks.find(row => row.id !== a.id); assert.deepEqual(b.dateConflicts, [a.id]);
-  assert.equal((await f.action(f.captain, 'task.save', { id: a.id, item: { ...a, dependencyIds: [b.id] } })).statusCode, 400);
+  let response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Define interfaces', startDate: '2026-02-30' },
+  });
+  assert.equal(response.statusCode, 400);
+  response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Define interfaces', startDate: '2026-01-01', dueDate: '2026-01-10' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const a = response.json().tasks[0];
+  response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Build harness', dependencyIds: [a.id], startDate: '2026-01-05', dueDate: '2026-01-15' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const b = response.json().tasks.find(row => row.id !== a.id);
+  assert.deepEqual(b.dateConflicts, [a.id]);
+  assert.equal(
+    (await f.action(f.captain, 'task.save', { id: a.id, item: { ...a, dependencyIds: [b.id] } })).statusCode,
+    400,
+  );
   assert.equal((await f.action(f.captain, 'task.save', { id: b.id, item: { ...b, status: 'done' } })).statusCode, 409);
   assert.equal((await f.action(f.captain, 'task.archive', { id: a.id })).statusCode, 409);
-  assert.equal((await f.action(f.captain, 'schedule.template', { profile: 'nasa', startDate: '2026-01-01' })).statusCode, 409);
-  await f.action(f.captain, 'task.save', { id: a.id, item: { ...a, status: 'done' } }); response = await f.action(f.captain, 'task.save', { id: b.id, item: { ...b, status: 'done' } }); assert.equal(response.statusCode, 200, response.body);
-  await f.action(f.captain, 'task.archive', { id: b.id }); await f.action(f.captain, 'task.archive', { id: a.id }); response = await f.action(f.captain, 'schedule.template', { profile: 'custom', startDate: '2026-05-01' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().tasks.length, 4); assert.equal(response.json().standards.length, 0);
+  assert.equal(
+    (await f.action(f.captain, 'schedule.template', { profile: 'nasa', startDate: '2026-01-01' })).statusCode,
+    409,
+  );
+  await f.action(f.captain, 'task.save', { id: a.id, item: { ...a, status: 'done' } });
+  response = await f.action(f.captain, 'task.save', { id: b.id, item: { ...b, status: 'done' } });
+  assert.equal(response.statusCode, 200, response.body);
+  await f.action(f.captain, 'task.archive', { id: b.id });
+  await f.action(f.captain, 'task.archive', { id: a.id });
+  response = await f.action(f.captain, 'schedule.template', { profile: 'custom', startDate: '2026-05-01' });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks.length, 4);
+  assert.equal(response.json().standards.length, 0);
 });
 
 test('requirement derivations reject cycles and archive keeps audit rather than deleting evidence', async t => {
-  const f = await fixture(t), a = await f.saveReq(), b = await f.saveReq(f.captain, { title: 'Derived requirement', parentIds: [a.id] });
-  assert.equal((await f.action(f.captain, 'requirement.save', { id: a.id, item: { ...a, parentIds: [b.id] } })).statusCode, 400);
+  const f = await fixture(t),
+    a = await f.saveReq(),
+    b = await f.saveReq(f.captain, { title: 'Derived requirement', parentIds: [a.id] });
+  assert.equal(
+    (await f.action(f.captain, 'requirement.save', { id: a.id, item: { ...a, parentIds: [b.id] } })).statusCode,
+    400,
+  );
   assert.equal((await f.action(f.captain, 'requirement.archive', { id: a.id })).statusCode, 409);
-  await f.action(f.captain, 'requirement.archive', { id: b.id }); const response = await f.action(f.captain, 'requirement.archive', { id: a.id }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().requirements.length, 2); assert.ok(response.json().requirements.every(r => r.archived));
+  await f.action(f.captain, 'requirement.archive', { id: b.id });
+  const response = await f.action(f.captain, 'requirement.archive', { id: a.id });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().requirements.length, 2);
+  assert.ok(response.json().requirements.every(r => r.archived));
 });
 
 test('the 29 source references are optional, individually selectable and never synthesize requirements', async t => {
-  const f = await fixture(t), before = await f.read();
-  assert.equal(before.standardOptions.length, 29); assert.equal(new Set(before.standardOptions.map(s => s.id)).size, 29);
-  for (const option of before.standardOptions) { assert.equal(new URL(option.url).protocol, 'https:'); assert.ok(option.edition); }
+  const f = await fixture(t),
+    before = await f.read();
+  assert.equal(before.standardOptions.length, 29);
+  assert.equal(new Set(before.standardOptions.map(s => s.id)).size, 29);
+  for (const option of before.standardOptions) {
+    assert.equal(new URL(option.url).protocol, 'https:');
+    assert.ok(option.edition);
+  }
   assert.equal((await f.action(f.reviewer, 'standards.set', { standards: ['ecss-req'] })).statusCode, 403);
-  let response = await f.action(f.captain, 'standards.set', { standards: ['ecss-req', 'nasa-hb', 'iso-29148'] }); assert.equal(response.statusCode, 200, response.body); assert.deepEqual(response.json().standards, ['ecss-req', 'nasa-hb', 'iso-29148']); assert.equal(response.json().requirements.length, 0);
-  response = await f.action(f.captain, 'standards.set', { standards: [] }); assert.equal(response.statusCode, 409); assert.equal(response.json().error,'STANDARDS_REVIEW_REQUIRED');
-  response=await f.action(f.captain,'standards.propose',{standards:[],reason:'The project uses its own criteria.',reviewers:[f.reviewer.id]});assert.equal(response.statusCode,200,response.body);const proposal=response.json().standardsProposals[0];
-  assert.equal((await f.action(f.reviewer,'standards.review',{id:proposal.id,decision:'approve'})).statusCode,200);response=await f.action(f.captain,'standards.merge',{id:proposal.id});assert.equal(response.statusCode,200,response.body);assert.deepEqual(response.json().standards,[]);assert.equal(response.json().tasks.length,0);
+  let response = await f.action(f.captain, 'standards.set', { standards: ['ecss-req', 'nasa-hb', 'iso-29148'] });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.deepEqual(response.json().standards, ['ecss-req', 'nasa-hb', 'iso-29148']);
+  assert.equal(response.json().requirements.length, 0);
+  response = await f.action(f.captain, 'standards.set', { standards: [] });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error, 'STANDARDS_REVIEW_REQUIRED');
+  response = await f.action(f.captain, 'standards.propose', {
+    standards: [],
+    reason: 'The project uses its own criteria.',
+    reviewers: [f.reviewer.id],
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const proposal = response.json().standardsProposals[0];
+  assert.equal(
+    (await f.action(f.reviewer, 'standards.review', { id: proposal.id, decision: 'approve' })).statusCode,
+    200,
+  );
+  response = await f.action(f.captain, 'standards.merge', { id: proposal.id });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.deepEqual(response.json().standards, []);
+  assert.equal(response.json().tasks.length, 0);
   assert.equal((await f.action(f.captain, 'standards.set', { standards: ['invented-standard'] })).statusCode, 400);
 });
 
 test('changing a numerical source condition or its cited excerpt invalidates review even when the wording is unchanged', async t => {
   const f = await fixture(t);
-  await f.app.missionStore.update(data => { data.workspace.projects[f.projectId].document.engineeringSystem = { schemaVersion: 1, id: 'system', name: 'Fixture', generatedAt: '2026-01-01', generatedFromRevision: 1, entities: [], relations: [], evidence: [{ id: 'e1', artifactId: 'doc', artifactLabel: 'Test source', excerpt: 'Limit 2 W', kind: 'fact' }], artifactSources: [], requirements: [{ id: 'EXT-NUM', title: 'Extracted', statement: 'Power limit', subsystemTags: [], reviewTags: [], status: 'unreviewed', sourceRefs: ['e1'], relatedEntityIds: [], relatedRelationIds: [], properties: [{ key: 'maximum_power', name: 'Power limit', value: 2, unit: 'W', source: 'documented', evidenceRefs: ['e1'] }] }] }; });
-  await f.action(f.captain, 'requirement.request_review', { id: 'EXT-NUM', reviewers: [f.reviewer.id] }); await f.action(f.reviewer, 'requirement.review', { id: 'EXT-NUM', decision: 'approve' });
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem = {
+      schemaVersion: 1,
+      id: 'system',
+      name: 'Fixture',
+      generatedAt: '2026-01-01',
+      generatedFromRevision: 1,
+      entities: [],
+      relations: [],
+      evidence: [{ id: 'e1', artifactId: 'doc', artifactLabel: 'Test source', excerpt: 'Limit 2 W', kind: 'fact' }],
+      artifactSources: [],
+      requirements: [
+        {
+          id: 'EXT-NUM',
+          title: 'Extracted',
+          statement: 'Power limit',
+          subsystemTags: [],
+          reviewTags: [],
+          status: 'unreviewed',
+          sourceRefs: ['e1'],
+          relatedEntityIds: [],
+          relatedRelationIds: [],
+          properties: [
+            {
+              key: 'maximum_power',
+              name: 'Power limit',
+              value: 2,
+              unit: 'W',
+              source: 'documented',
+              evidenceRefs: ['e1'],
+            },
+          ],
+        },
+      ],
+    };
+  });
+  await f.action(f.captain, 'requirement.request_review', { id: 'EXT-NUM', reviewers: [f.reviewer.id] });
+  await f.action(f.reviewer, 'requirement.review', { id: 'EXT-NUM', decision: 'approve' });
   assert.equal((await f.read()).requirements[0].status, 'approved');
-  await f.app.missionStore.update(data => { data.workspace.projects[f.projectId].document.engineeringSystem.requirements[0].properties[0].value = 3; });
-  const changed = await f.read(); assert.equal(changed.requirements[0].status, 'draft'); assert.equal(changed.requirements[0].sourceChanged, true);
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem.requirements[0].properties[0].value = 3;
+  });
+  const changed = await f.read();
+  assert.equal(changed.requirements[0].status, 'draft');
+  assert.equal(changed.requirements[0].sourceChanged, true);
   const hashBefore = changed.requirements[0].contentHash;
-  await f.app.missionStore.update(data => { data.workspace.projects[f.projectId].document.engineeringSystem.evidence[0].excerpt = 'Limit corrected to 3 W'; });
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem.evidence[0].excerpt = 'Limit corrected to 3 W';
+  });
   assert.notEqual((await f.read()).requirements[0].contentHash, hashBefore);
 });
 
-test('change proposals preserve baseline, require independent approval, rebase and merge one current version', async t=>{
- const f=await fixture(t),r=await f.saveReq();
- const item={requirementId:r.id,statement:'The payload shall consume at most 3 W.',reason:'Update the allocated power budget; verify the new bound.',reviewers:[f.reviewer.id]};
- assert.equal((await f.action(f.captain,'proposal.save',{item:{...item,reviewers:[f.captain.id]}})).statusCode,400);
- assert.equal((await f.action(f.member,'proposal.save',{item})).statusCode,403);
- let response=await f.action(f.captain,'proposal.save',{item});assert.equal(response.statusCode,200,response.body);const id=response.json().proposals[0].id;
- assert.equal(response.json().requirements[0].statement,r.statement);
- assert.equal((await f.action(f.captain,'proposal.review',{id,decision:'approve'})).statusCode,403);
- assert.equal((await f.action(f.captain,'proposal.merge',{id})).statusCode,409);
- response=await f.action(f.reviewer,'proposal.review',{id,decision:'request_changes',comment:'Clarify condition.'});assert.equal(response.json().proposals[0].status,'changes_requested');
- response=await f.action(f.captain,'proposal.save',{id,item:{...item,statement:item.statement+' During acquisition.'}});assert.equal(response.json().proposals[0].decisions.length,0);
- await f.action(f.reviewer,'proposal.review',{id,decision:'approve'});
- await f.saveReq(f.captain,{statement:'The payload shall consume at most 1 W.'},r.id);
- assert.equal((await f.action(f.captain,'proposal.merge',{id})).statusCode,409);
- response=await f.action(f.captain,'proposal.save',{id,item});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().proposals[0].decisions.length,0);
- await f.action(f.reviewer,'proposal.review',{id,decision:'approve'});
- const snapshot=await f.read();response=await f.action(f.captain,'proposal.merge',{id},snapshot);assert.equal(response.statusCode,200,response.body);assert.equal(response.json().requirements[0].statement,item.statement);assert.equal(response.json().requirements[0].version,3);assert.equal(response.json().requirements[0].status,'approved');assert.equal(response.json().proposals[0].status,'merged');
- assert.equal((await f.action(f.captain,'proposal.merge',{id},snapshot)).statusCode,409);
- await f.restart();assert.equal((await f.read()).proposals[0].status,'merged');
+test('change proposals preserve baseline, require independent approval, rebase and merge one current version', async t => {
+  const f = await fixture(t),
+    r = await f.saveReq();
+  const item = {
+    requirementId: r.id,
+    statement: 'The payload shall consume at most 3 W.',
+    reason: 'Update the allocated power budget; verify the new bound.',
+    reviewers: [f.reviewer.id],
+  };
+  assert.equal(
+    (await f.action(f.captain, 'proposal.save', { item: { ...item, reviewers: [f.captain.id] } })).statusCode,
+    400,
+  );
+  assert.equal((await f.action(f.member, 'proposal.save', { item })).statusCode, 403);
+  let response = await f.action(f.captain, 'proposal.save', { item });
+  assert.equal(response.statusCode, 200, response.body);
+  const id = response.json().proposals[0].id;
+  assert.equal(response.json().requirements[0].statement, r.statement);
+  assert.equal((await f.action(f.captain, 'proposal.review', { id, decision: 'approve' })).statusCode, 403);
+  assert.equal((await f.action(f.captain, 'proposal.merge', { id })).statusCode, 409);
+  response = await f.action(f.reviewer, 'proposal.review', {
+    id,
+    decision: 'request_changes',
+    comment: 'Clarify condition.',
+  });
+  assert.equal(response.json().proposals[0].status, 'changes_requested');
+  response = await f.action(f.captain, 'proposal.save', {
+    id,
+    item: { ...item, statement: item.statement + ' During acquisition.' },
+  });
+  assert.equal(response.json().proposals[0].decisions.length, 0);
+  await f.action(f.reviewer, 'proposal.review', { id, decision: 'approve' });
+  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id);
+  assert.equal((await f.action(f.captain, 'proposal.merge', { id })).statusCode, 409);
+  response = await f.action(f.captain, 'proposal.save', { id, item });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().proposals[0].decisions.length, 0);
+  await f.action(f.reviewer, 'proposal.review', { id, decision: 'approve' });
+  const snapshot = await f.read();
+  response = await f.action(f.captain, 'proposal.merge', { id }, snapshot);
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().requirements[0].statement, item.statement);
+  assert.equal(response.json().requirements[0].version, 3);
+  assert.equal(response.json().requirements[0].status, 'approved');
+  assert.equal(response.json().proposals[0].status, 'merged');
+  assert.equal((await f.action(f.captain, 'proposal.merge', { id }, snapshot)).statusCode, 409);
+  await f.restart();
+  assert.equal((await f.read()).proposals[0].status, 'merged');
 });
 
-test('lifecycle switches document packages, preserves manual dates and exports scoped versioned drafts', async t=>{
- const f=await fixture(t);await f.saveReq();
- const configure=profile=>f.action(f.captain,'lifecycle.configure',{profile,startDate:'2026-11-02'});
- assert.equal((await f.action(f.member,'lifecycle.configure',{profile:'nasa',startDate:'2026-11-02'})).statusCode,403);
- let response=await configure('nasa');assert.equal(response.statusCode,200,response.body);const initial=response.json(),srr=initial.tasks.find(t=>t.reviewCode==='SRR');assert.equal(initial.lifecycleRanges.length,7);assert.deepEqual(initial.standards,[],'planning template must not silently change the reviewed standards baseline');assert(srr.documentOptions.some(d=>d.id==='REQ'));
- response=await f.action(f.captain,'document.prepare',{taskId:srr.id,templateId:'REQ'});assert.equal(response.statusCode,200,response.body);const doc=response.json().documents[0];assert.match(doc.body,/RASCUNHO/);assert.match(doc.body,/2 W/);assert.match(doc.reference.url,/nasa/);
- assert.equal((await f.action(f.member,'document.prepare',{taskId:srr.id,templateId:'REQ'})).statusCode,403);
- assert.equal((await f.req(f.outsider,'GET',`${f.route}/documents/${doc.id}/export?format=pdf`)).statusCode,404);
- assert.equal((await f.req(f.outsider,'GET',`${f.route}/documents/${doc.id}/export?format=latex`)).statusCode,404);
- const latex=await f.req(f.captain,'GET',`${f.route}/documents/${doc.id}/export?format=latex`);assert.equal(latex.statusCode,200);assert.equal(latex.rawPayload.subarray(0,2).toString(),'PK');
- const pdf=await f.req(f.captain,'GET',`${f.route}/documents/${doc.id}/export?format=pdf`);assert.equal(pdf.statusCode,200,pdf.body);assert.equal(pdf.rawPayload.subarray(0,4).toString(),'%PDF');
- response=await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:doc.body+'\nTeam correction.'}});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().documents[0].version,2);
- assert.equal((await f.action(f.captain,'document.save',{id:doc.id,item:{version:1,body:'stale text'}})).statusCode,409);
- await f.action(f.captain,'task.save',{id:srr.id,item:{...srr,startDate:'2027-04-01',dueDate:'2027-04-02'}});
- response=await configure('ecss');assert.equal(response.json().lifecycle.profile,'ecss');assert.deepEqual(response.json().standards,[]);assert(response.json().tasks.every(t=>t.lifecycleProfile==='ecss'));assert(response.json().tasks.some(t=>t.documentOptions.some(d=>d.reference?.url.includes('ecss.nl'))));
- response=await configure('nasa');assert.equal(response.json().tasks.find(t=>t.id===srr.id).dueDate,'2027-04-02');assert.equal(response.json().documents[0].version,2);
- response=await configure('none');assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks.length,0);assert.equal(response.json().standards.length,0);assert.equal(response.json().requirements.length,1);assert.equal(response.json().documents.length,1);
+test('lifecycle switches document packages, preserves manual dates and exports scoped versioned drafts', async t => {
+  const f = await fixture(t);
+  await f.saveReq();
+  const configure = profile => f.action(f.captain, 'lifecycle.configure', { profile, startDate: '2026-11-02' });
+  assert.equal(
+    (await f.action(f.member, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' })).statusCode,
+    403,
+  );
+  let response = await configure('nasa');
+  assert.equal(response.statusCode, 200, response.body);
+  const initial = response.json(),
+    srr = initial.tasks.find(t => t.reviewCode === 'SRR');
+  assert.equal(initial.lifecycleRanges.length, 7);
+  assert.deepEqual(initial.standards, [], 'planning template must not silently change the reviewed standards baseline');
+  assert(srr.documentOptions.some(d => d.id === 'REQ'));
+  response = await f.action(f.captain, 'document.prepare', { taskId: srr.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  const doc = response.json().documents[0];
+  assert.match(doc.body, /RASCUNHO/);
+  assert.match(doc.body, /2 W/);
+  assert.match(doc.reference.url, /nasa/);
+  assert.equal((await f.action(f.member, 'document.prepare', { taskId: srr.id, templateId: 'REQ' })).statusCode, 403);
+  assert.equal((await f.req(f.outsider, 'GET', `${f.route}/documents/${doc.id}/export?format=pdf`)).statusCode, 404);
+  assert.equal((await f.req(f.outsider, 'GET', `${f.route}/documents/${doc.id}/export?format=latex`)).statusCode, 404);
+  const latex = await f.req(f.captain, 'GET', `${f.route}/documents/${doc.id}/export?format=latex`);
+  assert.equal(latex.statusCode, 200);
+  assert.equal(latex.rawPayload.subarray(0, 2).toString(), 'PK');
+  const pdf = await f.req(f.captain, 'GET', `${f.route}/documents/${doc.id}/export?format=pdf`);
+  assert.equal(pdf.statusCode, 200, pdf.body);
+  assert.equal(pdf.rawPayload.subarray(0, 4).toString(), '%PDF');
+  response = await f.action(f.captain, 'document.save', {
+    id: doc.id,
+    item: { version: 1, body: doc.body + '\nTeam correction.' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().documents[0].version, 2);
+  assert.equal(
+    (await f.action(f.captain, 'document.save', { id: doc.id, item: { version: 1, body: 'stale text' } })).statusCode,
+    409,
+  );
+  await f.action(f.captain, 'task.save', {
+    id: srr.id,
+    item: { ...srr, startDate: '2027-04-01', dueDate: '2027-04-02' },
+  });
+  response = await configure('ecss');
+  assert.equal(response.json().lifecycle.profile, 'ecss');
+  assert.deepEqual(response.json().standards, []);
+  assert(response.json().tasks.every(t => t.lifecycleProfile === 'ecss'));
+  assert(response.json().tasks.some(t => t.documentOptions.some(d => d.reference?.url.includes('ecss.nl'))));
+  response = await configure('nasa');
+  assert.equal(response.json().tasks.find(t => t.id === srr.id).dueDate, '2027-04-02');
+  assert.equal(response.json().documents[0].version, 2);
+  response = await configure('none');
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks.length, 0);
+  assert.equal(response.json().standards.length, 0);
+  assert.equal(response.json().requirements.length, 1);
+  assert.equal(response.json().documents.length, 1);
 });
 
 test('lifecycle preview metadata preserves hidden manual reviews, current evidence status and project permissions', async t => {
-  const f = await fixture(t), requirement = await f.saveReq();
-  assert.equal((await f.action(f.captain, 'requirement.request_review', { id: requirement.id, reviewers: [f.reviewer.id] })).statusCode, 200);
-  assert.equal((await f.action(f.reviewer, 'requirement.review', { id: requirement.id, decision: 'approve' })).statusCode, 200);
-  const configure = (profile, selectedReviews) => f.action(f.captain, 'lifecycle.configure', {
-    profile, startDate: '2026-11-02', ...(selectedReviews ? { selectedReviews } : {}),
-  });
+  const f = await fixture(t),
+    requirement = await f.saveReq();
+  assert.equal(
+    (await f.action(f.captain, 'requirement.request_review', { id: requirement.id, reviewers: [f.reviewer.id] }))
+      .statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.action(f.reviewer, 'requirement.review', { id: requirement.id, decision: 'approve' })).statusCode,
+    200,
+  );
+  const configure = (profile, selectedReviews) =>
+    f.action(f.captain, 'lifecycle.configure', {
+      profile,
+      startDate: '2026-11-02',
+      ...(selectedReviews ? { selectedReviews } : {}),
+    });
   let response = await configure('nasa', ['MCR', 'SRR']);
   assert.equal(response.statusCode, 200, response.body);
-  const initial = response.json(), srr = initial.tasks.find(task => task.reviewCode === 'SRR'), mcr = initial.tasks.find(task => task.reviewCode === 'MCR');
-  response = await f.action(f.captain, 'task.save', { id: srr.id, item: {
-    ...srr, title: 'Private reviewed avionics milestone', sectorId: 'avionics', ownerId: f.reviewer.id,
-    startDate: '2027-04-01', dueDate: '2027-04-03', status: 'planned', requirementIds: [requirement.id],
-  } });
+  const initial = response.json(),
+    srr = initial.tasks.find(task => task.reviewCode === 'SRR'),
+    mcr = initial.tasks.find(task => task.reviewCode === 'MCR');
+  response = await f.action(f.captain, 'task.save', {
+    id: srr.id,
+    item: {
+      ...srr,
+      title: 'Private reviewed avionics milestone',
+      sectorId: 'avionics',
+      ownerId: f.reviewer.id,
+      startDate: '2027-04-01',
+      dueDate: '2027-04-03',
+      status: 'planned',
+      requirementIds: [requirement.id],
+    },
+  });
   assert.equal(response.statusCode, 200, response.body);
   const plannedReview = response.json().tasks.find(task => task.id === srr.id);
-  assert.equal((await f.action(f.captain, 'task.request_review', { id: srr.id, reviewers: [f.reviewer.id] })).statusCode, 200);
-  assert.equal((await f.action(f.reviewer, 'task.review', { id: srr.id, version: plannedReview.version, decision: 'approve' })).statusCode, 200);
+  assert.equal(
+    (await f.action(f.captain, 'task.request_review', { id: srr.id, reviewers: [f.reviewer.id] })).statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.action(f.reviewer, 'task.review', { id: srr.id, version: plannedReview.version, decision: 'approve' }))
+      .statusCode,
+    200,
+  );
   response = await f.action(f.captain, 'task.save', { id: srr.id, item: { ...plannedReview, status: 'done' } });
   assert.equal(response.statusCode, 200, response.body);
   response = await f.action(f.captain, 'document.prepare', { taskId: srr.id, templateId: 'REQ' });
@@ -212,7 +649,10 @@ test('lifecycle preview metadata preserves hidden manual reviews, current eviden
   assert.equal(response.statusCode, 200, response.body);
   const switched = response.json();
   assert(switched.tasks.every(task => task.lifecycleProfile === 'ecss'));
-  assert.deepEqual(switched.lifecycleTasks.find(task => task.id === srr.id), metadata);
+  assert.deepEqual(
+    switched.lifecycleTasks.find(task => task.id === srr.id),
+    metadata,
+  );
   assert.equal((await f.read(f.member)).lifecycleTasks.find(task => task.id === srr.id).canEdit, false);
   assert.equal((await f.read(f.reviewer)).lifecycleTasks.find(task => task.id === srr.id).canEdit, true);
   for (const actor of [f.outsider, f.globalAdmin]) {
@@ -224,17 +664,25 @@ test('lifecycle preview metadata preserves hidden manual reviews, current eviden
 
   await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, requirement.id);
   const stale = (await f.read()).lifecycleTasks.find(task => task.id === srr.id);
-  assert.equal(stale.status, 'blocked', 'a hidden completed review must expose the same current evidence status as a visible review');
+  assert.equal(
+    stale.status,
+    'blocked',
+    'a hidden completed review must expose the same current evidence status as a visible review',
+  );
   assert.equal(stale.reviewNeedsRevalidation, true);
   response = await configure('nasa', ['SRR']);
   assert.equal(response.statusCode, 200, response.body);
-  const restored = response.json(), visible = restored.tasks.find(task => task.id === srr.id);
+  const restored = response.json(),
+    visible = restored.tasks.find(task => task.id === srr.id);
   assert.equal(visible.excluded, false);
   assert.equal(visible.dueDate, '2027-04-03');
   assert.equal(visible.title, metadata.title);
   assert.equal(visible.status, 'blocked');
   assert.equal(visible.reviewNeedsRevalidation, true);
-  assert.deepEqual(visible, restored.lifecycleTasks.find(task => task.id === srr.id));
+  assert.deepEqual(
+    visible,
+    restored.lifecycleTasks.find(task => task.id === srr.id),
+  );
   assert.equal(restored.lifecycleTasks.filter(task => task.id === srr.id).length, 1);
   assert.deepEqual(restored.documents[0], document);
   await f.restart();
@@ -243,196 +691,819 @@ test('lifecycle preview metadata preserves hidden manual reviews, current eviden
   assert.deepEqual(restarted.documents, restored.documents);
 });
 
-test('assisted review validates literal findings, caches cost and rejects stale analysis after concurrent edits', async t=>{
- let count=0, release, started;const begin=new Promise(r=>{started=r;});let delayed=false;
- const finding={ruleId:'nasa-verifiable',severity:'warning',title:'Definir critério',explanation:'O termo não define uma observação mensurável.',suggestion:'Defina uma condição e um limite com fonte.',start:31,end:42,affectedText:'rapidamente'};
- const statement='O sistema deve enviar os dados rapidamente.';finding.start=statement.indexOf('rapidamente');finding.end=finding.start+11;
- const f=await fixture(t,{apiKey:'local-test-key',fetch:async()=>{count++;if(delayed){started();await new Promise(r=>{release=r;});}return new Response(JSON.stringify({candidates:[{finishReason:'STOP',content:{parts:[{text:JSON.stringify({findings:[finding]})}]}}]}),{status:200});}});
- const r=await f.saveReq(f.captain,{statement});await f.action(f.captain,'standards.set',{standards:['nasa-hb']});
- const url=`${f.route}/requirements/${r.id}/analyze`;
- assert.equal((await f.req(f.member,'POST',url,{})).statusCode,403);assert.equal(count,0);
- let response=await f.req(f.captain,'POST',url,{});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().analysis.findings[0].reference.section,'Apêndice C.4 · Verifiability/Testability');assert.equal(response.json().cached,false);assert.equal(count,1);
- response=await f.req(f.captain,'POST',url,{});assert.equal(response.json().cached,true);assert.equal(count,1);
- await f.saveReq(f.captain,{statement:statement+' Durante a missão.'},r.id);delayed=true;
- const pending=f.req(f.captain,'POST',url,{});await begin;
- await f.saveReq(f.captain,{statement:'O sistema deve enviar dados em até 2 s.'},r.id);release();response=await pending;assert.equal(response.statusCode,409,response.body);assert.match(response.body,/mudaram durante a análise/);assert.equal((await f.read()).requirements[0].analysis.engine,'not_analyzed');assert.equal(count,2);
+test('assisted review validates literal findings, caches cost and rejects stale analysis after concurrent edits', async t => {
+  let count = 0,
+    release,
+    started;
+  const begin = new Promise(r => {
+    started = r;
+  });
+  let delayed = false;
+  const finding = {
+    ruleId: 'nasa-verifiable',
+    severity: 'warning',
+    title: 'Definir critério',
+    explanation: 'O termo não define uma observação mensurável.',
+    suggestion: 'Defina uma condição e um limite com fonte.',
+    start: 31,
+    end: 42,
+    affectedText: 'rapidamente',
+  };
+  const statement = 'O sistema deve enviar os dados rapidamente.';
+  finding.start = statement.indexOf('rapidamente');
+  finding.end = finding.start + 11;
+  const f = await fixture(t, {
+    apiKey: 'local-test-key',
+    fetch: async () => {
+      count++;
+      if (delayed) {
+        started();
+        await new Promise(r => {
+          release = r;
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          status: 'completed',
+          output: [
+            { type: 'message', content: [{ type: 'output_text', text: JSON.stringify({ findings: [finding] }) }] },
+          ],
+        }),
+        { status: 200 },
+      );
+    },
+  });
+  const r = await f.saveReq(f.captain, { statement });
+  await f.action(f.captain, 'standards.set', { standards: ['nasa-hb'] });
+  const url = `${f.route}/requirements/${r.id}/analyze`;
+  assert.equal((await f.req(f.member, 'POST', url, {})).statusCode, 403);
+  assert.equal(count, 0);
+  let response = await f.req(f.captain, 'POST', url, {});
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().analysis.findings[0].reference.section, 'Apêndice C.4 · Verifiability/Testability');
+  assert.equal(response.json().cached, false);
+  assert.equal(count, 1);
+  response = await f.req(f.captain, 'POST', url, {});
+  assert.equal(response.json().cached, true);
+  assert.equal(count, 1);
+  await f.saveReq(f.captain, { statement: statement + ' Durante a missão.' }, r.id);
+  delayed = true;
+  const pending = f.req(f.captain, 'POST', url, {});
+  await begin;
+  await f.saveReq(f.captain, { statement: 'O sistema deve enviar dados em até 2 s.' }, r.id);
+  release();
+  response = await pending;
+  assert.equal(response.statusCode, 409, response.body);
+  assert.match(response.body, /mudaram durante a análise/);
+  assert.equal((await f.read()).requirements[0].analysis.engine, 'not_analyzed');
+  assert.equal(count, 2);
 });
 
-test('review milestones cannot close with unapproved linked versions or unexecuted evidence',async t=>{
- const f=await fixture(t),r=await f.saveReq();
- let response=await f.action(f.captain,'test.save',{item:{title:'Power budget check',method:'analysis',procedure:'Review measured power.',acceptanceCriteria:'Power <= 2 W',requirementIds:[r.id],sectorId:'avionics'}});const verification=response.json().tests[0];
- const task={title:'Readiness review',kind:'review',requirementIds:[r.id],testIds:[verification.id],status:'done'};
- assert.equal((await f.action(f.captain,'task.save',{item:task})).statusCode,409);
- await f.action(f.captain,'requirement.request_review',{id:r.id,reviewers:[f.reviewer.id]});await f.action(f.reviewer,'requirement.review',{id:r.id,decision:'approve'});
- assert.equal((await f.action(f.captain,'task.save',{item:task})).statusCode,409);
- await f.action(f.captain,'test.result',{id:verification.id,item:{outcome:'passed',result:'1.8 W measured in fixture.',evidenceUrl:'https://example.test/power-report'}});
- assert.equal((await f.action(f.captain,'task.save',{item:task})).statusCode,409,'new review cannot be created as completed');
- response=await f.action(f.captain,'task.save',{item:{...task,status:'planned'}});assert.equal(response.statusCode,200,response.body);const planned=response.json().tasks[0];
- assert.equal((await f.action(f.captain,'task.request_review',{id:planned.id,reviewers:[f.reviewer.id]})).statusCode,200);
- response=await f.action(f.reviewer,'task.review',{id:planned.id,version:planned.version,decision:'approve'});assert.equal(response.statusCode,200,response.body);
- response=await f.action(f.captain,'task.save',{id:planned.id,item:{...planned,status:'done'}});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks[0].status,'done'); const completed=response.json().tasks[0];
- await f.saveReq(f.captain,{statement:'The payload shall consume at most 1 W.'},r.id);const changed=await f.read();assert.equal(changed.tasks[0].status,'blocked');assert.equal(changed.tasks[0].reviewNeedsRevalidation,true);assert.equal((await f.action(f.captain,'task.save',{item:{title:'Dependent handover',status:'done',dependencyIds:[completed.id]}})).statusCode,409);
+test('review milestones cannot close with unapproved linked versions or unexecuted evidence', async t => {
+  const f = await fixture(t),
+    r = await f.saveReq();
+  let response = await f.action(f.captain, 'test.save', {
+    item: {
+      title: 'Power budget check',
+      method: 'analysis',
+      procedure: 'Review measured power.',
+      acceptanceCriteria: 'Power <= 2 W',
+      requirementIds: [r.id],
+      sectorId: 'avionics',
+    },
+  });
+  const verification = response.json().tests[0];
+  const task = {
+    title: 'Readiness review',
+    kind: 'review',
+    requirementIds: [r.id],
+    testIds: [verification.id],
+    status: 'done',
+  };
+  assert.equal((await f.action(f.captain, 'task.save', { item: task })).statusCode, 409);
+  await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.reviewer.id] });
+  await f.action(f.reviewer, 'requirement.review', { id: r.id, decision: 'approve' });
+  assert.equal((await f.action(f.captain, 'task.save', { item: task })).statusCode, 409);
+  await f.action(f.captain, 'test.result', {
+    id: verification.id,
+    item: { outcome: 'passed', result: '1.8 W measured in fixture.', evidenceUrl: 'https://example.test/power-report' },
+  });
+  assert.equal(
+    (await f.action(f.captain, 'task.save', { item: task })).statusCode,
+    409,
+    'new review cannot be created as completed',
+  );
+  response = await f.action(f.captain, 'task.save', { item: { ...task, status: 'planned' } });
+  assert.equal(response.statusCode, 200, response.body);
+  const planned = response.json().tasks[0];
+  assert.equal(
+    (await f.action(f.captain, 'task.request_review', { id: planned.id, reviewers: [f.reviewer.id] })).statusCode,
+    200,
+  );
+  response = await f.action(f.reviewer, 'task.review', {
+    id: planned.id,
+    version: planned.version,
+    decision: 'approve',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'task.save', { id: planned.id, item: { ...planned, status: 'done' } });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks[0].status, 'done');
+  const completed = response.json().tasks[0];
+  await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, r.id);
+  const changed = await f.read();
+  assert.equal(changed.tasks[0].status, 'blocked');
+  assert.equal(changed.tasks[0].reviewNeedsRevalidation, true);
+  assert.equal(
+    (
+      await f.action(f.captain, 'task.save', {
+        item: { title: 'Dependent handover', status: 'done', dependencyIds: [completed.id] },
+      })
+    ).statusCode,
+    409,
+  );
 });
 
-test('configuration change invalidates test evidence even if requirement wording and test plan are unchanged',async t=>{
- const f=await fixture(t),r=await f.saveReq();let response=await f.action(f.captain,'test.save',{item:{title:'Current design power',method:'analysis',procedure:'Measure current design.',acceptanceCriteria:'At most 2 W',requirementIds:[r.id],sectorId:'avionics'}});const id=response.json().tests[0].id;
- await f.action(f.captain,'test.result',{id,item:{outcome:'passed',result:'1.8 W',evidenceUrl:'https://example.test/report'}});assert.equal((await f.read()).tests[0].status,'passed');
- await f.app.missionStore.update(data=>{data.workspace.projects[f.projectId].document.engineeringSystem={entities:[{id:'changed-component',name:'New radio',properties:[{key:'power',value:4,unit:'W'}]}],relations:[],evidence:[],requirements:[]};});
- const state=await f.read();assert.equal(state.tests[0].status,'stale');assert.equal(state.requirements[0].verificationStatus,'pending');assert.equal(state.tests[0].runs.length,1);
+test('configuration change invalidates test evidence even if requirement wording and test plan are unchanged', async t => {
+  const f = await fixture(t),
+    r = await f.saveReq();
+  let response = await f.action(f.captain, 'test.save', {
+    item: {
+      title: 'Current design power',
+      method: 'analysis',
+      procedure: 'Measure current design.',
+      acceptanceCriteria: 'At most 2 W',
+      requirementIds: [r.id],
+      sectorId: 'avionics',
+    },
+  });
+  const id = response.json().tests[0].id;
+  await f.action(f.captain, 'test.result', {
+    id,
+    item: { outcome: 'passed', result: '1.8 W', evidenceUrl: 'https://example.test/report' },
+  });
+  assert.equal((await f.read()).tests[0].status, 'passed');
+  await f.app.missionStore.update(data => {
+    data.workspace.projects[f.projectId].document.engineeringSystem = {
+      entities: [{ id: 'changed-component', name: 'New radio', properties: [{ key: 'power', value: 4, unit: 'W' }] }],
+      relations: [],
+      evidence: [],
+      requirements: [],
+    };
+  });
+  const state = await f.read();
+  assert.equal(state.tests[0].status, 'stale');
+  assert.equal(state.requirements[0].verificationStatus, 'pending');
+  assert.equal(state.tests[0].runs.length, 1);
 });
 
-test('editable lifecycle phases preserve removed phase work and dates, reject stale drag, and enforce leadership and sector ACL',async t=>{
- const f=await fixture(t);let response=await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2026-11-02'});assert.equal(response.statusCode,200,response.body);
- const initial=response.json(),review=initial.tasks.find(t=>t.reviewCode==='SRR'),removedPhase=initial.lifecycleRanges.find(p=>p.id===review.phaseId);
- response=await f.action(f.captain,'document.prepare',{taskId:review.id,templateId:'REQ'});assert.equal(response.statusCode,200,response.body);const document=response.json().documents[0];
- assert.equal((await f.action(f.member,'task.reschedule',{id:review.id,dueDate:'2027-03-15'})).statusCode,403);
- const stale=await f.read();response=await f.action(f.captain,'task.reschedule',{id:review.id,dueDate:'2027-03-15'});assert.equal(response.statusCode,200,response.body);assert.equal(response.json().tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');
- assert.equal((await f.action(f.captain,'task.reschedule',{id:review.id,dueDate:'2027-03-20'},stale)).statusCode,409);
- response=await f.action(f.captain,'task.save',{item:{title:'Manual phase activity',phaseId:removedPhase.id,phase:removedPhase.name,startDate:'2027-02-01',dueDate:'2027-02-02',sectorId:'avionics'}});assert.equal(response.statusCode,200,response.body);const manualId=response.json().tasks.find(t=>t.title==='Manual phase activity').id;
- const phases=initial.lifecycleRanges.filter(p=>p.id!==removedPhase.id).concat({id:'custom-integration',code:'X',name:'Additional integration',start:'2027-02-01',end:'2027-02-20'});
- const config={profile:'nasa',startDate:'2026-11-02',phases,expectedLifecycleVersion:initial.lifecycle.version};response=await f.action(f.captain,'lifecycle.configure',config);assert.equal(response.statusCode,200,response.body);let state=response.json();assert.equal(state.lifecycleRanges.length,7);assert(state.lifecycleRanges.some(p=>p.id==='custom-integration'));assert.equal(state.tasks.find(t=>t.id===review.id).phaseId,'');assert.equal(state.tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');assert.deepEqual(state.documents[0],document);assert.equal(state.tasks.find(t=>t.id===manualId).phaseId,'');assert.equal(state.tasks.find(t=>t.id===manualId).dueDate,'2027-02-02');
- assert.equal((await f.action(f.captain,'lifecycle.configure',config)).json().error,'LIFECYCLE_CHANGED','old editor draft must not overwrite newer phases even with refreshed delivery CAS');
- config.expectedLifecycleVersion=state.lifecycle.version;
- response=await f.action(f.captain,'lifecycle.configure',config);assert.equal(response.statusCode,200,response.body);state=response.json();assert.equal(state.tasks.find(t=>t.id===review.id).phaseId,'','unassigned tasks must not migrate into a different phase on the next edit');config.expectedLifecycleVersion=state.lifecycle.version;
- assert.equal((await f.action(f.member,'lifecycle.configure',config)).statusCode,403);
- assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[...phases,phases[0]]})).statusCode,400);
- assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[{...phases[0],end:'2020-01-01'}]})).statusCode,400);
- assert.equal((await f.action(f.captain,'lifecycle.configure',{...config,phases:[null]})).statusCode,400);
- await f.restart();state=await f.read();assert.equal(state.tasks.find(t=>t.id===review.id).dueDate,'2027-03-15');assert.equal(state.documents[0].id,document.id);
+test('editable lifecycle phases preserve removed phase work and dates, reject stale drag, and enforce leadership and sector ACL', async t => {
+  const f = await fixture(t);
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' });
+  assert.equal(response.statusCode, 200, response.body);
+  const initial = response.json(),
+    review = initial.tasks.find(t => t.reviewCode === 'SRR'),
+    removedPhase = initial.lifecycleRanges.find(p => p.id === review.phaseId);
+  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  const document = response.json().documents[0];
+  assert.equal((await f.action(f.member, 'task.reschedule', { id: review.id, dueDate: '2027-03-15' })).statusCode, 403);
+  const stale = await f.read();
+  response = await f.action(f.captain, 'task.reschedule', { id: review.id, dueDate: '2027-03-15' });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks.find(t => t.id === review.id).dueDate, '2027-03-15');
+  assert.equal(
+    (await f.action(f.captain, 'task.reschedule', { id: review.id, dueDate: '2027-03-20' }, stale)).statusCode,
+    409,
+  );
+  response = await f.action(f.captain, 'task.save', {
+    item: {
+      title: 'Manual phase activity',
+      phaseId: removedPhase.id,
+      phase: removedPhase.name,
+      startDate: '2027-02-01',
+      dueDate: '2027-02-02',
+      sectorId: 'avionics',
+    },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const manualId = response.json().tasks.find(t => t.title === 'Manual phase activity').id;
+  const phases = initial.lifecycleRanges
+    .filter(p => p.id !== removedPhase.id)
+    .concat({
+      id: 'custom-integration',
+      code: 'X',
+      name: 'Additional integration',
+      start: '2027-02-01',
+      end: '2027-02-20',
+    });
+  const config = {
+    profile: 'nasa',
+    startDate: '2026-11-02',
+    phases,
+    expectedLifecycleVersion: initial.lifecycle.version,
+  };
+  response = await f.action(f.captain, 'lifecycle.configure', config);
+  assert.equal(response.statusCode, 200, response.body);
+  let state = response.json();
+  assert.equal(state.lifecycleRanges.length, 7);
+  assert(state.lifecycleRanges.some(p => p.id === 'custom-integration'));
+  assert.equal(state.tasks.find(t => t.id === review.id).phaseId, '');
+  assert.equal(state.tasks.find(t => t.id === review.id).dueDate, '2027-03-15');
+  assert.deepEqual(state.documents[0], document);
+  assert.equal(state.tasks.find(t => t.id === manualId).phaseId, '');
+  assert.equal(state.tasks.find(t => t.id === manualId).dueDate, '2027-02-02');
+  assert.equal(
+    (await f.action(f.captain, 'lifecycle.configure', config)).json().error,
+    'LIFECYCLE_CHANGED',
+    'old editor draft must not overwrite newer phases even with refreshed delivery CAS',
+  );
+  config.expectedLifecycleVersion = state.lifecycle.version;
+  response = await f.action(f.captain, 'lifecycle.configure', config);
+  assert.equal(response.statusCode, 200, response.body);
+  state = response.json();
+  assert.equal(
+    state.tasks.find(t => t.id === review.id).phaseId,
+    '',
+    'unassigned tasks must not migrate into a different phase on the next edit',
+  );
+  config.expectedLifecycleVersion = state.lifecycle.version;
+  assert.equal((await f.action(f.member, 'lifecycle.configure', config)).statusCode, 403);
+  assert.equal(
+    (await f.action(f.captain, 'lifecycle.configure', { ...config, phases: [...phases, phases[0]] })).statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.action(f.captain, 'lifecycle.configure', { ...config, phases: [{ ...phases[0], end: '2020-01-01' }] }))
+      .statusCode,
+    400,
+  );
+  assert.equal((await f.action(f.captain, 'lifecycle.configure', { ...config, phases: [null] })).statusCode, 400);
+  await f.restart();
+  state = await f.read();
+  assert.equal(state.tasks.find(t => t.id === review.id).dueDate, '2027-03-15');
+  assert.equal(state.documents[0].id, document.id);
 });
 
-test('standards changes require independent current reviewers, invalidate wording reviews and reject stale proposals',async t=>{
- const f=await fixture(t),r=await f.saveReq();await f.action(f.captain,'standards.set',{standards:[]});
- await f.action(f.captain,'requirement.request_review',{id:r.id,reviewers:[f.reviewer.id]});await f.action(f.reviewer,'requirement.review',{id:r.id,decision:'approve'});assert.equal((await f.read()).requirements[0].status,'approved');
- const payload={standards:['ecss-req'],reason:'Adopt a tailored ECSS requirements baseline.',reviewers:[f.reviewer.id]};
- assert.equal((await f.action(f.member,'standards.propose',payload)).statusCode,403);assert.equal((await f.action(f.captain,'standards.propose',{...payload,reviewers:[f.captain.id]})).statusCode,400);assert.equal((await f.action(f.captain,'standards.propose',{...payload,reviewers:[f.outsider.id]})).statusCode,400);
- let response=await f.action(f.captain,'standards.propose',payload);assert.equal(response.statusCode,200,response.body);const id=response.json().standardsProposals[0].id;
- response=await f.action(f.captain,'standards.propose',{...payload,standards:['nasa-hb']});const competing=response.json().standardsProposals[1].id;
- assert.equal((await f.action(f.captain,'standards.review',{id,decision:'approve'})).statusCode,403);assert.equal((await f.action(f.member,'standards.review',{id,decision:'approve'})).statusCode,403);assert.equal((await f.action(f.captain,'standards.merge',{id})).statusCode,409);
- response=await f.action(f.reviewer,'standards.review',{id,decision:'approve'});assert.equal(response.statusCode,200,response.body);
- await f.app.missionStore.update(data=>{data.teams.find(team=>team.memberIds.includes(f.reviewer.memberId)).memberIds=data.teams.find(team=>team.memberIds.includes(f.reviewer.memberId)).memberIds.filter(id=>id!==f.reviewer.memberId);data.workspace.projects[f.projectId].document.context.assignments=data.workspace.projects[f.projectId].document.context.assignments.filter(a=>a.memberId!==f.reviewer.memberId);});
- assert.equal((await f.action(f.captain,'standards.merge',{id})).statusCode,409,'a revoked reviewer cannot approve a merge');
- await f.app.missionStore.update(data=>{data.teams.find(team=>team.memberIds.includes(f.captain.memberId)).memberIds.push(f.reviewer.memberId);});
- response=await f.action(f.captain,'standards.merge',{id});assert.equal(response.statusCode,200,response.body);assert.deepEqual(response.json().standards,['ecss-req']);assert.equal(response.json().requirements[0].status,'draft');
- assert.equal((await f.action(f.reviewer,'standards.review',{id:competing,decision:'approve'})).json().error,'PROPOSAL_STALE');
- assert.equal((await f.action(f.captain,'standards.set',{standards:[]})).json().error,'STANDARDS_REVIEW_REQUIRED');
- await f.action(f.captain,'lifecycle.configure',{profile:'nasa',startDate:'2027-01-01'});assert.deepEqual((await f.read()).standards,['ecss-req']);await f.restart();assert.deepEqual((await f.read()).standards,['ecss-req']);
+test('standards changes require independent current reviewers, invalidate wording reviews and reject stale proposals', async t => {
+  const f = await fixture(t),
+    r = await f.saveReq();
+  await f.action(f.captain, 'standards.set', { standards: [] });
+  await f.action(f.captain, 'requirement.request_review', { id: r.id, reviewers: [f.reviewer.id] });
+  await f.action(f.reviewer, 'requirement.review', { id: r.id, decision: 'approve' });
+  assert.equal((await f.read()).requirements[0].status, 'approved');
+  const payload = {
+    standards: ['ecss-req'],
+    reason: 'Adopt a tailored ECSS requirements baseline.',
+    reviewers: [f.reviewer.id],
+  };
+  assert.equal((await f.action(f.member, 'standards.propose', payload)).statusCode, 403);
+  assert.equal(
+    (await f.action(f.captain, 'standards.propose', { ...payload, reviewers: [f.captain.id] })).statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.action(f.captain, 'standards.propose', { ...payload, reviewers: [f.outsider.id] })).statusCode,
+    400,
+  );
+  let response = await f.action(f.captain, 'standards.propose', payload);
+  assert.equal(response.statusCode, 200, response.body);
+  const id = response.json().standardsProposals[0].id;
+  response = await f.action(f.captain, 'standards.propose', { ...payload, standards: ['nasa-hb'] });
+  const competing = response.json().standardsProposals[1].id;
+  assert.equal((await f.action(f.captain, 'standards.review', { id, decision: 'approve' })).statusCode, 403);
+  assert.equal((await f.action(f.member, 'standards.review', { id, decision: 'approve' })).statusCode, 403);
+  assert.equal((await f.action(f.captain, 'standards.merge', { id })).statusCode, 409);
+  response = await f.action(f.reviewer, 'standards.review', { id, decision: 'approve' });
+  assert.equal(response.statusCode, 200, response.body);
+  await f.app.missionStore.update(data => {
+    data.teams.find(team => team.memberIds.includes(f.reviewer.memberId)).memberIds = data.teams
+      .find(team => team.memberIds.includes(f.reviewer.memberId))
+      .memberIds.filter(id => id !== f.reviewer.memberId);
+    data.workspace.projects[f.projectId].document.context.assignments = data.workspace.projects[
+      f.projectId
+    ].document.context.assignments.filter(a => a.memberId !== f.reviewer.memberId);
+  });
+  assert.equal(
+    (await f.action(f.captain, 'standards.merge', { id })).statusCode,
+    409,
+    'a revoked reviewer cannot approve a merge',
+  );
+  await f.app.missionStore.update(data => {
+    data.teams.find(team => team.memberIds.includes(f.captain.memberId)).memberIds.push(f.reviewer.memberId);
+  });
+  response = await f.action(f.captain, 'standards.merge', { id });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.deepEqual(response.json().standards, ['ecss-req']);
+  assert.equal(response.json().requirements[0].status, 'draft');
+  assert.equal(
+    (await f.action(f.reviewer, 'standards.review', { id: competing, decision: 'approve' })).json().error,
+    'PROPOSAL_STALE',
+  );
+  assert.equal(
+    (await f.action(f.captain, 'standards.set', { standards: [] })).json().error,
+    'STANDARDS_REVIEW_REQUIRED',
+  );
+  await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2027-01-01' });
+  assert.deepEqual((await f.read()).standards, ['ecss-req']);
+  await f.restart();
+  assert.deepEqual((await f.read()).standards, ['ecss-req']);
 });
 
 test('task hierarchy rejects missing parents, self ancestry, mixed cycles and archiving a parent with live children', async t => {
   const f = await fixture(t);
-  let response = await f.action(f.captain, 'task.save', { item: { title: 'Parent activity', startDate: '2026-01-01', dueDate: '2026-01-10' } });
-  assert.equal(response.statusCode, 200, response.body); const parent = response.json().tasks[0];
-  response = await f.action(f.captain, 'task.save', { item: { title: 'Child activity', parentId: parent.id, startDate: '2026-01-02', dueDate: '2026-01-05' } });
-  assert.equal(response.statusCode, 200, response.body); const child = response.json().tasks.find(row => row.parentId === parent.id);
-  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Missing', parentId: 'another-project-task' } })).statusCode, 400);
-  for (const item of [{ ...parent, parentId: parent.id }, { ...parent, parentId: child.id }, { ...parent, dependencyIds: [child.id] }]) assert.equal((await f.action(f.captain, 'task.save', { id: parent.id, item })).statusCode, 400);
+  let response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Parent activity', startDate: '2026-01-01', dueDate: '2026-01-10' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const parent = response.json().tasks[0];
+  response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Child activity', parentId: parent.id, startDate: '2026-01-02', dueDate: '2026-01-05' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const child = response.json().tasks.find(row => row.parentId === parent.id);
+  assert.equal(
+    (await f.action(f.captain, 'task.save', { item: { title: 'Missing', parentId: 'another-project-task' } }))
+      .statusCode,
+    400,
+  );
+  for (const item of [
+    { ...parent, parentId: parent.id },
+    { ...parent, parentId: child.id },
+    { ...parent, dependencyIds: [child.id] },
+  ])
+    assert.equal((await f.action(f.captain, 'task.save', { id: parent.id, item })).statusCode, 400);
   assert.equal((await f.action(f.captain, 'task.archive', { id: parent.id })).statusCode, 409);
   assert.equal((await f.action(f.captain, 'task.archive', { id: child.id })).statusCode, 200);
   assert.equal((await f.action(f.captain, 'task.archive', { id: parent.id })).statusCode, 200);
-  assert.equal((await f.action(f.captain, 'task.restore', { id: child.id })).statusCode, 400, 'an archived parent cannot become a dangling hierarchy link');
+  assert.equal(
+    (await f.action(f.captain, 'task.restore', { id: child.id })).statusCode,
+    400,
+    'an archived parent cannot become a dangling hierarchy link',
+  );
 });
 
 test('rescheduling cascades once through descendants and successors, preserves durations, and undo refuses later edits', async t => {
   const f = await fixture(t);
-  const save = async item => { const result = await f.action(f.captain, 'task.save', { item }); assert.equal(result.statusCode, 200, result.body); return result.json().tasks.find(task => task.title === item.title); };
+  const save = async item => {
+    const result = await f.action(f.captain, 'task.save', { item });
+    assert.equal(result.statusCode, 200, result.body);
+    return result.json().tasks.find(task => task.title === item.title);
+  };
   const parent = await save({ title: 'Parent', startDate: '2026-01-01', dueDate: '2026-01-10' });
   const child = await save({ title: 'Child', parentId: parent.id, startDate: '2026-01-02', dueDate: '2026-01-04' });
-  const next = await save({ title: 'Successor', dependencyIds: [parent.id], startDate: '2026-01-11', dueDate: '2026-01-15' });
-  const grandchild = await save({ title: 'Grandchild', parentId: child.id, dependencyIds: [parent.id], startDate: '2026-01-03', dueDate: '2026-01-04' });
+  const next = await save({
+    title: 'Successor',
+    dependencyIds: [parent.id],
+    startDate: '2026-01-11',
+    dueDate: '2026-01-15',
+  });
+  const grandchild = await save({
+    title: 'Grandchild',
+    parentId: child.id,
+    dependencyIds: [parent.id],
+    startDate: '2026-01-03',
+    dueDate: '2026-01-04',
+  });
   const unrelated = await save({ title: 'Unrelated', startDate: '2026-02-01', dueDate: '2026-02-03' });
   const before = await f.read();
   let response = await f.action(f.captain, 'task.reschedule', { id: parent.id, dueDate: '2026-01-20' });
-  assert.equal(response.statusCode, 200, response.body); let moved = response.json();
-  for (const [id, startDate, dueDate] of [[parent.id,'2026-01-11','2026-01-20'],[child.id,'2026-01-12','2026-01-14'],[next.id,'2026-01-21','2026-01-25'],[grandchild.id,'2026-01-13','2026-01-14'],[unrelated.id,'2026-02-01','2026-02-03']]) {
-    const task = moved.tasks.find(task => task.id === id); assert.equal(task.startDate, startDate); assert.equal(task.dueDate, dueDate);
+  assert.equal(response.statusCode, 200, response.body);
+  let moved = response.json();
+  for (const [id, startDate, dueDate] of [
+    [parent.id, '2026-01-11', '2026-01-20'],
+    [child.id, '2026-01-12', '2026-01-14'],
+    [next.id, '2026-01-21', '2026-01-25'],
+    [grandchild.id, '2026-01-13', '2026-01-14'],
+    [unrelated.id, '2026-02-01', '2026-02-03'],
+  ]) {
+    const task = moved.tasks.find(task => task.id === id);
+    assert.equal(task.startDate, startDate);
+    assert.equal(task.dueDate, dueDate);
   }
   assert.equal(moved.history.at(-1).after.tasks.length, 4);
-  assert.equal((await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }, before)).statusCode, 409, 'undo also requires the latest revision');
-  assert.equal((await f.action(f.reviewer, 'task.undo_reschedule', { id: parent.id })).statusCode, 409, 'another participant cannot undo this movement');
-  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }); assert.equal(response.statusCode, 200, response.body);
-  for (const original of before.tasks) { const task = response.json().tasks.find(task => task.id === original.id); assert.equal(task.startDate, original.startDate); assert.equal(task.dueDate, original.dueDate); }
+  assert.equal(
+    (await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }, before)).statusCode,
+    409,
+    'undo also requires the latest revision',
+  );
+  assert.equal(
+    (await f.action(f.reviewer, 'task.undo_reschedule', { id: parent.id })).statusCode,
+    409,
+    'another participant cannot undo this movement',
+  );
+  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id });
+  assert.equal(response.statusCode, 200, response.body);
+  for (const original of before.tasks) {
+    const task = response.json().tasks.find(task => task.id === original.id);
+    assert.equal(task.startDate, original.startDate);
+    assert.equal(task.dueDate, original.dueDate);
+  }
   assert.equal((await f.action(f.captain, 'task.undo_reschedule', { id: parent.id })).statusCode, 409);
-  response = await f.action(f.captain, 'task.reschedule', { id: parent.id, dueDate: '2026-01-25' }); assert.equal(response.statusCode, 200, response.body); moved = response.json();
+  response = await f.action(f.captain, 'task.reschedule', { id: parent.id, dueDate: '2026-01-25' });
+  assert.equal(response.statusCode, 200, response.body);
+  moved = response.json();
   const movedChild = moved.tasks.find(task => task.id === child.id);
-  response = await f.action(f.captain, 'task.save', { id: child.id, item: { ...movedChild, title: 'Human correction after moving' } }); assert.equal(response.statusCode, 200, response.body);
-  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id }); assert.equal(response.statusCode, 409); assert.equal(response.json().error, 'UNDO_CHANGED');
+  response = await f.action(f.captain, 'task.save', {
+    id: child.id,
+    item: { ...movedChild, title: 'Human correction after moving' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'task.undo_reschedule', { id: parent.id });
+  assert.equal(response.statusCode, 409);
+  assert.equal(response.json().error, 'UNDO_CHANGED');
   assert.equal((await f.read()).tasks.find(task => task.id === child.id).title, 'Human correction after moving');
 });
 
 test('schedule cascades require permission over every moved sector and fail atomically', async t => {
   const f = await fixture(t);
-  let response = await f.action(f.captain, 'task.save', { item: { title: 'Avionics activity', sectorId: 'avionics', startDate: '2026-01-01', dueDate: '2026-01-03' } }); const parent = response.json().tasks[0];
-  response = await f.action(f.captain, 'task.save', { item: { title: 'Structure child', parentId: parent.id, sectorId: 'structure', startDate: '2026-01-02', dueDate: '2026-01-03' } }); assert.equal(response.statusCode, 200, response.body);
+  let response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Avionics activity', sectorId: 'avionics', startDate: '2026-01-01', dueDate: '2026-01-03' },
+  });
+  const parent = response.json().tasks[0];
+  response = await f.action(f.captain, 'task.save', {
+    item: {
+      title: 'Structure child',
+      parentId: parent.id,
+      sectorId: 'structure',
+      startDate: '2026-01-02',
+      dueDate: '2026-01-03',
+    },
+  });
+  assert.equal(response.statusCode, 200, response.body);
   const before = await f.read();
-  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10' }); assert.equal(response.statusCode, 403);
-  assert.deepEqual((await f.read()).tasks, before.tasks); assert.equal((await f.read()).revision, before.revision);
-  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10', cascade: false }); assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10' });
+  assert.equal(response.statusCode, 403);
+  assert.deepEqual((await f.read()).tasks, before.tasks);
+  assert.equal((await f.read()).revision, before.revision);
+  response = await f.action(f.reviewer, 'task.reschedule', { id: parent.id, dueDate: '2026-01-10', cascade: false });
+  assert.equal(response.statusCode, 200, response.body);
   assert.equal(response.json().tasks.find(task => task.parentId === parent.id).dueDate, '2026-01-03');
 });
 
 test('review completion needs independent approval of the current plan and status changes preserve it', async t => {
   const f = await fixture(t);
-  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Review', kind: 'review', status: 'done' } })).statusCode, 409);
-  let response = await f.action(f.captain, 'task.save', { item: { title: 'Review', kind: 'review', startDate: '2026-01-01', dueDate: '2026-01-02' } }); assert.equal(response.statusCode, 200, response.body); const review = response.json().tasks[0];
-  assert.equal((await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.captain.id] })).statusCode, 400);
-  response = await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.reviewer.id] }); assert.equal(response.statusCode, 200, response.body);
-  response = await f.action(f.reviewer, 'task.review', { id: review.id, version: review.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body);
-  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } }); assert.equal(response.statusCode, 200, response.body); const done = response.json().tasks[0];
-  assert.equal(done.approvalStatus, 'approved'); assert.equal(done.version, review.version); assert.equal(done.decisions.length, 1);
-  assert.equal((await f.action(f.captain, 'task.save', { id: review.id, item: { ...done, title: 'Changed plan' } })).statusCode, 409);
-  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...done, title: 'Changed plan', status: 'planned' } }); assert.equal(response.statusCode, 200, response.body);
-  assert.equal(response.json().tasks[0].approvalStatus, 'draft'); assert.equal(response.json().tasks[0].version, review.version + 1); assert.deepEqual(response.json().tasks[0].decisions, []);
+  assert.equal(
+    (await f.action(f.captain, 'task.save', { item: { title: 'Review', kind: 'review', status: 'done' } })).statusCode,
+    409,
+  );
+  let response = await f.action(f.captain, 'task.save', {
+    item: { title: 'Review', kind: 'review', startDate: '2026-01-01', dueDate: '2026-01-02' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  const review = response.json().tasks[0];
+  assert.equal(
+    (await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.captain.id] })).statusCode,
+    400,
+  );
+  response = await f.action(f.captain, 'task.request_review', { id: review.id, reviewers: [f.reviewer.id] });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.reviewer, 'task.review', { id: review.id, version: review.version, decision: 'approve' });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } });
+  assert.equal(response.statusCode, 200, response.body);
+  const done = response.json().tasks[0];
+  assert.equal(done.approvalStatus, 'approved');
+  assert.equal(done.version, review.version);
+  assert.equal(done.decisions.length, 1);
+  assert.equal(
+    (await f.action(f.captain, 'task.save', { id: review.id, item: { ...done, title: 'Changed plan' } })).statusCode,
+    409,
+  );
+  response = await f.action(f.captain, 'task.save', {
+    id: review.id,
+    item: { ...done, title: 'Changed plan', status: 'planned' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().tasks[0].approvalStatus, 'draft');
+  assert.equal(response.json().tasks[0].version, review.version + 1);
+  assert.deepEqual(response.json().tasks[0].decisions, []);
 });
 
 test('document approvals require independent reviewers and are invalidated by body or source changes', async t => {
-  const f = await fixture(t), requirement = await f.saveReq();
-  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' }); const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
-  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' }); assert.equal(response.statusCode, 200, response.body); let document = response.json().documents[0];
-  assert.equal((await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.captain.id] })).statusCode, 400);
-  assert.equal((await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] })).statusCode, 200);
-  assert.equal((await f.action(f.captain, 'document.review', { id: document.id, version: document.version, decision: 'approve' })).statusCode, 403);
-  response = await f.action(f.reviewer, 'document.review', { id: document.id, version: document.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().documents[0].status, 'approved');
-  response = await f.action(f.captain, 'document.save', { id: document.id, item: { version: document.version, body: document.body + '\nRevisão da redação.' } }); assert.equal(response.statusCode, 200, response.body); document = response.json().documents[0]; assert.equal(document.status, 'draft'); assert.deepEqual(document.decisions, []);
+  const f = await fixture(t),
+    requirement = await f.saveReq();
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' });
+  const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  let document = response.json().documents[0];
+  assert.equal(
+    (await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.captain.id] })).statusCode,
+    400,
+  );
+  assert.equal(
+    (await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] })).statusCode,
+    200,
+  );
+  assert.equal(
+    (await f.action(f.captain, 'document.review', { id: document.id, version: document.version, decision: 'approve' }))
+      .statusCode,
+    403,
+  );
+  response = await f.action(f.reviewer, 'document.review', {
+    id: document.id,
+    version: document.version,
+    decision: 'approve',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().documents[0].status, 'approved');
+  response = await f.action(f.captain, 'document.save', {
+    id: document.id,
+    item: { version: document.version, body: document.body + '\nRevisão da redação.' },
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  document = response.json().documents[0];
+  assert.equal(document.status, 'draft');
+  assert.deepEqual(document.decisions, []);
   await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] });
-  response = await f.action(f.reviewer, 'document.review', { id: document.id, version: document.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body); assert.equal(response.json().documents[0].status, 'approved');
+  response = await f.action(f.reviewer, 'document.review', {
+    id: document.id,
+    version: document.version,
+    decision: 'approve',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().documents[0].status, 'approved');
   await f.saveReq(f.captain, { statement: 'The payload shall consume at most 1 W.' }, requirement.id);
-  const changed = (await f.read()).documents[0]; assert.equal(changed.status, 'draft'); assert.deepEqual(changed.decisions, []); assert.equal(changed.version, document.version, 'source revalidation does not rewrite the retained document');
+  const changed = (await f.read()).documents[0];
+  assert.equal(changed.status, 'draft');
+  assert.deepEqual(changed.decisions, []);
+  assert.equal(changed.version, document.version, 'source revalidation does not rewrite the retained document');
 });
 
 test('loss of project access removes document and schedule approval without deleting historical decisions', async t => {
   const f = await fixture(t);
-  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' }); const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
-  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' }); assert.equal(response.statusCode, 200, response.body); const document = response.json().documents[0];
-  for (const [kind, item] of [['document', document], ['task', review]]) {
-    response = await f.action(f.captain, kind + '.request_review', { id: item.id, reviewers: [f.reviewer.id] }); assert.equal(response.statusCode, 200, response.body);
-    response = await f.action(f.reviewer, kind + '.review', { id: item.id, version: item.version, decision: 'approve' }); assert.equal(response.statusCode, 200, response.body);
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' });
+  const review = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  response = await f.action(f.captain, 'document.prepare', { taskId: review.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  const document = response.json().documents[0];
+  for (const [kind, item] of [
+    ['document', document],
+    ['task', review],
+  ]) {
+    response = await f.action(f.captain, kind + '.request_review', { id: item.id, reviewers: [f.reviewer.id] });
+    assert.equal(response.statusCode, 200, response.body);
+    response = await f.action(f.reviewer, kind + '.review', {
+      id: item.id,
+      version: item.version,
+      decision: 'approve',
+    });
+    assert.equal(response.statusCode, 200, response.body);
   }
-  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } }); assert.equal(response.statusCode, 200, response.body);
-  await f.app.missionStore.update(data => { const teamId = data.workspace.projects[f.projectId].document.context.teamId; const team = data.teams.find(team => team.id === teamId); team.memberIds = team.memberIds.filter(id => id !== f.reviewer.memberId); });
-  const state = await f.read(), task = state.tasks.find(task => task.id === review.id);
-  assert.equal(state.documents[0].status, 'draft'); assert.deepEqual(state.documents[0].decisions, []); assert.equal(task.status, 'blocked'); assert.equal(task.approvalStatus, 'draft'); assert.equal(task.reviewNeedsRevalidation, true);
-  assert.equal((await f.action(f.captain, 'task.save', { item: { title: 'Handover', dependencyIds: [review.id], status: 'done' } })).statusCode, 409);
-  const stored = f.app.missionStore.read().workspace.delivery[f.projectId]; assert.equal(stored.documents[0].decisions.length, 1); assert.equal(stored.tasks.find(task => task.id === review.id).decisions.length, 1);
+  response = await f.action(f.captain, 'task.save', { id: review.id, item: { ...review, status: 'done' } });
+  assert.equal(response.statusCode, 200, response.body);
+  await f.app.missionStore.update(data => {
+    const teamId = data.workspace.projects[f.projectId].document.context.teamId;
+    const team = data.teams.find(team => team.id === teamId);
+    team.memberIds = team.memberIds.filter(id => id !== f.reviewer.memberId);
+  });
+  const state = await f.read(),
+    task = state.tasks.find(task => task.id === review.id);
+  assert.equal(state.documents[0].status, 'draft');
+  assert.deepEqual(state.documents[0].decisions, []);
+  assert.equal(task.status, 'blocked');
+  assert.equal(task.approvalStatus, 'draft');
+  assert.equal(task.reviewNeedsRevalidation, true);
+  assert.equal(
+    (
+      await f.action(f.captain, 'task.save', {
+        item: { title: 'Handover', dependencyIds: [review.id], status: 'done' },
+      })
+    ).statusCode,
+    409,
+  );
+  const stored = f.app.missionStore.read().workspace.delivery[f.projectId];
+  assert.equal(stored.documents[0].decisions.length, 1);
+  assert.equal(stored.tasks.find(task => task.id === review.id).decisions.length, 1);
 });
 
 test('a read-only test deployment shows delivery records but refuses every delivery write', async t => {
-  const f = await fixture(t), saved = await f.saveReq();
+  const f = await fixture(t),
+    saved = await f.saveReq();
   await f.restart({ deliveryReadOnly: true });
   const state = await f.read();
   assert.equal(state.permissions.readOnly, true);
   assert.equal(state.permissions.manage, false);
   assert.deepEqual(state.permissions.editableSectorIds, []);
-  assert.equal(state.requirements.find(item => item.id === saved.id).canEdit, false, 'the record stays readable without edit controls');
-  for (const [action, payload] of [['requirement.save', { item: { title: 'New', statement: 'The payload shall weigh at most 2 kg.', sectorId: 'avionics', method: 'test', level: 'system', artifactIds: [], parentIds: [], sourceRefs: [], entityIds: [] } }], ['requirement.comment', { id: saved.id, comment: 'Read only.' }], ['standards.set', { standards: [] }], ['task.save', { item: { title: 'Task' } }]]) {
+  assert.equal(
+    state.requirements.find(item => item.id === saved.id).canEdit,
+    false,
+    'the record stays readable without edit controls',
+  );
+  for (const [action, payload] of [
+    [
+      'requirement.save',
+      {
+        item: {
+          title: 'New',
+          statement: 'The payload shall weigh at most 2 kg.',
+          sectorId: 'avionics',
+          method: 'test',
+          level: 'system',
+          artifactIds: [],
+          parentIds: [],
+          sourceRefs: [],
+          entityIds: [],
+        },
+      },
+    ],
+    ['requirement.comment', { id: saved.id, comment: 'Read only.' }],
+    ['standards.set', { standards: [] }],
+    ['task.save', { item: { title: 'Task' } }],
+  ]) {
     const response = await f.action(f.captain, action, payload, state);
     assert.equal(response.statusCode, 423, action);
     assert.equal(response.json().code || response.json().error, 'DELIVERY_READ_ONLY');
   }
   assert.equal((await f.req(f.captain, 'POST', `${f.route}/requirements/${saved.id}/analyze`, {})).statusCode, 423);
-  assert.equal((await f.req(f.captain, 'POST', `${f.route}/assistant-runs`, { kind: 'requirements', assisted: false })).statusCode, 423);
+  assert.equal(
+    (await f.req(f.captain, 'POST', `${f.route}/assistant-runs`, { kind: 'requirements', assisted: false })).statusCode,
+    423,
+  );
   assert.deepEqual((await f.read()).requirements, state.requirements, 'refused writes leave the records untouched');
   // Meetings and teams remain editable in the same deployment.
-  const meeting = await f.req(f.captain, 'POST', '/meetings', { title: 'Read-only delivery check', scope: 'private', projectId: f.projectId });
+  const meeting = await f.req(f.captain, 'POST', '/meetings', {
+    title: 'Read-only delivery check',
+    scope: 'private',
+    projectId: f.projectId,
+  });
   assert.equal(meeting.statusCode, 201, meeting.body);
+});
+
+test('review packages follow ECSS-E-ST-10C Table A-1 and NASA NPR 7123.1D, with template drafts readable in the read-only version', async t => {
+  const f = await fixture(t);
+  await f.saveReq(f.captain, { title: 'Payload mass', statement: 'The payload mass shall be ≤ 4 kg (TBD).' });
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'ecss', startDate: '2026-11-02' });
+  assert.equal(response.statusCode, 200, response.body);
+  const ecss = response.json(),
+    mdr = ecss.tasks.find(task => task.reviewCode === 'MDR'),
+    pdr = ecss.tasks.find(task => task.reviewCode === 'PDR');
+  assert.deepEqual(
+    mdr.documentOptions.map(option => option.code),
+    ['MDD', 'SCR', 'TOR', 'TS', 'RJF', 'SEP', 'TP', 'SDM'],
+  );
+  assert.equal(mdr.documentOptions.find(option => option.code === 'TS').title, 'Especificação técnica preliminar');
+  assert.match(
+    mdr.documentOptions.find(option => option.code === 'MDD').reference.section,
+    /ECSS-E-ST-10C Rev\.1 · Anexo B/,
+  );
+  assert(
+    !ecss.tasks.some(task => task.documentOptions.some(option => /^(PROC|ATA)-/.test(option.id))),
+    'review minutes and procedures are not package documents',
+  );
+  assert(pdr.documentOptions.some(option => option.code === 'VCD' && option.maturityKey === 'matrix'));
+
+  const template = await f.req(f.captain, 'GET', `${f.route}/templates/${mdr.id}/REQ`);
+  assert.equal(template.statusCode, 200, template.body);
+  const { draft, canPrepare, prepared } = template.json();
+  assert.equal(canPrepare, true);
+  assert.equal(prepared, '');
+  for (const heading of [
+    '## 3 Necessidade do usuário',
+    '## 5 Perfil de vida',
+    '## 6 Ambientes e restrições',
+    '## 7 Requisitos',
+  ])
+    assert(draft.body.includes(heading), heading);
+  assert.match(draft.body, /> Orientação: /);
+  assert.match(draft.body, /≤ 4 kg \(TBD\)/);
+  assert.match(draft.body, /Versão preliminar/);
+  assert.equal((await f.read()).documents.length, 0, 'previewing a template stores nothing');
+  assert.equal((await f.req(f.outsider, 'GET', `${f.route}/templates/${mdr.id}/REQ`)).statusCode, 404);
+  assert.equal(
+    (await f.req(f.captain, 'GET', `${f.route}/templates/${mdr.id}/VCD`)).statusCode,
+    404,
+    'only documents of this review',
+  );
+  const zip = await f.req(f.captain, 'GET', `${f.route}/templates/${mdr.id}/REQ?format=latex`);
+  assert.equal(zip.statusCode, 200);
+  assert.equal(zip.rawPayload.subarray(0, 2).toString(), 'PK');
+
+  response = await f.action(f.captain, 'lifecycle.configure', { profile: 'nasa', startDate: '2026-11-02' });
+  const srr = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  assert.deepEqual(
+    srr.documentOptions.map(option => option.code),
+    ['NEC', 'CONOPS', 'SEMP', 'SRD', 'HSI', 'TDP', 'RMP', 'CMP', 'IRD', 'RVM', 'RTM'],
+  );
+  assert.equal(srr.documentOptions.find(option => option.code === 'SEMP').maturity, 'Linha de base');
+
+  await f.restart({ deliveryReadOnly: true });
+  const readOnly = await f.req(f.member, 'GET', `${f.route}/templates/${srr.id}/SEMP`);
+  assert.equal(readOnly.statusCode, 200, readOnly.body);
+  assert.equal(readOnly.json().canPrepare, false);
+  assert.match(readOnly.json().draft.body, /## 3 Resumo técnico/);
+  assert.equal(
+    (await f.req(f.member, 'GET', `${f.route}/templates/${srr.id}/SEMP?format=pdf`)).rawPayload
+      .subarray(0, 4)
+      .toString(),
+    '%PDF',
+  );
+});
+
+test('assigned reviewers suggest corrections on literal text and an editor applies them as a new version', async t => {
+  const f = await fixture(t);
+  await f.saveReq();
+  let response = await f.action(f.captain, 'lifecycle.configure', { profile: 'ecss', startDate: '2026-11-02' });
+  const srr = response.json().tasks.find(task => task.reviewCode === 'SRR');
+  response = await f.action(f.captain, 'document.prepare', { taskId: srr.id, templateId: 'REQ' });
+  assert.equal(response.statusCode, 200, response.body);
+  let document = response.json().documents[0];
+  assert.equal(document.code, 'TS');
+  assert.match(document.body, /## 7 Requisitos/);
+  assert.deepEqual(document.suggestions, []);
+  const suggest = (actor, payload) =>
+    f.action(actor, 'document.suggest', { id: document.id, version: document.version, ...payload });
+  const quote = 'PENDENTE — completar o propósito, o escopo e o motivo desta emissão.';
+  assert.equal(
+    (await suggest(f.reviewer, { quote, replacement: 'Escopo: carga útil.' })).statusCode,
+    403,
+    'no review requested yet',
+  );
+
+  assert.equal(
+    (await f.action(f.captain, 'document.request_review', { id: document.id, reviewers: [f.reviewer.id] })).statusCode,
+    200,
+  );
+  document = (await f.read(f.reviewer)).documents[0];
+  assert.equal(document.status, 'in_review');
+  assert.equal(document.canSuggest, true);
+  assert.equal((await f.read(f.member)).documents[0].canSuggest, false);
+  assert.equal((await suggest(f.member, { quote, replacement: 'x' })).statusCode, 403);
+  assert.equal(
+    (await suggest(f.captain, { quote, replacement: 'x' })).statusCode,
+    403,
+    'authors do not review their own version',
+  );
+  assert.equal(
+    (await suggest(f.reviewer, { quote: 'PENDENTE', replacement: 'x' })).statusCode,
+    400,
+    'ambiguous quotes are refused',
+  );
+  assert.equal((await suggest(f.reviewer, { quote: 'texto inexistente', replacement: 'x' })).statusCode, 400);
+  response = await suggest(f.reviewer, {
+    quote,
+    replacement: 'Este documento especifica a carga útil do projeto.',
+    comment: 'Complete o escopo antes da SRR.',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  response = await suggest(f.reviewer, {
+    quote: '## 5 Perfil de vida',
+    replacement: '',
+    comment: 'Inclua o transporte até a base.',
+  });
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(
+    (
+      await f.action(f.reviewer, 'document.review', {
+        id: document.id,
+        decision: 'request_changes',
+        comment: 'Ver sugestões.',
+        version: document.version,
+      })
+    ).statusCode,
+    200,
+  );
+  document = (await f.read()).documents[0];
+  assert.equal(document.status, 'changes_requested');
+  assert.equal(document.suggestions.length, 2);
+  const [text, note] = document.suggestions;
+
+  const resolve = (actor, suggestion, decision, version = document.version) =>
+    f.action(actor, 'document.resolve_suggestion', { id: document.id, suggestionId: suggestion.id, decision, version });
+  assert.equal((await resolve(f.member, text, 'accept')).statusCode, 403);
+  assert.equal((await resolve(f.captain, note, 'accept')).statusCode, 400, 'comments have no text to apply');
+  assert.equal((await resolve(f.captain, text, 'accept', document.version - 1)).statusCode, 409);
+  response = await resolve(f.captain, text, 'accept');
+  assert.equal(response.statusCode, 200, response.body);
+  document = response.json().documents[0];
+  assert.equal(document.version, 2);
+  assert.equal(document.status, 'draft', 'a changed version needs a new review');
+  assert.deepEqual(document.decisions, []);
+  assert.match(document.body, /Este documento especifica a carga útil do projeto\./);
+  assert.doesNotMatch(document.body, /completar o propósito/);
+  assert.equal(document.suggestions.find(item => item.id === text.id).status, 'accepted');
+  response = await resolve(f.captain, note, 'dismiss');
+  assert.equal(response.statusCode, 200, response.body);
+  assert.equal(response.json().documents[0].suggestions.find(item => item.id === note.id).status, 'dismissed');
+  assert.equal(response.json().documents[0].version, 2);
+  assert.equal((await resolve(f.captain, note, 'dismiss', 2)).statusCode, 404, 'resolved once');
+
+  await f.restart({ deliveryReadOnly: true });
+  const state = await f.read(f.reviewer);
+  assert.equal(state.documents[0].canSuggest, false);
+  assert.equal(
+    (
+      await f.req(f.reviewer, 'POST', `${f.route}/actions`, {
+        action: 'document.suggest',
+        id: document.id,
+        version: 2,
+        quote: 'Este documento especifica',
+        replacement: 'y',
+        expectedRevision: state.revision,
+        expectedBaselineHash: state.baselineHash,
+      })
+    ).statusCode,
+    423,
+  );
 });

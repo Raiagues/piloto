@@ -9,6 +9,6 @@ export type RailStop = { key: RailKey; pt: string; en: string; Icon: LucideIcon;
 export const PROJECT_RAIL: RailStop[] = [
   { key: 'project', pt: 'Visão geral', en: 'Overview', Icon: LayoutDashboard, area: 'project' },
   { key: 'requirements', pt: 'Requisitos', en: 'Requirements', Icon: ListChecks, area: 'requirements' },
-  { key: 'schedule', pt: 'Cronograma', en: 'Schedule', Icon: CalendarDays, area: 'schedule' }
+  { key: 'schedule', pt: 'Cronograma', en: 'Schedule', Icon: CalendarDays, area: 'schedule' },
 ];
-export const railLabel = (stop: RailStop, language: Language) => language === 'pt' ? stop.pt : stop.en;
+export const railLabel = (stop: RailStop, language: Language) => (language === 'pt' ? stop.pt : stop.en);

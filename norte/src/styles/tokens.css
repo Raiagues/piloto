@@ -1,63 +1,68 @@
 /* Light is the initial palette; dark mode requires an explicit preference. */
-:root, :root[data-theme="light"] {
+:root,
+:root[data-theme='light'] {
   color-scheme: light;
-  --norte-font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --norte-radius: 6px;
-  --norte-radius-panel: 10px;
-  --norte-radius-pill: 999px;
+  --norte-font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --norte-font-mono: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Square, rectangular surfaces; only avatars and status dots stay round. */
+  --norte-radius: 0px;
+  --norte-radius-panel: 0px;
+  --norte-radius-pill: 0px;
   --norte-header-height: 58px;
-  --norte-ease: cubic-bezier(.2, .7, .2, 1);
+  --norte-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
-  --norte-bg: #f1eee8;
-  --norte-surface: #fffefa;
-  --norte-surface-muted: #f0ede6;
-  --norte-surface-raised: #e7e1d7;
-  --norte-text: #2e2c28;
-  --norte-text-secondary: #5c574f;
-  --norte-text-muted: #787166;
-  --norte-border: #dcd7ce;
-  --norte-border-strong: #a49a8c;
+  /* Beige paper tones instead of white. */
+  --norte-bg: #e9e2d5;
+  --norte-surface: #f6f1e8;
+  --norte-surface-muted: #ede6da;
+  --norte-surface-raised: #e2d9ca;
+  --norte-text: #2b2823;
+  --norte-text-secondary: #57514a;
+  --norte-text-muted: #665f54;
+  --norte-border: #d3c9b9;
+  --norte-border-strong: #9e9384;
   /* Surfaces are told apart by tone, not outlines; dividers only separate rows. */
-  --norte-divider: #ebe7df;
-  --norte-field: #eeeae2;
-  --norte-accent: #8b5d34;
-  --norte-accent-hover: #754a27;
-  --norte-accent-soft: #f1e5d8;
+  --norte-divider: #e1d8ca;
+  --norte-field: #ebe4d8;
+  --norte-accent: #835630;
+  --norte-accent-hover: #6d4626;
+  --norte-accent-soft: #eadac6;
   --norte-on-accent: #ffffff;
-  --norte-link: #785238;
-  --norte-success: #276c52;
-  --norte-warning: #855b16;
-  --norte-danger: #a13935;
-  --norte-violet: #65548f;
-  --norte-overlay: #302b2370;
-  --norte-shadow: #302b2316;
-  --norte-shadow-popover: 0 14px 36px #302b2324, 0 2px 6px #302b2312;
-  --norte-shadow-card: 0 1px 2px #302b230a;
+  --norte-link: #734c31;
+  --norte-success: #22664c;
+  --norte-warning: #7d5512;
+  --norte-danger: #9c332f;
+  --norte-violet: #5f4e89;
+  --norte-overlay: #2b261e70;
+  --norte-shadow: #2b261e18;
+  --norte-shadow-popover: 0 14px 36px #2b261e26, 0 2px 6px #2b261e14;
+  --norte-shadow-card: 0 1px 2px #2b261e0a;
 }
-:root[data-theme="dark"] {
+/* Desaturated navy: one steel accent and muted status colours keep the page quiet. */
+:root[data-theme='dark'] {
   color-scheme: dark;
-  --norte-bg: #1e1c19;
-  --norte-surface: #28251f;
-  --norte-surface-muted: #322e27;
-  --norte-surface-raised: #3a352d;
-  --norte-text: #f3eee5;
-  --norte-text-secondary: #ccc4b7;
-  --norte-text-muted: #b1a796;
-  --norte-border: #494237;
-  --norte-border-strong: #756956;
-  --norte-divider: #39342c;
-  --norte-field: #322e27;
-  --norte-accent: #d4a373;
-  --norte-accent-hover: #e0b389;
-  --norte-accent-soft: #393128;
-  --norte-on-accent: #20170f;
-  --norte-link: #d4a373;
-  --norte-success: #94c3ae;
-  --norte-warning: #e0b46b;
-  --norte-danger: #e5a19c;
-  --norte-violet: #b9afd8;
-  --norte-overlay: #101419b8;
-  --norte-shadow: #00000040;
-  --norte-shadow-popover: 0 16px 40px #00000066, 0 2px 6px #00000040;
+  --norte-bg: #10161f;
+  --norte-surface: #151c27;
+  --norte-surface-muted: #1a2230;
+  --norte-surface-raised: #202938;
+  --norte-text: #d7dce4;
+  --norte-text-secondary: #aeb6c2;
+  --norte-text-muted: #8b94a3;
+  --norte-border: #262f3d;
+  --norte-border-strong: #3a4556;
+  --norte-divider: #1f2733;
+  --norte-field: #1a2230;
+  --norte-accent: #a9b8cc;
+  --norte-accent-hover: #bcc8d8;
+  --norte-accent-soft: #212b3a;
+  --norte-on-accent: #10161f;
+  --norte-link: #a9b8cc;
+  --norte-success: #8fb8a3;
+  --norte-warning: #c9ad7f;
+  --norte-danger: #cf9a96;
+  --norte-violet: #a7a3c4;
+  --norte-overlay: #0a0e14b8;
+  --norte-shadow: #00000059;
+  --norte-shadow-popover: 0 16px 40px #00000080, 0 2px 6px #00000052;
   --norte-shadow-card: none;
 }

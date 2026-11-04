@@ -1,0 +1,14 @@
+.runtime
+.venv
+**/node_modules
+**/dist
+novo_teste
+meetings/web/vendor
+norte/public
+norte/data
+norte/var
+*.json
+*.html
+*.md
+*.yaml
+*.yml

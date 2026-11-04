@@ -1,19 +1,43 @@
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { normalizeNickname, uniqueNickname, validNickname } from "./team-identity.mjs";
-import { randomUUID } from "node:crypto";
-export const DEFAULT_PROJECT_ROLES = [{id:'captain',name:'Responsável'},{id:'manager',name:'Gestor'},{id:'member',name:'Integrante'},{id:'advisor',name:'Revisor'}];
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { normalizeNickname, uniqueNickname, validNickname } from './team-identity.mjs';
+import { randomUUID } from 'node:crypto';
+export const DEFAULT_PROJECT_ROLES = [
+  { id: 'captain', name: 'Responsável' },
+  { id: 'manager', name: 'Gestor' },
+  { id: 'member', name: 'Integrante' },
+  { id: 'advisor', name: 'Revisor' },
+];
 
 export function createInitialData() {
   const timestamp = new Date().toISOString();
-  return { schemaVersion: 10, createdAt: timestamp, updatedAt: timestamp,
-    users: [], members: [], artifacts: [], sessions: [], invitations: [], emailVerifications: [],
-    meetings: {}, meetingInvitations: [], teams: [], workspace: { projects: {}, delivery: {} } };
+  return {
+    schemaVersion: 10,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    users: [],
+    members: [],
+    artifacts: [],
+    sessions: [],
+    invitations: [],
+    emailVerifications: [],
+    meetings: {},
+    meetingInvitations: [],
+    meetingNotes: {},
+    teams: [],
+    workspace: { projects: {}, delivery: {} },
+  };
 }
 
 export function normalizeStoredData(value, { copy = true } = {}) {
-  if (!value || ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(value.schemaVersion) || !Array.isArray(value.users) || !Array.isArray(value.members) || !Array.isArray(value.artifacts)) {
-    throw new Error("Unsupported Norte data schema.");
+  if (
+    !value ||
+    ![1, 2, 3, 4, 5, 6, 7, 8, 9, 10].includes(value.schemaVersion) ||
+    !Array.isArray(value.users) ||
+    !Array.isArray(value.members) ||
+    !Array.isArray(value.artifacts)
+  ) {
+    throw new Error('Unsupported Norte data schema.');
   }
   // Normalization preserves stored work; a new installation starts empty.
   const previousSchema = value.schemaVersion;
@@ -25,13 +49,17 @@ export function normalizeStoredData(value, { copy = true } = {}) {
   data.emailVerifications ??= [];
   data.meetings ??= {};
   data.meetingInvitations ??= [];
+  data.meetingNotes ??= {};
   const named = [];
   for (const user of data.users) {
     const nickname = normalizeNickname(user.nickname);
     // Keep valid legacy public names; generated names must not shadow a login.
     if (validNickname(nickname) && !named.some(u => u.nickname === nickname)) user.nickname = nickname;
     else {
-      const reserved = [...named, ...data.users.filter(other => other !== user && other.login).map(other => ({ login: other.login }))];
+      const reserved = [
+        ...named,
+        ...data.users.filter(other => other !== user && other.login).map(other => ({ login: other.login })),
+      ];
       user.nickname = uniqueNickname(reserved, user.name);
     }
     user.emailVerifiedAt ??= null;
@@ -39,22 +67,32 @@ export function normalizeStoredData(value, { copy = true } = {}) {
   }
   data.sessions = Array.isArray(data.sessions) ? data.sessions : [];
   data.teams = Array.isArray(data.teams) ? data.teams : [];
-  data.workspace = data.workspace && typeof data.workspace === "object" && !Array.isArray(data.workspace)
-    ? data.workspace : { projects: {}, delivery: {} };
+  data.workspace =
+    data.workspace && typeof data.workspace === 'object' && !Array.isArray(data.workspace)
+      ? data.workspace
+      : { projects: {}, delivery: {} };
   data.workspace.project ??= null;
-  if (!data.workspace.projects || typeof data.workspace.projects !== "object" || Array.isArray(data.workspace.projects)) data.workspace.projects = {};
-  if (data.workspace.project?.document?.id) data.workspace.projects[data.workspace.project.document.id] ??= data.workspace.project;
-  data.artifacts = data.artifacts.map((artifact) => ({
+  if (!data.workspace.projects || typeof data.workspace.projects !== 'object' || Array.isArray(data.workspace.projects))
+    data.workspace.projects = {};
+  if (data.workspace.project?.document?.id)
+    data.workspace.projects[data.workspace.project.document.id] ??= data.workspace.project;
+  data.artifacts = data.artifacts.map(artifact => ({
     ...artifact,
-    url: typeof artifact.url === "string" ? artifact.url.replace(/^\/mission-dev\/artifacts\//u, "artifacts/") : artifact.url,
-    scope: artifact.scope === "team" ? "team" : "project", ownerId: artifact.ownerId ?? null
+    url:
+      typeof artifact.url === 'string'
+        ? artifact.url.replace(/^\/mission-dev\/artifacts\//u, 'artifacts/')
+        : artifact.url,
+    scope: artifact.scope === 'team' ? 'team' : 'project',
+    ownerId: artifact.ownerId ?? null,
   }));
   for (const team of data.teams) {
     team.captainMemberId ??= data.users.find(user => user.id === team.createdBy)?.memberId || null;
     team.adminMemberIds ??= [];
     team.memberIds = Array.isArray(team.memberIds) ? team.memberIds : [];
     if (previousSchema < 10) {
-      const awaiting = team.memberIds.filter(id => data.members.some(m => m.id === id && !m.accountId && m.accountStatus === 'invited'));
+      const awaiting = team.memberIds.filter(id =>
+        data.members.some(m => m.id === id && !m.accountId && m.accountStatus === 'invited'),
+      );
       team.legacyInvitedMemberIds = [...new Set([...(team.legacyInvitedMemberIds || []), ...awaiting])];
       team.memberIds = team.memberIds.filter(id => !awaiting.includes(id));
     }
@@ -70,11 +108,16 @@ export function normalizeStoredData(value, { copy = true } = {}) {
     project.context.sectors ??= [];
     project.context.assignments ??= [];
     project.context.roles ??= structuredClone(DEFAULT_PROJECT_ROLES);
-    project.context.teamId ??= data.teams.find((team) => team.name === project.context.teamName)?.id ?? null;
-    project.context.teamArtifactIds = Array.isArray(project.context.teamArtifactIds) ? project.context.teamArtifactIds : [];
-    project.context.projectArtifactIds = Array.isArray(project.context.projectArtifactIds) ? project.context.projectArtifactIds : [];
+    project.context.teamId ??= data.teams.find(team => team.name === project.context.teamName)?.id ?? null;
+    project.context.teamArtifactIds = Array.isArray(project.context.teamArtifactIds)
+      ? project.context.teamArtifactIds
+      : [];
+    project.context.projectArtifactIds = Array.isArray(project.context.projectArtifactIds)
+      ? project.context.projectArtifactIds
+      : [];
   }
-  if (data.workspace.project?.document?.id) data.workspace.project = data.workspace.projects[data.workspace.project.document.id];
+  if (data.workspace.project?.document?.id)
+    data.workspace.project = data.workspace.projects[data.workspace.project.document.id];
   return data;
 }
 
@@ -92,11 +135,11 @@ export class JsonDataStore {
   async init() {
     await mkdir(dirname(this.filePath), { recursive: true });
     try {
-      const parsed = JSON.parse(await readFile(this.filePath, "utf8"));
+      const parsed = JSON.parse(await readFile(this.filePath, 'utf8'));
       this.data = normalizeStoredData(parsed);
       if (parsed.schemaVersion !== this.data.schemaVersion) await this.persist(this.data);
     } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
+      if (error?.code !== 'ENOENT') throw error;
       this.data = createInitialData();
       await this.persist(this.data);
     }
@@ -104,7 +147,7 @@ export class JsonDataStore {
   }
 
   read(select = value => value) {
-    if (!this.data) throw new Error("Data store was not initialized.");
+    if (!this.data) throw new Error('Data store was not initialized.');
     return clone(select(this.data));
   }
 

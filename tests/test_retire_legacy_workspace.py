@@ -1,4 +1,5 @@
 """Offline retirement preserves real identities, retained ACLs and native meetings."""
+
 from copy import deepcopy
 import hashlib
 import importlib.util
@@ -20,38 +21,112 @@ class WorkspaceRetirementTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.folder = Path(self.temporary.name)
-        self.store, self.meetings, self.evidence = [self.folder / name for name in ('state.json', 'meeting.sqlite3', 'evidence.sqlite3')]
-        kept = {'document': {'id': 'lyle', 'context': {'teamId': 'team-live', 'projectArtifactIds': ['doc-live']}, 'name': 'LYLE'}, 'revision': 3}
+        self.store, self.meetings, self.evidence = [
+            self.folder / name for name in ('state.json', 'meeting.sqlite3', 'evidence.sqlite3')
+        ]
+        kept = {
+            'document': {
+                'id': 'lyle',
+                'context': {'teamId': 'team-live', 'projectArtifactIds': ['doc-live']},
+                'name': 'LYLE',
+            },
+            'revision': 3,
+        }
         self.original = {
-            'users': [{'id': 'admin', 'memberId': 'm-admin', 'accessRole': 'owner_admin', 'passwordHash': 'private-admin-hash'}, {'id': 'real', 'memberId': 'm-real', 'passwordHash': 'private-real-hash'}, {'id': 'demo', 'memberId': 'm-demo', 'isDemoAccount': True}],
-            'members': [{'id': 'm-admin', 'accountId': 'admin'}, {'id': 'm-real', 'accountId': 'real'}, {'id': 'm-demo', 'accountId': 'demo'}],
-            'teams': [{'id': 'team-live', 'captainMemberId': 'm-real', 'memberIds': ['m-real']}, {'id': 'team-old', 'memberIds': ['m-admin']}],
-            'artifacts': [{'id': 'doc-live', 'scope': 'project', 'ownerId': 'lyle'}, {'id': 'doc-old', 'scope': 'project', 'ownerId': 'satellite'}],
-            'workspace': {'projects': {'lyle': kept, 'satellite': {'document': {'id': 'satellite', 'context': {'teamId': 'team-old'}}}}, 'project': {'document': {'id': 'satellite'}}, 'delivery': {'lyle': {'revision': 8}, 'satellite': {}}, 'labs': {'old': {}}},
-            'meetings': {'kept-private': {'id': 'kept-private', 'ownerId': 'real'}, 'old': {'id': 'old', 'ownerId': 'admin', 'projectId': 'satellite'}},
+            'users': [
+                {
+                    'id': 'admin',
+                    'memberId': 'm-admin',
+                    'accessRole': 'owner_admin',
+                    'passwordHash': 'private-admin-hash',
+                },
+                {'id': 'real', 'memberId': 'm-real', 'passwordHash': 'private-real-hash'},
+                {'id': 'demo', 'memberId': 'm-demo', 'isDemoAccount': True},
+            ],
+            'members': [
+                {'id': 'm-admin', 'accountId': 'admin'},
+                {'id': 'm-real', 'accountId': 'real'},
+                {'id': 'm-demo', 'accountId': 'demo'},
+            ],
+            'teams': [
+                {'id': 'team-live', 'captainMemberId': 'm-real', 'memberIds': ['m-real']},
+                {'id': 'team-old', 'memberIds': ['m-admin']},
+            ],
+            'artifacts': [
+                {'id': 'doc-live', 'scope': 'project', 'ownerId': 'lyle'},
+                {'id': 'doc-old', 'scope': 'project', 'ownerId': 'satellite'},
+            ],
+            'workspace': {
+                'projects': {
+                    'lyle': kept,
+                    'satellite': {'document': {'id': 'satellite', 'context': {'teamId': 'team-old'}}},
+                },
+                'project': {'document': {'id': 'satellite'}},
+                'delivery': {'lyle': {'revision': 8}, 'satellite': {}},
+                'labs': {'old': {}},
+            },
+            'meetings': {
+                'kept-private': {'id': 'kept-private', 'ownerId': 'real'},
+                'old': {'id': 'old', 'ownerId': 'admin', 'projectId': 'satellite'},
+            },
             'sessions': [{'id': 'real-session', 'userId': 'real'}, {'id': 'demo-session', 'userId': 'demo'}],
-            'authBootstrap': {'completedAt': 'keep'}, 'platform': {'conversations': {'real-chat': {'createdBy': 'real', 'participantIds': ['admin', 'real']}, 'demo-chat': {'createdBy': 'demo', 'participantIds': ['demo']}}, 'catalog': {'retired': True}},
+            'authBootstrap': {'completedAt': 'keep'},
+            'platform': {
+                'conversations': {
+                    'real-chat': {'createdBy': 'real', 'participantIds': ['admin', 'real']},
+                    'demo-chat': {'createdBy': 'demo', 'participantIds': ['demo']},
+                },
+                'catalog': {'retired': True},
+            },
         }
         self.store.write_text(json.dumps(self.original))
         bridge = lambda identifier: 'bridge.' + hashlib.sha256(('meeting:' + identifier).encode()).hexdigest()[:25]
         with sqlite3.connect(self.meetings) as database:
-            database.executescript('CREATE TABLE norte_users(id INTEGER PRIMARY KEY, username TEXT, password_hash TEXT); CREATE TABLE norte_records(user_id INTEGER REFERENCES norte_users(id),key TEXT,value TEXT); CREATE TABLE ai_usage(id TEXT,user_id INTEGER REFERENCES norte_users(id));')
-            database.executemany('INSERT INTO norte_users VALUES(?,?,?)', [(1, 'native-account', 'native-secret'), (2, bridge('old'), ''), (3, bridge('kept-private'), '')])
-            database.executemany('INSERT INTO norte_records VALUES(?,?,?)', [(1, 'native-meeting', 'original speech'), (2, 'old-meeting', 'retired speech'), (3, 'kept-meeting', 'private speech')])
+            database.executescript(
+                'CREATE TABLE norte_users(id INTEGER PRIMARY KEY, username TEXT, password_hash TEXT); CREATE TABLE norte_records(user_id INTEGER REFERENCES norte_users(id),key TEXT,value TEXT); CREATE TABLE ai_usage(id TEXT,user_id INTEGER REFERENCES norte_users(id));'
+            )
+            database.executemany(
+                'INSERT INTO norte_users VALUES(?,?,?)',
+                [(1, 'native-account', 'native-secret'), (2, bridge('old'), ''), (3, bridge('kept-private'), '')],
+            )
+            database.executemany(
+                'INSERT INTO norte_records VALUES(?,?,?)',
+                [
+                    (1, 'native-meeting', 'original speech'),
+                    (2, 'old-meeting', 'retired speech'),
+                    (3, 'kept-meeting', 'private speech'),
+                ],
+            )
             database.executemany('INSERT INTO ai_usage VALUES(?,?)', [('old-use', 2), ('private-use', 3)])
         with sqlite3.connect(self.evidence) as database:
-            database.executescript('CREATE TABLE schema_migrations(version INTEGER); CREATE TABLE sources(id TEXT PRIMARY KEY,project_id TEXT); CREATE TABLE extractions(id TEXT,source_id TEXT REFERENCES sources(id),body BLOB); CREATE TABLE requirements(project_id TEXT,id TEXT); CREATE TABLE reference_entries(id TEXT,source_id TEXT REFERENCES sources(id));')
+            database.executescript(
+                'CREATE TABLE schema_migrations(version INTEGER); CREATE TABLE sources(id TEXT PRIMARY KEY,project_id TEXT); CREATE TABLE extractions(id TEXT,source_id TEXT REFERENCES sources(id),body BLOB); CREATE TABLE requirements(project_id TEXT,id TEXT); CREATE TABLE reference_entries(id TEXT,source_id TEXT REFERENCES sources(id));'
+            )
             database.execute('INSERT INTO schema_migrations VALUES(1)')
-            database.executemany('INSERT INTO sources VALUES(?,?)', [('global-source', None), ('old-source', 'satellite')])
-            database.execute('INSERT INTO extractions VALUES(?,?,?)', ('old-extraction', 'old-source', b'original binary'))
+            database.executemany(
+                'INSERT INTO sources VALUES(?,?)', [('global-source', None), ('old-source', 'satellite')]
+            )
+            database.execute(
+                'INSERT INTO extractions VALUES(?,?,?)', ('old-extraction', 'old-source', b'original binary')
+            )
             database.execute('INSERT INTO requirements VALUES(?,?)', ('satellite', 'S-1'))
-            database.executemany('INSERT INTO reference_entries VALUES(?,?)', [('reference-global', 'global-source'), ('reference-old', 'old-source')])
+            database.executemany(
+                'INSERT INTO reference_entries VALUES(?,?)',
+                [('reference-global', 'global-source'), ('reference-old', 'old-source')],
+            )
 
     def plan(self):
-        return retirement.report_for(self.store.read_bytes(), 'lyle', retirement.database_rows(self.meetings), retirement.database_rows(self.evidence))
+        return retirement.report_for(
+            self.store.read_bytes(),
+            'lyle',
+            retirement.database_rows(self.meetings),
+            retirement.database_rows(self.evidence),
+        )
 
     def apply(self, fingerprint):
-        return retirement.apply_migration(self.store, self.meetings, self.evidence, 'lyle', fingerprint, self.folder / 'backups')
+        return retirement.apply_migration(
+            self.store, self.meetings, self.evidence, 'lyle', fingerprint, self.folder / 'backups'
+        )
 
     def test_check_never_writes_and_report_has_no_credentials(self):
         before = [path.read_bytes() for path in (self.store, self.meetings, self.evidence)]
@@ -93,6 +168,7 @@ class WorkspaceRetirementTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'fingerprint'):
             self.apply('not-reviewed')
         import os
+
         (self.folder / 'server.pid').write_text(json.dumps({'pid': os.getpid()}))
         with self.assertRaisesRegex(ValueError, 'supervisor'):
             self.apply(report['fingerprint'])
@@ -103,12 +179,14 @@ class WorkspaceRetirementTests(unittest.TestCase):
         before = [retirement.database_rows(path) for path in (self.meetings, self.evidence)]
         replace = retirement.os.replace
         calls = 0
+
         def fail_second(source, destination):
             nonlocal calls
             calls += 1
             if calls == 2:
                 raise OSError('simulated publication failure')
             replace(source, destination)
+
         with patch.object(retirement.os, 'replace', side_effect=fail_second):
             with self.assertRaisesRegex(OSError, 'simulated'):
                 self.apply(report['fingerprint'])

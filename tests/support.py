@@ -1,4 +1,5 @@
 """Signed-in sessions for HTTP tests: an in-memory account store, no network."""
+
 from unittest.mock import patch
 
 import auth
